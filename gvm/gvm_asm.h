@@ -41,14 +41,6 @@ LIST
 
 */
 
-
-
-
-
-gvm_chunk_t gvm_asm_make(char* code) {
-
-}
-
-
+gvm_result_t asm_assemble(char* code_buffer);
 
 #endif // GVM_ASM_H_

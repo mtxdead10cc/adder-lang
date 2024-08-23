@@ -53,9 +53,10 @@ typedef enum token_type_t {
 
 typedef struct token_t {
     token_type_t type;
-    int src_index;
-    int src_line;
-    int src_column;
+    int src_index;  // the start index in the source text (parser_text_t)
+    int src_line;   // line in the source text (parser_text_t)
+    int src_column; // column int he source text (parser_text_t)
+    int index;      // index of the token (parser_tokens_t)
 } token_t;
 
 typedef struct parser_text_t {
@@ -77,8 +78,29 @@ typedef struct parser_t {
 
 typedef enum gvm_result_t {
     RES_OK,
+    RES_NOT_SUPPORTED,
     RES_OUT_OF_MEMORY,
     RES_ERROR
 } gvm_result_t;
+
+typedef enum gvm_op_t {
+    OP_DUP,
+    OP_PUSH,
+    OP_LOAD,
+    OP_JUMP,
+    OP_JUMP_IF_FALSE,
+    OP_CMP_EQUAL,
+    OP_CMP_LESS_THAN,
+    OP_CMP_MORE_THAN,
+    OP_AND,
+    OP_OR,
+    OP_NOR,
+    OP_MUL,
+    OP_ADD,
+    OP_SUB,
+    OP_NEG,
+    OP_EXIT
+} gvm_op_t;
+
 
 #endif // GVM_TYPES_H_

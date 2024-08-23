@@ -93,7 +93,8 @@ gvm_result_t tokens_push_on_change(parser_tokens_t* tokens, token_type_t tt, int
             .src_column = column,
             .src_line = line,
             .src_index = index,
-            .type = tt
+            .type = tt,
+            .index = tokens->size
         });
     }
     return res;
@@ -115,10 +116,11 @@ gvm_result_t tokenize(parser_text_t* text, parser_tokens_t* tokens) {
             break;
         }
 
-        if( in_quoute ) {
-            res = tokens_push_on_change(tokens, TT_STRING, line, column, i);
-        } else if ( lex == L_QUOTE ) {
+        if ( lex == L_QUOTE ) {
             in_quoute = !in_quoute;
+            res = tokens_push_on_change(tokens, TT_STRING, line, column, i);
+        } else if( in_quoute ) {
+            res = tokens_push_on_change(tokens, TT_STRING, line, column, i);
         } else if ( lex == L_COLON ) {
             res = tokens_push_on_change(tokens, TT_COLON, line, column, i);
         } else if ( lex == L_DOT && last == L_NUMBER ) {
@@ -194,7 +196,7 @@ void parser_destroy(parser_t* p) {
 }
 
 bool parser_is_at_end(parser_t* p) {
-    return p->current < p->tokens.size;
+    return (p->current < p->tokens.size) == false;
 }
 
 bool parser_advance(parser_t* p) {
@@ -230,14 +232,13 @@ bool parser_consume(parser_t* p, token_type_t tt) {
 }
 
 void parser_current_as_string(parser_t* parser, char* buffer, int max_len) {
-    int token_index = parser->current;
-    parser_token_as_string(parser, token_index, buffer, max_len);
+    parser_token_as_string(parser, parser->tokens.array[parser->current], buffer, max_len);
 }
 
-void parser_token_as_string(parser_t* parser, int token_index, char* buffer, int max_len) {
-    int str_start = parser->tokens.array[token_index].src_index;
-    int str_end = (token_index < (parser->tokens.size - 1))
-        ? parser->tokens.array[(token_index + 1)].src_index
+void parser_token_as_string(parser_t* parser, token_t token, char* buffer, int max_len) {
+    int str_start = token.src_index;
+    int str_end = (token.index < (parser->tokens.size - 1))
+        ? parser->tokens.array[(token.index + 1)].src_index
         : parser->tokens.array[(parser->tokens.size - 1)].src_index;
     int len = str_end - str_start;
     if( len > max_len ) {
@@ -259,4 +260,19 @@ char* parser_tt_to_str(token_type_t tt) {
         case TT_END: return "END";
         default: return "<undefined>";
     }
+}
+
+token_t parser_current(parser_t* p) {
+    return p->tokens.array[p->current];
+}
+
+token_t parser_peek(parser_t* p, int lookahead) {
+    int index = p->current + lookahead;
+    int last_index = p->tokens.size - 1;
+    if( index > last_index ) {
+        token_t err = p->tokens.array[last_index];
+        err.type = TT_UNKNOWN;
+        return err;
+    }
+    return p->tokens.array[index];
 }

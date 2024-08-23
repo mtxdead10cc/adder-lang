@@ -1,6 +1,7 @@
 #include "gvm.h"
 #include "gvm_grid.h"
 #include "gvm_parser.h"
+#include "gvm_asm.h"
 #include <stdio.h>
 
 char* gvm_result_to_string(gvm_result_t res) {
@@ -49,17 +50,17 @@ void test() {
     grid_destroy(&grid);
 
     char* str = "label:\n\tpush 5\n\tpush 0\n\tloop:"
-        "\n\t\tdup 2\n\t\tis-less\n\t\tif-false\n\t\t\tjump exit-loop"
-        "\n\t\tpush 1\n\t\tadd\n\t\tjump loop\n\texit-loop:\n\t\tquit";
+        "\n\t\tdup 2\n\t\tis-less\n\t\tif-false exit-loop"
+        "\n\t\tpush 1\n\t\tadd\n\t\tjump loop\n\texit-loop:\n\t\texit 0";
     printf("TEST \n%s\n", str);
 
-    parser_t* parser = parser_create(str);
+    /*parser_t* parser = parser_create(str);
     if( parser != NULL ) {
         printf("parser->text.size: %i\n", parser->text.size);
         printf("parser->tokens.size: %i\n", parser->tokens.size);
         for(int i = 0; i < parser->tokens.size; i++) {
             char buf[128] = {0};
-            parser_token_as_string(parser, i, buf, 127);
+            parser_token_as_string(parser, parser->tokens.array[i], buf, 127);
             printf("TOKEN: '%s'\n", buf);
             token_t tok = parser->tokens.array[i];
             printf("  type: %s\n", parser_tt_to_str(tok.type));
@@ -70,5 +71,8 @@ void test() {
         parser_destroy(parser);
     } else {
         printf("failed to create parser.\n");
-    }
+    }*/
+
+    gvm_result_t res = asm_assemble(str);
+    gvm_print_if_error(res, "asm_assemble");
 }
