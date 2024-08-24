@@ -22,7 +22,7 @@ typedef enum val_type_t {
 typedef struct val_t val_t;
 
 typedef struct list_t {
-    int len;
+    uint16_t length;
     val_t* ptr;
 } list_t;
 

@@ -276,3 +276,24 @@ token_t parser_peek(parser_t* p, int lookahead) {
     }
     return p->tokens.array[index];
 }
+
+char* parser_get_token_char_ptr(parser_t* parser, token_t token) {
+    return parser->text.array + token.src_index;
+}
+
+#define INT_BUFFER_LEN 16
+int parser_get_token_int_value(parser_t* parser, token_t token) {
+    int str_start = token.src_index;
+    int str_end = (token.index < (parser->tokens.size - 1))
+        ? parser->tokens.array[(token.index + 1)].src_index
+        : parser->tokens.array[(parser->tokens.size - 1)].src_index;
+    int len = str_end - str_start;
+    if( len > INT_BUFFER_LEN ) {
+        len = INT_BUFFER_LEN;
+    }
+    char buf[INT_BUFFER_LEN] = { 0 };
+    for(int i = 0; i < len; i++) {
+        buf[i] = parser->text.array[i + str_start];
+    }
+    return atoi(buf);
+}

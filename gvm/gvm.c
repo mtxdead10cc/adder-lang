@@ -49,7 +49,7 @@ void test() {
     grid_print(&grid);
     grid_destroy(&grid);
 
-    char* str = "label:\n\tpush 5\n\tpush 0\n\tloop:"
+    char* str = "label:\n\tpush \"Hej HEJ LOL!\"\n\tpush 0\n\tloop:"
         "\n\t\tdup 2\n\t\tis-less\n\t\tif-false exit-loop"
         "\n\t\tpush 1\n\t\tadd\n\t\tjump loop\n\texit-loop:\n\t\texit 0";
     printf("TEST \n%s\n", str);
