@@ -20,16 +20,18 @@ typedef enum val_type_t {
 } val_type_t;
 
 typedef struct val_t val_t;
+typedef struct val_buffer_t val_buffer_t;
 
 typedef struct list_t {
     uint16_t length;
-    val_t* ptr;
+    uint16_t start_index;
+    val_buffer_t* buffer;
 } list_t;
 
 typedef struct val_t {
     val_type_t type;
     union {
-        int16_t n;
+        int     n;
         char    c;
         bool    b;
         list_t  l;

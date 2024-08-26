@@ -53,19 +53,7 @@ bool val_buffer_create(val_buffer_t* buffer, int capacity) {
     return RES_OK;
 }
 
-void val_buffer_internal_update_memory_location(val_t* old, val_t* current, int current_length) {
-    for(int i = 0; i < current_length; i++) {
-        if( current[i].type == VAL_LIST ) {
-            val_t* ptr = current[i].data.l.ptr;
-            int offset = (ptr - old) / sizeof(val_t);
-            current[i].data.l.ptr = current + offset;
-        }
-    }
-}
-
-bool val_buffer_internal_add(val_buffer_t* buffer, val_t value, bool update_refs) {
-    val_t* last_pointer = buffer->values;
-
+bool val_buffer_add(val_buffer_t* buffer, val_t value) {
     if( buffer->size >= buffer->capacity ) {
         int new_capacity = buffer->size * 2;
         val_t* new_vals = (val_t*) realloc(buffer->values, new_capacity * sizeof(val_t));
@@ -75,29 +63,9 @@ bool val_buffer_internal_add(val_buffer_t* buffer, val_t value, bool update_refs
         buffer->capacity = new_capacity;
         buffer->values = new_vals;
     }
-
     buffer->values[buffer->size] = value;
     buffer->size ++;
-
-    if( update_refs && last_pointer != buffer->values ) {
-        // update all pointers so they point to
-        // the corresponding entry in the new
-        // memory location
-        val_buffer_internal_update_memory_location(
-            last_pointer,
-            buffer->values,
-            buffer->size);
-    }
-
     return RES_OK;
-}
-
-bool val_buffer_add_update_refs(val_buffer_t* buffer, val_t value) {
-    return val_buffer_internal_add(buffer, value, true);
-}
-
-bool val_buffer_add(val_buffer_t* buffer, val_t value) {
-    return val_buffer_internal_add(buffer, value, false);
 }
 
 void val_buffer_destroy(val_buffer_t* buffer) {

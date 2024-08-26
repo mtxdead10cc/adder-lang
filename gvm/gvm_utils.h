@@ -23,7 +23,6 @@ typedef struct val_buffer_t {
 
 bool val_buffer_create(val_buffer_t* buffer, int capacity);
 bool val_buffer_add(val_buffer_t* buffer, val_t value);
-bool val_buffer_add_update_refs(val_buffer_t* buffer, val_t value);
 void val_buffer_destroy(val_buffer_t* buffer);
 void val_buffer_print(val_buffer_t* buffer);
 

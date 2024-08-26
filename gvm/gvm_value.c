@@ -1,7 +1,8 @@
 #include "gvm_value.h"
 #include <stdio.h>
+#include "gvm_utils.h"
 
-val_t val_number(int16_t value) {
+val_t val_number(int value) {
     return (val_t) {
         .type = VAL_NUMBER,
         .data.n = value
@@ -22,12 +23,13 @@ val_t val_char(char value) {
     };
 }
 
-val_t val_list(val_t* start, uint16_t length) {
+val_t val_list(val_buffer_t* buffer, uint16_t start_index, uint16_t length) {
     return (val_t) {
         .type = VAL_LIST,
         .data.l = (list_t) {
             .length = length,
-            .ptr = start
+            .start_index = start_index,
+            .buffer = buffer
         }
     };
 }
@@ -46,9 +48,15 @@ void val_print(val_t* val) {
         break;
     case VAL_LIST:
         printf("[");
-        for(int i = 0; i < val->data.l.length; i++) {
-            val_print(val->data.l.ptr + i);
-            printf(" ");
+        val_buffer_t* buffer = val->data.l.buffer;
+        int start = val->data.l.start_index;
+        int length = val->data.l.length;
+        val_t* list = &buffer->values[start];
+        for(int i = 0; i < length; i++) {
+            val_print(&list[i]);
+            if(list[i].type != VAL_CHAR) {
+                printf(" ");
+            }
         }
         printf("]");
         break;

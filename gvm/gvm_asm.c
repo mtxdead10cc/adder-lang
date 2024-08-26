@@ -107,20 +107,20 @@ int label_get_address(label_set_t* set, char* str, int len) {
     return -1;
 }
 
-int consts_add_number(val_buffer_t* consts, int16_t value) {
-    gvm_result_t res = val_buffer_add_update_refs(consts, val_number(value));
+int consts_add_number(val_buffer_t* consts, int value) {
+    gvm_result_t res = val_buffer_add(consts, val_number(value));
     gvm_print_if_error(res, "consts_add");
     return consts->size - 1;
 }
 
 int consts_add_bool(val_buffer_t* consts, bool value) {
-    gvm_result_t res = val_buffer_add_update_refs(consts, val_bool(value));
+    gvm_result_t res = val_buffer_add(consts, val_bool(value));
     gvm_print_if_error(res, "consts_add");
     return consts->size - 1;
 }
 
 int consts_add_char(val_buffer_t* consts, char value) {
-    gvm_result_t res = val_buffer_add_update_refs(consts, val_char(value));
+    gvm_result_t res = val_buffer_add(consts, val_char(value));
     gvm_print_if_error(res, "consts_add");
     return consts->size - 1;
 }
@@ -144,9 +144,10 @@ int consts_add_string(val_buffer_t* consts, char* text) {
     for(int i = 0; i < string_length; i++) {
         consts_add_char(consts, text[i]);
     }
-    val_t* start = &consts->values[consts->size - string_length];
-    gvm_result_t res = val_buffer_add_update_refs(consts,
-        val_list(start, (uint16_t)string_length));
+    gvm_result_t res = val_buffer_add(consts,
+        val_list(consts,
+            (uint16_t) consts->size - string_length,
+            (uint16_t) string_length));
     gvm_print_if_error(res, "consts_add_string");
     return consts->size - 1;
 }
@@ -161,7 +162,7 @@ int consts_add_current(val_buffer_t* consts, parser_t* parser) {
         }
         case TT_NUMBER: {
             int value = parser_get_token_int_value(parser, token);
-            return consts_add_number(consts, (int16_t) value);
+            return consts_add_number(consts, value);
         }
         default: {
             printf("cant load %s as const.\n", parser_tt_to_str(token.type));
@@ -170,9 +171,17 @@ int consts_add_current(val_buffer_t* consts, parser_t* parser) {
     }
 }
 
+void asm_debug_print_token(parser_t* parser) {
+    token_t token = parser_current(parser);
+    char* str = parser_get_token_string_ptr(parser, token);
+    int str_len = parser_get_token_string_length(parser, token);
+    printf("%.*s", str_len, str);
+}
+
 
 #define DBG_LOG(...) printf(__VA_ARGS__)
 #define DBG_LOG_CONST(C, I) val_print(&(C)->values[(I)])
+#define DBG_LOG_OPERAND(P) asm_debug_print_token(P)
 
 gvm_result_t asm_scan_labels(parser_t* parser, label_set_t* label_set) {
     bool keep_going = true;
@@ -298,11 +307,12 @@ gvm_result_t asm_assemble(char* code_buffer) {
                     int len = parser_get_token_string_length(parser, token);
                     char* ptr = parser_get_token_string_ptr(parser, token);
                     int label_index = label_get_address(&label_set, ptr, len);
-                    DBG_LOG("%i (label) ", label_index);
+                    DBG_LOG("%i (%.*s) ", label_index, len, ptr);
                     assert(label_index >= 0 && label_index < 256);
                     u8buffer_write(&code_section, (uint8_t) label_index);
                 } else {
-                    DBG_LOG("(other) ");
+                    DBG_LOG_OPERAND(parser);
+                    DBG_LOG(" ");
                 }
                 keep_going &= parser_advance(parser);
                 arg_index ++;
@@ -310,9 +320,6 @@ gvm_result_t asm_assemble(char* code_buffer) {
             DBG_LOG("\n");
         }
     }
-
-
-    val_buffer_print(&const_store);
 
     // debug print
 #ifdef DGB_PRINT
