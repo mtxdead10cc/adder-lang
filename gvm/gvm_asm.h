@@ -27,20 +27,17 @@ label:
 TODO
 
     Handle conversion from gvmasm to byte code
-    [ ] parse the asm code
-    [ ] read up the constants and put them in the data section
-    [ ] replace constants with references to the data section
-    [ ] replace labels with actual adresses
-    [ ] encode data into val_t format
-
-
-LIST
-
-    1. collect all label locations and names, remove line
-    2. collect all constant entries
+    [X] parse the asm code
+    [X] read up the constants and put them in the data section
+    [X] replace constants with references to the data section
+    [X] replace labels with actual adresses
+    [X] encode data into val_t format
+    [ ] bytcode const refs are always u8 now, change to u16?
 
 */
 
-gvm_result_t asm_assemble(char* code_buffer);
+code_object_t asm_assemble_code_object(char* code_buffer);
+void asm_debug_disassemble_code_object(code_object_t* code_object);
+void asm_destroy_code_object(code_object_t* code_object);
 
 #endif // GVM_ASM_H_

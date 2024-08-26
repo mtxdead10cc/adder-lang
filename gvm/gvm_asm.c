@@ -23,10 +23,18 @@ static op_scheme_t schemes[] = {
     {"push",        OP_PUSH,            ARGSPEC1(TT_STRING),    0x01,              0x00 },
     {"dup",         OP_DUP,             ARGSPEC1(TT_NUMBER),    0x00,              0x00 },
     {"is-less",     OP_CMP_LESS_THAN,   ARGSPEC1(0),            0x00,              0x00 },
+    {"is-more",     OP_CMP_MORE_THAN,   ARGSPEC1(0),            0x00,              0x00 },
+    {"is-equal",    OP_CMP_EQUAL,       ARGSPEC1(0),            0x00,              0x00 },
     {"if-false",    OP_JUMP_IF_FALSE,   ARGSPEC1(TT_SYMBOL),    0x00,              0x01 },
     {"jump",        OP_JUMP,            ARGSPEC1(TT_SYMBOL),    0x00,              0x01 },
+    {"exit",        OP_EXIT,            ARGSPEC1(TT_NUMBER),    0x00,              0x00 },
+    {"and",         OP_AND,             ARGSPEC1(0),            0x00,              0x00 },
+    {"or",          OP_OR,              ARGSPEC1(0),            0x00,              0x00 },
+    {"nor",         OP_NOR,             ARGSPEC1(0),            0x00,              0x00 },
+    {"mul",         OP_MUL,             ARGSPEC1(0),            0x00,              0x00 },
     {"add",         OP_ADD,             ARGSPEC1(0),            0x00,              0x00 },
-    {"exit",        OP_EXIT,            ARGSPEC1(TT_NUMBER),    0x00,              0x00 }
+    {"sub",         OP_SUB,             ARGSPEC1(0),            0x00,              0x00 },
+    {"neg",         OP_NEG,             ARGSPEC1(0),            0x00,              0x00 },
 };
 
 int scheme_get_arg_count(uint32_t typespec) {
@@ -108,20 +116,26 @@ int label_get_address(label_set_t* set, char* str, int len) {
 }
 
 int consts_add_number(val_buffer_t* consts, int value) {
-    gvm_result_t res = val_buffer_add(consts, val_number(value));
-    gvm_print_if_error(res, "consts_add");
+    if( val_buffer_add(consts, val_number(value)) == false ) {
+        printf("error: consts_add_number\n");
+        return consts->size;
+    }
     return consts->size - 1;
 }
 
 int consts_add_bool(val_buffer_t* consts, bool value) {
-    gvm_result_t res = val_buffer_add(consts, val_bool(value));
-    gvm_print_if_error(res, "consts_add");
+    if(val_buffer_add(consts, val_bool(value)) == false) {
+        printf("error: consts_add_bool\n");
+        return consts->size;
+    }
     return consts->size - 1;
 }
 
 int consts_add_char(val_buffer_t* consts, char value) {
-    gvm_result_t res = val_buffer_add(consts, val_char(value));
-    gvm_print_if_error(res, "consts_add");
+    if(val_buffer_add(consts, val_char(value)) == false) {
+        printf("error: consts_add_char\n");
+        return consts->size;
+    }
     return consts->size - 1;
 }
 
@@ -144,12 +158,13 @@ int consts_add_string(val_buffer_t* consts, char* text) {
     for(int i = 0; i < string_length; i++) {
         consts_add_char(consts, text[i]);
     }
-    gvm_result_t res = val_buffer_add(consts,
+    bool ok = val_buffer_add(consts,
         val_list(consts,
             (uint16_t) consts->size - string_length,
             (uint16_t) string_length));
-    gvm_print_if_error(res, "consts_add_string");
-    return consts->size - 1;
+    return ok
+        ? (consts->size - 1)
+        : (consts->size);
 }
 
 int consts_add_current(val_buffer_t* consts, parser_t* parser) {
@@ -178,10 +193,15 @@ void asm_debug_print_token(parser_t* parser) {
     printf("%.*s", str_len, str);
 }
 
-
-#define DBG_LOG(...) printf(__VA_ARGS__)
-#define DBG_LOG_CONST(C, I) val_print(&(C)->values[(I)])
-#define DBG_LOG_OPERAND(P) asm_debug_print_token(P)
+#ifdef DBG_LOG_ENABLED
+# define DBG_LOG(...) printf(__VA_ARGS__)
+# define DBG_LOG_CONST(C, I) val_print(&(C)->values[(I)])
+# define DBG_LOG_OPERAND(P) asm_debug_print_token(P)
+#else
+# define DBG_LOG(...)
+# define DBG_LOG_CONST(C, I)
+# define DBG_LOG_OPERAND(P)
+#endif
 
 gvm_result_t asm_scan_labels(parser_t* parser, label_set_t* label_set) {
     bool keep_going = true;
@@ -239,11 +259,11 @@ gvm_result_t asm_scan_labels(parser_t* parser, label_set_t* label_set) {
     return RES_OK;
 }
 
-gvm_result_t asm_assemble(char* code_buffer) {
+code_object_t asm_assemble_code_object(char* code_buffer) {
     
     parser_t* parser = parser_create(code_buffer);
     if( parser == NULL ) {
-        return RES_ERROR;
+        return (code_object_t) { 0 };
     }
 
     gvm_result_t result_code = RES_OK;
@@ -256,13 +276,17 @@ gvm_result_t asm_assemble(char* code_buffer) {
 
     parser_reset(parser);
 
-    // todo: handle results
-
     val_buffer_t const_store = { 0 };
-    val_buffer_create(&const_store, 5);
+    if(val_buffer_create(&const_store, 5) == false) {
+        result_code = RES_OUT_OF_MEMORY;
+        goto on_error;
+    }
 
     u8buffer_t code_section = { 0 };
-    u8buffer_create(&code_section, 16);
+    if(u8buffer_create(&code_section, 16) == false) {
+        result_code = RES_OUT_OF_MEMORY;
+        goto on_error;
+    }
 
     bool keep_going = true;
 
@@ -313,6 +337,9 @@ gvm_result_t asm_assemble(char* code_buffer) {
                 } else {
                     DBG_LOG_OPERAND(parser);
                     DBG_LOG(" ");
+                    token_t token = parser_current(parser);
+                    int operand = parser_get_token_int_value(parser, token);
+                    u8buffer_write(&code_section, (uint8_t) operand);
                 }
                 keep_going &= parser_advance(parser);
                 arg_index ++;
@@ -321,27 +348,72 @@ gvm_result_t asm_assemble(char* code_buffer) {
         }
     }
 
-    // debug print
-#ifdef DGB_PRINT
-    printf("[LABELS]\n");
-    for(int i = 0; i < label_set.count; i++) {
-        char buf[128] = { 0 };
-        snprintf(buf, label_set.length[i] + 1, label_set.label[i], "%s");
-        printf("  LABEL: '%s' (%i)\n", buf, label_set.address[i]);
-    }
+    // reuse the existing memory for the code object
+    // since size is always < capacity realloc
+    // should always shrink (or not change) the 
+    // allocated memory.
+    // this memory gets free'd up when the code
+    // object gets destroyed.
 
-    printf("[CONSTANTS]\n");
-    for(int i = 0; i < const_section.size; i++) {
-        printf("  ");
-        val_print(&const_section.constants[i]);
-        printf("\n");
-    }
-#endif
-
-
-    // TODO: DESTROY CONSTANTS TABLE
+    code_object_t obj = { 0 };
+    obj.code.size = code_section.size;
+    obj.code.instr = (uint8_t*) realloc(code_section.data, code_section.size);
+    obj.constants.count = const_store.size;
+    obj.constants.values = (val_t*) realloc(const_store.values, const_store.size);
+    return obj;
 
 on_error:
     parser_destroy(parser);
-    return result_code;
+    gvm_print_if_error(result_code, "asm_assemble");
+    return (code_object_t) { 0 };
+}
+
+int get_disasm_scheme_index(gvm_op_t op) {
+    int nschemes = sizeof(schemes) / sizeof(schemes[0]);
+    for(int i = 0; i < nschemes; i++) {
+        if( op == schemes[i].opcode ) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void asm_debug_disassemble_code_object(code_object_t* code_object) {
+    int current_byte = 0;
+    int current_instruction = 0;
+    while( current_byte < code_object->code.size ) {
+        int scheme_index = get_disasm_scheme_index(code_object->code.instr[current_byte]);
+        if( scheme_index < 0 ) {
+            printf("<ERROR> ");
+            current_byte ++;
+            continue;
+        }
+        op_scheme_t scheme = schemes[scheme_index];
+        char* name = scheme.name;
+        printf("#%3i> %s", current_instruction, name);
+        current_byte ++;
+        int arg_count = scheme_get_arg_count(scheme.typespec);
+        for (int i = 0; i < arg_count; i++) {
+            printf(" %i", code_object->code.instr[current_byte]);
+            current_byte ++;
+        }
+        printf("\n");
+        current_instruction ++;
+    }
+}
+
+void asm_destroy_code_object(code_object_t* code_object) {
+    if( code_object == NULL ) {
+        return;
+    }
+    if( code_object->code.instr != NULL ) {
+        free(code_object->code.instr);
+        code_object->code.instr = NULL;
+        code_object->code.size = 0;
+    }
+    if( code_object->constants.values != NULL ) {
+        free(code_object->constants.values);
+        code_object->constants.values = NULL;
+        code_object->constants.count = 0;
+    }
 }

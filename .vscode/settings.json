@@ -6,6 +6,8 @@
         "initializer_list": "c",
         "utility": "c",
         "typeinfo": "c",
-        "vector": "c"
+        "vector": "c",
+        "stdbool.h": "c",
+        "algorithm": "c"
     }
 }

@@ -38,11 +38,6 @@ typedef struct val_t {
     } data;
 } val_t;
 
-typedef struct gvm_chunk_t {
-    int len;
-    uint8_t* instructions;
-} gvm_chunk_t;
-
 typedef enum token_type_t {
     TT_UNKNOWN,
     TT_COLON,
@@ -88,7 +83,6 @@ typedef enum gvm_result_t {
 typedef enum gvm_op_t {
     OP_DUP,
     OP_PUSH,
-    OP_LOAD,
     OP_JUMP,
     OP_JUMP_IF_FALSE,
     OP_CMP_EQUAL,
@@ -103,6 +97,29 @@ typedef enum gvm_op_t {
     OP_NEG,
     OP_EXIT
 } gvm_op_t;
+
+typedef struct u8buffer_t {
+    int size;
+    int capacity;
+    uint8_t* data;
+} u8buffer_t;
+
+typedef struct val_buffer_t {
+    int size;
+    int capacity;
+    val_t* values;
+} val_buffer_t;
+
+typedef struct code_object_t {
+    struct {
+        int count;
+        val_t* values;
+    } constants;
+    struct {
+        int size;
+        uint8_t* instr;
+    } code;
+} code_object_t;
 
 
 #endif // GVM_TYPES_H_

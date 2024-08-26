@@ -49,30 +49,14 @@ void test() {
     grid_print(&grid);
     grid_destroy(&grid);
 
-    char* str = "label:\n\tpush \"oHej HEJ LOL!\"\n\tpush 0\n\tloop:"
+    char* str = "label:\n\tpush 5\n\tpush 0\n\tloop:"
         "\n\t\tdup 2\n\t\tis-less\n\t\tif-false exit-loop"
         "\n\t\tpush 1\n\t\tadd\n\t\tjump loop\n\texit-loop:\n\t\texit 0";
     printf("TEST \n%s\n", str);
 
-    /*parser_t* parser = parser_create(str);
-    if( parser != NULL ) {
-        printf("parser->text.size: %i\n", parser->text.size);
-        printf("parser->tokens.size: %i\n", parser->tokens.size);
-        for(int i = 0; i < parser->tokens.size; i++) {
-            char buf[128] = {0};
-            parser_token_as_string(parser, parser->tokens.array[i], buf, 127);
-            printf("TOKEN: '%s'\n", buf);
-            token_t tok = parser->tokens.array[i];
-            printf("  type: %s\n", parser_tt_to_str(tok.type));
-            printf("  src_index: %i\n", tok.src_index);
-            printf("  src_line: %i\n", tok.src_line);
-            printf("  src_column: %i\n", tok.src_column);
-        }
-        parser_destroy(parser);
-    } else {
-        printf("failed to create parser.\n");
-    }*/
+    code_object_t obj = asm_assemble_code_object(str);
+    asm_debug_disassemble_code_object(&obj);
 
-    gvm_result_t res = asm_assemble(str);
-    gvm_print_if_error(res, "asm_assemble");
+    asm_destroy_code_object(&obj);
+    
 }

@@ -19,7 +19,7 @@ bool u8buffer_write(u8buffer_t* ub, uint8_t wbyte) {
     if( size >= ub->capacity ) {
         uint8_t* new_mem = (uint8_t*) realloc(ub->data, size * 2);
         if( new_mem == NULL ) {
-            return RES_OUT_OF_MEMORY;
+            return false;
         }
         ub->data = new_mem;
         ub->capacity = size * 2;
@@ -45,12 +45,12 @@ void u8buffer_destroy(u8buffer_t* ub) {
 bool val_buffer_create(val_buffer_t* buffer, int capacity) {
     val_t* values = (val_t*) malloc(capacity * sizeof(val_t));
     if( values == NULL ) {
-        return RES_OUT_OF_MEMORY;
+        return false;
     }
     buffer->capacity = capacity;
     buffer->values = values;
     buffer->size = 0;
-    return RES_OK;
+    return true;
 }
 
 bool val_buffer_add(val_buffer_t* buffer, val_t value) {
@@ -58,14 +58,14 @@ bool val_buffer_add(val_buffer_t* buffer, val_t value) {
         int new_capacity = buffer->size * 2;
         val_t* new_vals = (val_t*) realloc(buffer->values, new_capacity * sizeof(val_t));
         if( new_vals == NULL ) {
-            return RES_OUT_OF_MEMORY;
+            return false;
         }
         buffer->capacity = new_capacity;
         buffer->values = new_vals;
     }
     buffer->values[buffer->size] = value;
     buffer->size ++;
-    return RES_OK;
+    return true;
 }
 
 void val_buffer_destroy(val_buffer_t* buffer) {
