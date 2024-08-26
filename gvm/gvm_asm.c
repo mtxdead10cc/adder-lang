@@ -158,9 +158,11 @@ int consts_add_string(val_buffer_t* consts, char* text) {
     for(int i = 0; i < string_length; i++) {
         consts_add_char(consts, text[i]);
     }
+    // NOTE: might use list_t entry as stop block
+    // then length is equal to negated start offset
     bool ok = val_buffer_add(consts,
-        val_list(consts,
-            (uint16_t) consts->size - string_length,
+        val_list(
+            (int16_t) -string_length,
             (uint16_t) string_length));
     return ok
         ? (consts->size - 1)
@@ -259,6 +261,11 @@ gvm_result_t asm_scan_labels(parser_t* parser, label_set_t* label_set) {
     return RES_OK;
 }
 
+void u8buffer_write_i16(u8buffer_t* buffer, int16_t val) {
+    u8buffer_write(buffer, 0xFF & val);
+    u8buffer_write(buffer, 0xFF & (val >> 8));
+}
+
 code_object_t asm_assemble_code_object(char* code_buffer) {
     
     parser_t* parser = parser_create(code_buffer);
@@ -325,7 +332,7 @@ code_object_t asm_assemble_code_object(char* code_buffer) {
                     DBG_LOG_CONST(&const_store, const_index);
                     DBG_LOG(")");
                     assert(const_index >= 0 && const_index < 256);
-                    u8buffer_write(&code_section, (uint8_t) const_index);
+                    u8buffer_write_i16(&code_section, const_index);
                 } else if (scheme_is_flag_set(op_scheme.islabel, arg_index)) {
                     token_t token = parser_current(parser);
                     int len = parser_get_token_string_length(parser, token);
@@ -333,13 +340,13 @@ code_object_t asm_assemble_code_object(char* code_buffer) {
                     int label_index = label_get_address(&label_set, ptr, len);
                     DBG_LOG("%i (%.*s) ", label_index, len, ptr);
                     assert(label_index >= 0 && label_index < 256);
-                    u8buffer_write(&code_section, (uint8_t) label_index);
+                    u8buffer_write_i16(&code_section, label_index);
                 } else {
                     DBG_LOG_OPERAND(parser);
                     DBG_LOG(" ");
                     token_t token = parser_current(parser);
                     int operand = parser_get_token_int_value(parser, token);
-                    u8buffer_write(&code_section, (uint8_t) operand);
+                    u8buffer_write_i16(&code_section, operand);
                 }
                 keep_going &= parser_advance(parser);
                 arg_index ++;
@@ -355,11 +362,14 @@ code_object_t asm_assemble_code_object(char* code_buffer) {
     // this memory gets free'd up when the code
     // object gets destroyed.
 
+    val_buffer_print(&const_store);
+
     code_object_t obj = { 0 };
     obj.code.size = code_section.size;
     obj.code.instr = (uint8_t*) realloc(code_section.data, code_section.size);
     obj.constants.count = const_store.size;
-    obj.constants.values = (val_t*) realloc(const_store.values, const_store.size);
+    obj.constants.values = (val_t*) realloc(const_store.values, const_store.size * sizeof(val_t));
+    
     return obj;
 
 on_error:
@@ -378,13 +388,18 @@ int get_disasm_scheme_index(gvm_op_t op) {
     return -1;
 }
 
+int16_t read_i16(uint8_t* data, int at) {
+    return (int16_t)(data[at + 1] << 8) | (int16_t) data[at];
+}
+
 void asm_debug_disassemble_code_object(code_object_t* code_object) {
     int current_byte = 0;
     int current_instruction = 0;
     while( current_byte < code_object->code.size ) {
-        int scheme_index = get_disasm_scheme_index(code_object->code.instr[current_byte]);
+        gvm_op_t opcode = code_object->code.instr[current_byte];
+        int scheme_index = get_disasm_scheme_index(opcode);
         if( scheme_index < 0 ) {
-            printf("<ERROR> ");
+            printf("<op %i not found>", opcode);
             current_byte ++;
             continue;
         }
@@ -394,8 +409,14 @@ void asm_debug_disassemble_code_object(code_object_t* code_object) {
         current_byte ++;
         int arg_count = scheme_get_arg_count(scheme.typespec);
         for (int i = 0; i < arg_count; i++) {
-            printf(" %i", code_object->code.instr[current_byte]);
-            current_byte ++;
+            int val = read_i16(code_object->code.instr, current_byte);
+            printf(" %i", val);
+            current_byte += 2;
+            if( scheme_is_flag_set(scheme.isconst, i) ) {
+                printf(" (");
+                val_print(&code_object->constants.values[val]);
+                printf(")");
+            }
         }
         printf("\n");
         current_instruction ++;

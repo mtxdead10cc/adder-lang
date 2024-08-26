@@ -22,10 +22,11 @@ typedef enum val_type_t {
 typedef struct val_t val_t;
 typedef struct val_buffer_t val_buffer_t;
 
+// NOTE: might use list_t entry as stop block
+// then length is equal to negated start offset
 typedef struct list_t {
     uint16_t length;
-    uint16_t start_index;
-    val_buffer_t* buffer;
+    int16_t start_offset;
 } list_t;
 
 typedef struct val_t {
@@ -112,7 +113,7 @@ typedef struct val_buffer_t {
 
 typedef struct code_object_t {
     struct {
-        int count;
+        int32_t count;
         val_t* values;
     } constants;
     struct {

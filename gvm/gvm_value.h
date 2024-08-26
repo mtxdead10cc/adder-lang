@@ -8,7 +8,7 @@
 val_t val_number(int value);
 val_t val_bool(bool value);
 val_t val_char(char value);
-val_t val_list(val_buffer_t* buffer, uint16_t start_index, uint16_t length);
+val_t val_list(int16_t local_offset, uint16_t length);
 void val_print(val_t* val);
 
 #endif // GVM_VALUE_H_
