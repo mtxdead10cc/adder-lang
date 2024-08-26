@@ -195,6 +195,10 @@ void parser_destroy(parser_t* p) {
     free(p);
 }
 
+void parser_reset(parser_t* p) {
+    p->current = 0;
+}
+
 bool parser_is_at_end(parser_t* p) {
     return (p->current < p->tokens.size) == false;
 }
@@ -231,24 +235,6 @@ bool parser_consume(parser_t* p, token_type_t tt) {
     }
 }
 
-void parser_current_as_string(parser_t* parser, char* buffer, int max_len) {
-    parser_token_as_string(parser, parser->tokens.array[parser->current], buffer, max_len);
-}
-
-void parser_token_as_string(parser_t* parser, token_t token, char* buffer, int max_len) {
-    int str_start = token.src_index;
-    int str_end = (token.index < (parser->tokens.size - 1))
-        ? parser->tokens.array[(token.index + 1)].src_index
-        : parser->tokens.array[(parser->tokens.size - 1)].src_index;
-    int len = str_end - str_start;
-    if( len > max_len ) {
-        len = max_len;
-    }
-    for(int j = 0; j < len; j++) {
-        buffer[j] = parser->text.array[j + str_start];
-    }
-}
-
 char* parser_tt_to_str(token_type_t tt) {
     switch (tt) {
         case TT_COLON: return "COLON";
@@ -277,8 +263,16 @@ token_t parser_peek(parser_t* p, int lookahead) {
     return p->tokens.array[index];
 }
 
-char* parser_get_token_char_ptr(parser_t* parser, token_t token) {
+char* parser_get_token_string_ptr(parser_t* parser, token_t token) {
     return parser->text.array + token.src_index;
+}
+
+int parser_get_token_string_length(parser_t* parser, token_t token) {
+    int str_start = token.src_index;
+    int str_end = (token.index < (parser->tokens.size - 1))
+        ? parser->tokens.array[(token.index + 1)].src_index
+        : parser->tokens.array[(parser->tokens.size - 1)].src_index;
+    return str_end - str_start;
 }
 
 #define INT_BUFFER_LEN 16

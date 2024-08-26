@@ -5,6 +5,7 @@
         "string_view": "c",
         "initializer_list": "c",
         "utility": "c",
-        "typeinfo": "c"
+        "typeinfo": "c",
+        "vector": "c"
     }
 }

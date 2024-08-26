@@ -53,7 +53,7 @@ void val_print(val_t* val) {
         printf("]");
         break;
     default:
-        printf("<unknown-value>");
+        printf("<unk>");
         break;
     }
 }
