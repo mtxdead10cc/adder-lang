@@ -1,6 +1,7 @@
 #include "gvm_value.h"
 #include <stdio.h>
 #include "gvm_utils.h"
+#include "gvm_memory.h"
 
 val_t val_number(int value) {
     return (val_t) {
@@ -23,13 +24,13 @@ val_t val_char(char value) {
     };
 }
 
-val_t val_list(int16_t local_offset, uint16_t length) {
+val_t val_list(val_buffer_t* buffer, int start_offset, int length) {
+    uint32_t id = (buffer->id & 0xF) << 28;
+    uint32_t len = (length & 0x0FFFFFFF) << 14;
+    uint32_t offs = (start_offset & 0x3FFF);
     return (val_t) {
         .type = VAL_LIST,
-        .data.l = (list_t) {
-            .length = length,
-            .start_offset = local_offset
-        }
+        .data.l = id | len | offs
     };
 }
 
@@ -46,11 +47,18 @@ void val_print(val_t* val) {
         printf("%s", val->data.b ? "TRUE" : "FALSE");
         break;
     case VAL_LIST:
+        val_buffer_t* buffer = val_buffer_find(GET_LIST_ID(val->data.l));
+        if( buffer == NULL ) {
+            printf("<null buffer>");
+            break;
+        }
         printf("[");
-        val_t* list = val + val->data.l.start_offset;
-        for(int i = 0; i < val->data.l.length; i++) {
-            val_print(&list[i]);
-            if(list[i].type != VAL_CHAR) {
+        int length = GET_LIST_LENGTH(val->data.l);
+        int offset = GET_LIST_OFFSET(val->data.l);
+        for(int i = 0; i < length; i++) {
+            val_t* v_ptr = &buffer->values[i + offset];
+            val_print(v_ptr);
+            if(v_ptr->type != VAL_CHAR) {
                 printf(" ");
             }
         }

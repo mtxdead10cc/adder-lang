@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <gvm_value.h>
 
 #define DEFAULT_PATH "resources/test.gvm"
 
@@ -54,8 +55,19 @@ int main(int argv, char** argc) {
 
     asm_code[fsize] = 0;
 
-    gvm_compile_and_run(asm_code, verbose);
-
+    code_object_t obj = gvm_compile(asm_code);
     free(asm_code);
+
+    if( verbose ) {
+        gvm_disassemble(&obj);
+    }
+
+    val_t result = gvm_execute(&obj, 50, 50);
+    printf("> ");
+    val_print(&result);
+    printf("\n");
+
+    gvm_destroy(&obj);
+
     return 0;
 }

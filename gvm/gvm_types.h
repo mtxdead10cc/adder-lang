@@ -22,20 +22,19 @@ typedef enum val_type_t {
 typedef struct val_t val_t;
 typedef struct val_buffer_t val_buffer_t;
 
-// NOTE: might use list_t entry as stop block
-// then length is equal to negated start offset
-typedef struct list_t {
-    uint16_t length;
-    int16_t start_offset;
-} list_t;
+typedef uint32_t list_t;
+
+#define GET_LIST_ID(L) ((L) >> 28)
+#define GET_LIST_LENGTH(L) (((L) & 0x0FFFFFFFFF) >> 14)
+#define GET_LIST_OFFSET(L) (((L) & 0x3FFF))
 
 typedef struct val_t {
     val_type_t type;
     union {
-        int     n;
-        char    c;
-        bool    b;
-        list_t  l;
+        int      n;
+        char     c;
+        bool     b;
+        list_t   l;
     } data;
 } val_t;
 
@@ -111,16 +110,14 @@ typedef struct u8buffer_t {
 } u8buffer_t;
 
 typedef struct val_buffer_t {
+    int id;
     int size;
     int capacity;
     val_t* values;
 } val_buffer_t;
 
 typedef struct code_object_t {
-    struct {
-        int32_t count;
-        val_t* values;
-    } constants;
+    val_buffer_t* constants;
     struct {
         int size;
         uint8_t* instr;

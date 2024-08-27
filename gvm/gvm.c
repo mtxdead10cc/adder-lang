@@ -32,7 +32,7 @@ bool pred(type_id_t init, type_id_t curr) {
     return init == curr;
 }
 
-#define TRACE_LOG_LEVEL 2
+#define TRACE_LOG_LEVEL 0
 
 #if TRACE_LOG_LEVEL > 0
 
@@ -93,7 +93,7 @@ val_t gvm_execute(code_object_t* code_obj, int stack_size, int max_cycles) {
     int cycles_remaining = max_cycles;
     
     if( code_obj->code.instr == NULL ||
-        code_obj->constants.values == NULL )
+        code_obj->constants == NULL )
     {
         cycles_remaining = 0;
         max_cycles = 0;
@@ -110,7 +110,7 @@ val_t gvm_execute(code_object_t* code_obj, int stack_size, int max_cycles) {
         case OP_PUSH: {
             int const_index = READ_I16(code_obj->code.instr, pc);
             TRACE_INT_ARG(const_index);
-            stack[++stack_top] = code_obj->constants.values[const_index];
+            stack[++stack_top] = code_obj->constants->values[const_index];
             pc += 2;
         } break;
         case OP_ADD: {
@@ -228,17 +228,16 @@ val_t gvm_execute(code_object_t* code_obj, int stack_size, int max_cycles) {
     return val_number(-1004);
 }
 
-val_t gvm_compile_and_run(char* program, bool print_dissasm) {
-    code_object_t obj = asm_assemble_code_object(program);
-    if( print_dissasm ) {
-        asm_debug_disassemble_code_object(&obj);
-    }
-    val_t return_value = gvm_execute(&obj, 128, 50);
-    printf("RET: ");
-    val_print(&return_value);
-    printf("\n");
-    asm_destroy_code_object(&obj);
-    return return_value;
+code_object_t gvm_compile(char* program) {
+    return asm_assemble_code_object(program);
+}
+
+void gvm_disassemble(code_object_t* code_obj) {
+    asm_debug_disassemble_code_object(code_obj);
+}
+
+void gvm_destroy(code_object_t* code_obj) {
+    asm_destroy_code_object(code_obj);
 }
 
 void test() {
@@ -261,10 +260,4 @@ void test() {
     }
     grid_print(&grid);
     grid_destroy(&grid);
-
-    char* str = "label:\n\tpush 5\n\tpush 0\n\tloop:"
-        "\n\t\tdup 2\n\t\tis-less\n\t\tif-false exit-loop"
-        "\n\t\tpush 1\n\t\tadd\n\t\tjump loop\n\texit-loop:\n\t\texit 0";
-    //printf("TEST \n%s\n", str);
-    gvm_compile_and_run(str, true);
 }

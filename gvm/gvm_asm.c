@@ -3,6 +3,7 @@
 #include "gvm_value.h"
 #include "gvm.h"
 #include "gvm_utils.h"
+#include "gvm_memory.h"
 #include <string.h>
 #include <assert.h>
 
@@ -62,7 +63,6 @@ int scheme_match(parser_t* p) {
         if( strncmp(str, schemes[i].name, str_len) != 0 ) {
             continue;
         }
-        printf("match: '%s'\n", schemes[i].name);
         uint32_t typespec = schemes[i].typespec;
         int lookahead = 1; 
         bool match = true;
@@ -75,9 +75,9 @@ int scheme_match(parser_t* p) {
             token_type_t expected = (token_type_t)(0xF & typespec);
             token_type_t actual = parser_peek(p, lookahead).type;
             if( expected != actual ) {
-                printf("expected %s, got %s\n",
-                    parser_tt_to_str(expected),
-                    parser_tt_to_str(actual));
+                // printf("expected %s, got %s\n",
+                //     parser_tt_to_str(expected),
+                //     parser_tt_to_str(actual));
                 match = false;
                 break;
             }
@@ -162,15 +162,14 @@ int consts_add_string(val_buffer_t* consts, char* text) {
     }
     text = text + 1;
     int string_length = string_count_until(text, '\"');
+    int string_start = consts->size;
     for(int i = 0; i < string_length; i++) {
         consts_add_char(consts, text[i]);
     }
     // NOTE: might use list_t entry as stop block
     // then length is equal to negated start offset
     bool ok = val_buffer_add(consts,
-        val_list(
-            (int16_t) -string_length,
-            (uint16_t) string_length));
+        val_list(consts, string_start, string_length));
     return ok
         ? (consts->size - 1)
         : (consts->size);
@@ -202,7 +201,7 @@ static inline void asm_debug_print_token(parser_t* parser) {
     printf("%.*s", str_len, str);
 }
 
-#define DBG_LOG_ENABLED
+// #define DBG_LOG_ENABLED
 
 #ifdef DBG_LOG_ENABLED
 # define DBG_LOG(...) printf(__VA_ARGS__)
@@ -292,11 +291,13 @@ code_object_t asm_assemble_code_object(char* code_buffer) {
     }
 
     parser_reset(parser);
-
+    
+#ifdef DBG_LOG_ENABLED
     parser_debug_print_tokens(parser);
+#endif
 
-    val_buffer_t const_store = { 0 };
-    if(val_buffer_create(&const_store, 5) == false) {
+    val_buffer_t* const_store = val_buffer_create(5);
+    if( const_store == NULL ) {
         result_code = RES_OUT_OF_MEMORY;
         goto on_error;
     }
@@ -339,9 +340,9 @@ code_object_t asm_assemble_code_object(char* code_buffer) {
             while (arg_index < nargs && keep_going) {
                 keep_going &= parser_consume(parser, TT_SEPARATOR);
                 if( scheme_is_flag_set(op_scheme.isconst, arg_index) ) {
-                    int const_index = consts_add_current(&const_store, parser);
+                    int const_index = consts_add_current(const_store, parser);
                     DBG_LOG("%i (", const_index);
-                    DBG_LOG_CONST(&const_store, const_index);
+                    DBG_LOG_CONST(const_store, const_index);
                     DBG_LOG(")");
                     assert(const_index >= 0 && const_index < 256);
                     u8buffer_write_i16(&code_section, const_index);
@@ -381,14 +382,15 @@ code_object_t asm_assemble_code_object(char* code_buffer) {
     code_object_t obj = { 0 };
     obj.code.size = code_section.size;
     obj.code.instr = (uint8_t*) realloc(code_section.data, code_section.size);
-    obj.constants.count = const_store.size;
-    obj.constants.values = (val_t*) realloc(const_store.values, const_store.size * sizeof(val_t));
+    obj.constants = const_store;
+
+    parser_destroy(parser);
     
     return obj;
 
 on_error:
     free(code_section.data);
-    free(const_store.values);
+    val_buffer_destroy(const_store);
     parser_destroy(parser);
     gvm_print_if_error(result_code, "asm_assemble");
     return (code_object_t) { 0 };
@@ -426,7 +428,7 @@ void asm_debug_disassemble_code_object(code_object_t* code_object) {
             current_byte += 2;
             if( scheme_is_flag_set(scheme.isconst, i) ) {
                 printf(" (");
-                val_print(&code_object->constants.values[val]);
+                val_print(&code_object->constants->values[val]);
                 printf(")");
             }
         }
@@ -444,9 +446,7 @@ void asm_destroy_code_object(code_object_t* code_object) {
         code_object->code.instr = NULL;
         code_object->code.size = 0;
     }
-    if( code_object->constants.values != NULL ) {
-        free(code_object->constants.values);
-        code_object->constants.values = NULL;
-        code_object->constants.count = 0;
+    if( code_object->constants != NULL ) {
+        val_buffer_destroy(code_object->constants);
     }
 }

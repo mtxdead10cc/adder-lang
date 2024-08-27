@@ -9,4 +9,11 @@ label:
             add
             jump loop
         exit-loop:
-            return
+            jump exit-label
+exit-label:
+    push 2
+    sub
+    neg
+    push 3
+    is-equal
+    return
