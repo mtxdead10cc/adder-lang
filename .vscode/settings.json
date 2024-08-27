@@ -8,6 +8,11 @@
         "typeinfo": "c",
         "vector": "c",
         "stdbool.h": "c",
-        "algorithm": "c"
+        "algorithm": "c",
+        "system_error": "c",
+        "functional": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "string": "c"
     }
 }

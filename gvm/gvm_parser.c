@@ -109,8 +109,15 @@ gvm_result_t tokenize(parser_text_t* text, parser_tokens_t* tokens) {
     int column = 1;
     bool in_quoute = false;
     
-    for(int i = 0; i < text->size; i++) {
-        lexeme_t lex = scan(text->array[i]);
+    int text_length = text->size;
+
+    for(int i = 0; i < (text_length + 1); i++) {
+
+        // make sure we process the last token
+        // by faking an extra trailing whitespace
+        lexeme_t lex = (i < text_length)
+            ? scan(text->array[i])
+            : L_WHITESPACE; 
 
         if( res != RES_OK ) {
             break;
@@ -290,4 +297,14 @@ int parser_get_token_int_value(parser_t* parser, token_t token) {
         buf[i] = parser->text.array[i + str_start];
     }
     return atoi(buf);
+}
+
+void parser_debug_print_tokens(parser_t* parser) {
+    parser_tokens_t tokens = parser->tokens;
+    for (int i = 0; i < tokens.size; i++) {
+        token_t token = tokens.array[i];
+        int len = parser_get_token_string_length(parser, token);
+        char* str = parser_get_token_string_ptr(parser, token);
+        printf("\"%.*s\"\n(%s)\n-----\n", len, str, parser_tt_to_str(token.type));
+    }
 }

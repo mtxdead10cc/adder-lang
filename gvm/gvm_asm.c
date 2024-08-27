@@ -28,6 +28,7 @@ static op_scheme_t schemes[] = {
     {"if-false",    OP_JUMP_IF_FALSE,   ARGSPEC1(TT_SYMBOL),    0x00,              0x01 },
     {"jump",        OP_JUMP,            ARGSPEC1(TT_SYMBOL),    0x00,              0x01 },
     {"exit",        OP_EXIT,            ARGSPEC1(TT_NUMBER),    0x00,              0x00 },
+    {"return",      OP_RETURN,          ARGSPEC1(0),            0x00,              0x00 },
     {"and",         OP_AND,             ARGSPEC1(0),            0x00,              0x00 },
     {"or",          OP_OR,              ARGSPEC1(0),            0x00,              0x00 },
     {"nor",         OP_NOR,             ARGSPEC1(0),            0x00,              0x00 },
@@ -61,6 +62,7 @@ int scheme_match(parser_t* p) {
         if( strncmp(str, schemes[i].name, str_len) != 0 ) {
             continue;
         }
+        printf("match: '%s'\n", schemes[i].name);
         uint32_t typespec = schemes[i].typespec;
         int lookahead = 1; 
         bool match = true;
@@ -70,7 +72,12 @@ int scheme_match(parser_t* p) {
                 break;
             }
             lookahead ++;
-            if( (token_type_t)(0xF & typespec) != parser_peek(p, lookahead).type ) {
+            token_type_t expected = (token_type_t)(0xF & typespec);
+            token_type_t actual = parser_peek(p, lookahead).type;
+            if( expected != actual ) {
+                printf("expected %s, got %s\n",
+                    parser_tt_to_str(expected),
+                    parser_tt_to_str(actual));
                 match = false;
                 break;
             }
@@ -188,12 +195,14 @@ int consts_add_current(val_buffer_t* consts, parser_t* parser) {
     }
 }
 
-void asm_debug_print_token(parser_t* parser) {
+static inline void asm_debug_print_token(parser_t* parser) {
     token_t token = parser_current(parser);
     char* str = parser_get_token_string_ptr(parser, token);
     int str_len = parser_get_token_string_length(parser, token);
     printf("%.*s", str_len, str);
 }
+
+#define DBG_LOG_ENABLED
 
 #ifdef DBG_LOG_ENABLED
 # define DBG_LOG(...) printf(__VA_ARGS__)
@@ -242,9 +251,10 @@ gvm_result_t asm_scan_labels(parser_t* parser, label_set_t* label_set) {
             while (nargs-- > 0) {
                 keep_going &= parser_consume(parser, TT_SEPARATOR);
                 keep_going &= parser_advance(parser);
+                address += 2; // 16 bit integer args
             }
             // op handled; next instruction
-            address ++;
+            address += 1;
             keep_going &= parser_advance(parser);
         } else {
             token_t token = parser_current(parser);
@@ -282,6 +292,8 @@ code_object_t asm_assemble_code_object(char* code_buffer) {
     }
 
     parser_reset(parser);
+
+    parser_debug_print_tokens(parser);
 
     val_buffer_t const_store = { 0 };
     if(val_buffer_create(&const_store, 5) == false) {
@@ -338,6 +350,10 @@ code_object_t asm_assemble_code_object(char* code_buffer) {
                     int len = parser_get_token_string_length(parser, token);
                     char* ptr = parser_get_token_string_ptr(parser, token);
                     int label_index = label_get_address(&label_set, ptr, len);
+                    if( label_index < 0 ) {
+                        result_code = RES_INVALID_INPUT;
+                        goto on_error;
+                    }
                     DBG_LOG("%i (%.*s) ", label_index, len, ptr);
                     assert(label_index >= 0 && label_index < 256);
                     u8buffer_write_i16(&code_section, label_index);
@@ -362,8 +378,6 @@ code_object_t asm_assemble_code_object(char* code_buffer) {
     // this memory gets free'd up when the code
     // object gets destroyed.
 
-    val_buffer_print(&const_store);
-
     code_object_t obj = { 0 };
     obj.code.size = code_section.size;
     obj.code.instr = (uint8_t*) realloc(code_section.data, code_section.size);
@@ -373,6 +387,8 @@ code_object_t asm_assemble_code_object(char* code_buffer) {
     return obj;
 
 on_error:
+    free(code_section.data);
+    free(const_store.values);
     parser_destroy(parser);
     gvm_print_if_error(result_code, "asm_assemble");
     return (code_object_t) { 0 };
@@ -388,10 +404,6 @@ int get_disasm_scheme_index(gvm_op_t op) {
     return -1;
 }
 
-int16_t read_i16(uint8_t* data, int at) {
-    return (int16_t)(data[at + 1] << 8) | (int16_t) data[at];
-}
-
 void asm_debug_disassemble_code_object(code_object_t* code_object) {
     int current_byte = 0;
     int current_instruction = 0;
@@ -405,11 +417,11 @@ void asm_debug_disassemble_code_object(code_object_t* code_object) {
         }
         op_scheme_t scheme = schemes[scheme_index];
         char* name = scheme.name;
-        printf("#%3i> %s", current_instruction, name);
+        printf("#%3i > %s", current_byte, name);
         current_byte ++;
         int arg_count = scheme_get_arg_count(scheme.typespec);
         for (int i = 0; i < arg_count; i++) {
-            int val = read_i16(code_object->code.instr, current_byte);
+            int val = READ_I16(code_object->code.instr, current_byte);
             printf(" %i", val);
             current_byte += 2;
             if( scheme_is_flag_set(scheme.isconst, i) ) {

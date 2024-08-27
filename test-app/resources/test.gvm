@@ -1,0 +1,12 @@
+label:
+    push 5
+    push 0
+    loop:
+        dup 2
+        is-less
+        if-false exit-loop
+            push 1
+            add
+            jump loop
+        exit-loop:
+            return

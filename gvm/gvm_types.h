@@ -76,27 +76,32 @@ typedef struct parser_t {
 
 typedef enum gvm_result_t {
     RES_OK,
+    RES_INVALID_INPUT,
     RES_NOT_SUPPORTED,
     RES_OUT_OF_MEMORY,
     RES_ERROR
 } gvm_result_t;
 
 typedef enum gvm_op_t {
-    OP_DUP,
-    OP_PUSH,
-    OP_JUMP,
-    OP_JUMP_IF_FALSE,
-    OP_CMP_EQUAL,
-    OP_CMP_LESS_THAN,
-    OP_CMP_MORE_THAN,
+    OP_HALT = 0x00,
     OP_AND,
     OP_OR,
     OP_NOR,
+    OP_NOT,
     OP_MUL,
     OP_ADD,
     OP_SUB,
     OP_NEG,
-    OP_EXIT
+    OP_DUP,
+    OP_CMP_EQUAL,
+    OP_CMP_LESS_THAN,
+    OP_CMP_MORE_THAN,
+    OP_PUSH,
+    OP_JUMP,
+    OP_JUMP_IF_FALSE,
+    OP_EXIT,
+    OP_RETURN,
+    OP_OPCODE_COUNT
 } gvm_op_t;
 
 typedef struct u8buffer_t {

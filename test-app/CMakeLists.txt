@@ -14,6 +14,7 @@ target_include_directories(test-app
 # copy build binaries to bin folder
 add_custom_target(install-test-app ALL
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:test-app> ${CMAKE_CURRENT_SOURCE_DIR}/../bin/$<TARGET_FILE_NAME:test-app>
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/resources/ ${CMAKE_CURRENT_SOURCE_DIR}/../bin/resources/
 )
 
 set_target_properties(
