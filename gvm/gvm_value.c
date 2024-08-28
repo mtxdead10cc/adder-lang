@@ -46,7 +46,7 @@ void val_print(val_t* val) {
     case VAL_BOOL:
         printf("%s", val->data.b ? "TRUE" : "FALSE");
         break;
-    case VAL_LIST:
+    case VAL_LIST: {
         val_buffer_t* buffer = val_buffer_find(GET_LIST_ID(val->data.l));
         if( buffer == NULL ) {
             printf("<null buffer>");
@@ -63,7 +63,7 @@ void val_print(val_t* val) {
             }
         }
         printf("]");
-        break;
+    } break;
     default:
         printf("<unk>");
         break;
