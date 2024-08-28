@@ -28,6 +28,7 @@ static op_scheme_t schemes[] = {
     {"is-equal",    OP_CMP_EQUAL,       ARGSPEC1(0),            0x00,              0x00 },
     {"if-false",    OP_JUMP_IF_FALSE,   ARGSPEC1(TT_SYMBOL),    0x00,              0x01 },
     {"jump",        OP_JUMP,            ARGSPEC1(TT_SYMBOL),    0x00,              0x01 },
+    {"call",        OP_CALL_NATIVE,     ARGSPEC1(TT_SYMBOL),    0x01,              0x00 },
     {"exit",        OP_EXIT,            ARGSPEC1(TT_NUMBER),    0x00,              0x00 },
     {"return",      OP_RETURN,          ARGSPEC1(0),            0x00,              0x00 },
     {"and",         OP_AND,             ARGSPEC1(0),            0x00,              0x00 },
@@ -175,6 +176,20 @@ int consts_add_string(val_buffer_t* consts, char* text) {
         : (consts->size);
 }
 
+int consts_add_symbol_as_string(val_buffer_t* consts, char* text, int length) {
+    int string_start = consts->size;
+    for(int i = 0; i < length; i++) {
+        consts_add_char(consts, text[i]);
+    }
+    // NOTE: might use list_t entry as stop block
+    // then length is equal to negated start offset
+    bool ok = val_buffer_add(consts,
+        val_list(consts, string_start, length));
+    return ok
+        ? (consts->size - 1)
+        : (consts->size);
+}
+
 int consts_add_current(val_buffer_t* consts, parser_t* parser) {
     token_t token = parser_current(parser);
     switch (token.type)
@@ -186,6 +201,26 @@ int consts_add_current(val_buffer_t* consts, parser_t* parser) {
         case TT_NUMBER: {
             int value = parser_get_token_int_value(parser, token);
             return consts_add_number(consts, value);
+        }
+        case TT_SYMBOL: {
+            char* text = parser_get_token_string_ptr(parser, token);
+            int len = parser_get_token_string_length(parser, token);
+            
+            bool is_bool_true = false;
+            bool is_bool_false = false;
+
+            if( len <= 5 && len >= 4 ) {
+                is_bool_true = strncmp(text, "true", 4) == 0;
+                is_bool_false = strncmp(text, "false", 5) == 0;
+            }
+
+            if( is_bool_false ) {
+                return consts_add_bool(consts, false);
+            } else if ( is_bool_true ) {
+                return consts_add_bool(consts, true);
+            } else {
+                return consts_add_symbol_as_string(consts, text, len);
+            }
         }
         default: {
             printf("cant load %s as const.\n", parser_tt_to_str(token.type));

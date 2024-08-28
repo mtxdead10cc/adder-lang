@@ -99,6 +99,7 @@ typedef enum gvm_op_t {
     OP_JUMP,
     OP_JUMP_IF_FALSE,
     OP_EXIT,
+    OP_CALL_NATIVE,
     OP_RETURN,
     OP_OPCODE_COUNT
 } gvm_op_t;

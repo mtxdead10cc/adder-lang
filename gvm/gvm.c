@@ -6,6 +6,28 @@
 #include "gvm_value.h"
 #include <stdio.h>
 
+static char* op_names[OP_OPCODE_COUNT] = {
+    "OP_HALT",
+    "OP_AND",
+    "OP_OR",
+    "OP_NOR",
+    "OP_NOT",
+    "OP_MUL",
+    "OP_ADD",
+    "OP_SUB",
+    "OP_NEG",
+    "OP_DUP",
+    "OP_CMP_EQUAL",
+    "OP_CMP_LESS_THAN",
+    "OP_CMP_MORE_THAN",
+    "OP_PUSH",
+    "OP_JUMP",
+    "OP_JUMP_IF_FALSE",
+    "OP_EXIT",
+    "OP_CALL_NATIVE",
+    "OP_RETURN"
+};
+
 char* gvm_result_to_string(gvm_result_t res) {
     switch (res) {
         case RES_OK:            return "OK";
@@ -36,26 +58,7 @@ bool pred(type_id_t init, type_id_t curr) {
 
 #if TRACE_LOG_LEVEL > 0
 
-static char* op_names[OP_OPCODE_COUNT] = {
-    "OP_HALT",
-    "OP_AND",
-    "OP_OR",
-    "OP_NOR",
-    "OP_NOT",
-    "OP_MUL",
-    "OP_ADD",
-    "OP_SUB",
-    "OP_NEG",
-    "OP_DUP",
-    "OP_CMP_EQUAL",
-    "OP_CMP_LESS_THAN",
-    "OP_CMP_MORE_THAN",
-    "OP_PUSH",
-    "OP_JUMP",
-    "OP_JUMP_IF_FALSE",
-    "OP_EXIT",
-    "OP_RETURN"
-};
+
 
 # define TRACE_LOG(...) printf(__VA_ARGS__)
 # define TRACE_OP(C) TRACE_LOG("> %s ", ((C) >= 0 && (C) < OP_OPCODE_COUNT) ? op_names[(C)] : "<unk>")
@@ -105,120 +108,126 @@ val_t gvm_execute(code_object_t* code_obj, int stack_size, int max_cycles) {
 
         TRACE_OP(opcode);
 
-        switch (opcode)
-        {
-        case OP_PUSH: {
-            int const_index = READ_I16(code_obj->code.instr, pc);
-            TRACE_INT_ARG(const_index);
-            stack[++stack_top] = code_obj->constants->values[const_index];
-            pc += 2;
-        } break;
-        case OP_ADD: {
-            val_t a = stack[stack_top--];
-            val_t b = stack[stack_top--];
-            stack[++stack_top] = (val_t) {
-                .type = VAL_NUMBER,
-                .data.n = a.data.n + b.data.n
-            };
-        } break;
-        case OP_SUB: {
-            val_t a = stack[stack_top--];
-            val_t b = stack[stack_top--];
-            stack[++stack_top] = (val_t) {
-                .type = VAL_NUMBER,
-                .data.n = a.data.n - b.data.n
-            };
-        } break;
-        case OP_MUL: {
-            val_t a = stack[stack_top--];
-            val_t b = stack[stack_top--];
-            stack[++stack_top] = (val_t) {
-                .type = VAL_NUMBER,
-                .data.n = a.data.n * b.data.n
-            };
-        } break;
-        case OP_NEG: {
-            val_t a = stack[stack_top--];
-            stack[++stack_top] = (val_t) {
-                .type = VAL_NUMBER,
-                .data.n = -a.data.n
-            };
-        } break;
-        case OP_CMP_LESS_THAN: {
-            val_t a = stack[stack_top--];
-            val_t b = stack[stack_top--];
-            stack[++stack_top] = (val_t) {
-                .type = VAL_BOOL,
-                .data.b = a.data.n < b.data.n
-            };
-        } break;
-        case OP_CMP_MORE_THAN: {
-            val_t a = stack[stack_top--];
-            val_t b = stack[stack_top--];
-            stack[++stack_top] = (val_t) {
-                .type = VAL_BOOL,
-                .data.b = a.data.n > b.data.n
-            };
-        } break;
-        case OP_CMP_EQUAL: {
-            val_t a = stack[stack_top--];
-            val_t b = stack[stack_top--];
-            stack[++stack_top] = (val_t) {
-                .type = VAL_BOOL,
-                .data.b = a.data.n == b.data.n
-            };
-        } break;
-        case OP_AND: {
-            val_t a = stack[stack_top--];
-            val_t b = stack[stack_top--];
-            stack[++stack_top] = (val_t) {
-                .type = VAL_BOOL,
-                .data.b = a.data.b && b.data.b
-            };
-        } break;
-        case OP_NOT: {
-            val_t a = stack[stack_top--];
-            val_t b = stack[stack_top--];
-            stack[++stack_top] = (val_t) {
-                .type = VAL_BOOL,
-                .data.b = a.data.b && b.data.b
-            };
-        } break;
-        case OP_DUP: {
-            int n = READ_I16(code_obj->code.instr, pc);
-            TRACE_INT_ARG(n);
-            int base_index = stack_top - n + 1;
-            for(int i = 0; i < n; i++) {
-                stack[++stack_top] = stack[base_index + i];
-            }
-            pc += 2;
-        } break;
-        case OP_JUMP: {
-            pc = READ_I16(code_obj->code.instr, pc);
-            TRACE_INT_ARG(pc);
-        } break;
-        case OP_JUMP_IF_FALSE: {
-            TRACE_INT_ARG(READ_I16(code_obj->code.instr, pc));
-            if( stack[stack_top--].data.b == false ) {
-                pc = READ_I16(code_obj->code.instr, pc);
-            } else {
+        switch (opcode) {
+            case OP_PUSH: {
+                int const_index = READ_I16(code_obj->code.instr, pc);
+                TRACE_INT_ARG(const_index);
+                stack[++stack_top] = code_obj->constants->values[const_index];
                 pc += 2;
-            }
-        } break;
-        case OP_HALT:{
-            return val_number(-1002);
-        } break;
-        case OP_EXIT: {
-            int return_value = READ_I16(code_obj->code.instr, pc);
-            TRACE_INT_ARG(return_value);
-            return val_number(return_value);
-        } break;
-        case OP_RETURN: {
-            return stack[stack_top];
-        } break;
-        default:
-            printf("unknown op %i\n", opcode);
-            return val_number(-1003);
+            } break;
+            case OP_ADD: {
+                val_t a = stack[stack_top--];
+                val_t b = stack[stack_top--];
+                stack[++stack_top] = (val_t) {
+                    .type = VAL_NUMBER,
+                    .data.n = a.data.n + b.data.n
+                };
+            } break;
+            case OP_SUB: {
+                val_t a = stack[stack_top--];
+                val_t b = stack[stack_top--];
+                stack[++stack_top] = (val_t) {
+                    .type = VAL_NUMBER,
+                    .data.n = a.data.n - b.data.n
+                };
+            } break;
+            case OP_MUL: {
+                val_t a = stack[stack_top--];
+                val_t b = stack[stack_top--];
+                stack[++stack_top] = (val_t) {
+                    .type = VAL_NUMBER,
+                    .data.n = a.data.n * b.data.n
+                };
+            } break;
+            case OP_NEG: {
+                val_t a = stack[stack_top--];
+                stack[++stack_top] = (val_t) {
+                    .type = VAL_NUMBER,
+                    .data.n = -a.data.n
+                };
+            } break;
+            case OP_CMP_LESS_THAN: {
+                val_t a = stack[stack_top--];
+                val_t b = stack[stack_top--];
+                stack[++stack_top] = (val_t) {
+                    .type = VAL_BOOL,
+                    .data.b = a.data.n < b.data.n
+                };
+            } break;
+            case OP_CMP_MORE_THAN: {
+                val_t a = stack[stack_top--];
+                val_t b = stack[stack_top--];
+                stack[++stack_top] = (val_t) {
+                    .type = VAL_BOOL,
+                    .data.b = a.data.n > b.data.n
+                };
+            } break;
+            case OP_CMP_EQUAL: {
+                val_t a = stack[stack_top--];
+                val_t b = stack[stack_top--];
+                stack[++stack_top] = (val_t) {
+                    .type = VAL_BOOL,
+                    .data.b = a.data.n == b.data.n
+                };
+            } break;
+            case OP_AND: {
+                val_t a = stack[stack_top--];
+                val_t b = stack[stack_top--];
+                stack[++stack_top] = (val_t) {
+                    .type = VAL_BOOL,
+                    .data.b = a.data.b && b.data.b
+                };
+            } break;
+            case OP_NOT: {
+                val_t a = stack[stack_top--];
+                val_t b = stack[stack_top--];
+                stack[++stack_top] = (val_t) {
+                    .type = VAL_BOOL,
+                    .data.b = a.data.b && b.data.b
+                };
+            } break;
+            case OP_DUP: {
+                int n = READ_I16(code_obj->code.instr, pc);
+                TRACE_INT_ARG(n);
+                int base_index = stack_top - n + 1;
+                for(int i = 0; i < n; i++) {
+                    stack[++stack_top] = stack[base_index + i];
+                }
+                pc += 2;
+            } break;
+            case OP_JUMP: {
+                pc = READ_I16(code_obj->code.instr, pc);
+                TRACE_INT_ARG(pc);
+            } break;
+            case OP_JUMP_IF_FALSE: {
+                TRACE_INT_ARG(READ_I16(code_obj->code.instr, pc));
+                if( stack[stack_top--].data.b == false ) {
+                    pc = READ_I16(code_obj->code.instr, pc);
+                } else {
+                    pc += 2;
+                }
+            } break;
+            case OP_HALT:{
+                TRACE_NL();
+                return val_number(-1002);
+            } break;
+            case OP_EXIT: {
+                TRACE_NL();
+                int return_value = READ_I16(code_obj->code.instr, pc);
+                TRACE_INT_ARG(return_value);
+                return val_number(return_value);
+            } break;
+            case OP_RETURN: {
+                TRACE_NL();
+                return stack[stack_top];
+            } break;
+            default: {
+                char* op_str = (opcode >= 0 && opcode < OP_OPCODE_COUNT)
+                    ? op_names[opcode]
+                    : "<unk>";
+                printf("\nunknown op %i (%s)\n", opcode, op_str);
+                return val_number(-1003);
+            } break;
         }
 
         TRACE_NL();

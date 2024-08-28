@@ -11,5 +11,4 @@ label:
         exit-loop:
             jump exit-label
 exit-label:
-    call print
     return
