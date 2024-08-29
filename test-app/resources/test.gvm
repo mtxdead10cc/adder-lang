@@ -11,5 +11,6 @@ label:
         exit-loop:
             jump exit-label
 exit-label:
+    push "HEJ HEJ PÅ DIG!"
     call print
     return

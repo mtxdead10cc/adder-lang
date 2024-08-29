@@ -13,6 +13,7 @@ typedef struct grid_t {
 } grid_t;
 
 typedef enum val_type_t {
+    VAL_VOID,
     VAL_NUMBER,
     VAL_BOOL,
     VAL_CHAR,
@@ -24,7 +25,13 @@ typedef struct val_buffer_t val_buffer_t;
 
 typedef uint32_t list_t;
 
-#define GET_LIST_ID(L) ((L) >> 28)
+typedef enum gvm_mem_location_t {
+    MEM_LOC_CONST,
+    MEM_LOC_STACK,
+    MEM_LOC_HEAP
+} gvm_mem_location_t;
+
+#define GET_LIST_MEM_LOC(L) ((L) >> 28)
 #define GET_LIST_LENGTH(L) (((L) & 0x0FFFFFFFFF) >> 14)
 #define GET_LIST_OFFSET(L) (((L) & 0x3FFF))
 
@@ -96,6 +103,7 @@ typedef enum gvm_op_t {
     OP_CMP_LESS_THAN,
     OP_CMP_MORE_THAN,
     OP_PUSH,
+    OP_POP,
     OP_JUMP,
     OP_JUMP_IF_FALSE,
     OP_EXIT,
@@ -111,19 +119,37 @@ typedef struct u8buffer_t {
 } u8buffer_t;
 
 typedef struct val_buffer_t {
-    int id;
+    int storage;
     int size;
     int capacity;
     val_t* values;
 } val_buffer_t;
 
-typedef struct code_object_t {
-    val_buffer_t* constants;
-    struct {
-        int size;
-        uint8_t* instr;
-    } code;
-} code_object_t;
+typedef struct byte_code_block_t {
+    int size;
+    uint8_t* data;
+} byte_code_block_t;
 
+typedef struct byte_code_header_t {
+    uint16_t header_size;
+    uint16_t const_bytes;
+    uint16_t code_bytes;
+} byte_code_header_t;
+
+typedef struct env_t env_t;
+
+typedef void (*func_t)(env_t* env);
+
+
+typedef struct env_t {
+    val_buffer_t constants;
+    val_buffer_t heap;
+    val_buffer_t stack;
+    struct {
+        int count;
+        func_t funcs[16];
+        char* names[16];
+    } native;
+} env_t;
 
 #endif // GVM_TYPES_H_

@@ -9,8 +9,9 @@ target_sources(gvm PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/gvm.c
         ${CMAKE_CURRENT_SOURCE_DIR}/gvm_parser.c
         ${CMAKE_CURRENT_SOURCE_DIR}/gvm_value.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/gvm_memory.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/gvm_val_buffer.c
         ${CMAKE_CURRENT_SOURCE_DIR}/gvm_utils.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/gvm_env.c
         ${CMAKE_CURRENT_SOURCE_DIR}/gvm_asm.c
         ${CMAKE_CURRENT_SOURCE_DIR}/gvm_grid.c
 )

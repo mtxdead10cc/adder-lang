@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <gvm_value.h>
+#include <gvm_env.h>
 
 #define DEFAULT_PATH "resources/test.gvm"
 
@@ -55,16 +56,20 @@ int main(int argv, char** argc) {
 
     asm_code[fsize] = 0;
 
-    code_object_t obj = gvm_compile(asm_code);
+    byte_code_block_t obj = gvm_compile(asm_code);
+
     free(asm_code);
+
+    env_t env = { 0 };
+    env_init(&env, &obj, 128);
 
     if( verbose ) {
         gvm_disassemble(&obj);
     }
 
-    val_t result = gvm_execute(&obj, 50, 50);
+    val_t result = gvm_execute(&obj, &env, 50);
     printf("> ");
-    val_print(&result);
+    val_print_env(&env, &result);
     printf("\n");
 
     gvm_destroy(&obj);

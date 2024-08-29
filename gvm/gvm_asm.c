@@ -3,7 +3,7 @@
 #include "gvm_value.h"
 #include "gvm.h"
 #include "gvm_utils.h"
-#include "gvm_memory.h"
+#include "gvm_val_buffer.h"
 #include <string.h>
 #include <assert.h>
 
@@ -331,15 +331,17 @@ void u8buffer_write_i16(u8buffer_t* buffer, int16_t val) {
 *     val_buffer_t. The constant is referred to by its index (in
 *     the val_buffer) in the byte code that is generated.
 */
-code_object_t asm_assemble_code_object(char* code_buffer) {
+byte_code_block_t asm_assemble_code_object(char* code_buffer) {
     
     parser_t* parser = parser_create(code_buffer);
     if( parser == NULL ) {
-        return (code_object_t) { 0 };
+        return (byte_code_block_t) { 0 };
     }
 
     gvm_result_t result_code = RES_OK;
     label_set_t label_set = { 0 };
+    u8buffer_t code_section = { 0 };
+    val_buffer_t const_store = { 0 };
 
     result_code = asm_scan_labels(parser, &label_set);
     if( result_code != RES_OK ) {
@@ -352,14 +354,12 @@ code_object_t asm_assemble_code_object(char* code_buffer) {
     parser_debug_print_tokens(parser);
 #endif
 
-    val_buffer_t* const_store = val_buffer_create(5);
-    if( const_store == NULL ) {
+    if( val_buffer_create(&const_store, MEM_LOC_CONST, 5) == false ) {
         result_code = RES_OUT_OF_MEMORY;
         goto on_error;
     }
-
-    u8buffer_t code_section = { 0 };
-    if(u8buffer_create(&code_section, 16) == false) {
+    
+    if( u8buffer_create(&code_section, 16) == false ) {
         result_code = RES_OUT_OF_MEMORY;
         goto on_error;
     }
@@ -367,11 +367,6 @@ code_object_t asm_assemble_code_object(char* code_buffer) {
     bool keep_going = true;
 
     while ( parser_is_at_end(parser) == false && keep_going ) {
-
-        // consume separators
-        while (parser_match(parser, TT_SEPARATOR)) {
-            keep_going &= parser_consume(parser, TT_SEPARATOR);
-        }
 
         // skip label definitions this time
         if( parser_current(parser).type == TT_SYMBOL
@@ -396,7 +391,7 @@ code_object_t asm_assemble_code_object(char* code_buffer) {
             while (arg_index < nargs && keep_going) {
                 keep_going &= parser_consume(parser, TT_SEPARATOR);
                 if( scheme_is_flag_set(op_scheme.isconst, arg_index) ) {
-                    int const_index = consts_add_current(const_store, parser);
+                    int const_index = consts_add_current(&const_store, parser);
                     DBG_LOG("%i (", const_index);
                     DBG_LOG_CONST(const_store, const_index);
                     DBG_LOG(")");
@@ -425,31 +420,49 @@ code_object_t asm_assemble_code_object(char* code_buffer) {
                 arg_index ++;
             }
             DBG_LOG("\n");
+
+            // consume separators
+            while (parser_match(parser, TT_SEPARATOR)) {
+                keep_going &= parser_consume(parser, TT_SEPARATOR);
+            }
         }
     }
 
-    // reuse the existing memory for the code object
-    // since size is always < capacity realloc
-    // should always shrink (or not change) the 
-    // allocated memory.
-    // this memory gets free'd up when the code
-    // object gets destroyed.
+    byte_code_block_t obj = { 0 };
+    int byte_count_consts = sizeof(val_t) * const_store.size;
+    int byte_count_code = code_section.size;
+    int byte_count_header = 4;
 
-    code_object_t obj = { 0 };
-    obj.code.size = code_section.size;
-    obj.code.instr = (uint8_t*) realloc(code_section.data, code_section.size);
-    obj.constants = const_store;
+    obj.size = byte_count_consts + byte_count_code + byte_count_header;
+    obj.data = (uint8_t*) malloc(obj.size);
 
+    uint8_t* write_ptr = obj.data;
+    write_ptr[0] = byte_count_consts;
+    write_ptr[1] = byte_count_consts >> 8;
+    write_ptr[2] = byte_count_code;
+    write_ptr[3] = byte_count_code >> 8;
+
+    write_ptr += 4;
+
+    // write the const section
+    memcpy(write_ptr, const_store.values, byte_count_consts);
+    write_ptr += byte_count_consts;
+
+    // write the code
+    memcpy(write_ptr, code_section.data, byte_count_code);
+    
+    u8buffer_destroy(&code_section);
+    val_buffer_destroy(&const_store);
     parser_destroy(parser);
     
     return obj;
 
 on_error:
-    free(code_section.data);
-    val_buffer_destroy(const_store);
+    u8buffer_destroy(&code_section);
+    val_buffer_destroy(&const_store);
     parser_destroy(parser);
     gvm_print_if_error(result_code, "asm_assemble");
-    return (code_object_t) { 0 };
+    return (byte_code_block_t) { 0 };
 }
 
 int get_disasm_scheme_index(gvm_op_t op) {
@@ -462,11 +475,14 @@ int get_disasm_scheme_index(gvm_op_t op) {
     return -1;
 }
 
-void asm_debug_disassemble_code_object(code_object_t* code_object) {
+void asm_debug_disassemble_code_object(byte_code_block_t* code_object) {
     int current_byte = 0;
     int current_instruction = 0;
-    while( current_byte < code_object->code.size ) {
-        gvm_op_t opcode = code_object->code.instr[current_byte];
+    byte_code_header_t h = asm_read_byte_code_header(code_object);
+    val_t* consts = (val_t*) (code_object->data + h.header_size);
+    uint8_t* instructions = code_object->data + h.header_size + h.const_bytes;
+    while( current_byte < h.code_bytes ) {
+        gvm_op_t opcode = instructions[current_byte];
         int scheme_index = get_disasm_scheme_index(opcode);
         if( scheme_index < 0 ) {
             printf("<op %i not found>", opcode);
@@ -479,12 +495,12 @@ void asm_debug_disassemble_code_object(code_object_t* code_object) {
         current_byte ++;
         int arg_count = scheme_get_arg_count(scheme.typespec);
         for (int i = 0; i < arg_count; i++) {
-            int val = READ_I16(code_object->code.instr, current_byte);
+            int val = READ_I16(instructions, current_byte);
             printf(" %i", val);
             current_byte += 2;
             if( scheme_is_flag_set(scheme.isconst, i) ) {
                 printf(" (");
-                val_print(&code_object->constants->values[val]);
+                val_print_mem((uint8_t*) consts, &consts[val]);
                 printf(")");
             }
         }
@@ -493,16 +509,24 @@ void asm_debug_disassemble_code_object(code_object_t* code_object) {
     }
 }
 
-void asm_destroy_code_object(code_object_t* code_object) {
+void asm_destroy_code_object(byte_code_block_t* code_object) {
     if( code_object == NULL ) {
         return;
     }
-    if( code_object->code.instr != NULL ) {
-        free(code_object->code.instr);
-        code_object->code.instr = NULL;
-        code_object->code.size = 0;
+    if( code_object->data != NULL ) {
+        free(code_object->data);
+        code_object->data = NULL;
+        code_object->size = 0;
     }
-    if( code_object->constants != NULL ) {
-        val_buffer_destroy(code_object->constants);
+}
+
+byte_code_header_t asm_read_byte_code_header(byte_code_block_t* code_obj) {
+    if( code_obj->size < 4 ) {
+        return ( byte_code_header_t ) { 0 };
     }
+    byte_code_header_t header;
+    header.const_bytes = code_obj->data[0] | code_obj->data[1] << 8;
+    header.code_bytes  = code_obj->data[2] | code_obj->data[3] << 8;
+    header.header_size = 4;
+    return header;
 }
