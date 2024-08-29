@@ -182,11 +182,12 @@ parser_t* parser_create(char* text) {
     }
     memset(p, 0, sizeof(parser_t));
     p->text.size = strlen(text);
-    p->text.array = (char*) malloc(p->text.size * sizeof(char));
+    p->text.array = (char*) malloc((p->text.size + 1) * sizeof(char));
     if( p->text.array == NULL ) {
         parser_destroy(p);
         return NULL;
     }
+    p->text.array[p->text.size] = '\0';
     memcpy(p->text.array, text, p->text.size);
     p->current = 0;
     gvm_result_t res = tokenize(&p->text, &p->tokens);

@@ -148,6 +148,12 @@ val_t gvm_execute(byte_code_block_t* code_obj, env_t* env, int max_cycles) {
                 stack[++stack_top] = consts[const_index];
                 pc += 2;
             } break;
+            case OP_POP: {
+                int num_pops = READ_I16(instructions, pc);
+                TRACE_INT_ARG(num_pops);
+                stack_top -= num_pops;
+                pc += 2;
+            } break;
             case OP_ADD: {
                 val_t a = stack[stack_top--];
                 val_t b = stack[stack_top--];
@@ -252,6 +258,7 @@ val_t gvm_execute(byte_code_block_t* code_obj, env_t* env, int max_cycles) {
             } break;
             case OP_CALL_NATIVE: {
                 int const_index = READ_I16(instructions, pc);
+                TRACE_INT_ARG(const_index);
                 val_t* sym = &consts[const_index];
                 func_t func = find_func(env, sym);
                 if( func == NULL ) {

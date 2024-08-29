@@ -8,7 +8,6 @@ void fn_print(env_t* env) {
     int stack_top = env->stack.size - 1;
     val_print_env(env, &env->stack.values[stack_top]);
     printf("\n");
-    env->stack.size --;
 }
 
 

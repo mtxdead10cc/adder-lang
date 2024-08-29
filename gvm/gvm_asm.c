@@ -22,6 +22,7 @@ static op_scheme_t schemes[] = {
 //  [string name]  [op bytecode id]    [arg type]              [store as const]   [is label reference]
     {"push",        OP_PUSH,            ARGSPEC1(TT_NUMBER),    0x01,              0x00 },
     {"push",        OP_PUSH,            ARGSPEC1(TT_STRING),    0x01,              0x00 },
+    {"pop",         OP_POP,             ARGSPEC1(TT_NUMBER),    0x00,              0x00 },
     {"dup",         OP_DUP,             ARGSPEC1(TT_NUMBER),    0x00,              0x00 },
     {"is-less",     OP_CMP_LESS_THAN,   ARGSPEC1(0),            0x00,              0x00 },
     {"is-more",     OP_CMP_MORE_THAN,   ARGSPEC1(0),            0x00,              0x00 },

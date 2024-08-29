@@ -13,7 +13,6 @@ typedef struct grid_t {
 } grid_t;
 
 typedef enum val_type_t {
-    VAL_VOID,
     VAL_NUMBER,
     VAL_BOOL,
     VAL_CHAR,

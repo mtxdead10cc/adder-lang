@@ -13,4 +13,5 @@ label:
 exit-label:
     push "HEJ HEJ PÅ DIG!"
     call print
+    pop 2
     return

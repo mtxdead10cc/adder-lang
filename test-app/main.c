@@ -72,6 +72,7 @@ int main(int argv, char** argc) {
     val_print_env(&env, &result);
     printf("\n");
 
+    env_destroy(&env);
     gvm_destroy(&obj);
 
     return 0;
