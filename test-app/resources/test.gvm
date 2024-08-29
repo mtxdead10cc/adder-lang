@@ -1,4 +1,6 @@
+######### START
 label:
+    # comment 01
     push 2
     push 0
     loop:
@@ -8,6 +10,7 @@ label:
             push 1
             add
             jump loop
+#KEBAB
         exit-loop:
             jump exit-label
 exit-label:
@@ -15,3 +18,4 @@ exit-label:
     call print
     pop 2
     return
+######### END

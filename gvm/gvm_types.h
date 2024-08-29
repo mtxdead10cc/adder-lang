@@ -51,6 +51,7 @@ typedef enum token_type_t {
     TT_STRING,
     TT_SYMBOL,
     TT_SEPARATOR,
+    TT_COMMENT,
     TT_END
 } token_type_t;
 

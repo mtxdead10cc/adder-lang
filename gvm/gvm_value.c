@@ -85,7 +85,7 @@ void val_print_env(env_t* env, val_t* val) {
     }
 }
 
-void val_print_mem(uint8_t* buffer, val_t* val) {
+void val_print_mem(val_t* buffer, val_t* val) {
     switch (val->type)
     {
     case VAL_NUMBER:
@@ -98,14 +98,13 @@ void val_print_mem(uint8_t* buffer, val_t* val) {
         printf("%s", val->data.b ? "TRUE" : "FALSE");
         break;
     case VAL_LIST: {
-        val_t* mem = (val_t*) buffer;
-        if( mem == NULL ) {
+        if( buffer == NULL ) {
             printf("<null buffer>");
             break;
         }
         int length = GET_LIST_LENGTH(val->data.l);
         int offset = GET_LIST_OFFSET(val->data.l);
-        val_t* v_ptr = mem + offset;
+        val_t* v_ptr = buffer + offset;
         bool is_list = v_ptr[0].type != VAL_CHAR;
         if(is_list) {
             printf("[");

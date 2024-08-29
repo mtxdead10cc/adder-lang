@@ -36,6 +36,8 @@ bool is_whitespace(char c) {
         || c == '\n';
 }
 
+#define _MIN(a, b) ((a) < (b) ? (a) : (b))
+
 typedef enum lexeme_t {
     L_LETTER,
     L_NUMBER,
@@ -43,6 +45,7 @@ typedef enum lexeme_t {
     L_DOT,
     L_QUOTE,
     L_COLON,
+    L_PUND_SIGN,
     L_WHITESPACE,
     L_NEWLINE,
     L_UNKNOWN
@@ -57,6 +60,7 @@ lexeme_t scan(char c) {
         case '\n':  return L_NEWLINE;
         case ' ':   return L_WHITESPACE;
         case '\t':  return L_WHITESPACE;
+        case '#':   return L_PUND_SIGN;
         default: {
             if( is_numeric(c) ) {
                 return L_NUMBER;
@@ -122,6 +126,7 @@ gvm_result_t tokenize(parser_text_t* text, parser_tokens_t* tokens) {
     int line = 1;
     int column = 1;
     bool in_quoute = false;
+    bool in_comment = false;
     
     int text_length = text->size;
 
@@ -131,31 +136,42 @@ gvm_result_t tokenize(parser_text_t* text, parser_tokens_t* tokens) {
         // by faking an extra trailing whitespace
         lexeme_t lex = (i < text_length)
             ? scan(text->array[i])
-            : L_WHITESPACE; 
+            : L_NEWLINE; 
 
         if( res != RES_OK ) {
             break;
         }
 
-        if ( lex == L_QUOTE ) {
-            in_quoute = !in_quoute;
-            res = tokens_push_on_change(tokens, TT_STRING, line, column, i);
-        } else if( in_quoute ) {
-            res = tokens_push_on_change(tokens, TT_STRING, line, column, i);
-        } else if ( lex == L_COLON ) {
-            res = tokens_push_on_change(tokens, TT_COLON, line, column, i);
-        } else if ( lex == L_DOT && last == L_NUMBER ) {
-            res = tokens_push_on_change(tokens, TT_NUMBER, line, column, i);
-        } else if ( lex == L_NUMBER ) {
-            res = tokens_push_on_change(tokens, TT_NUMBER, line, column, i);
-        } else if ( lex == L_DASH && last == L_LETTER ) {
-            res = tokens_push_on_change(tokens, TT_SYMBOL, line, column, i);
-        } else if ( lex == L_LETTER ) {
-            res = tokens_push_on_change(tokens, TT_SYMBOL, line, column, i);
-        } else if ( lex == L_WHITESPACE || lex == L_NEWLINE ) {
-            res = tokens_push_on_change(tokens, TT_SEPARATOR, line, column, i);
+        if( in_quoute == false && lex == L_PUND_SIGN ) {
+            in_comment = true;
+            res = tokens_push_on_change(tokens, TT_COMMENT, line, column, i);
+        } else if ( in_comment && lex == L_NEWLINE ) {
+            in_comment = false;
+        }
+
+        if( in_comment == false ) {
+            if ( lex == L_QUOTE ) {
+                in_quoute = !in_quoute;
+                res = tokens_push_on_change(tokens, TT_STRING, line, column, i);
+            } else if( in_quoute ) {
+                res = tokens_push_on_change(tokens, TT_STRING, line, column, i);
+            } else if ( lex == L_COLON ) {
+                res = tokens_push_on_change(tokens, TT_COLON, line, column, i);
+            } else if ( lex == L_DOT && last == L_NUMBER ) {
+                res = tokens_push_on_change(tokens, TT_NUMBER, line, column, i);
+            } else if ( lex == L_NUMBER ) {
+                res = tokens_push_on_change(tokens, TT_NUMBER, line, column, i);
+            } else if ( lex == L_DASH && last == L_LETTER ) {
+                res = tokens_push_on_change(tokens, TT_SYMBOL, line, column, i);
+            } else if ( lex == L_LETTER ) {
+                res = tokens_push_on_change(tokens, TT_SYMBOL, line, column, i);
+            } else if ( lex == L_WHITESPACE || lex == L_NEWLINE ) {
+                res = tokens_push_on_change(tokens, TT_SEPARATOR, line, column, i);
+            } else {
+                res = tokens_push_on_change(tokens, TT_UNKNOWN, line, column, i);
+            }
         } else {
-            res = tokens_push_on_change(tokens, TT_UNKNOWN, line, column, i);
+            res = tokens_push_on_change(tokens, TT_COMMENT, line, column, i);
         }
 
         column ++;
@@ -222,7 +238,7 @@ void parser_reset(parser_t* p) {
 }
 
 bool parser_is_at_end(parser_t* p) {
-    return (p->current < p->tokens.size) == false;
+    return (p->current >= p->tokens.size);
 }
 
 bool parser_advance(parser_t* p) {
@@ -244,6 +260,11 @@ bool parser_match(parser_t* p, token_type_t tt) {
 }
 
 bool parser_consume(parser_t* p, token_type_t tt) {
+    if( parser_is_at_end(p) ) {
+        printf("error: expected '%s' but parser reached end of file.\n",
+            parser_tt_to_str(tt));
+        return false;
+    }
     token_t current = p->tokens.array[p->current];
     if( current.type == tt ) {
         return parser_advance(p);
@@ -262,6 +283,7 @@ char* parser_tt_to_str(token_type_t tt) {
         case TT_COLON: return "COLON";
         case TT_NUMBER: return "NUMBER";
         case TT_SEPARATOR: return "SEPARATOR";
+        case TT_COMMENT: return "COMMENT";
         case TT_STRING: return "STRING";
         case TT_SYMBOL: return "SYMBOL";
         case TT_UNKNOWN: return "UNKNOWN";
@@ -271,7 +293,7 @@ char* parser_tt_to_str(token_type_t tt) {
 }
 
 token_t parser_current(parser_t* p) {
-    return p->tokens.array[p->current];
+    return p->tokens.array[_MIN(p->current, p->tokens.size-1)];
 }
 
 token_t parser_peek(parser_t* p, int lookahead) {

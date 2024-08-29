@@ -50,7 +50,7 @@ static inline void asm_debug_print_token(parser_t* parser) {
     printf("%.*s", str_len, str);
 }
 # define DBG_LOG(...) printf(__VA_ARGS__)
-# define DBG_LOG_CONST(C, I) val_print(&(C)->values[(I)])
+# define DBG_LOG_CONST(C, I) val_print_mem((C), &(C)[(I)])
 # define DBG_LOG_OPERAND(P) asm_debug_print_token(P)
 #else
 # define DBG_LOG(...)
@@ -260,13 +260,15 @@ int consts_add_current(val_buffer_t* consts, parser_t* parser) {
     the label name and address (byte index) is stored in
     the provided label_set. */
 gvm_result_t asm_scan_labels(parser_t* parser, label_set_t* label_set) {
+
     bool keep_going = true;
     int address = 0;
 
     while ( parser_is_at_end(parser) == false && keep_going ) {
-        // consume separators
-        while (parser_match(parser, TT_SEPARATOR)) {
-            keep_going &= parser_consume(parser, TT_SEPARATOR);
+
+        // consume comments & separators
+        while ( parser_match(parser, TT_SEPARATOR) || parser_match(parser, TT_COMMENT) ) {
+            parser_advance(parser);
         }
 
         token_t current = parser_current(parser);
@@ -285,6 +287,10 @@ gvm_result_t asm_scan_labels(parser_t* parser, label_set_t* label_set) {
             keep_going &= parser_consume(parser, TT_SYMBOL);
             keep_going &= parser_consume(parser, TT_COLON);
             keep_going &= parser_consume(parser, TT_SEPARATOR);
+            continue;
+        }
+
+        if( current.type == TT_COMMENT || current.type == TT_SEPARATOR ){
             continue;
         }
 
@@ -311,6 +317,7 @@ gvm_result_t asm_scan_labels(parser_t* parser, label_set_t* label_set) {
             printf("no operation matching '%s'.\n", buf);
             return RES_NOT_SUPPORTED;
         }
+
     }
 
     return RES_OK;
@@ -344,16 +351,16 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
     u8buffer_t code_section = { 0 };
     val_buffer_t const_store = { 0 };
 
+#if GVM_TRACE_LOG_LEVEL >= 4
+    parser_debug_print_tokens(parser);
+#endif
+
     result_code = asm_scan_labels(parser, &label_set);
     if( result_code != RES_OK ) {
         goto on_error;
     }
 
     parser_reset(parser);
-    
-#if GVM_TRACE_LOG_LEVEL >= 4
-    parser_debug_print_tokens(parser);
-#endif
 
     if( val_buffer_create(&const_store, MEM_LOC_CONST, 5) == false ) {
         result_code = RES_OUT_OF_MEMORY;
@@ -369,13 +376,22 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
 
     while ( parser_is_at_end(parser) == false && keep_going ) {
 
+        // consume comments & separators
+        while ( parser_match(parser, TT_SEPARATOR) || parser_match(parser, TT_COMMENT) ) {
+            parser_advance(parser);
+        }
+
         // skip label definitions this time
-        if( parser_current(parser).type == TT_SYMBOL
-            && parser_peek(parser, 1).type == TT_COLON )
-        {
+        token_t current = parser_current(parser);
+        token_t next = parser_peek(parser, 1);
+        if( current.type == TT_SYMBOL && next.type == TT_COLON ) {
             keep_going &= parser_consume(parser, TT_SYMBOL);
             keep_going &= parser_consume(parser, TT_COLON);
             keep_going &= parser_consume(parser, TT_SEPARATOR);
+            continue;
+        }
+
+        if( current.type == TT_COMMENT || current.type == TT_SEPARATOR ) {
             continue;
         }
 
@@ -394,7 +410,7 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
                 if( scheme_is_flag_set(op_scheme.isconst, arg_index) ) {
                     int const_index = consts_add_current(&const_store, parser);
                     DBG_LOG("%i (", const_index);
-                    DBG_LOG_CONST(const_store, const_index);
+                    DBG_LOG_CONST(const_store.values, const_index);
                     DBG_LOG(")");
                     assert(const_index >= 0 && const_index < 256);
                     u8buffer_write_i16(&code_section, const_index);
@@ -421,12 +437,8 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
                 arg_index ++;
             }
             DBG_LOG("\n");
-
-            // consume separators
-            while (parser_match(parser, TT_SEPARATOR)) {
-                keep_going &= parser_consume(parser, TT_SEPARATOR);
-            }
         }
+
     }
 
     byte_code_block_t obj = { 0 };
@@ -501,7 +513,7 @@ void asm_debug_disassemble_code_object(byte_code_block_t* code_object) {
             current_byte += 2;
             if( scheme_is_flag_set(scheme.isconst, i) ) {
                 printf(" (");
-                val_print_mem((uint8_t*) consts, &consts[val]);
+                val_print_mem(consts, &consts[val]);
                 printf(")");
             }
         }
