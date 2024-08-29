@@ -7,6 +7,19 @@
 #include <stdio.h>
 #include <string.h>
 
+/* PARSER * * * * * * * * 
+*
+* A pretty straight forward scanner, tokenizer and parser.
+* The only thing to note is that when text is provided the
+* parser copies the textbuffer and stores a reference in 
+* parser_t (parser_text_t). The tokens generated via
+* tokenize(...) only stores references to positions within
+* the text buffer (as opposed to storing text snippets), 
+* hence the need for parser_get_token_string_ptr(...), 
+* parser_get_token_string_length(...), etc.
+*
+*/
+
 bool is_numeric(char c) {
     return c <= '9' && c >= '0';
 }

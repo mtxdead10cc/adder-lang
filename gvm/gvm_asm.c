@@ -190,6 +190,11 @@ int consts_add_symbol_as_string(val_buffer_t* consts, char* text, int length) {
         : (consts->size);
 }
 
+/* [consts_add_current]
+    Adds the current token to the constants buffer.
+    TT_STRING -> VAL_LIST
+    TT_NUMBER -> VAL_NUMBER
+    TT_SYMBOL -> VAL_BOOL | VAL_STRING */
 int consts_add_current(val_buffer_t* consts, parser_t* parser) {
     token_t token = parser_current(parser);
     switch (token.type)
@@ -248,6 +253,11 @@ static inline void asm_debug_print_token(parser_t* parser) {
 # define DBG_LOG_OPERAND(P)
 #endif
 
+/* [asm_scan_labels]
+    Runs through all the tokens counting bytes in order to 
+    keep track of op addresses. For every label encountered
+    the label name and address (byte index) is stored in
+    the provided label_set. */
 gvm_result_t asm_scan_labels(parser_t* parser, label_set_t* label_set) {
     bool keep_going = true;
     int address = 0;
@@ -310,6 +320,17 @@ void u8buffer_write_i16(u8buffer_t* buffer, int16_t val) {
     u8buffer_write(buffer, 0xFF & (val >> 8));
 }
 
+/* [asm_assemble_code_object]
+*   Creates an internat parser_t, scans all the labels into a
+*   label_set and then;
+*   - writes the opcode of each instruction to the byte code
+*     after converting op-name to opcode.
+*   - op arg labels ar converted into byte code index (address)
+*     by lookup through the label set.
+*   - constants are read from tokens and stored as val_t in a 
+*     val_buffer_t. The constant is referred to by its index (in
+*     the val_buffer) in the byte code that is generated.
+*/
 code_object_t asm_assemble_code_object(char* code_buffer) {
     
     parser_t* parser = parser_create(code_buffer);

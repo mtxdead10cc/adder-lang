@@ -217,6 +217,7 @@ val_t gvm_execute(code_object_t* code_obj, int stack_size, int max_cycles) {
                 TRACE_INT_ARG(return_value);
                 return val_number(return_value);
             } break;
+            // TODO: Implement the native call operation!
             case OP_RETURN: {
                 TRACE_NL();
                 return stack[stack_top];

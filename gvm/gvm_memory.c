@@ -4,6 +4,25 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+/* MEMORY * * * * * * * * * 
+*
+* Currently the only way to represent a block of memory in the gvm.
+* Used primarily for lists and strings. The buffers are allocated
+* on-demand but a reference and an id is stored in a static global
+* array (see gvm_memory.c). The id can be used to retreive a pointer
+* to the buffer. This way lists and strings can be represented by 
+* an UINT32.
+*
+* 31 27 ... 14 ... 0
+* |ID|LENGTH|OFFSET|
+*
+* However the hard coded ID <-> buffer pointer becomes a problem if
+* the code is serialized to bytes and later read up since there is 
+* no guarantee that the ID for the constants buffer (for example)
+* will map to the same ID in the new execution environment.
+*
+*/
+
 #define MAX_MEM_BUFFFERS 16
 
 // TODO: MEMORY CAN'T be val_buffer unless
