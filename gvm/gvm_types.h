@@ -139,7 +139,6 @@ typedef struct env_t env_t;
 
 typedef void (*func_t)(env_t* env);
 
-
 typedef struct env_t {
     val_buffer_t constants;
     val_buffer_t heap;

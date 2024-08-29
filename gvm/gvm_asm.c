@@ -4,6 +4,7 @@
 #include "gvm.h"
 #include "gvm_utils.h"
 #include "gvm_val_buffer.h"
+#include "gvm_config.h"
 #include <string.h>
 #include <assert.h>
 
@@ -40,6 +41,22 @@ static op_scheme_t schemes[] = {
     {"sub",         OP_SUB,             ARGSPEC1(0),            0x00,              0x00 },
     {"neg",         OP_NEG,             ARGSPEC1(0),            0x00,              0x00 },
 };
+
+#if GVM_TRACE_LOG_LEVEL >= 3
+static inline void asm_debug_print_token(parser_t* parser) {
+    token_t token = parser_current(parser);
+    char* str = parser_get_token_string_ptr(parser, token);
+    int str_len = parser_get_token_string_length(parser, token);
+    printf("%.*s", str_len, str);
+}
+# define DBG_LOG(...) printf(__VA_ARGS__)
+# define DBG_LOG_CONST(C, I) val_print(&(C)->values[(I)])
+# define DBG_LOG_OPERAND(P) asm_debug_print_token(P)
+#else
+# define DBG_LOG(...)
+# define DBG_LOG_CONST(C, I)
+# define DBG_LOG_OPERAND(P)
+#endif
 
 int scheme_get_arg_count(uint32_t typespec) {
     int arg_count = 0;
@@ -235,24 +252,7 @@ int consts_add_current(val_buffer_t* consts, parser_t* parser) {
     }
 }
 
-static inline void asm_debug_print_token(parser_t* parser) {
-    token_t token = parser_current(parser);
-    char* str = parser_get_token_string_ptr(parser, token);
-    int str_len = parser_get_token_string_length(parser, token);
-    printf("%.*s", str_len, str);
-}
 
-// #define DBG_LOG_ENABLED
-
-#ifdef DBG_LOG_ENABLED
-# define DBG_LOG(...) printf(__VA_ARGS__)
-# define DBG_LOG_CONST(C, I) val_print(&(C)->values[(I)])
-# define DBG_LOG_OPERAND(P) asm_debug_print_token(P)
-#else
-# define DBG_LOG(...)
-# define DBG_LOG_CONST(C, I)
-# define DBG_LOG_OPERAND(P)
-#endif
 
 /* [asm_scan_labels]
     Runs through all the tokens counting bytes in order to 
@@ -351,7 +351,7 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
 
     parser_reset(parser);
     
-#ifdef DBG_LOG_ENABLED
+#if GVM_TRACE_LOG_LEVEL >= 4
     parser_debug_print_tokens(parser);
 #endif
 

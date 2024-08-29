@@ -4,6 +4,7 @@
 #include "gvm_asm.h"
 #include "gvm_types.h"
 #include "gvm_value.h"
+#include "gvm_config.h"
 #include <stdio.h>
 
 static char* op_names[OP_OPCODE_COUNT] = {
@@ -28,6 +29,37 @@ static char* op_names[OP_OPCODE_COUNT] = {
     "OP_CALL_NATIVE",
     "OP_RETURN"
 };
+
+#if GVM_VM_TRACE_LOG_LEVEL > 0
+
+# define TRACE_LOG(...) printf(__VA_ARGS__)
+# define TRACE_OP(C) TRACE_LOG("> %s ", ((C) >= 0 && (C) < OP_OPCODE_COUNT) ? op_names[(C)] : "<unk>")
+# define TRACE_INT_ARG(A) TRACE_LOG("%i ", (A))
+# define TRACE_NL() printf("\n");
+
+# if GVM_VM_TRACE_LOG_LEVEL > 1
+void print_stack(val_t* stack, int stack_size) {
+    printf(" stack (s:%i) | ", stack_size);
+    for(int i = 0; i < stack_size; i++) {
+        val_print(&stack[i]);
+        printf(" ");
+    }
+    printf("\n");
+}
+#  define TRACE_PRINT_STACK(S, TOP) print_stack((S), (TOP) + 1)
+# else
+#  define TRACE_PRINT_STACK(S, TOP)
+# endif
+
+#else
+# define TRACE_LOG(...)
+# define TRACE_OP(C)
+# define TRACE_INT_ARG(A)
+# define TRACE_PRINT_STACK(S, TOP)
+# define TRACE_NL()
+#endif
+
+
 
 char* gvm_result_to_string(gvm_result_t res) {
     switch (res) {
@@ -54,37 +86,6 @@ void gvm_print_if_error(gvm_result_t res, char* context) {
 bool pred(type_id_t init, type_id_t curr) {
     return init == curr;
 }
-
-#define TRACE_LOG_LEVEL 0
-
-#if TRACE_LOG_LEVEL > 0
-
-# define TRACE_LOG(...) printf(__VA_ARGS__)
-# define TRACE_OP(C) TRACE_LOG("> %s ", ((C) >= 0 && (C) < OP_OPCODE_COUNT) ? op_names[(C)] : "<unk>")
-# define TRACE_INT_ARG(A) TRACE_LOG("%i ", (A))
-# define TRACE_NL() printf("\n");
-
-# if TRACE_LOG_LEVEL > 1
-void print_stack(val_t* stack, int stack_size) {
-    printf(" stack (s:%i) | ", stack_size);
-    for(int i = 0; i < stack_size; i++) {
-        val_print(&stack[i]);
-        printf(" ");
-    }
-    printf("\n");
-}
-#  define TRACE_PRINT_STACK(S, TOP) print_stack((S), (TOP) + 1)
-# else
-#  define TRACE_PRINT_STACK(S, TOP)
-# endif
-
-#else
-# define TRACE_LOG(...)
-# define TRACE_OP(C)
-# define TRACE_INT_ARG(A)
-# define TRACE_PRINT_STACK(S, TOP)
-# define TRACE_NL()
-#endif
 
 bool symbol_equals(env_t* env, val_t* symbol, char* name) {
     if( symbol->type != VAL_LIST ) {

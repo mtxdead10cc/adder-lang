@@ -1,6 +1,7 @@
 #include "gvm_parser.h"
 #include "gvm_types.h"
 #include "gvm.h"
+#include "gvm_config.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -296,17 +297,16 @@ int parser_get_token_string_length(parser_t* parser, token_t token) {
     return str_end - str_start;
 }
 
-#define INT_BUFFER_LEN 16
 int parser_get_token_int_value(parser_t* parser, token_t token) {
     int str_start = token.src_index;
     int str_end = (token.index < (parser->tokens.size - 1))
         ? parser->tokens.array[(token.index + 1)].src_index
         : parser->tokens.array[(parser->tokens.size - 1)].src_index;
     int len = str_end - str_start;
-    if( len > INT_BUFFER_LEN ) {
-        len = INT_BUFFER_LEN;
+    if( len > PARSER_INT_VALUE_BUFFER_LEN ) {
+        len = PARSER_INT_VALUE_BUFFER_LEN;
     }
-    char buf[INT_BUFFER_LEN] = { 0 };
+    char buf[PARSER_INT_VALUE_BUFFER_LEN] = { 0 };
     for(int i = 0; i < len; i++) {
         buf[i] = parser->text.array[i + str_start];
     }

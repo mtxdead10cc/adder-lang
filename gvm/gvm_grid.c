@@ -1,24 +1,22 @@
 #include "gvm_grid.h"
+#include "gvm_config.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-
-#define INITIAL_HEIGHT 8
-#define INITIAL_WIDTH 6
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define CLAMP(val, min, max) (MAX(MIN((val), (max)), (min)))
 
 void grid_init(grid_t* grid) {
-    grid->data = (type_id_t*) malloc(INITIAL_HEIGHT * INITIAL_WIDTH);
+    grid->data = (type_id_t*) malloc(GRID_INITIAL_HEIGHT * GRID_INITIAL_WIDTH);
     if( grid->data == NULL ) {
         printf("error: failed to allocate grid of size (%i, %i).\n",
-            INITIAL_WIDTH, INITIAL_HEIGHT);
+            GRID_INITIAL_WIDTH, GRID_INITIAL_HEIGHT);
         return;
     }
-    grid->height = INITIAL_HEIGHT;
-    grid->width = INITIAL_WIDTH;
+    grid->height = GRID_INITIAL_HEIGHT;
+    grid->width = GRID_INITIAL_WIDTH;
     memset(grid->data, 0, grid->width * grid->height);
 }
 
