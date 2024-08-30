@@ -20,4 +20,6 @@ val_t gvm_execute(byte_code_block_t* code_obj, env_t* env, int max_cycles);
 void gvm_disassemble(byte_code_block_t* code_obj);
 void gvm_destroy(byte_code_block_t* code_obj);
 
+void test();
+
 #endif // GVM_H_

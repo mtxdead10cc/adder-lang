@@ -4,8 +4,11 @@
 #include "gvm_asm.h"
 #include "gvm_types.h"
 #include "gvm_value.h"
+#include "gvm_utils.h"
 #include "gvm_config.h"
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 static char* op_names[OP_OPCODE_COUNT] = {
     "OP_HALT",
@@ -143,7 +146,7 @@ val_t gvm_execute(byte_code_block_t* code_obj, env_t* env, int max_cycles) {
         TRACE_OP(opcode);
 
         switch (opcode) {
-            case OP_PUSH: {
+            case OP_PUSH_VALUE: {
                 int const_index = READ_I16(instructions, pc);
                 TRACE_INT_ARG(const_index);
                 stack[++stack_top] = consts[const_index];
@@ -331,4 +334,5 @@ void test() {
     }
     grid_print(&grid);
     grid_destroy(&grid);
+
 }

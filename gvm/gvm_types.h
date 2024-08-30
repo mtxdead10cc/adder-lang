@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 typedef uint8_t type_id_t;
 
@@ -102,7 +103,7 @@ typedef enum gvm_op_t {
     OP_CMP_EQUAL,
     OP_CMP_LESS_THAN,
     OP_CMP_MORE_THAN,
-    OP_PUSH,
+    OP_PUSH_VALUE,
     OP_POP,
     OP_JUMP,
     OP_JUMP_IF_FALSE,

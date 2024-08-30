@@ -31,6 +31,68 @@ bool val_buffer_add(val_buffer_t* buffer, val_t value) {
     return true;
 }
 
+int val_buffer_find_int(val_buffer_t* buffer, int value) {
+    for (int i = 0; i < buffer->size; i++) {
+        if(buffer->values[i].type != VAL_NUMBER) {
+            continue;
+        }
+        if(buffer->values[i].data.n == value) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int val_buffer_find_bool(val_buffer_t* buffer, bool value) {
+    for (int i = 0; i < buffer->size; i++) {
+        if(buffer->values[i].type != VAL_BOOL) {
+            continue;
+        }
+        if(buffer->values[i].data.b == value) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int val_buffer_find_char(val_buffer_t* buffer, char value) {
+    for (int i = 0; i < buffer->size; i++) {
+        if(buffer->values[i].type != VAL_CHAR) {
+            continue;
+        }
+        if(buffer->values[i].data.c == value) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int val_buffer_find_internal_string(val_buffer_t* buffer, char* chars, int len) {
+    for (int i = 0; i < buffer->size; i++) {
+        if( buffer->values[i].type != VAL_LIST ) {
+            continue;
+        }
+        list_t list = buffer->values[i].data.l;
+        int list_len = GET_LIST_LENGTH(list);
+        int list_offset = GET_LIST_OFFSET(list);
+        if( list_len != len ) {
+            continue;
+        }
+        bool match = true;
+        for(int j = 0; j < list_len; j++) {
+            val_t entry = buffer->values[list_offset + j];
+            if( chars[j] != entry.data.c || entry.type != VAL_CHAR ) {
+                match = false;
+                break;
+            }
+        }
+        if( match ) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 void val_buffer_destroy(val_buffer_t* buffer) {
     if( buffer == NULL ) {
         return;

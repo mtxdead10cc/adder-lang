@@ -21,8 +21,8 @@ typedef struct op_scheme_t {
 
 static op_scheme_t schemes[] = {
 //  [string name]  [op bytecode id]    [arg type]              [store as const]   [is label reference]
-    {"push",        OP_PUSH,            ARGSPEC1(TT_NUMBER),    0x01,              0x00 },
-    {"push",        OP_PUSH,            ARGSPEC1(TT_STRING),    0x01,              0x00 },
+    {"push-value",  OP_PUSH_VALUE,      ARGSPEC1(TT_NUMBER),    0x01,              0x00 },
+    {"push-value",  OP_PUSH_VALUE,      ARGSPEC1(TT_STRING),    0x01,              0x00 },
     {"pop",         OP_POP,             ARGSPEC1(TT_NUMBER),    0x00,              0x00 },
     {"dup",         OP_DUP,             ARGSPEC1(TT_NUMBER),    0x00,              0x00 },
     {"is-less",     OP_CMP_LESS_THAN,   ARGSPEC1(0),            0x00,              0x00 },
@@ -125,6 +125,15 @@ gvm_result_t label_add(label_set_t* set, char* str, int len, int address) {
         printf("error: hit max labels threashold\n");
         return RES_NOT_SUPPORTED;
     }
+    for(int i = 0; i < set->count; i++) {
+        char* existing = set->label[i];
+        int len = set->length[i];
+        // already added
+        if( strncmp(existing, str, len) == 0 ) {
+            printf("error: duplicate label definition '%.*s'.\n", len, existing);
+            return RES_INVALID_INPUT;
+        }
+    }
     set->label[set->count] = str;
     set->length[set->count] = len;
     set->address[set->count] = address;
@@ -142,6 +151,11 @@ int label_get_address(label_set_t* set, char* str, int len) {
 }
 
 int consts_add_number(val_buffer_t* consts, int value) {
+    int existing = val_buffer_find_int(consts, value);
+    if( existing >= 0 ) {
+        return existing;
+    }
+
     if( val_buffer_add(consts, val_number(value)) == false ) {
         printf("error: consts_add_number\n");
         return consts->size;
@@ -150,6 +164,10 @@ int consts_add_number(val_buffer_t* consts, int value) {
 }
 
 int consts_add_bool(val_buffer_t* consts, bool value) {
+    int existing = val_buffer_find_bool(consts, value);
+    if( existing >= 0 ) {
+        return existing;
+    }
     if(val_buffer_add(consts, val_bool(value)) == false) {
         printf("error: consts_add_bool\n");
         return consts->size;
@@ -157,7 +175,13 @@ int consts_add_bool(val_buffer_t* consts, bool value) {
     return consts->size - 1;
 }
 
-int consts_add_char(val_buffer_t* consts, char value) {
+int consts_add_char(val_buffer_t* consts, char value, bool force_contiguous) {
+    if( force_contiguous == false ) {
+        int existing = val_buffer_find_char(consts, value);
+        if( existing >= 0 ) {
+            return existing;
+        }
+    }
     if(val_buffer_add(consts, val_char(value)) == false) {
         printf("error: consts_add_char\n");
         return consts->size;
@@ -181,9 +205,15 @@ int consts_add_string(val_buffer_t* consts, char* text) {
     }
     text = text + 1;
     int string_length = string_count_until(text, '\"');
+    
+    int existing = val_buffer_find_internal_string(consts, text, string_length);
+    if( existing >= 0 ) {
+        return existing;
+    }
+
     int string_start = consts->size;
     for(int i = 0; i < string_length; i++) {
-        consts_add_char(consts, text[i]);
+        consts_add_char(consts, text[i], true);
     }
     // NOTE: might use list_t entry as stop block
     // then length is equal to negated start offset
@@ -195,9 +225,15 @@ int consts_add_string(val_buffer_t* consts, char* text) {
 }
 
 int consts_add_symbol_as_string(val_buffer_t* consts, char* text, int length) {
+
+    int existing = val_buffer_find_internal_string(consts, text, length);
+    if( existing >= 0 ) {
+        return existing;
+    }
+
     int string_start = consts->size;
     for(int i = 0; i < length; i++) {
-        consts_add_char(consts, text[i]);
+        consts_add_char(consts, text[i], true);
     }
     // NOTE: might use list_t entry as stop block
     // then length is equal to negated start offset
@@ -214,42 +250,44 @@ int consts_add_symbol_as_string(val_buffer_t* consts, char* text, int length) {
     TT_NUMBER -> VAL_NUMBER
     TT_SYMBOL -> VAL_BOOL | VAL_STRING */
 int consts_add_current(val_buffer_t* consts, parser_t* parser) {
+    
     token_t token = parser_current(parser);
+    
+    char* text = parser_get_token_string_ptr(parser, token);
+    int text_len = parser_get_token_string_length(parser, token);
+
+    int const_index = consts->size - 1;
     switch (token.type)
     {
         case TT_STRING: {
-            char* text = parser_get_token_string_ptr(parser, token);
-            return consts_add_string(consts, text);
-        }
+            const_index = consts_add_string(consts, text);
+        } break;
         case TT_NUMBER: {
             int value = parser_get_token_int_value(parser, token);
-            return consts_add_number(consts, value);
-        }
+            const_index = consts_add_number(consts, value);
+        } break;
         case TT_SYMBOL: {
-            char* text = parser_get_token_string_ptr(parser, token);
-            int len = parser_get_token_string_length(parser, token);
-            
             bool is_bool_true = false;
             bool is_bool_false = false;
-
-            if( len <= 5 && len >= 4 ) {
+            if( text_len <= 5 && text_len >= 4 ) {
                 is_bool_true = strncmp(text, "true", 4) == 0;
                 is_bool_false = strncmp(text, "false", 5) == 0;
             }
-
             if( is_bool_false ) {
-                return consts_add_bool(consts, false);
+                const_index = consts_add_bool(consts, false);
             } else if ( is_bool_true ) {
-                return consts_add_bool(consts, true);
+                const_index = consts_add_bool(consts, true);
             } else {
-                return consts_add_symbol_as_string(consts, text, len);
+                const_index = consts_add_symbol_as_string(consts, text, text_len);
             }
-        }
+        } break;
         default: {
             printf("cant load %s as const.\n", parser_tt_to_str(token.type));
-            return consts->size - 1;
-        }
+            const_index = consts->size - 1;
+        } break;
     }
+
+    return const_index;
 }
 
 
@@ -352,7 +390,9 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
     val_buffer_t const_store = { 0 };
 
 #if GVM_TRACE_LOG_LEVEL >= 4
+    printf("START TOKENS\n");
     parser_debug_print_tokens(parser);
+    printf("END TOKENS\n");
 #endif
 
     result_code = asm_scan_labels(parser, &label_set);
@@ -440,6 +480,17 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
         }
 
     }
+
+#if GVM_TRACE_LOG_LEVEL >= 3
+    printf("START CONSTANTS\n");
+    for(int i = 0; i < const_store.size; i++) {
+        printf("  %3i: ", i);
+        val_print_mem(const_store.values,
+            &const_store.values[i]);
+        printf("\n");
+    }
+    printf("END CONSTANTS\n");
+#endif
 
     byte_code_block_t obj = { 0 };
     int byte_count_consts = sizeof(val_t) * const_store.size;

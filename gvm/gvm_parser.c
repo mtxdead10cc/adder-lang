@@ -341,6 +341,6 @@ void parser_debug_print_tokens(parser_t* parser) {
         token_t token = tokens.array[i];
         int len = parser_get_token_string_length(parser, token);
         char* str = parser_get_token_string_ptr(parser, token);
-        printf("\"%.*s\"\n(%s)\n-----\n", len, str, parser_tt_to_str(token.type));
+        printf(" \"%.*s\"\n  (%s)\n  -----\n", len, str, parser_tt_to_str(token.type));
     }
 }

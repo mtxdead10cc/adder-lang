@@ -1,8 +1,11 @@
 #include "gvm_utils.h"
 #include "gvm.h"
+#include "gvm_config.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
+#include <string.h>
 
 bool u8buffer_create(u8buffer_t* ub, int capacity) {
     ub->data = (uint8_t*) malloc(capacity * sizeof(uint8_t));
