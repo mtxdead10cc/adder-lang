@@ -119,9 +119,9 @@ int valbuffer_find_string(valbuffer_t* buffer, char* chars, int len) {
             continue;
         }
         bool match = true;
-        buffer = buffer + buffer_offset;
+        val_t* values = buffer->values + buffer_offset;
         for(int j = 0; j < list_len; j++) {
-            val_t entry = buffer->values[j];
+            val_t entry = values[j];
             if( chars[j] != VAL_GET_CHAR(entry) ||
                 VAL_GET_TYPE(entry) != VAL_CHAR    ) 
             {

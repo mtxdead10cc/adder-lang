@@ -1,7 +1,7 @@
 ######### START
 label:
     # comment 01
-    push-value 2
+    push-value 10
     push-value 0
     loop:
         dup 2
@@ -9,6 +9,7 @@ label:
         if-false exit-loop
             push-value 1
             add
+            call print
             jump loop
 #KEBAB
         exit-loop:
