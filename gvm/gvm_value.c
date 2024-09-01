@@ -1,83 +1,42 @@
 #include "gvm_value.h"
 #include <stdio.h>
 #include "gvm_utils.h"
-#include "gvm_val_buffer.h"
-
+#include "gvm_memory.h"
+ 
 val_t val_number(int value) {
-    return (val_t) {
-        .type = VAL_NUMBER,
-        .data.n = value
-    };
+    return VAL_MK_NUMBER(value);
 }
 
 val_t val_bool(bool value) {
-    return (val_t) {
-        .type = VAL_BOOL,
-        .data.b = value
-    };
+    return VAL_MK_BOOL(value);
 }
 
 val_t val_char(char value) {
-    return (val_t) {
-        .type = VAL_CHAR,
-        .data.c = value
-    };
+    return VAL_MK_CHAR(value);
 }
 
-val_t val_list(val_buffer_t* buffer, int start_offset, int length) {
-    uint32_t store = (buffer->storage & 0xF) << 28;
-    uint32_t len = (length & 0x0FFFFFFF) << 14;
-    uint32_t offs = (start_offset & 0x3FFF);
-    return (val_t) {
-        .type = VAL_LIST,
-        .data.l = store | len | offs
-    };
+val_t val_list(uint16_t address, uint16_t length) {
+    return VAL_MK_LIST(address, length);
 }
 
-val_buffer_t* find_buffer(env_t* env, list_t list) {
-    gvm_mem_location_t loc = GET_LIST_MEM_LOC(list);
-    switch (loc) {
-        case MEM_LOC_CONST: return &env->constants;
-        case MEM_LOC_HEAP:  return &env->heap;
-        case MEM_LOC_STACK: return &env->stack;
-        default:            return NULL;
-    }
-}
-
-void val_print_env(env_t* env, val_t* val) {
-    switch (val->type)
+void val_print(val_t val) {
+    switch (VAL_GET_TYPE(val))
     {
     case VAL_NUMBER:
-        printf("%i", val->data.n);
+        printf("%f", VAL_GET_NUMBER(val));
         break;
     case VAL_CHAR:
-        printf("%c", val->data.c);
+        printf("%c", VAL_GET_CHAR(val));
         break;
     case VAL_BOOL:
-        printf("%s", val->data.b ? "TRUE" : "FALSE");
+        printf("%s", VAL_GET_BOOL(val) ? "TRUE" : "FALSE");
         break;
     case VAL_LIST: {
-        val_buffer_t* buffer = find_buffer(env, val->data.l);
-        if( buffer == NULL ) {
-            printf("<null buffer>");
-            break;
-        }
-        int length = GET_LIST_LENGTH(val->data.l);
-        int offset = GET_LIST_OFFSET(val->data.l);
-        bool is_list = buffer->values[offset].type != VAL_CHAR;
-        if(is_list) {
-            printf("[");
-        }
-        for(int i = 0; i < length; i++) {
-            val_t* v_ptr = &buffer->values[i + offset];
-            val_print_env(env, v_ptr);
-            if(is_list) {
-                printf(" ");
-            }
-        }
-        if(is_list) {
-            printf("]");
-        }
+        val_addr_t addr = VAL_GET_LIST_ADDR(val);
+        printf("<ref: 0x%04X (%d), len: %d>",
+            addr, addr,
+            VAL_GET_LIST_LENGTH(val));
+        break;
     } break;
     default:
         printf("<unk>");
@@ -85,32 +44,20 @@ void val_print_env(env_t* env, val_t* val) {
     }
 }
 
-void val_print_mem(val_t* buffer, val_t* val) {
-    switch (val->type)
-    {
-    case VAL_NUMBER:
-        printf("%i", val->data.n);
-        break;
-    case VAL_CHAR:
-        printf("%c", val->data.c);
-        break;
-    case VAL_BOOL:
-        printf("%s", val->data.b ? "TRUE" : "FALSE");
-        break;
-    case VAL_LIST: {
+void val_print_lookup(val_t val, addr_lookup_fn lookup, void* user) {
+    if( VAL_GET_TYPE(val) == VAL_LIST && lookup != NULL && user != NULL ) {
+        val_t* buffer = lookup(user, VAL_GET_LIST_ADDR(val));
         if( buffer == NULL ) {
             printf("<null buffer>");
-            break;
+            return;
         }
-        int length = GET_LIST_LENGTH(val->data.l);
-        int offset = GET_LIST_OFFSET(val->data.l);
-        val_t* v_ptr = buffer + offset;
-        bool is_list = v_ptr[0].type != VAL_CHAR;
+        int length = VAL_GET_LIST_LENGTH(val);
+        bool is_list = VAL_GET_TYPE(buffer[0]) != VAL_CHAR;
         if(is_list) {
             printf("[");
         }
         for(int i = 0; i < length; i++) {
-            val_print_mem(buffer, &v_ptr[i]);
+            val_print_lookup(buffer[i], lookup, user);
             if(is_list) {
                 printf(" ");
             }
@@ -118,26 +65,40 @@ void val_print_mem(val_t* buffer, val_t* val) {
         if(is_list) {
             printf("]");
         }
-    } break;
-    default:
-        printf("<unk>");
-        break;
+    } else {
+        val_print(val);
     }
 }
 
-int val_get_string(env_t* env, val_t* val, char* buffer, int max_len) {
-    if( val->type != VAL_LIST ) {
+int val_get_string(val_t val, addr_lookup_fn lookup, void* user, char* dest, int dest_len) {
+    if( lookup == NULL || VAL_GET_TYPE(val) != VAL_LIST ) {
         return 0;
     }
-    int length = GET_LIST_LENGTH(val->data.l);
-    if( length > (max_len - 1) ) {
-        length = (max_len - 1);
+    int length = VAL_GET_LIST_LENGTH(val);
+    if( length > (dest_len - 1) ) {
+        length = (dest_len - 1);
     }
-    val_buffer_t* vbuf = find_buffer(env, val->data.l);
-    int offset = GET_LIST_OFFSET(val->data.l);
+    val_t* vbuf = lookup(user, VAL_GET_LIST_ADDR(val));
     for(int i = 0; i < length; i++) {
-        buffer[i] = vbuf->values[offset + i].data.c;
+        dest[i] = VAL_GET_CHAR(vbuf[i]);
     }
-    buffer[length] = '\0';
+    dest[length] = '\0';
     return length;
+}
+
+val_t* lookup_single_buffer(void* user, val_addr_t addr) {
+    if( user == NULL ) {
+        return NULL;
+    }
+    val_t* base = (val_t*) user;
+    int offset = MEM_ADDR_TO_INDEX(addr);
+    return base + offset;
+}
+
+void val_print_lookup_val_array(val_t* lookup_buffer, val_t val) {
+    val_print_lookup(val, &lookup_single_buffer, lookup_buffer);
+}
+
+int val_get_string_val_array(val_t* lookup_buffer, val_t val, char* dest, int dest_len) {
+    return val_get_string(val, &lookup_single_buffer, lookup_buffer, dest, dest_len);
 }

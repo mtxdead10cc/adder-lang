@@ -17,6 +17,8 @@
         "gvm_environment.h": "c",
         "stdlib.h": "c",
         "gvm_val_buffer.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "gvm_utils.h": "c",
+        "gvm_memory.h": "c"
     }
 }

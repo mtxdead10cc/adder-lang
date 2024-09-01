@@ -69,7 +69,7 @@ int main(int argv, char** argc) {
 
     val_t result = gvm_execute(&obj, &env, 50);
     printf("> ");
-    val_print_env(&env, &result);
+    env_print_val(&env, result);
     printf("\n");
 
     env_destroy(&env);

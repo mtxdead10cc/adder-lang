@@ -20,30 +20,9 @@ typedef enum val_type_t {
     VAL_LIST
 } val_type_t;
 
-typedef struct val_t val_t;
-typedef struct val_buffer_t val_buffer_t;
-
-typedef uint32_t list_t;
-
-typedef enum gvm_mem_location_t {
-    MEM_LOC_CONST,
-    MEM_LOC_STACK,
-    MEM_LOC_HEAP
-} gvm_mem_location_t;
-
-#define GET_LIST_MEM_LOC(L) ((L) >> 28)
-#define GET_LIST_LENGTH(L) (((L) & 0x0FFFFFFFFF) >> 14)
-#define GET_LIST_OFFSET(L) (((L) & 0x3FFF))
-
-typedef struct val_t {
-    val_type_t type;
-    union {
-        int      n;
-        char     c;
-        bool     b;
-        list_t   l;
-    } data;
-} val_t;
+typedef struct valbuffer_t valbuffer_t;
+typedef uint64_t val_t;
+typedef uint16_t val_addr_t;
 
 typedef enum token_type_t {
     TT_UNKNOWN,
@@ -119,12 +98,12 @@ typedef struct u8buffer_t {
     uint8_t* data;
 } u8buffer_t;
 
-typedef struct val_buffer_t {
+typedef struct valbuffer_t {
     int storage;
     int size;
     int capacity;
     val_t* values;
-} val_buffer_t;
+} valbuffer_t;
 
 typedef struct byte_code_block_t {
     int size;
@@ -139,12 +118,13 @@ typedef struct byte_code_header_t {
 
 typedef struct env_t env_t;
 
+typedef val_t* (*addr_lookup_fn)(void* user, val_addr_t addr);
 typedef void (*func_t)(env_t* env);
 
 typedef struct env_t {
-    val_buffer_t constants;
-    val_buffer_t heap;
-    val_buffer_t stack;
+    valbuffer_t constants;
+    valbuffer_t heap;
+    valbuffer_t stack;
     struct {
         int count;
         func_t funcs[16];

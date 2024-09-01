@@ -2,6 +2,7 @@
 #include "gvm_grid.h"
 #include "gvm_parser.h"
 #include "gvm_asm.h"
+#include "gvm_env.h"
 #include "gvm_types.h"
 #include "gvm_value.h"
 #include "gvm_utils.h"
@@ -9,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 
 static char* op_names[OP_OPCODE_COUNT] = {
     "OP_HALT",
@@ -90,17 +92,17 @@ bool pred(type_id_t init, type_id_t curr) {
     return init == curr;
 }
 
-bool symbol_equals(env_t* env, val_t* symbol, char* name) {
-    if( symbol->type != VAL_LIST ) {
+bool symbol_equals(env_t* env, val_t symbol, char* name) {
+    if( VAL_GET_TYPE(symbol) != VAL_LIST ) {
         return false;
     }
     int slen = strlen(name);
-    int llen = GET_LIST_LENGTH(symbol->data.l);
+    int llen = VAL_GET_LIST_LENGTH(symbol);
     if( slen != llen ) {
         return false;
     }
     char buf[128] = {0};
-    if(val_get_string(env, symbol, buf, 128) != llen) {
+    if(env_get_string(env, symbol, buf, 127) != llen) {
         return false;
     }
     for(int i = 0; i < slen; i++) {
@@ -111,7 +113,7 @@ bool symbol_equals(env_t* env, val_t* symbol, char* name) {
     return true;
 }
 
-func_t find_func(env_t* env, val_t* symbol) {
+func_t find_func(env_t* env, val_t symbol) {
     int count = env->native.count;
     for(int i = 0; i < count; i++) {
         if( symbol_equals(env, symbol, env->native.names[i]) ) {
@@ -159,75 +161,53 @@ val_t gvm_execute(byte_code_block_t* code_obj, env_t* env, int max_cycles) {
                 pc += 2;
             } break;
             case OP_ADD: {
-                val_t a = stack[stack_top--];
-                val_t b = stack[stack_top--];
-                stack[++stack_top] = (val_t) {
-                    .type = VAL_NUMBER,
-                    .data.n = a.data.n + b.data.n
-                };
+                float a = VAL_GET_NUMBER(stack[stack_top--]);
+                float b = VAL_GET_NUMBER(stack[stack_top--]);
+                stack[++stack_top] = VAL_MK_NUMBER(a + b);
             } break;
             case OP_SUB: {
-                val_t a = stack[stack_top--];
-                val_t b = stack[stack_top--];
-                stack[++stack_top] = (val_t) {
-                    .type = VAL_NUMBER,
-                    .data.n = a.data.n - b.data.n
-                };
+                float a = VAL_GET_NUMBER(stack[stack_top--]);
+                float b = VAL_GET_NUMBER(stack[stack_top--]);
+                stack[++stack_top] = VAL_MK_NUMBER(a - b);
             } break;
             case OP_MUL: {
-                val_t a = stack[stack_top--];
-                val_t b = stack[stack_top--];
-                stack[++stack_top] = (val_t) {
-                    .type = VAL_NUMBER,
-                    .data.n = a.data.n * b.data.n
-                };
+                float a = VAL_GET_NUMBER(stack[stack_top--]);
+                float b = VAL_GET_NUMBER(stack[stack_top--]);
+                stack[++stack_top] = VAL_MK_NUMBER(a * b);
             } break;
             case OP_NEG: {
-                val_t a = stack[stack_top--];
-                stack[++stack_top] = (val_t) {
-                    .type = VAL_NUMBER,
-                    .data.n = -a.data.n
-                };
+                float a = VAL_GET_NUMBER(stack[stack_top--]);
+                stack[++stack_top] = VAL_MK_NUMBER(-a);
             } break;
             case OP_CMP_LESS_THAN: {
-                val_t a = stack[stack_top--];
-                val_t b = stack[stack_top--];
-                stack[++stack_top] = (val_t) {
-                    .type = VAL_BOOL,
-                    .data.b = a.data.n < b.data.n
-                };
+                float a = VAL_GET_NUMBER(stack[stack_top--]);
+                float b = VAL_GET_NUMBER(stack[stack_top--]);
+                stack[++stack_top] = VAL_MK_BOOL( a < b );
             } break;
             case OP_CMP_MORE_THAN: {
-                val_t a = stack[stack_top--];
-                val_t b = stack[stack_top--];
-                stack[++stack_top] = (val_t) {
-                    .type = VAL_BOOL,
-                    .data.b = a.data.n > b.data.n
-                };
+                float a = VAL_GET_NUMBER(stack[stack_top--]);
+                float b = VAL_GET_NUMBER(stack[stack_top--]);
+                stack[++stack_top] = VAL_MK_BOOL( a > b );
             } break;
             case OP_CMP_EQUAL: {
-                val_t a = stack[stack_top--];
-                val_t b = stack[stack_top--];
-                stack[++stack_top] = (val_t) {
-                    .type = VAL_BOOL,
-                    .data.b = a.data.n == b.data.n
-                };
+                const float epsilon = 0.0001f;
+                float a = VAL_GET_NUMBER(stack[stack_top--]);
+                float b = VAL_GET_NUMBER(stack[stack_top--]);
+                stack[++stack_top] = VAL_MK_BOOL( fabs(a - b) < epsilon );
             } break;
             case OP_AND: {
-                val_t a = stack[stack_top--];
-                val_t b = stack[stack_top--];
-                stack[++stack_top] = (val_t) {
-                    .type = VAL_BOOL,
-                    .data.b = a.data.b && b.data.b
-                };
+                bool a = VAL_GET_BOOL(stack[stack_top--]);
+                bool b = VAL_GET_BOOL(stack[stack_top--]);
+                stack[++stack_top] = VAL_MK_BOOL( a && b );
+            } break;
+            case OP_OR: {
+                bool a = VAL_GET_BOOL(stack[stack_top--]);
+                bool b = VAL_GET_BOOL(stack[stack_top--]);
+                stack[++stack_top] = VAL_MK_BOOL( a || b );
             } break;
             case OP_NOT: {
-                val_t a = stack[stack_top--];
-                val_t b = stack[stack_top--];
-                stack[++stack_top] = (val_t) {
-                    .type = VAL_BOOL,
-                    .data.b = a.data.b && b.data.b
-                };
+                bool a = VAL_GET_BOOL(stack[stack_top--]);
+                stack[++stack_top] = VAL_MK_BOOL( !a );
             } break;
             case OP_DUP: {
                 int n = READ_I16(instructions, pc);
@@ -244,7 +224,7 @@ val_t gvm_execute(byte_code_block_t* code_obj, env_t* env, int max_cycles) {
             } break;
             case OP_JUMP_IF_FALSE: {
                 TRACE_INT_ARG(READ_I16(instructions, pc));
-                if( stack[stack_top--].data.b == false ) {
+                if( VAL_GET_BOOL(stack[stack_top--]) == false ) {
                     pc = READ_I16(instructions, pc);
                 } else {
                     pc += 2;
@@ -263,11 +243,10 @@ val_t gvm_execute(byte_code_block_t* code_obj, env_t* env, int max_cycles) {
             case OP_CALL_NATIVE: {
                 int const_index = READ_I16(instructions, pc);
                 TRACE_INT_ARG(const_index);
-                val_t* sym = &consts[const_index];
-                func_t func = find_func(env, sym);
+                func_t func = find_func(env, consts[const_index]);
                 if( func == NULL ) {
                     printf("error: failed to find native function \"");
-                    val_print_env(env, sym);
+                    env_print_val(env, consts[const_index]);
                     printf("\".\n");
                 } else {
                     // update the size of the val_buffer

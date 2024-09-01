@@ -3,7 +3,7 @@
 #include "gvm_value.h"
 #include "gvm.h"
 #include "gvm_utils.h"
-#include "gvm_val_buffer.h"
+#include "gvm_memory.h"
 #include "gvm_config.h"
 #include <string.h>
 #include <assert.h>
@@ -50,7 +50,7 @@ static inline void asm_debug_print_token(parser_t* parser) {
     printf("%.*s", str_len, str);
 }
 # define DBG_LOG(...) printf(__VA_ARGS__)
-# define DBG_LOG_CONST(C, I) val_print_mem((C), &(C)[(I)])
+# define DBG_LOG_CONST(C, I) val_print_lookup_val_array((C).values, (C).values[(I)])
 # define DBG_LOG_OPERAND(P) asm_debug_print_token(P)
 #else
 # define DBG_LOG(...)
@@ -150,39 +150,39 @@ int label_get_address(label_set_t* set, char* str, int len) {
     return -1;
 }
 
-int consts_add_number(val_buffer_t* consts, int value) {
-    int existing = val_buffer_find_int(consts, value);
+int consts_add_number(valbuffer_t* consts, int value) {
+    int existing = valbuffer_find_int(consts, value);
     if( existing >= 0 ) {
         return existing;
     }
 
-    if( val_buffer_add(consts, val_number(value)) == false ) {
+    if( valbuffer_add(consts, val_number(value)) == false ) {
         printf("error: consts_add_number\n");
         return consts->size;
     }
     return consts->size - 1;
 }
 
-int consts_add_bool(val_buffer_t* consts, bool value) {
-    int existing = val_buffer_find_bool(consts, value);
+int consts_add_bool(valbuffer_t* consts, bool value) {
+    int existing = valbuffer_find_bool(consts, value);
     if( existing >= 0 ) {
         return existing;
     }
-    if(val_buffer_add(consts, val_bool(value)) == false) {
+    if(valbuffer_add(consts, val_bool(value)) == false) {
         printf("error: consts_add_bool\n");
         return consts->size;
     }
     return consts->size - 1;
 }
 
-int consts_add_char(val_buffer_t* consts, char value, bool force_contiguous) {
+int consts_add_char(valbuffer_t* consts, char value, bool force_contiguous) {
     if( force_contiguous == false ) {
-        int existing = val_buffer_find_char(consts, value);
+        int existing = valbuffer_find_char(consts, value);
         if( existing >= 0 ) {
             return existing;
         }
     }
-    if(val_buffer_add(consts, val_char(value)) == false) {
+    if(valbuffer_add(consts, val_char(value)) == false) {
         printf("error: consts_add_char\n");
         return consts->size;
     }
@@ -199,14 +199,14 @@ int string_count_until(char* text, char stopchar) {
     return len;
 }
 
-int consts_add_string(val_buffer_t* consts, char* text) {
+int consts_add_string(valbuffer_t* consts, char* text) {
     if( text[0] != '"' ) {
         printf("error: expected \" at start of string.\n");
     }
     text = text + 1;
     int string_length = string_count_until(text, '\"');
     
-    int existing = val_buffer_find_internal_string(consts, text, string_length);
+    int existing = valbuffer_find_string(consts, text, string_length);
     if( existing >= 0 ) {
         return existing;
     }
@@ -215,18 +215,18 @@ int consts_add_string(val_buffer_t* consts, char* text) {
     for(int i = 0; i < string_length; i++) {
         consts_add_char(consts, text[i], true);
     }
-    // NOTE: might use list_t entry as stop block
-    // then length is equal to negated start offset
-    bool ok = val_buffer_add(consts,
-        val_list(consts, string_start, string_length));
+
+    bool ok = valbuffer_add(consts,
+        val_list( MEM_MK_CONST_ADDR(string_start),
+                  string_length));
     return ok
         ? (consts->size - 1)
         : (consts->size);
 }
 
-int consts_add_symbol_as_string(val_buffer_t* consts, char* text, int length) {
+int consts_add_symbol_as_string(valbuffer_t* consts, char* text, int length) {
 
-    int existing = val_buffer_find_internal_string(consts, text, length);
+    int existing = valbuffer_find_string(consts, text, length);
     if( existing >= 0 ) {
         return existing;
     }
@@ -235,10 +235,10 @@ int consts_add_symbol_as_string(val_buffer_t* consts, char* text, int length) {
     for(int i = 0; i < length; i++) {
         consts_add_char(consts, text[i], true);
     }
-    // NOTE: might use list_t entry as stop block
-    // then length is equal to negated start offset
-    bool ok = val_buffer_add(consts,
-        val_list(consts, string_start, length));
+
+    bool ok = valbuffer_add(consts,
+        val_list( MEM_MK_CONST_ADDR(string_start),
+                  length));
     return ok
         ? (consts->size - 1)
         : (consts->size);
@@ -249,7 +249,7 @@ int consts_add_symbol_as_string(val_buffer_t* consts, char* text, int length) {
     TT_STRING -> VAL_LIST
     TT_NUMBER -> VAL_NUMBER
     TT_SYMBOL -> VAL_BOOL | VAL_STRING */
-int consts_add_current(val_buffer_t* consts, parser_t* parser) {
+int consts_add_current(valbuffer_t* consts, parser_t* parser) {
     
     token_t token = parser_current(parser);
     
@@ -374,7 +374,7 @@ void u8buffer_write_i16(u8buffer_t* buffer, int16_t val) {
 *   - op arg labels ar converted into byte code index (address)
 *     by lookup through the label set.
 *   - constants are read from tokens and stored as val_t in a 
-*     val_buffer_t. The constant is referred to by its index (in
+*     valbuffer_t. The constant is referred to by its index (in
 *     the val_buffer) in the byte code that is generated.
 */
 byte_code_block_t asm_assemble_code_object(char* code_buffer) {
@@ -387,7 +387,7 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
     gvm_result_t result_code = RES_OK;
     label_set_t label_set = { 0 };
     u8buffer_t code_section = { 0 };
-    val_buffer_t const_store = { 0 };
+    valbuffer_t const_store = { 0 };
 
 #if GVM_TRACE_LOG_LEVEL >= 4
     printf("START TOKENS\n");
@@ -402,7 +402,7 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
 
     parser_reset(parser);
 
-    if( val_buffer_create(&const_store, MEM_LOC_CONST, 5) == false ) {
+    if( valbuffer_create(&const_store, 5) == false ) {
         result_code = RES_OUT_OF_MEMORY;
         goto on_error;
     }
@@ -450,7 +450,7 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
                 if( scheme_is_flag_set(op_scheme.isconst, arg_index) ) {
                     int const_index = consts_add_current(&const_store, parser);
                     DBG_LOG("%i (", const_index);
-                    DBG_LOG_CONST(const_store.values, const_index);
+                    DBG_LOG_CONST(const_store, const_index);
                     DBG_LOG(")");
                     assert(const_index >= 0 && const_index < 256);
                     u8buffer_write_i16(&code_section, const_index);
@@ -485,8 +485,9 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
     printf("START CONSTANTS\n");
     for(int i = 0; i < const_store.size; i++) {
         printf("  %3i: ", i);
-        val_print_mem(const_store.values,
-            &const_store.values[i]);
+        val_print_lookup_val_array(
+            const_store.values,
+            const_store.values[i]);
         printf("\n");
     }
     printf("END CONSTANTS\n");
@@ -516,14 +517,14 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
     memcpy(write_ptr, code_section.data, byte_count_code);
     
     u8buffer_destroy(&code_section);
-    val_buffer_destroy(&const_store);
+    valbuffer_destroy(&const_store);
     parser_destroy(parser);
     
     return obj;
 
 on_error:
     u8buffer_destroy(&code_section);
-    val_buffer_destroy(&const_store);
+    valbuffer_destroy(&const_store);
     parser_destroy(parser);
     gvm_print_if_error(result_code, "asm_assemble");
     return (byte_code_block_t) { 0 };
@@ -564,7 +565,7 @@ void asm_debug_disassemble_code_object(byte_code_block_t* code_object) {
             current_byte += 2;
             if( scheme_is_flag_set(scheme.isconst, i) ) {
                 printf(" (");
-                val_print_mem(consts, &consts[val]);
+                val_print_lookup_val_array(consts, consts[val]);
                 printf(")");
             }
         }

@@ -1,12 +1,32 @@
 #include "gvm_env.h"
-#include "gvm_val_buffer.h"
 #include "gvm_asm.h"
 #include "gvm_value.h"
+#include "gvm_utils.h"
+#include "gvm_memory.h"
 #include <stdlib.h>
+
+val_t* env_addr_lookup(void* user, val_addr_t addr) {
+    env_t* env = (env_t*) user;
+    int offset = MEM_ADDR_TO_INDEX(addr);
+    if( MEM_IS_CONST_ADDR(addr) ) {
+        return env->constants.values + offset;
+    } else {
+        printf("addr_lookup memory: NOT IMPLEMENTED!");
+        return NULL;
+    }
+}
+
+void env_print_val(env_t* env, val_t val) {
+    val_print_lookup(val, &env_addr_lookup, env);
+}
+
+int env_get_string(env_t* env, val_t val, char* dest, int dest_len) {
+    return val_get_string(val, &env_addr_lookup, env, dest, dest_len);
+}
 
 void fn_print(env_t* env) {
     int stack_top = env->stack.size - 1;
-    val_print_env(env, &env->stack.values[stack_top]);
+    env_print_val(env, env->stack.values[stack_top]);
     printf("\n");
 }
 
@@ -16,10 +36,9 @@ void env_init(env_t* env, byte_code_block_t* bc, int stack_size) {
     int num_constants = h.const_bytes / sizeof(val_t);
     env->constants.capacity = num_constants;
     env->constants.size = num_constants;
-    env->constants.storage = MEM_LOC_CONST;
     env->constants.values = (val_t*) (bc->data + h.header_size);
-    val_buffer_create(&env->heap, MEM_LOC_HEAP, 5);
-    val_buffer_create(&env->stack, MEM_LOC_STACK, stack_size);
+    valbuffer_create(&env->heap, 5);
+    valbuffer_create(&env->stack, stack_size);
     
     // set functions
     env->native.count = 0;
@@ -32,9 +51,9 @@ void env_init(env_t* env, byte_code_block_t* bc, int stack_size) {
 }
 
 void env_destroy(env_t* env) {
-    env->constants = (val_buffer_t) { 0 };
-    val_buffer_destroy(&env->heap);
-    val_buffer_destroy(&env->stack);
+    env->constants = (valbuffer_t) { 0 };
+    valbuffer_destroy(&env->heap);
+    valbuffer_destroy(&env->stack);
     env->native.count = 0;
 }
 
