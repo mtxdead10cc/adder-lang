@@ -9,5 +9,6 @@
 #define MEM_MK_CONST_ADDR(INDEX)    (((val_addr_t)(INDEX)) & 0x7FFF)
 #define MEM_MK_PROGR_ADDR(INDEX)    (((val_addr_t)(INDEX)) | 0x8000)
 #define MEM_ADDR_TO_INDEX(VAL_ADDR) (int)((VAL_ADDR) & 0x7FFF)
+#define MEM_MAX_ADDRESSABLE 0x7FFF
 
 #endif // GVM_MEMORY_H_

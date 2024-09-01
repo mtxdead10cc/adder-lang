@@ -116,20 +116,48 @@ typedef struct byte_code_header_t {
     uint16_t code_bytes;
 } byte_code_header_t;
 
-typedef struct env_t env_t;
+typedef struct gvm_proc_stack_t {
+    val_t* values;  // pointer to the stack
+    int top;
+    int size;       // size of the stack (in val_t count)
+} gvm_proc_stack_t;
+
+typedef struct gvm_proc_heap_t {
+    val_t* values;  // pointer to heap memory region
+    int size;       // size of the heap mempry (in val_t count)
+} gvm_proc_heap_t;
+
+typedef struct gvm_proc_mem_t {
+    val_t*  membase;   // base pointer to the memory region (stack + heap)
+    int     memsize;   // total size of stack + heap (in val_t count)
+    gvm_proc_stack_t stack;
+    gvm_proc_heap_t heap;
+} gvm_proc_mem_t;
+
+typedef struct gvm_t gvm_t;
 
 typedef val_t* (*addr_lookup_fn)(void* user, val_addr_t addr);
-typedef void (*func_t)(env_t* env);
+typedef void (*func_t)(gvm_t* vm);
 
 typedef struct env_t {
-    valbuffer_t constants;
-    valbuffer_t heap;
-    valbuffer_t stack;
+    gvm_t* vm;
     struct {
         int count;
         func_t funcs[16];
         char* names[16];
     } native;
 } env_t;
+
+typedef struct gvm_runtime_t {
+    env_t env;
+    val_t* constants;
+    uint8_t* instructions;
+    int pc;
+} gvm_runtime_t;
+
+typedef struct gvm_t {
+    gvm_proc_mem_t memory;
+    gvm_runtime_t runtime;
+} gvm_t;
 
 #endif // GVM_TYPES_H_

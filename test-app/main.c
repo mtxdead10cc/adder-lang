@@ -56,24 +56,23 @@ int main(int argv, char** argc) {
 
     asm_code[fsize] = 0;
 
-    byte_code_block_t obj = gvm_compile(asm_code);
-
+    byte_code_block_t obj = gvm_code_compile(asm_code);
     free(asm_code);
 
-    env_t env = { 0 };
-    env_init(&env, &obj, 128);
-
     if( verbose ) {
-        gvm_disassemble(&obj);
+        gvm_code_disassemble(&obj);
     }
 
-    val_t result = gvm_execute(&obj, &env, 50);
+    gvm_t vm = { 0 };
+    gvm_create(&vm, 128, 128);
+
+    val_t result = gvm_execute(&vm, &obj, 500);
     printf("> ");
-    env_print_val(&env, result);
+    gvm_print_val(&vm, result);
     printf("\n");
 
-    env_destroy(&env);
-    gvm_destroy(&obj);
+    gvm_code_destroy(&obj);
+    gvm_destroy(&vm);
 
     return 0;
 }

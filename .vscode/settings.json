@@ -19,6 +19,7 @@
         "gvm_val_buffer.h": "c",
         "string.h": "c",
         "gvm_utils.h": "c",
-        "gvm_memory.h": "c"
+        "gvm_memory.h": "c",
+        "gvm_value.h": "c"
     }
 }

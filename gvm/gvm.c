@@ -7,6 +7,7 @@
 #include "gvm_value.h"
 #include "gvm_utils.h"
 #include "gvm_config.h"
+#include "gvm_memory.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -64,7 +65,24 @@ void print_stack(val_t* stack, int stack_size) {
 # define TRACE_NL()
 #endif
 
+val_t* gvm_addr_lookup(void* user, val_addr_t addr) {
+    gvm_t* VM = (gvm_t*) user;
+    int offset = MEM_ADDR_TO_INDEX(addr);
+    if( MEM_IS_CONST_ADDR(addr) ) {
+        return VM->runtime.constants + offset;
+    } else {
+        printf("addr_lookup memory: NOT IMPLEMENTED!");
+        return NULL;
+    }
+}
 
+void gvm_print_val(gvm_t* vm, val_t val) {
+    val_print_lookup(val, &gvm_addr_lookup, vm);
+}
+
+int gvm_get_string(gvm_t* vm, val_t val, char* dest, int dest_len) {
+    return val_get_string(val, &gvm_addr_lookup, vm, dest, dest_len);
+}
 
 char* gvm_result_to_string(gvm_result_t res) {
     switch (res) {
@@ -92,7 +110,7 @@ bool pred(type_id_t init, type_id_t curr) {
     return init == curr;
 }
 
-bool symbol_equals(env_t* env, val_t symbol, char* name) {
+bool symbol_equals(gvm_t* vm, val_t symbol, char* name) {
     if( VAL_GET_TYPE(symbol) != VAL_LIST ) {
         return false;
     }
@@ -102,7 +120,7 @@ bool symbol_equals(env_t* env, val_t symbol, char* name) {
         return false;
     }
     char buf[128] = {0};
-    if(env_get_string(env, symbol, buf, 127) != llen) {
+    if(gvm_get_string(vm, symbol, buf, 127) != llen) {
         return false;
     }
     for(int i = 0; i < slen; i++) {
@@ -113,121 +131,186 @@ bool symbol_equals(env_t* env, val_t symbol, char* name) {
     return true;
 }
 
-func_t find_func(env_t* env, val_t symbol) {
+func_t find_func(gvm_t* vm, val_t symbol) {
+    env_t* env = &vm->runtime.env;
     int count = env->native.count;
     for(int i = 0; i < count; i++) {
-        if( symbol_equals(env, symbol, env->native.names[i]) ) {
+        if( symbol_equals(vm, symbol, env->native.names[i]) ) {
             return env->native.funcs[i];
         }
     }
     return NULL;
 }
 
-val_t gvm_execute(byte_code_block_t* code_obj, env_t* env, int max_cycles) {
-    
-    val_t* stack = env->stack.values;
-    int stack_top = -1;
-    memset(stack, 0, sizeof(val_t) * env->stack.size);
-    int pc = 0;
-    int cycles_remaining = max_cycles;
+bool gvm_create(gvm_t* vm, uint16_t stack_size, uint16_t dyn_size) {
 
+    int total_addressable = ( (int) stack_size + (int) dyn_size );
+    if( total_addressable > MEM_MAX_ADDRESSABLE ) {
+        printf(  "warning: the requested VM memory size %i is too large.\n"
+                "\tmaximum addressable memory is %i.\n",
+                total_addressable,
+                MEM_MAX_ADDRESSABLE);
+        return false;
+    }
+
+    int memsize = total_addressable * sizeof(val_t);
+    val_t* mem = (val_t*) malloc( memsize );
+    if( mem == NULL ) {
+        printf("error: can't allocate VM memory.\n");
+        return false;
+    }
+
+    vm->memory.membase = mem;
+    vm->memory.memsize = total_addressable;
+    vm->memory.stack.values = vm->memory.membase;
+    vm->memory.heap.values = vm->memory.membase + (int) stack_size;
+    
+    // assigend on execution
+    vm->runtime = (gvm_runtime_t) { 0 };
+    // except env
+    env_init(&vm->runtime.env, vm);
+
+    return true;
+}
+
+void gvm_destroy(gvm_t* vm) {
+    if( vm == NULL || vm->memory.membase == 0 ) {
+        return;
+    }
+    free(vm->memory.membase);
+    memset(vm, 0, sizeof(gvm_t));
+}
+
+val_t* gvm_get_constants_ptr(byte_code_block_t* code_obj) {
     byte_code_header_t h = asm_read_byte_code_header(code_obj);
+    return (val_t*) (code_obj->data + h.header_size);
+}
+
+int gvm_get_constants_count(byte_code_block_t* code_obj) {
+    byte_code_header_t h = asm_read_byte_code_header(code_obj);
+    return h.const_bytes / sizeof(val_t);
+}
+
+uint8_t* gvm_get_instructions_ptr(byte_code_block_t* code_obj) {
+    byte_code_header_t h = asm_read_byte_code_header(code_obj);
+    return (code_obj->data + h.header_size + h.const_bytes);
+}
+
+int gvm_get_instructions_count(byte_code_block_t* code_obj) {
+    byte_code_header_t h = asm_read_byte_code_header(code_obj);
+    return h.code_bytes / sizeof(val_t);
+}
+
+val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
+    
+    val_t* stack = vm->memory.stack.values;
+    val_t* consts = gvm_get_constants_ptr(code_obj);
+    uint8_t* instructions = gvm_get_instructions_ptr(code_obj);
+
+    gvm_runtime_t* vm_runtime = &vm->runtime;
+    vm_runtime->constants = consts;
+    vm_runtime->instructions = instructions;
+    vm_runtime->pc = 0;
+    
+    gvm_proc_stack_t* vm_stack = &vm->memory.stack;
+    vm_stack->top = -1;
+
+    memset(vm->memory.stack.values, 0, sizeof(val_t) * vm->memory.stack.size);
+
+    int cycles_remaining = max_cycles;
 
     if (code_obj->size == 0) {
         cycles_remaining = 0;
         max_cycles = 0;
     }
 
-    val_t*   consts = (val_t*) (code_obj->data + h.header_size);
-    uint8_t* instructions    =  code_obj->data + h.header_size + h.const_bytes;
-
     while ( (cycles_remaining--) != 0 ) {
 
-        gvm_op_t opcode = instructions[pc++];
+        gvm_op_t opcode = instructions[vm_runtime->pc++];
 
         TRACE_OP(opcode);
 
         switch (opcode) {
             case OP_PUSH_VALUE: {
-                int const_index = READ_I16(instructions, pc);
+                int const_index = READ_I16(instructions, vm_runtime->pc);
                 TRACE_INT_ARG(const_index);
-                stack[++stack_top] = consts[const_index];
-                pc += 2;
+                stack[++vm->memory.stack.top] = consts[const_index];
+                vm_runtime->pc += 2;
             } break;
             case OP_POP: {
-                int num_pops = READ_I16(instructions, pc);
+                int num_pops = READ_I16(instructions, vm_runtime->pc);
                 TRACE_INT_ARG(num_pops);
-                stack_top -= num_pops;
-                pc += 2;
+                vm_stack->top -= num_pops;
+                vm_runtime->pc += 2;
             } break;
             case OP_ADD: {
-                float a = VAL_GET_NUMBER(stack[stack_top--]);
-                float b = VAL_GET_NUMBER(stack[stack_top--]);
-                stack[++stack_top] = VAL_MK_NUMBER(a + b);
+                float a = VAL_GET_NUMBER(stack[vm_stack->top--]);
+                float b = VAL_GET_NUMBER(stack[vm_stack->top--]);
+                stack[++vm_stack->top] = VAL_MK_NUMBER(a + b);
             } break;
             case OP_SUB: {
-                float a = VAL_GET_NUMBER(stack[stack_top--]);
-                float b = VAL_GET_NUMBER(stack[stack_top--]);
-                stack[++stack_top] = VAL_MK_NUMBER(a - b);
+                float a = VAL_GET_NUMBER(stack[vm_stack->top--]);
+                float b = VAL_GET_NUMBER(stack[vm_stack->top--]);
+                stack[++vm_stack->top] = VAL_MK_NUMBER(a - b);
             } break;
             case OP_MUL: {
-                float a = VAL_GET_NUMBER(stack[stack_top--]);
-                float b = VAL_GET_NUMBER(stack[stack_top--]);
-                stack[++stack_top] = VAL_MK_NUMBER(a * b);
+                float a = VAL_GET_NUMBER(stack[vm_stack->top--]);
+                float b = VAL_GET_NUMBER(stack[vm_stack->top--]);
+                stack[++vm_stack->top] = VAL_MK_NUMBER(a * b);
             } break;
             case OP_NEG: {
-                float a = VAL_GET_NUMBER(stack[stack_top--]);
-                stack[++stack_top] = VAL_MK_NUMBER(-a);
+                float a = VAL_GET_NUMBER(stack[vm_stack->top--]);
+                stack[++vm_stack->top] = VAL_MK_NUMBER(-a);
             } break;
             case OP_CMP_LESS_THAN: {
-                float a = VAL_GET_NUMBER(stack[stack_top--]);
-                float b = VAL_GET_NUMBER(stack[stack_top--]);
-                stack[++stack_top] = VAL_MK_BOOL( a < b );
+                float a = VAL_GET_NUMBER(stack[vm_stack->top--]);
+                float b = VAL_GET_NUMBER(stack[vm_stack->top--]);
+                stack[++vm_stack->top] = VAL_MK_BOOL( a < b );
             } break;
             case OP_CMP_MORE_THAN: {
-                float a = VAL_GET_NUMBER(stack[stack_top--]);
-                float b = VAL_GET_NUMBER(stack[stack_top--]);
-                stack[++stack_top] = VAL_MK_BOOL( a > b );
+                float a = VAL_GET_NUMBER(stack[vm_stack->top--]);
+                float b = VAL_GET_NUMBER(stack[vm_stack->top--]);
+                stack[++vm_stack->top] = VAL_MK_BOOL( a > b );
             } break;
             case OP_CMP_EQUAL: {
                 const float epsilon = 0.0001f;
-                float a = VAL_GET_NUMBER(stack[stack_top--]);
-                float b = VAL_GET_NUMBER(stack[stack_top--]);
-                stack[++stack_top] = VAL_MK_BOOL( fabs(a - b) < epsilon );
+                float a = VAL_GET_NUMBER(stack[vm_stack->top--]);
+                float b = VAL_GET_NUMBER(stack[vm_stack->top--]);
+                stack[++vm_stack->top] = VAL_MK_BOOL( fabs(a - b) < epsilon );
             } break;
             case OP_AND: {
-                bool a = VAL_GET_BOOL(stack[stack_top--]);
-                bool b = VAL_GET_BOOL(stack[stack_top--]);
-                stack[++stack_top] = VAL_MK_BOOL( a && b );
+                bool a = VAL_GET_BOOL(stack[vm_stack->top--]);
+                bool b = VAL_GET_BOOL(stack[vm_stack->top--]);
+                stack[++vm_stack->top] = VAL_MK_BOOL( a && b );
             } break;
             case OP_OR: {
-                bool a = VAL_GET_BOOL(stack[stack_top--]);
-                bool b = VAL_GET_BOOL(stack[stack_top--]);
-                stack[++stack_top] = VAL_MK_BOOL( a || b );
+                bool a = VAL_GET_BOOL(stack[vm_stack->top--]);
+                bool b = VAL_GET_BOOL(stack[vm_stack->top--]);
+                stack[++vm_stack->top] = VAL_MK_BOOL( a || b );
             } break;
             case OP_NOT: {
-                bool a = VAL_GET_BOOL(stack[stack_top--]);
-                stack[++stack_top] = VAL_MK_BOOL( !a );
+                bool a = VAL_GET_BOOL(stack[vm_stack->top--]);
+                stack[++vm_stack->top] = VAL_MK_BOOL( !a );
             } break;
             case OP_DUP: {
-                int n = READ_I16(instructions, pc);
+                int n = READ_I16(instructions, vm_runtime->pc);
                 TRACE_INT_ARG(n);
-                int base_index = stack_top - n + 1;
+                int base_index = vm_stack->top - n + 1;
                 for(int i = 0; i < n; i++) {
-                    stack[++stack_top] = stack[base_index + i];
+                    stack[++vm_stack->top] = stack[base_index + i];
                 }
-                pc += 2;
+                vm_runtime->pc += 2;
             } break;
             case OP_JUMP: {
-                pc = READ_I16(instructions, pc);
-                TRACE_INT_ARG(pc);
+                vm_runtime->pc = READ_I16(instructions, vm_runtime->pc);
+                TRACE_INT_ARG(vm_runtime->pc);
             } break;
             case OP_JUMP_IF_FALSE: {
-                TRACE_INT_ARG(READ_I16(instructions, pc));
-                if( VAL_GET_BOOL(stack[stack_top--]) == false ) {
-                    pc = READ_I16(instructions, pc);
+                TRACE_INT_ARG(READ_I16(instructions, vm_runtime->pc));
+                if( VAL_GET_BOOL(stack[vm_stack->top--]) == false ) {
+                    vm_runtime->pc = READ_I16(instructions, vm_runtime->pc);
                 } else {
-                    pc += 2;
+                    vm_runtime->pc += 2;
                 }
             } break;
             case OP_HALT:{
@@ -236,31 +319,27 @@ val_t gvm_execute(byte_code_block_t* code_obj, env_t* env, int max_cycles) {
             } break;
             case OP_EXIT: {
                 TRACE_NL();
-                int return_value = READ_I16(instructions, pc);
+                int return_value = READ_I16(instructions, vm_runtime->pc);
                 TRACE_INT_ARG(return_value);
                 return val_number(return_value);
             } break;
             case OP_CALL_NATIVE: {
-                int const_index = READ_I16(instructions, pc);
+                int const_index = READ_I16(instructions, vm_runtime->pc);
                 TRACE_INT_ARG(const_index);
-                func_t func = find_func(env, consts[const_index]);
+                func_t func = find_func(vm, consts[const_index]);
                 if( func == NULL ) {
                     printf("error: failed to find native function \"");
-                    env_print_val(env, consts[const_index]);
+                    gvm_print_val(vm, consts[const_index]);
                     printf("\".\n");
                 } else {
-                    // update the size of the val_buffer
-                    env->stack.size = stack_top + 1;
                     // call function
-                    func(env);
-                    // restore stack_top
-                    stack_top = env->stack.size - 1;
+                    func(vm);
                 }
-                pc += 2;
+                vm_runtime->pc += 2;
             } break;
             case OP_RETURN: {
                 TRACE_NL();
-                return stack[stack_top];
+                return stack[vm_stack->top];
             } break;
             default: {
                 char* op_str = (opcode >= 0 && opcode < OP_OPCODE_COUNT)
@@ -272,24 +351,21 @@ val_t gvm_execute(byte_code_block_t* code_obj, env_t* env, int max_cycles) {
         }
 
         TRACE_NL();
-        TRACE_PRINT_STACK(stack, stack_top);
-
-        // update the size of the val_buffer
-        env->stack.size = stack_top + 1;
+        TRACE_PRINT_STACK(vm_stack, vm_stack->top);
     }
 
     return val_number(-1004);
 }
 
-byte_code_block_t gvm_compile(char* program) {
+byte_code_block_t gvm_code_compile(char* program) {
     return asm_assemble_code_object(program);
 }
 
-void gvm_disassemble(byte_code_block_t* code_obj) {
+void gvm_code_disassemble(byte_code_block_t* code_obj) {
     asm_debug_disassemble_code_object(code_obj);
 }
 
-void gvm_destroy(byte_code_block_t* code_obj) {
+void gvm_code_destroy(byte_code_block_t* code_obj) {
     asm_destroy_code_object(code_obj);
 }
 
