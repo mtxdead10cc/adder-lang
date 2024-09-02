@@ -55,6 +55,48 @@ byte_code_block_t read_and_compile(char* path) {
     return obj;
 }
 
+// OVERVIEW
+//
+// [Grid coordinates and grid vecs]
+// 
+// An integer vector 2 (x, y). Denoting a position within the grid.
+// Is derived from grid element position.
+// 
+// [Grid element references]
+// 
+// Essentially an address pointing to a grid element.
+// 
+// [Grid element]
+// 
+// - current screen position
+// - in play or not
+// - accumulator (when merging with other elements)
+// - element type
+// 
+// [Grid step]
+// 
+// 1. resolve grid integer coords
+// 2. receive user input 
+// 3. execute scripts -> generate grid operations & visual effects
+// 4. apply grid operations & queue vfx
+// 5. spawn new elements
+// 6. animate movement
+// 
+// TODO
+// [ ] rename list -> array
+// [ ] add simple alloc and gc-dealloc for heap (array/list)
+// [ ] add support for VAL_IVEC2
+//     - lexer -> (1, 3)
+//     - asm add const
+//     - gvm add, sub, eq, (len?)
+// [ ] add support for VAL_GRID_REF
+//     - (can't push as constant)
+//     - integer index into grid elements
+// [ ] add support for operations
+//     - grid-ref <ivec> (push grid ref by lookup on ivec2)
+//     - grid-select <ivec> (push list of all flood fill refs with matching type)
+//     - ...
+
 int main(int argv, char** argc) {
 
     char* path = DEFAULT_PATH;
