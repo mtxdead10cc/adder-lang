@@ -78,12 +78,15 @@ typedef enum gvm_op_t {
     OP_ADD,
     OP_SUB,
     OP_NEG,
-    OP_DUP,
+    OP_DUP_1,
+    OP_DUP_2,
+    OP_ROT_2,
     OP_CMP_EQUAL,
     OP_CMP_LESS_THAN,
     OP_CMP_MORE_THAN,
     OP_PUSH_VALUE,
-    OP_POP,
+    OP_POP_1,
+    OP_POP_2,
     OP_JUMP,
     OP_JUMP_IF_FALSE,
     OP_EXIT,
@@ -149,15 +152,15 @@ typedef struct env_t {
 } env_t;
 
 typedef struct gvm_runtime_t {
-    env_t env;
     val_t* constants;
     uint8_t* instructions;
     int pc;
 } gvm_runtime_t;
 
 typedef struct gvm_t {
-    gvm_proc_mem_t memory;
-    gvm_runtime_t runtime;
+    env_t env;
+    gvm_proc_mem_t mem;
+    gvm_runtime_t run;
 } gvm_t;
 
 #endif // GVM_TYPES_H_

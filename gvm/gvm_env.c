@@ -7,8 +7,8 @@
 #include <stdlib.h>
 
 void fn_print(gvm_t* vm) {
-    int stack_top = vm->memory.stack.top;
-    gvm_print_val(vm, vm->memory.stack.values[stack_top]);
+    int stack_top = vm->mem.stack.top;
+    gvm_print_val(vm, vm->mem.stack.values[stack_top]);
     printf("\n");
 }
 

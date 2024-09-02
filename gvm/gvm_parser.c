@@ -122,11 +122,11 @@ gvm_result_t tokens_push_on_change(parser_tokens_t* tokens, token_type_t tt, int
 gvm_result_t tokenize(parser_text_t* text, parser_tokens_t* tokens) {
 
     gvm_result_t res = tokens_init(tokens, 16);
-    lexeme_t last = L_UNKNOWN; // current - 1
     int line = 1;
     int column = 1;
     bool in_quoute = false;
     bool in_comment = false;
+    token_type_t current_token = TT_UNKNOWN;
     
     int text_length = text->size;
 
@@ -157,12 +157,20 @@ gvm_result_t tokenize(parser_text_t* text, parser_tokens_t* tokens) {
                 res = tokens_push_on_change(tokens, TT_STRING, line, column, i);
             } else if ( lex == L_COLON ) {
                 res = tokens_push_on_change(tokens, TT_COLON, line, column, i);
-            } else if ( lex == L_DOT && last == L_NUMBER ) {
+            } else if ( lex == L_DOT && current_token == TT_NUMBER ) {
                 res = tokens_push_on_change(tokens, TT_NUMBER, line, column, i);
             } else if ( lex == L_NUMBER ) {
-                res = tokens_push_on_change(tokens, TT_NUMBER, line, column, i);
-            } else if ( lex == L_DASH && last == L_LETTER ) {
-                res = tokens_push_on_change(tokens, TT_SYMBOL, line, column, i);
+                if( current_token == TT_SYMBOL ) {
+                    res = tokens_push_on_change(tokens, TT_SYMBOL, line, column, i);
+                } else {
+                    res = tokens_push_on_change(tokens, TT_NUMBER, line, column, i);
+                }
+            } else if ( lex == L_DASH ) {
+                if( current_token == TT_SEPARATOR ) {
+                    res = tokens_push_on_change(tokens, TT_NUMBER, line, column, i);
+                } else if ( current_token == TT_SYMBOL ) {
+                    res = tokens_push_on_change(tokens, TT_SYMBOL, line, column, i);
+                }
             } else if ( lex == L_LETTER ) {
                 res = tokens_push_on_change(tokens, TT_SYMBOL, line, column, i);
             } else if ( lex == L_WHITESPACE || lex == L_NEWLINE ) {
@@ -180,7 +188,7 @@ gvm_result_t tokenize(parser_text_t* text, parser_tokens_t* tokens) {
             column = 1;
         }
 
-        last = lex;
+        current_token = tokens->array[tokens->size - 1].type;
     }
 
     // NOTE: to decrease memory footprint it
@@ -341,6 +349,6 @@ void parser_debug_print_tokens(parser_t* parser) {
         token_t token = tokens.array[i];
         int len = parser_get_token_string_length(parser, token);
         char* str = parser_get_token_string_ptr(parser, token);
-        printf(" \"%.*s\"\n  (%s)\n  -----\n", len, str, parser_tt_to_str(token.type));
+        printf("TOKEN #%i: \"%.*s\"\n  (%s)\n  -----\n", i, len, str, parser_tt_to_str(token.type));
     }
 }

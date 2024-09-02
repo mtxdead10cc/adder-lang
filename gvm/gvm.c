@@ -12,6 +12,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include <assert.h>
 
 static char* op_names[OP_OPCODE_COUNT] = {
     "OP_HALT",
@@ -23,12 +24,15 @@ static char* op_names[OP_OPCODE_COUNT] = {
     "OP_ADD",
     "OP_SUB",
     "OP_NEG",
-    "OP_DUP",
+    "OP_DUP_1",
+    "OP_DUP_2",
+    "OP_ROT_2",
     "OP_CMP_EQUAL",
     "OP_CMP_LESS_THAN",
     "OP_CMP_MORE_THAN",
-    "OP_PUSH",
-    "OP_POP",
+    "OP_PUSH_VALUE",
+    "OP_POP_1",
+    "OP_POP_2",
     "OP_JUMP",
     "OP_JUMP_IF_FALSE",
     "OP_EXIT",
@@ -36,18 +40,18 @@ static char* op_names[OP_OPCODE_COUNT] = {
     "OP_RETURN"
 };
 
-#if GVM_VM_TRACE_LOG_LEVEL > 0
+#if GVM_TRACE_LOG_LEVEL > 0
 
 # define TRACE_LOG(...) printf(__VA_ARGS__)
 # define TRACE_OP(C) TRACE_LOG("> %s ", ((C) >= 0 && (C) < OP_OPCODE_COUNT) ? op_names[(C)] : "<unk>")
 # define TRACE_INT_ARG(A) TRACE_LOG("%i ", (A))
 # define TRACE_NL() printf("\n");
 
-# if GVM_VM_TRACE_LOG_LEVEL > 1
+# if GVM_TRACE_LOG_LEVEL > 1
 void print_stack(val_t* stack, int stack_size) {
     printf(" stack (s:%i) | ", stack_size);
     for(int i = 0; i < stack_size; i++) {
-        val_print(&stack[i]);
+        val_print(stack[i]);
         printf(" ");
     }
     printf("\n");
@@ -69,7 +73,7 @@ val_t* gvm_addr_lookup(void* user, val_addr_t addr) {
     gvm_t* VM = (gvm_t*) user;
     int offset = MEM_ADDR_TO_INDEX(addr);
     if( MEM_IS_CONST_ADDR(addr) ) {
-        return VM->runtime.constants + offset;
+        return VM->run.constants + offset;
     } else {
         printf("addr_lookup memory: NOT IMPLEMENTED!");
         return NULL;
@@ -132,7 +136,7 @@ bool symbol_equals(gvm_t* vm, val_t symbol, char* name) {
 }
 
 func_t find_func(gvm_t* vm, val_t symbol) {
-    env_t* env = &vm->runtime.env;
+    env_t* env = &vm->env;
     int count = env->native.count;
     for(int i = 0; i < count; i++) {
         if( symbol_equals(vm, symbol, env->native.names[i]) ) {
@@ -160,24 +164,24 @@ bool gvm_create(gvm_t* vm, uint16_t stack_size, uint16_t dyn_size) {
         return false;
     }
 
-    vm->memory.membase = mem;
-    vm->memory.memsize = total_addressable;
-    vm->memory.stack.values = vm->memory.membase;
-    vm->memory.heap.values = vm->memory.membase + (int) stack_size;
+    vm->mem.membase = mem;
+    vm->mem.memsize = total_addressable;
+    vm->mem.stack.values = vm->mem.membase;
+    vm->mem.heap.values = vm->mem.membase + (int) stack_size;
     
+    env_init(&vm->env, vm);
+
     // assigend on execution
-    vm->runtime = (gvm_runtime_t) { 0 };
-    // except env
-    env_init(&vm->runtime.env, vm);
+    vm->run = (gvm_runtime_t) { 0 };
 
     return true;
 }
 
 void gvm_destroy(gvm_t* vm) {
-    if( vm == NULL || vm->memory.membase == 0 ) {
+    if( vm == NULL || vm->mem.membase == 0 ) {
         return;
     }
-    free(vm->memory.membase);
+    free(vm->mem.membase);
     memset(vm, 0, sizeof(gvm_t));
 }
 
@@ -202,20 +206,22 @@ int gvm_get_instructions_count(byte_code_block_t* code_obj) {
 }
 
 val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
+
+    assert(sizeof(float) == 4);
     
-    val_t* stack = vm->memory.stack.values;
+    val_t* stack = vm->mem.stack.values;
     val_t* consts = gvm_get_constants_ptr(code_obj);
     uint8_t* instructions = gvm_get_instructions_ptr(code_obj);
 
-    gvm_runtime_t* vm_runtime = &vm->runtime;
-    vm_runtime->constants = consts;
-    vm_runtime->instructions = instructions;
-    vm_runtime->pc = 0;
+    gvm_runtime_t* vm_run = &vm->run;
+    vm_run->constants = consts;
+    vm_run->instructions = instructions;
+    vm_run->pc = 0;
     
-    gvm_proc_stack_t* vm_stack = &vm->memory.stack;
-    vm_stack->top = -1;
+    gvm_proc_mem_t* vm_mem = &vm->mem;
+    vm_mem->stack.top = -1;
 
-    memset(vm->memory.stack.values, 0, sizeof(val_t) * vm->memory.stack.size);
+    memset(vm_mem->stack.values, 0, sizeof(val_t) * vm_mem->stack.size);
 
     int cycles_remaining = max_cycles;
 
@@ -226,91 +232,98 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
 
     while ( (cycles_remaining--) != 0 ) {
 
-        gvm_op_t opcode = instructions[vm_runtime->pc++];
+        gvm_op_t opcode = instructions[vm_run->pc++];
 
         TRACE_OP(opcode);
 
         switch (opcode) {
             case OP_PUSH_VALUE: {
-                int const_index = READ_I16(instructions, vm_runtime->pc);
+                int const_index = READ_I16(instructions, vm_run->pc);
                 TRACE_INT_ARG(const_index);
-                stack[++vm->memory.stack.top] = consts[const_index];
-                vm_runtime->pc += 2;
+                stack[++vm_mem->stack.top] = consts[const_index];
+                vm_run->pc += 2;
             } break;
-            case OP_POP: {
-                int num_pops = READ_I16(instructions, vm_runtime->pc);
-                TRACE_INT_ARG(num_pops);
-                vm_stack->top -= num_pops;
-                vm_runtime->pc += 2;
+            case OP_POP_1: {
+                vm_mem->stack.top -= 1;
+            } break;
+            case OP_POP_2: {
+                vm_mem->stack.top -= 2;
             } break;
             case OP_ADD: {
-                float a = VAL_GET_NUMBER(stack[vm_stack->top--]);
-                float b = VAL_GET_NUMBER(stack[vm_stack->top--]);
-                stack[++vm_stack->top] = VAL_MK_NUMBER(a + b);
+                float a = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
+                float b = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = VAL_MK_NUMBER(a + b);
             } break;
             case OP_SUB: {
-                float a = VAL_GET_NUMBER(stack[vm_stack->top--]);
-                float b = VAL_GET_NUMBER(stack[vm_stack->top--]);
-                stack[++vm_stack->top] = VAL_MK_NUMBER(a - b);
+                float a = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
+                float b = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = VAL_MK_NUMBER(a - b);
             } break;
             case OP_MUL: {
-                float a = VAL_GET_NUMBER(stack[vm_stack->top--]);
-                float b = VAL_GET_NUMBER(stack[vm_stack->top--]);
-                stack[++vm_stack->top] = VAL_MK_NUMBER(a * b);
+                float a = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
+                float b = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = VAL_MK_NUMBER(a * b);
             } break;
             case OP_NEG: {
-                float a = VAL_GET_NUMBER(stack[vm_stack->top--]);
-                stack[++vm_stack->top] = VAL_MK_NUMBER(-a);
+                float a = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = VAL_MK_NUMBER(-a);
             } break;
             case OP_CMP_LESS_THAN: {
-                float a = VAL_GET_NUMBER(stack[vm_stack->top--]);
-                float b = VAL_GET_NUMBER(stack[vm_stack->top--]);
-                stack[++vm_stack->top] = VAL_MK_BOOL( a < b );
+                float a = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
+                float b = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = VAL_MK_BOOL( a < b );
             } break;
             case OP_CMP_MORE_THAN: {
-                float a = VAL_GET_NUMBER(stack[vm_stack->top--]);
-                float b = VAL_GET_NUMBER(stack[vm_stack->top--]);
-                stack[++vm_stack->top] = VAL_MK_BOOL( a > b );
+                float a = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
+                float b = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = VAL_MK_BOOL( a > b );
             } break;
             case OP_CMP_EQUAL: {
                 const float epsilon = 0.0001f;
-                float a = VAL_GET_NUMBER(stack[vm_stack->top--]);
-                float b = VAL_GET_NUMBER(stack[vm_stack->top--]);
-                stack[++vm_stack->top] = VAL_MK_BOOL( fabs(a - b) < epsilon );
+                float a = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
+                float b = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = VAL_MK_BOOL( fabs(a - b) < epsilon );
             } break;
             case OP_AND: {
-                bool a = VAL_GET_BOOL(stack[vm_stack->top--]);
-                bool b = VAL_GET_BOOL(stack[vm_stack->top--]);
-                stack[++vm_stack->top] = VAL_MK_BOOL( a && b );
+                bool a = VAL_GET_BOOL(stack[vm_mem->stack.top--]);
+                bool b = VAL_GET_BOOL(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = VAL_MK_BOOL( a && b );
             } break;
             case OP_OR: {
-                bool a = VAL_GET_BOOL(stack[vm_stack->top--]);
-                bool b = VAL_GET_BOOL(stack[vm_stack->top--]);
-                stack[++vm_stack->top] = VAL_MK_BOOL( a || b );
+                bool a = VAL_GET_BOOL(stack[vm_mem->stack.top--]);
+                bool b = VAL_GET_BOOL(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = VAL_MK_BOOL( a || b );
             } break;
             case OP_NOT: {
-                bool a = VAL_GET_BOOL(stack[vm_stack->top--]);
-                stack[++vm_stack->top] = VAL_MK_BOOL( !a );
+                bool a = VAL_GET_BOOL(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = VAL_MK_BOOL( !a );
             } break;
-            case OP_DUP: {
-                int n = READ_I16(instructions, vm_runtime->pc);
-                TRACE_INT_ARG(n);
-                int base_index = vm_stack->top - n + 1;
-                for(int i = 0; i < n; i++) {
-                    stack[++vm_stack->top] = stack[base_index + i];
-                }
-                vm_runtime->pc += 2;
+            case OP_DUP_1: {
+                val_t a = stack[vm_mem->stack.top];
+                stack[++vm_mem->stack.top] = a;
+            } break;
+            case OP_DUP_2: {
+                val_t a = stack[vm_mem->stack.top - 1];
+                val_t b = stack[vm_mem->stack.top];
+                stack[++vm_mem->stack.top] = a;
+                stack[++vm_mem->stack.top] = b;
+            } break;
+            case OP_ROT_2: {
+                val_t a = stack[vm_mem->stack.top - 1];
+                val_t b = stack[vm_mem->stack.top];
+                stack[vm_mem->stack.top - 1] = b;
+                stack[vm_mem->stack.top]     = a;
             } break;
             case OP_JUMP: {
-                vm_runtime->pc = READ_I16(instructions, vm_runtime->pc);
-                TRACE_INT_ARG(vm_runtime->pc);
+                vm_run->pc = READ_I16(instructions, vm_run->pc);
+                TRACE_INT_ARG(vm_run->pc);
             } break;
             case OP_JUMP_IF_FALSE: {
-                TRACE_INT_ARG(READ_I16(instructions, vm_runtime->pc));
-                if( VAL_GET_BOOL(stack[vm_stack->top--]) == false ) {
-                    vm_runtime->pc = READ_I16(instructions, vm_runtime->pc);
+                TRACE_INT_ARG(READ_I16(instructions, vm_run->pc));
+                if( VAL_GET_BOOL(stack[vm_mem->stack.top--]) == false ) {
+                    vm_run->pc = READ_I16(instructions, vm_run->pc);
                 } else {
-                    vm_runtime->pc += 2;
+                    vm_run->pc += 2;
                 }
             } break;
             case OP_HALT:{
@@ -319,12 +332,12 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
             } break;
             case OP_EXIT: {
                 TRACE_NL();
-                int return_value = READ_I16(instructions, vm_runtime->pc);
+                int return_value = READ_I16(instructions, vm_run->pc);
                 TRACE_INT_ARG(return_value);
                 return val_number(return_value);
             } break;
             case OP_CALL_NATIVE: {
-                int const_index = READ_I16(instructions, vm_runtime->pc);
+                int const_index = READ_I16(instructions, vm_run->pc);
                 TRACE_INT_ARG(const_index);
                 func_t func = find_func(vm, consts[const_index]);
                 if( func == NULL ) {
@@ -335,11 +348,11 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                     // call function
                     func(vm);
                 }
-                vm_runtime->pc += 2;
+                vm_run->pc += 2;
             } break;
             case OP_RETURN: {
                 TRACE_NL();
-                return stack[vm_stack->top];
+                return stack[vm_mem->stack.top];
             } break;
             default: {
                 char* op_str = (opcode >= 0 && opcode < OP_OPCODE_COUNT)
@@ -351,7 +364,7 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
         }
 
         TRACE_NL();
-        TRACE_PRINT_STACK(vm_stack, vm_stack->top);
+        TRACE_PRINT_STACK(vm_mem->stack.values, vm_mem->stack.top);
     }
 
     return val_number(-1004);

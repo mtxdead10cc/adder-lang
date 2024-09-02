@@ -1,14 +1,20 @@
+######### START
+
 label:
-    push 2
-    push 0
+    push-value 10
+    push-value 0
     loop:
         dup 2
         is-less
         if-false exit-loop
-            push 1
+            push-value 1
             add
+            call print
             jump loop
         exit-loop:
             jump exit-label
+        
 exit-label:
     return
+
+######### END

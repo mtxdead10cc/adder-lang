@@ -1,22 +1,24 @@
 ######### START
+
 label:
-    # comment 01
     push-value 10
     push-value 0
     loop:
-        dup 2
+        dup-2
         is-less
         if-false exit-loop
             push-value 1
             add
+            dup-1
+            push-value -1.0
+            rot-2
+            add
             call print
+            pop-1
             jump loop
-#KEBAB
         exit-loop:
             jump exit-label
 exit-label:
-    push-value "HEJ HEJ PÅ DIG!"
-    call print
-    pop 2
     return
+
 ######### END
