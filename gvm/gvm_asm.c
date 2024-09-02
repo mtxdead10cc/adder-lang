@@ -14,35 +14,38 @@ typedef struct op_scheme_t {
     uint32_t typespec;
     uint32_t isconst;
     uint32_t islabel;
+    uint32_t isreg;
 } op_scheme_t;
 
 #define ARGSPEC1(A1) (uint64_t)((uint8_t)((A1)))
 #define ARGSPEC2(A1, A2) (ARGSPEC1(A1) | (uint64_t)((uint8_t)((A2)) << 4))
 
 static op_scheme_t schemes[] = {
-//  [string name]  [op bytecode id]    [arg type]              [store as const]   [is label reference]
-    {"push-value",  OP_PUSH_VALUE,      ARGSPEC1(TT_NUMBER),    0x01,              0x00 },
-    {"push-value",  OP_PUSH_VALUE,      ARGSPEC1(TT_STRING),    0x01,              0x00 },
-    {"pop-1",       OP_POP_1,           ARGSPEC1(0),            0x00,              0x00 },
-    {"pop-2",       OP_POP_2,           ARGSPEC1(0),            0x00,              0x00 },
-    {"dup-1",       OP_DUP_1,           ARGSPEC1(0),            0x00,              0x00 },
-    {"dup-2",       OP_DUP_2,           ARGSPEC1(0),            0x00,              0x00 },
-    {"rot-2",       OP_ROT_2,           ARGSPEC1(0),            0x00,              0x00 },
-    {"is-less",     OP_CMP_LESS_THAN,   ARGSPEC1(0),            0x00,              0x00 },
-    {"is-more",     OP_CMP_MORE_THAN,   ARGSPEC1(0),            0x00,              0x00 },
-    {"is-equal",    OP_CMP_EQUAL,       ARGSPEC1(0),            0x00,              0x00 },
-    {"if-false",    OP_JUMP_IF_FALSE,   ARGSPEC1(TT_SYMBOL),    0x00,              0x01 },
-    {"jump",        OP_JUMP,            ARGSPEC1(TT_SYMBOL),    0x00,              0x01 },
-    {"call",        OP_CALL_NATIVE,     ARGSPEC1(TT_SYMBOL),    0x01,              0x00 },
-    {"exit",        OP_EXIT,            ARGSPEC1(TT_NUMBER),    0x00,              0x00 },
-    {"return",      OP_RETURN,          ARGSPEC1(0),            0x00,              0x00 },
-    {"and",         OP_AND,             ARGSPEC1(0),            0x00,              0x00 },
-    {"or",          OP_OR,              ARGSPEC1(0),            0x00,              0x00 },
-    {"nor",         OP_NOR,             ARGSPEC1(0),            0x00,              0x00 },
-    {"mul",         OP_MUL,             ARGSPEC1(0),            0x00,              0x00 },
-    {"add",         OP_ADD,             ARGSPEC1(0),            0x00,              0x00 },
-    {"sub",         OP_SUB,             ARGSPEC1(0),            0x00,              0x00 },
-    {"neg",         OP_NEG,             ARGSPEC1(0),            0x00,              0x00 },
+//  [string name]  [op bytecode id]    [arg type]              [store as const]   [label reference]    [register reference]
+    {"push-value",  OP_PUSH_VALUE,      ARGSPEC1(TT_NUMBER),    0x01,              0x00,                0x00 },
+    {"push-value",  OP_PUSH_VALUE,      ARGSPEC1(TT_STRING),    0x01,              0x00,                0x00 },
+    {"store",       OP_STORE,           ARGSPEC1(TT_SYMBOL),    0x00,              0x00,                0x01 },
+    {"load",        OP_LOAD,            ARGSPEC1(TT_SYMBOL),    0x00,              0x00,                0x01 },
+    {"pop-1",       OP_POP_1,           ARGSPEC1(0),            0x00,              0x00,                0x00 },
+    {"pop-2",       OP_POP_2,           ARGSPEC1(0),            0x00,              0x00,                0x00 },
+    {"dup-1",       OP_DUP_1,           ARGSPEC1(0),            0x00,              0x00,                0x00 },
+    {"dup-2",       OP_DUP_2,           ARGSPEC1(0),            0x00,              0x00,                0x00 },
+    {"rot-2",       OP_ROT_2,           ARGSPEC1(0),            0x00,              0x00,                0x00 },
+    {"is-less",     OP_CMP_LESS_THAN,   ARGSPEC1(0),            0x00,              0x00,                0x00 },
+    {"is-more",     OP_CMP_MORE_THAN,   ARGSPEC1(0),            0x00,              0x00,                0x00 },
+    {"is-equal",    OP_CMP_EQUAL,       ARGSPEC1(0),            0x00,              0x00,                0x00 },
+    {"if-false",    OP_JUMP_IF_FALSE,   ARGSPEC1(TT_SYMBOL),    0x00,              0x01,                0x00 },
+    {"jump",        OP_JUMP,            ARGSPEC1(TT_SYMBOL),    0x00,              0x01,                0x00 },
+    {"call",        OP_CALL_NATIVE,     ARGSPEC1(TT_SYMBOL),    0x01,              0x00,                0x00 },
+    {"exit",        OP_EXIT,            ARGSPEC1(TT_NUMBER),    0x00,              0x00,                0x00 },
+    {"return",      OP_RETURN,          ARGSPEC1(0),            0x00,              0x00,                0x00 },
+    {"and",         OP_AND,             ARGSPEC1(0),            0x00,              0x00,                0x00 },
+    {"or",          OP_OR,              ARGSPEC1(0),            0x00,              0x00,                0x00 },
+    {"nor",         OP_NOR,             ARGSPEC1(0),            0x00,              0x00,                0x00 },
+    {"mul",         OP_MUL,             ARGSPEC1(0),            0x00,              0x00,                0x00 },
+    {"add",         OP_ADD,             ARGSPEC1(0),            0x00,              0x00,                0x00 },
+    {"sub",         OP_SUB,             ARGSPEC1(0),            0x00,              0x00,                0x00 },
+    {"neg",         OP_NEG,             ARGSPEC1(0),            0x00,              0x00,                0x00 },
 };
 
 #if GVM_TRACE_LOG_LEVEL >= 3
@@ -97,9 +100,6 @@ int scheme_match(parser_t* p) {
             token_type_t expected = (token_type_t)(0xF & typespec);
             token_type_t actual = parser_peek(p, lookahead).type;
             if( expected != actual ) {
-                // printf("expected %s, got %s\n",
-                //     parser_tt_to_str(expected),
-                //     parser_tt_to_str(actual));
                 match = false;
                 break;
             }
@@ -111,45 +111,6 @@ int scheme_match(parser_t* p) {
         }
     }
 
-    return -1;
-}
-
-#define MAX_LABELS 64
-
-typedef struct label_set_t {
-    char* label[MAX_LABELS];
-    int length[MAX_LABELS];
-    int address[MAX_LABELS];
-    int count;
-} label_set_t;
-
-gvm_result_t label_add(label_set_t* set, char* str, int len, int address) {
-    if( set->count > MAX_LABELS ) {
-        printf("error: hit max labels threashold\n");
-        return RES_NOT_SUPPORTED;
-    }
-    for(int i = 0; i < set->count; i++) {
-        char* existing = set->label[i];
-        int len = set->length[i];
-        // already added
-        if( strncmp(existing, str, len) == 0 ) {
-            printf("error: duplicate label definition '%.*s'.\n", len, existing);
-            return RES_INVALID_INPUT;
-        }
-    }
-    set->label[set->count] = str;
-    set->length[set->count] = len;
-    set->address[set->count] = address;
-    set->count ++;
-    return RES_OK;
-}
-
-int label_get_address(label_set_t* set, char* str, int len) {
-    for(int i = 0; i < set->count; i++) {
-        if( strncmp(set->label[i], str, len) == 0 ) {
-            return set->address[i];
-        }
-    }
     return -1;
 }
 
@@ -293,7 +254,72 @@ int consts_add_current(valbuffer_t* consts, parser_t* parser) {
     return const_index;
 }
 
+typedef struct label_set_t {
+    char* label[GVM_ASM_MAX_LABELS];
+    int length[GVM_ASM_MAX_LABELS];
+    int address[GVM_ASM_MAX_LABELS];
+    int count;
+} label_set_t;
 
+gvm_result_t label_add(label_set_t* set, char* str, int len, int address) {
+    if( set->count > GVM_ASM_MAX_LABELS ) {
+        printf("error: hit max labels threashold\n");
+        return RES_NOT_SUPPORTED;
+    }
+    for(int i = 0; i < set->count; i++) {
+        char* existing = set->label[i];
+        int len = set->length[i];
+        // already added
+        if( strncmp(existing, str, len) == 0 ) {
+            printf("error: duplicate label definition '%.*s'.\n", len, existing);
+            return RES_INVALID_INPUT;
+        }
+    }
+    set->label[set->count] = str;
+    set->length[set->count] = len;
+    set->address[set->count] = address;
+    set->count ++;
+    return RES_OK;
+}
+
+int label_get_address(label_set_t* set, char* str, int len) {
+    for(int i = 0; i < set->count; i++) {
+        if( strncmp(set->label[i], str, len) == 0 ) {
+            return set->address[i];
+        }
+    }
+    return -1;
+}
+
+typedef struct register_set_t {
+    char* label[GVM_ASM_MAX_REGISTERS];
+    int length[GVM_ASM_MAX_REGISTERS];
+    int count;
+} register_set_t;
+
+int reg_find_index(register_set_t* set, char* str, int len) {
+    for(int i = 0; i < set->count; i++) {
+        if( strncmp(set->label[i], str, len) == 0 ) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int reg_add(register_set_t* set, char* str, int len) {
+    if( set->count > GVM_ASM_MAX_REGISTERS ) {
+        printf("error: hit max registers threashold\n");
+        return -1;
+    }
+    int index = reg_find_index(set, str, len);
+    if( index >= 0 ) {
+        return index;
+    }
+    set->label[set->count] = str;
+    set->length[set->count] = len;
+    set->count ++;
+    return set->count - 1;
+}
 
 /* [asm_scan_labels]
     Runs through all the tokens counting bytes in order to 
@@ -389,6 +415,7 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
 
     gvm_result_t result_code = RES_OK;
     label_set_t label_set = { 0 };
+    register_set_t reg_set = { 0 };
     u8buffer_t code_section = { 0 };
     valbuffer_t const_store = { 0 };
 
@@ -463,12 +490,24 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
                     char* ptr = parser_get_token_string_ptr(parser, token);
                     int label_index = label_get_address(&label_set, ptr, len);
                     if( label_index < 0 ) {
-                        result_code = RES_INVALID_INPUT;
+                        result_code = RES_NOT_SUPPORTED;
                         goto on_error;
                     }
                     DBG_LOG("%i (%.*s) ", label_index, len, ptr);
                     assert(label_index >= 0 && label_index < 256);
                     u8buffer_write_i16(&code_section, label_index);
+                } else if (scheme_is_flag_set(op_scheme.isreg, arg_index)) {
+                    token_t token = parser_current(parser);
+                    int len = parser_get_token_string_length(parser, token);
+                    char* ptr = parser_get_token_string_ptr(parser, token);
+                    int reg_index = reg_add(&reg_set, ptr, len);
+                    if( reg_index < 0 ) {
+                        result_code = RES_NOT_SUPPORTED;
+                        goto on_error;
+                    }
+                    DBG_LOG("%i (%.*s) ", reg_index, len, ptr);
+                    assert(reg_index >= 0 && reg_index < 256);
+                    u8buffer_write_i16(&code_section, reg_index);
                 } else {
                     DBG_LOG_OPERAND(parser);
                     DBG_LOG(" ");

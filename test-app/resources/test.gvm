@@ -1,6 +1,8 @@
 ######### START
 
 label:
+    push-value "HEJDÅ!"
+    store msg
     push-value 10
     push-value 0
     loop:
@@ -19,6 +21,9 @@ label:
         exit-loop:
             jump exit-label
 exit-label:
+    load msg
+    call print
+    pop-1
     return
 
 ######### END

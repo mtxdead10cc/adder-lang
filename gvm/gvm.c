@@ -37,7 +37,9 @@ static char* op_names[OP_OPCODE_COUNT] = {
     "OP_JUMP_IF_FALSE",
     "OP_EXIT",
     "OP_CALL_NATIVE",
-    "OP_RETURN"
+    "OP_RETURN",
+    "OP_STORE",
+    "OP_LOAD"
 };
 
 #if GVM_TRACE_LOG_LEVEL > 0
@@ -353,6 +355,18 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
             case OP_RETURN: {
                 TRACE_NL();
                 return stack[vm_mem->stack.top];
+            } break;
+            case OP_LOAD: {
+                int reg_index = READ_I16(instructions, vm_run->pc);
+                TRACE_INT_ARG(reg_index);
+                stack[++vm_mem->stack.top] = vm_run->registers[reg_index];
+                vm_run->pc += 2;
+            } break;
+            case OP_STORE: {
+                int reg_index = READ_I16(instructions, vm_run->pc);
+                TRACE_INT_ARG(reg_index);
+                vm_run->registers[reg_index] = stack[vm_mem->stack.top--];
+                vm_run->pc += 2;
             } break;
             default: {
                 char* op_str = (opcode >= 0 && opcode < OP_OPCODE_COUNT)

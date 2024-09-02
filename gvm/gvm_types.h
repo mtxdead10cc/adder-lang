@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "gvm_config.h"
+
 typedef uint8_t type_id_t;
 
 typedef struct grid_t {
@@ -92,6 +94,8 @@ typedef enum gvm_op_t {
     OP_EXIT,
     OP_CALL_NATIVE,
     OP_RETURN,
+    OP_STORE,
+    OP_LOAD,
     OP_OPCODE_COUNT
 } gvm_op_t;
 
@@ -152,6 +156,7 @@ typedef struct env_t {
 } env_t;
 
 typedef struct gvm_runtime_t {
+    val_t registers[GVM_ASM_MAX_REGISTERS];
     val_t* constants;
     uint8_t* instructions;
     int pc;
