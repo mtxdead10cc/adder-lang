@@ -118,68 +118,146 @@ gvm_result_t tokens_push_on_change(parser_tokens_t* tokens, token_type_t tt, int
     return res;
 }
 
+typedef enum tok_state_t {
+    TS_INIT,
+    TS_QUOTED,
+    TS_COMMENT,
+    TS_NUMBER,
+    TS_SYMBOL,
+    TS_SEPARATOR,
+    TS_COLON,
+    TS_ERROR
+} tok_state_t;
+
+bool lex_is_separator(lexeme_t lex) {
+    return lex == L_NEWLINE
+        || lex == L_WHITESPACE;
+}
+
+bool lex_is_valid_number_part(lexeme_t lex) {
+    return lex == L_NUMBER
+        || lex == L_DOT;
+}
+
+bool lex_is_valid_symbol_part(lexeme_t lex) {
+    return lex == L_LETTER
+        || lex == L_NUMBER
+        || lex == L_DASH;
+}
+
+tok_state_t get_new_state(tok_state_t state, lexeme_t lexeme) {
+    switch (state) {
+        case TS_INIT: {
+            switch(lexeme) {
+                case L_LETTER:      return TS_SYMBOL;
+                case L_NUMBER:      return TS_NUMBER;
+                case L_NEWLINE:     return TS_SEPARATOR;
+                case L_WHITESPACE:  return TS_SEPARATOR;
+                case L_PUND_SIGN:   return TS_COMMENT;
+                default:            return TS_ERROR;
+            }
+        } break;
+        case TS_COMMENT: {
+            if( lexeme != L_NEWLINE ) {
+                return TS_COMMENT;
+            } else {
+                return TS_SEPARATOR;
+            }
+        } break;
+        case TS_QUOTED: {
+            if( lexeme != L_QUOTE ) {
+                return TS_QUOTED;
+            } else {
+                return TS_SEPARATOR;
+            }
+        } break;
+        case TS_NUMBER: {
+            if( lex_is_valid_number_part(lexeme) ) {
+                return TS_NUMBER;
+            } else if ( lex_is_separator(lexeme) ) {
+                return TS_SEPARATOR;
+            } else {
+                return TS_ERROR;
+            }
+        } break;
+        case TS_SYMBOL: {
+            if( lex_is_valid_symbol_part(lexeme) ) {
+                return TS_SYMBOL;
+            } else if ( lex_is_separator(lexeme) ) {
+                return TS_SEPARATOR;
+            } else if ( lexeme == L_COLON ) {
+                return TS_COLON;
+            } else {
+                return TS_ERROR;
+            }
+        } break;
+        case TS_COLON: {
+            if ( lex_is_separator(lexeme) ) {
+                return TS_SEPARATOR;
+            } else if ( lexeme == L_PUND_SIGN ) {
+                return TS_COMMENT;
+            } else {
+                return TS_ERROR;
+            }
+        } break;
+        case TS_SEPARATOR: {
+            if ( lex_is_separator(lexeme) ) {
+                return TS_SEPARATOR;
+            }
+            switch (lexeme) {
+                case L_DASH: return TS_NUMBER;
+                case L_NUMBER: return TS_NUMBER;
+                case L_PUND_SIGN: return TS_COMMENT;
+                case L_QUOTE: return TS_QUOTED;
+                case L_LETTER: return TS_SYMBOL;
+                default: return TS_ERROR;
+            }
+        }
+        default: return TS_ERROR;
+    }
+}
+
+token_type_t state_to_type(tok_state_t state) {
+    switch(state) {
+        case TS_COMMENT: return TT_COMMENT;
+        case TS_QUOTED: return TT_STRING;
+        case TS_NUMBER: return TT_NUMBER;
+        case TS_SYMBOL: return TT_SYMBOL;
+        case TS_COLON: return TT_COLON;
+        case TS_SEPARATOR: return TT_SEPARATOR;
+        default: return TT_UNKNOWN;
+    }
+}
 
 gvm_result_t tokenize(parser_text_t* text, parser_tokens_t* tokens) {
 
     gvm_result_t res = tokens_init(tokens, 16);
     int line = 1;
     int column = 1;
-    bool in_quoute = false;
-    bool in_comment = false;
-    token_type_t current_token = TT_UNKNOWN;
-    
+
+    tok_state_t state = TS_INIT;
     int text_length = text->size;
 
     for(int i = 0; i < (text_length + 1); i++) {
-
         // make sure we process the last token
         // by faking an extra trailing whitespace
         lexeme_t lex = (i < text_length)
             ? scan(text->array[i])
             : L_NEWLINE; 
 
-        if( res != RES_OK ) {
+        state = get_new_state(state, lex);
+        if( state == TS_ERROR ) {
+            printf("error: invalid lexer state.\n"
+                   "\tline: %i column: %i\n",
+                   line, column);
             break;
         }
 
-        if( in_quoute == false && lex == L_PUND_SIGN ) {
-            in_comment = true;
-            res = tokens_push_on_change(tokens, TT_COMMENT, line, column, i);
-        } else if ( in_comment && lex == L_NEWLINE ) {
-            in_comment = false;
-        }
-
-        if( in_comment == false ) {
-            if ( lex == L_QUOTE ) {
-                in_quoute = !in_quoute;
-                res = tokens_push_on_change(tokens, TT_STRING, line, column, i);
-            } else if( in_quoute ) {
-                res = tokens_push_on_change(tokens, TT_STRING, line, column, i);
-            } else if ( lex == L_COLON ) {
-                res = tokens_push_on_change(tokens, TT_COLON, line, column, i);
-            } else if ( lex == L_DOT && current_token == TT_NUMBER ) {
-                res = tokens_push_on_change(tokens, TT_NUMBER, line, column, i);
-            } else if ( lex == L_NUMBER ) {
-                if( current_token == TT_SYMBOL ) {
-                    res = tokens_push_on_change(tokens, TT_SYMBOL, line, column, i);
-                } else {
-                    res = tokens_push_on_change(tokens, TT_NUMBER, line, column, i);
-                }
-            } else if ( lex == L_DASH ) {
-                if( current_token == TT_SEPARATOR ) {
-                    res = tokens_push_on_change(tokens, TT_NUMBER, line, column, i);
-                } else if ( current_token == TT_SYMBOL ) {
-                    res = tokens_push_on_change(tokens, TT_SYMBOL, line, column, i);
-                }
-            } else if ( lex == L_LETTER ) {
-                res = tokens_push_on_change(tokens, TT_SYMBOL, line, column, i);
-            } else if ( lex == L_WHITESPACE || lex == L_NEWLINE ) {
-                res = tokens_push_on_change(tokens, TT_SEPARATOR, line, column, i);
-            } else {
-                res = tokens_push_on_change(tokens, TT_UNKNOWN, line, column, i);
-            }
-        } else {
-            res = tokens_push_on_change(tokens, TT_COMMENT, line, column, i);
+        res = tokens_push_on_change(tokens, state_to_type(state), line, column, i);
+        if( res != RES_OK ) {
+            printf("error: failed to construct token buffer.\n");
+            gvm_print_if_error(res, "tokenize");
+            break;
         }
 
         column ++;
@@ -187,8 +265,6 @@ gvm_result_t tokenize(parser_text_t* text, parser_tokens_t* tokens) {
             line ++;
             column = 1;
         }
-
-        current_token = tokens->array[tokens->size - 1].type;
     }
 
     // NOTE: to decrease memory footprint it

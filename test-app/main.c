@@ -59,7 +59,7 @@ int main(int argv, char** argc) {
 
     char* path = DEFAULT_PATH;
     bool verbose = false;
-    bool print_help = argv < 2;
+    bool print_help = false;
     bool keep_alive = false;
     int path_arg = -1;
     time_t last_creation_time = 0xFFFFFFFFFFFFFFFF;
@@ -68,15 +68,57 @@ int main(int argv, char** argc) {
         verbose     |= strncmp(argc[i], "-v", 2) == 0;
         print_help  |= strncmp(argc[i], "-h", 2) == 0;
         keep_alive  |= strncmp(argc[i], "-k", 2) == 0;
-        int len      = strnlen(argc[i], 1024) - 4;
+        int ext_pos      = strnlen(argc[i], 1024) - 4;
         if( path_arg >= 0 ) {
             continue;
-        } else if( len <= 0 ) {
+        } else if( ext_pos <= 0 ) {
             continue;
-        } else if( strncmp(argc[i], ".gvm", 4)) {
+        } else if( strncmp(((argc[i]) + ext_pos), ".gvm", 4) == 0 ) {
             path_arg = i;
         }
     }
+
+
+    if( path_arg < 0 ) {
+        path = DEFAULT_PATH;
+    } else {
+        path = argc[path_arg];
+    }
+
+    do {
+
+        time_t creation_time = get_creation_time(path);
+
+        if( creation_time <= last_creation_time ) {
+            usleep(100);
+            continue;
+        }
+
+        last_creation_time = creation_time;
+        byte_code_block_t obj = read_and_compile(path);
+        bool compile_ok = obj.size > 0;
+        printf("%s [%s]\n\n", path, compile_ok ? "OK" : "FAILED");
+        
+        if( compile_ok ) {
+            if( verbose ) {
+                gvm_code_disassemble(&obj);
+            }
+
+            gvm_t vm = { 0 };
+            gvm_create(&vm, 128, 128);
+
+            val_t result = gvm_execute(&vm, &obj, 500);
+            printf("\n> ");
+            gvm_print_val(&vm, result);
+            printf("\n");
+
+            gvm_code_destroy(&obj);
+            gvm_destroy(&vm);
+        }
+
+        print_help = print_help | ( compile_ok == false && keep_alive == false );
+
+    } while ( keep_alive );
 
     if( print_help ) {
         printf( "usage: test-app <filename>"
@@ -86,41 +128,6 @@ int main(int argv, char** argc) {
         "\n\t\t -k (keep alive, reload and run on file update)"
         "\n" );
     }
-
-    if( path_arg < 0 ) {
-        path = DEFAULT_PATH;
-    }
-
-    do {
-        time_t creation_time = get_creation_time(path);
-        if( creation_time <= last_creation_time ) {
-            usleep(100);
-            continue;
-        }
-
-        last_creation_time = creation_time;
-
-        printf("compiling %s\n", path);
-        
-        byte_code_block_t obj = read_and_compile(path);
-        if( verbose ) {
-            gvm_code_disassemble(&obj);
-        }
-
-        gvm_t vm = { 0 };
-        gvm_create(&vm, 128, 128);
-
-        val_t result = gvm_execute(&vm, &obj, 500);
-        printf("\n> ");
-        gvm_print_val(&vm, result);
-        printf("\n");
-
-        gvm_code_destroy(&obj);
-        gvm_destroy(&vm);
-
-        
-        
-    } while ( keep_alive );
 
     return 0;
 }
