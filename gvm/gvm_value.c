@@ -15,8 +15,8 @@ val_t val_char(char value) {
     return VAL_MK_CHAR(value);
 }
 
-val_t val_list(uint16_t address, uint16_t length) {
-    return VAL_MK_LIST(address, length);
+val_t val_array(uint16_t address, uint16_t length) {
+    return VAL_MK_ARRAY(address, length);
 }
 
 void val_print(val_t val) {
@@ -31,11 +31,11 @@ void val_print(val_t val) {
     case VAL_BOOL:
         printf("%s", VAL_GET_BOOL(val) ? "TRUE" : "FALSE");
         break;
-    case VAL_LIST: {
-        val_addr_t addr = VAL_GET_LIST_ADDR(val);
+    case VAL_ARRAY: {
+        val_addr_t addr = VAL_GET_ARRAY_ADDR(val);
         printf("<ref: 0x%04X (%d), len: %d>",
             addr, addr,
-            VAL_GET_LIST_LENGTH(val));
+            VAL_GET_ARRAY_LENGTH(val));
         break;
     } break;
     default:
@@ -45,13 +45,13 @@ void val_print(val_t val) {
 }
 
 void val_print_lookup(val_t val, addr_lookup_fn lookup, void* user) {
-    if( VAL_GET_TYPE(val) == VAL_LIST && lookup != NULL && user != NULL ) {
-        val_t* buffer = lookup(user, VAL_GET_LIST_ADDR(val));
+    if( VAL_GET_TYPE(val) == VAL_ARRAY && lookup != NULL && user != NULL ) {
+        val_t* buffer = lookup(user, VAL_GET_ARRAY_ADDR(val));
         if( buffer == NULL ) {
             printf("<null buffer>");
             return;
         }
-        int length = VAL_GET_LIST_LENGTH(val);
+        int length = VAL_GET_ARRAY_LENGTH(val);
         bool is_list = VAL_GET_TYPE(buffer[0]) != VAL_CHAR;
         if(is_list) {
             printf("[");
@@ -71,14 +71,14 @@ void val_print_lookup(val_t val, addr_lookup_fn lookup, void* user) {
 }
 
 int val_get_string(val_t val, addr_lookup_fn lookup, void* user, char* dest, int dest_len) {
-    if( lookup == NULL || VAL_GET_TYPE(val) != VAL_LIST ) {
+    if( lookup == NULL || VAL_GET_TYPE(val) != VAL_ARRAY ) {
         return 0;
     }
-    int length = VAL_GET_LIST_LENGTH(val);
+    int length = VAL_GET_ARRAY_LENGTH(val);
     if( length > (dest_len - 1) ) {
         length = (dest_len - 1);
     }
-    val_t* vbuf = lookup(user, VAL_GET_LIST_ADDR(val));
+    val_t* vbuf = lookup(user, VAL_GET_ARRAY_ADDR(val));
     for(int i = 0; i < length; i++) {
         dest[i] = VAL_GET_CHAR(vbuf[i]);
     }

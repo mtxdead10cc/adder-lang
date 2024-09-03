@@ -181,7 +181,7 @@ int consts_add_string(valbuffer_t* consts, char* text) {
     }
 
     bool ok = valbuffer_add(consts,
-        val_list( MEM_MK_CONST_ADDR(string_start),
+        val_array( MEM_MK_CONST_ADDR(string_start),
                   string_length));
     return ok
         ? (consts->size - 1)
@@ -201,7 +201,7 @@ int consts_add_symbol_as_string(valbuffer_t* consts, char* text, int length) {
     }
 
     bool ok = valbuffer_add(consts,
-        val_list( MEM_MK_CONST_ADDR(string_start),
+        val_array( MEM_MK_CONST_ADDR(string_start),
                   length));
     return ok
         ? (consts->size - 1)
@@ -210,7 +210,7 @@ int consts_add_symbol_as_string(valbuffer_t* consts, char* text, int length) {
 
 /* [consts_add_current]
     Adds the current token to the constants buffer.
-    TT_STRING -> VAL_LIST
+    TT_STRING -> VAL_ARRAY
     TT_NUMBER -> VAL_NUMBER
     TT_SYMBOL -> VAL_BOOL | VAL_STRING */
 int consts_add_current(valbuffer_t* consts, parser_t* parser) {

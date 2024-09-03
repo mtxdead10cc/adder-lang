@@ -109,11 +109,11 @@ int valbuffer_find_char(valbuffer_t* buffer, char value) {
 
 int valbuffer_find_string(valbuffer_t* buffer, char* chars, int len) {
     for (int i = 0; i < buffer->size; i++) {
-        if(VAL_GET_TYPE(buffer->values[i]) != VAL_LIST ) {
+        if(VAL_GET_TYPE(buffer->values[i]) != VAL_ARRAY ) {
             continue;
         }
-        val_addr_t addr = VAL_GET_LIST_ADDR(buffer->values[i]);
-        uint16_t list_len = VAL_GET_LIST_LENGTH(buffer->values[i]);
+        val_addr_t addr = VAL_GET_ARRAY_ADDR(buffer->values[i]);
+        uint16_t list_len = VAL_GET_ARRAY_LENGTH(buffer->values[i]);
         int buffer_offset = MEM_ADDR_TO_INDEX(addr);
         if( list_len != len ) {
             continue;

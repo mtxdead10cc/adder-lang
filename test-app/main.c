@@ -83,7 +83,7 @@ byte_code_block_t read_and_compile(char* path) {
 // 6. animate movement
 // 
 // TODO
-// [ ] rename list -> array
+// [X] rename list -> array
 // [ ] add simple alloc and gc-dealloc for heap (array/list)
 // [ ] add support for VAL_IVEC2
 //     - lexer -> (1, 3)
@@ -93,8 +93,8 @@ byte_code_block_t read_and_compile(char* path) {
 //     - (can't push as constant)
 //     - integer index into grid elements
 // [ ] add support for operations
-//     - grid-ref <ivec> (push grid ref by lookup on ivec2)
-//     - grid-select <ivec> (push list of all flood fill refs with matching type)
+//     - ??? grid-ref <ivec> (push grid ref by lookup on ivec2)
+//     - ??? grid-select <ivec> (push list of all flood fill refs with matching type)
 //     - ...
 
 int main(int argv, char** argc) {

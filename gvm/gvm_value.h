@@ -20,20 +20,20 @@ inline static float val_to_float(val_t value) {
 #define VAL_MK_NUMBER(VAL) float_to_val(VAL)
 #define VAL_MK_BOOL(VAL) (VAL_MK_TYPE_ID(VAL_BOOL) | (((VAL)) ? 0xFF : 0x00))
 #define VAL_MK_CHAR(VAL) (VAL_MK_TYPE_ID(VAL_CHAR) | (((val_t)((VAL))) & 0xFFFF))
-#define VAL_MK_LIST(ADDR, LEN) ( VAL_MK_TYPE_ID(VAL_LIST)\
+#define VAL_MK_ARRAY(ADDR, LEN) ( VAL_MK_TYPE_ID(VAL_ARRAY)\
                             | (  (val_t)(((val_t)(LEN) & 0xFFFF) << 16) )\
                             | (  (val_t)( (val_t)(ADDR) & 0xFFFF      ) ) )
 #define VAL_GET_TYPE(V)     ((val_type_t)(((val_t)(V)) >> 56))
 #define VAL_GET_NUMBER(V)   val_to_float(V)
 #define VAL_GET_BOOL(V)     ((bool)     ((((val_t)(V))          & 0xFF) > 0x80))
 #define VAL_GET_CHAR(V)     ((char)      (((val_t)(V))          & 0xFFFF))
-#define VAL_GET_LIST_LENGTH(V) (uint16_t)  (((val_t)(V) >> 16)    & 0xFFFF) 
-#define VAL_GET_LIST_ADDR(V)   (val_addr_t)( (val_t)(V)           & 0xFFFF )  
+#define VAL_GET_ARRAY_LENGTH(V) (uint16_t)  (((val_t)(V) >> 16)    & 0xFFFF) 
+#define VAL_GET_ARRAY_ADDR(V)   (val_addr_t)( (val_t)(V)           & 0xFFFF )  
 
 val_t val_number(int value);
 val_t val_bool(bool value);
 val_t val_char(char value);
-val_t val_list(val_addr_t address, uint16_t length);
+val_t val_array(val_addr_t address, uint16_t length);
 
 void val_print(val_t val);
 void val_print_lookup(val_t val, addr_lookup_fn lookup, void* user);

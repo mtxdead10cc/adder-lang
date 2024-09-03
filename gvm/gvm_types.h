@@ -19,7 +19,7 @@ typedef enum val_type_t {
     VAL_NUMBER,
     VAL_BOOL,
     VAL_CHAR,
-    VAL_LIST
+    VAL_ARRAY
 } val_type_t;
 
 typedef struct valbuffer_t valbuffer_t;
@@ -130,8 +130,9 @@ typedef struct gvm_proc_stack_t {
 } gvm_proc_stack_t;
 
 typedef struct gvm_proc_heap_t {
-    val_t* values;  // pointer to heap memory region
-    int size;       // size of the heap mempry (in val_t count)
+    uint64_t*   gc_marks; // garbage collector (marking region)
+    val_t*      values;   // pointer to heap memory region
+    int         size;     // size of the heap mempry (in val_t count)
 } gvm_proc_heap_t;
 
 typedef struct gvm_proc_mem_t {
@@ -156,16 +157,16 @@ typedef struct env_t {
 } env_t;
 
 typedef struct gvm_runtime_t {
-    val_t registers[GVM_ASM_MAX_REGISTERS];
-    val_t* constants;
+    val_t    registers[GVM_ASM_MAX_REGISTERS];
+    val_t*   constants;
     uint8_t* instructions;
     int pc;
 } gvm_runtime_t;
 
 typedef struct gvm_t {
-    env_t env;
-    gvm_proc_mem_t mem;
-    gvm_runtime_t run;
+    env_t           env;
+    gvm_proc_mem_t  mem;
+    gvm_runtime_t   run;
 } gvm_t;
 
 #endif // GVM_TYPES_H_

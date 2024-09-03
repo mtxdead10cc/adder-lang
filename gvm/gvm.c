@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#include <limits.h>
 
 static char* op_names[OP_OPCODE_COUNT] = {
     "OP_HALT",
@@ -117,11 +118,11 @@ bool pred(type_id_t init, type_id_t curr) {
 }
 
 bool symbol_equals(gvm_t* vm, val_t symbol, char* name) {
-    if( VAL_GET_TYPE(symbol) != VAL_LIST ) {
+    if( VAL_GET_TYPE(symbol) != VAL_ARRAY ) {
         return false;
     }
     int slen = strlen(name);
-    int llen = VAL_GET_LIST_LENGTH(symbol);
+    int llen = VAL_GET_ARRAY_LENGTH(symbol);
     if( slen != llen ) {
         return false;
     }
@@ -148,6 +149,8 @@ func_t find_func(gvm_t* vm, val_t symbol) {
     return NULL;
 }
 
+#define CALC_GC_MARK_U64_COUNT(VAL_COUNT) (1 + ((VAL_COUNT) / (sizeof(uint64_t) * CHAR_BIT)))
+
 bool gvm_create(gvm_t* vm, uint16_t stack_size, uint16_t dyn_size) {
 
     int total_addressable = ( (int) stack_size + (int) dyn_size );
@@ -162,15 +165,31 @@ bool gvm_create(gvm_t* vm, uint16_t stack_size, uint16_t dyn_size) {
     int memsize = total_addressable * sizeof(val_t);
     val_t* mem = (val_t*) malloc( memsize );
     if( mem == NULL ) {
-        printf("error: can't allocate VM memory.\n");
+        printf("error: could'nt allocate VM memory.\n");
         return false;
     }
 
+    // size: one bit per val_t
+    uint64_t* gc_marks = (uint64_t*) malloc(CALC_GC_MARK_U64_COUNT(dyn_size) * sizeof(uint64_t));
+    if( gc_marks == NULL ) {
+        printf("error: could'nt allocate GC mark region.\n");
+        free(mem);
+        return false;
+    }
+    memset(gc_marks, 0, CALC_GC_MARK_U64_COUNT(dyn_size) * sizeof(uint64_t));
+
     vm->mem.membase = mem;
     vm->mem.memsize = total_addressable;
-    vm->mem.stack.values = vm->mem.membase;
-    vm->mem.heap.values = vm->mem.membase + (int) stack_size;
     
+    vm->mem.stack.values = vm->mem.membase;
+    vm->mem.stack.size = (int) stack_size;
+    vm->mem.stack.top = -1;
+
+    // heap & GC
+    vm->mem.heap.values = vm->mem.membase + (int) stack_size;
+    vm->mem.heap.size = (int) dyn_size;
+    vm->mem.heap.gc_marks = gc_marks;
+
     env_init(&vm->env, vm);
 
     // assigend on execution
@@ -184,27 +203,118 @@ void gvm_destroy(gvm_t* vm) {
         return;
     }
     free(vm->mem.membase);
+    free(vm->mem.heap.gc_marks);
     memset(vm, 0, sizeof(gvm_t));
 }
 
-val_t* gvm_get_constants_ptr(byte_code_block_t* code_obj) {
+val_t* codeblk_get_constants_ptr(byte_code_block_t* code_obj) {
     byte_code_header_t h = asm_read_byte_code_header(code_obj);
     return (val_t*) (code_obj->data + h.header_size);
 }
 
-int gvm_get_constants_count(byte_code_block_t* code_obj) {
+int codeblk_get_constants_count(byte_code_block_t* code_obj) {
     byte_code_header_t h = asm_read_byte_code_header(code_obj);
     return h.const_bytes / sizeof(val_t);
 }
 
-uint8_t* gvm_get_instructions_ptr(byte_code_block_t* code_obj) {
+uint8_t* codeblk_get_instructions_ptr(byte_code_block_t* code_obj) {
     byte_code_header_t h = asm_read_byte_code_header(code_obj);
     return (code_obj->data + h.header_size + h.const_bytes);
 }
 
-int gvm_get_instructions_count(byte_code_block_t* code_obj) {
+int codeblk_get_instructions_count(byte_code_block_t* code_obj) {
     byte_code_header_t h = asm_read_byte_code_header(code_obj);
     return h.code_bytes / sizeof(val_t);
+}
+
+#define HEAP_TO_PAGE_INDEX(HI) ((HI) / (sizeof(uint64_t) * CHAR_BIT))
+#define HEAP_TO_BIT_INDEX(HI) ((HI) % (sizeof(uint64_t) * CHAR_BIT))
+#define MK_CHUNK_MASK(N) (~(0xFFFFFFFFFFFFFFFFUL << N))
+
+inline static void put_mark(uint64_t* marks, int heap_index) {
+    uint64_t mask_index = HEAP_TO_PAGE_INDEX(heap_index);
+    uint64_t mask_bit = HEAP_TO_BIT_INDEX(heap_index);
+    marks[mask_index] |= (1UL << mask_bit);
+}
+
+void heap_gc_mark_used(gvm_t* vm, val_t* checkmem, int val_count) {
+    val_addr_t virt_addr_heap = MEM_MK_PROGR_ADDR(vm->mem.stack.size);
+    // mark all references
+    for(int i = 0; i < val_count; i++) {
+        val_t value = checkmem[i];
+        if( VAL_GET_TYPE(value) != VAL_ARRAY ) {
+            continue;
+        }
+        val_addr_t val_addr = VAL_GET_ARRAY_ADDR(value);
+        if( val_addr < virt_addr_heap ) {
+            continue;
+        }
+        int array_len = VAL_GET_ARRAY_LENGTH(value);
+        if( array_len <= 0 ) {
+            continue;
+        }
+        int heap_start = (int) val_addr - (int) virt_addr_heap;
+        for(int j = 0; j < array_len; j++) {
+            put_mark(vm->mem.heap.gc_marks, heap_start + j);
+        }
+        // call recursively (arrays inside array)
+        heap_gc_mark_used(vm,
+            vm->mem.heap.values + heap_start + 1,
+            array_len);
+    }
+}
+
+void heap_gc_collect(gvm_t* vm) {
+    // clear all usage bits 
+    memset(vm->mem.heap.gc_marks, 0, CALC_GC_MARK_U64_COUNT(vm->mem.heap.size) * sizeof(uint64_t));
+    // mark all references from the stack
+    heap_gc_mark_used(vm, vm->mem.stack.values, vm->mem.stack.top + 1);
+    // mark all references from the registers
+    heap_gc_mark_used(vm, vm->run.registers, GVM_ASM_MAX_REGISTERS);
+}
+
+void heap_print_usage(gvm_t* vm) {
+    int pages = CALC_GC_MARK_U64_COUNT(vm->mem.heap.size);
+    int num_bits = sizeof(uint64_t) * CHAR_BIT;
+    printf("HEAP USAGE BITS\n");
+    for(int i = 0; i < pages; i++) {
+        printf("  ");
+        for(int j = 0; j < num_bits; j++) {
+            uint64_t marks = vm->mem.heap.gc_marks[i];
+            bool on = ((1UL << j) & marks) > 0;
+            printf("%s", on ? "1" : "0");
+        }
+        printf("\n");
+    }
+}
+
+int heap_find_small_chunk(gvm_t* vm, int value_count) {
+    int num_bits_per_page = sizeof(uint64_t) * CHAR_BIT;
+    int num_pages = CALC_GC_MARK_U64_COUNT(vm->mem.heap.size);
+    int num_bits = num_bits_per_page - value_count;
+    uint64_t chunk_mask = MK_CHUNK_MASK(value_count);
+    for(int page_index = 0; page_index < num_pages; page_index++) {
+        uint64_t page = vm->mem.heap.gc_marks[page_index];
+        for(int bit = 0; bit < num_bits; bit++) {
+            if( (page & (chunk_mask << bit)) == 0 ){
+                return (num_bits_per_page * page_index) + bit;
+            }
+        }
+    }
+    return -1;
+}
+
+val_t heap_alloc_array(gvm_t* vm, int val_count) {
+    int addr = heap_find_small_chunk(vm, val_count);
+    int page = HEAP_TO_PAGE_INDEX(addr);
+    int shift = HEAP_TO_BIT_INDEX(addr);
+    vm->mem.heap.gc_marks[page] |= (MK_CHUNK_MASK(val_count) << shift);
+    for(int i = 0; i < val_count; i++) {
+        vm->mem.heap.values[addr + i] = VAL_MK_NUMBER(i);
+    }
+    return VAL_MK_ARRAY(
+        MEM_MK_PROGR_ADDR(vm->mem.stack.size + addr),
+        val_count);
 }
 
 val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
@@ -212,8 +322,8 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
     assert(sizeof(float) == 4);
     
     val_t* stack = vm->mem.stack.values;
-    val_t* consts = gvm_get_constants_ptr(code_obj);
-    uint8_t* instructions = gvm_get_instructions_ptr(code_obj);
+    val_t* consts = codeblk_get_constants_ptr(code_obj);
+    uint8_t* instructions = codeblk_get_instructions_ptr(code_obj);
 
     gvm_runtime_t* vm_run = &vm->run;
     vm_run->constants = consts;
@@ -347,8 +457,7 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                     gvm_print_val(vm, consts[const_index]);
                     printf("\".\n");
                 } else {
-                    // call function
-                    func(vm);
+                    func(vm); // function call
                 }
                 vm_run->pc += 2;
             } break;
@@ -397,7 +506,35 @@ void gvm_code_destroy(byte_code_block_t* code_obj) {
 }
 
 void test() {
-    grid_t grid;
+
+    gvm_t vm;
+    assert(gvm_create(&vm, 16, 512));
+
+    vm.mem.stack.top = -1;
+    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 10);
+    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 10);
+    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 10);
+    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 10);
+    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 50);
+    heap_print_usage(&vm);
+    heap_gc_collect(&vm);
+    heap_print_usage(&vm);
+    vm.mem.stack.top--;
+    heap_gc_collect(&vm);
+    heap_print_usage(&vm);
+    vm.mem.stack.top--;
+    heap_gc_collect(&vm);
+    heap_print_usage(&vm);
+    vm.mem.stack.top--;
+    heap_gc_collect(&vm);
+    heap_print_usage(&vm);
+    vm.mem.stack.top--;
+    heap_gc_collect(&vm);
+    heap_print_usage(&vm);
+
+    gvm_destroy(&vm);
+
+    /*grid_t grid;
     grid_init(&grid);
     grid_fill(&grid, 1);
 
@@ -415,6 +552,6 @@ void test() {
         grid.data[buf[i]] = 2;
     }
     grid_print(&grid);
-    grid_destroy(&grid);
+    grid_destroy(&grid);*/
 
 }
