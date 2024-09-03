@@ -230,6 +230,8 @@ int codeblk_get_instructions_count(byte_code_block_t* code_obj) {
 #define HEAP_TO_PAGE_INDEX(HI) ((HI) / (sizeof(uint64_t) * CHAR_BIT))
 #define HEAP_TO_BIT_INDEX(HI) ((HI) % (sizeof(uint64_t) * CHAR_BIT))
 #define MK_CHUNK_MASK(N) (~(0xFFFFFFFFFFFFFFFFUL << N))
+#define _MAX(A,B) ((A) > (B) ? (A) : (B))
+#define _MIN(A,B) ((A) < (B) ? (A) : (B))
 
 inline static void put_mark(uint64_t* marks, int heap_index) {
     uint64_t mask_index = HEAP_TO_PAGE_INDEX(heap_index);
@@ -304,14 +306,107 @@ int heap_find_small_chunk(gvm_t* vm, int value_count) {
     return -1;
 }
 
+int heap_count_empty_pages(gvm_t* vm, int page_index, int num_pages) {
+    if( page_index >= num_pages ) {
+        return -1;
+    }
+    int count = 0;
+    while (page_index < num_pages) {
+        if( vm->mem.heap.gc_marks[page_index++] == 0 ) {
+            count ++;
+        } else {
+            return count;
+        }
+    }
+    return count;
+}
+
+int heap_find_large_chunk(gvm_t* vm, int value_count) {
+    
+    if( value_count > vm->mem.heap.size ) {
+        return -1;
+    }
+
+    int num_bits_per_page = sizeof(uint64_t) * CHAR_BIT;
+    int num_pages_total = CALC_GC_MARK_U64_COUNT(vm->mem.heap.size);
+    int num_req_pages = CALC_GC_MARK_U64_COUNT(value_count) - 1;
+    int num_trailing = value_count - (num_req_pages * num_bits_per_page);
+    int max_check_page_count = num_pages_total - num_req_pages;
+
+    int page_index = 0;
+    while( page_index < max_check_page_count ) {
+        int num_free = heap_count_empty_pages(vm, page_index, num_pages_total);
+        if( num_free > num_req_pages ) {
+            // just return the page_index
+            return page_index * num_bits_per_page;
+        } else if( num_free == num_req_pages ) {
+            // check if trailing values fits in the next
+            uint64_t chunk_mask = MK_CHUNK_MASK(num_trailing);
+            // CHECK: page_index + num_free + 1?
+            // if so, return the start-of-page-sequence value index
+            uint64_t page = vm->mem.heap.gc_marks[page_index + num_free + 1];
+            if( (page & chunk_mask) == 0 ) {
+                return page_index * num_bits_per_page;
+            }
+        } else if( num_free < 0 ) {
+            // we are out of pages (fail)
+            return -1;
+        }
+        // else, continue looking
+        page_index += _MAX(num_free, 1);
+    }
+
+    return -1;
+}
+
+int heap_find_free_chunk(gvm_t* vm, int val_count) {
+    int num_bits_per_page = sizeof(uint64_t) * CHAR_BIT;
+    if( val_count < num_bits_per_page ) {
+        return heap_find_small_chunk(vm, val_count);
+    } else {
+        return heap_find_large_chunk(vm, val_count);
+    }
+}
+
 val_t heap_alloc_array(gvm_t* vm, int val_count) {
-    int addr = heap_find_small_chunk(vm, val_count);
+
+    int addr = heap_find_free_chunk(vm, val_count);
+
+    // run GC if we are out of memory
+    if( addr < 0 ) {
+        heap_gc_collect(vm);
+        addr = heap_find_free_chunk(vm, val_count);
+    }
+
+    // if GC did not free up memory we fail
+    if( addr < 0 ) {
+        printf("error: VM heap memory is full.\n");
+        return VAL_MK_ARRAY(0, 0);
+    }
+
+    // mark whole pages
+    int num_bits_per_page = sizeof(uint64_t) * CHAR_BIT;
+    int num_pages = CALC_GC_MARK_U64_COUNT(val_count) - 1;
     int page = HEAP_TO_PAGE_INDEX(addr);
-    int shift = HEAP_TO_BIT_INDEX(addr);
-    vm->mem.heap.gc_marks[page] |= (MK_CHUNK_MASK(val_count) << shift);
+    for(int page_index = page; page_index < num_pages; page_index++) {
+        assert(vm->mem.heap.gc_marks[page_index] == 0UL);
+        vm->mem.heap.gc_marks[page_index] = 0xFFFFFFFFFFFFFFFFUL;
+    }
+
+    // mark sub-page bits
+    int trail_addr = addr + (num_pages * num_bits_per_page);
+    int trail_page = page + num_pages;
+    int trail_bits = val_count - (num_pages * num_bits_per_page);
+    int shift = HEAP_TO_BIT_INDEX(trail_addr);
+    uint64_t chunk_mask = MK_CHUNK_MASK(trail_bits);
+    assert((vm->mem.heap.gc_marks[trail_page] & chunk_mask) == 0);
+    vm->mem.heap.gc_marks[trail_page] |= (chunk_mask << shift);
+
+    // set all values
     for(int i = 0; i < val_count; i++) {
         vm->mem.heap.values[addr + i] = VAL_MK_NUMBER(i);
     }
+
     return VAL_MK_ARRAY(
         MEM_MK_PROGR_ADDR(vm->mem.stack.size + addr),
         val_count);
@@ -508,27 +603,23 @@ void gvm_code_destroy(byte_code_block_t* code_obj) {
 void test() {
 
     gvm_t vm;
-    assert(gvm_create(&vm, 16, 512));
+    assert(gvm_create(&vm, 16, 256));
 
     vm.mem.stack.top = -1;
-    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 10);
-    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 10);
-    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 10);
-    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 10);
-    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 50);
-    heap_print_usage(&vm);
+
+    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 70);
     heap_gc_collect(&vm);
     heap_print_usage(&vm);
+
+    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 70);
+    heap_gc_collect(&vm);
+    heap_print_usage(&vm);
+
     vm.mem.stack.top--;
     heap_gc_collect(&vm);
     heap_print_usage(&vm);
-    vm.mem.stack.top--;
-    heap_gc_collect(&vm);
-    heap_print_usage(&vm);
-    vm.mem.stack.top--;
-    heap_gc_collect(&vm);
-    heap_print_usage(&vm);
-    vm.mem.stack.top--;
+
+    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 5);
     heap_gc_collect(&vm);
     heap_print_usage(&vm);
 

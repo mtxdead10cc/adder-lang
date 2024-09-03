@@ -84,7 +84,7 @@ byte_code_block_t read_and_compile(char* path) {
 // 
 // TODO
 // [X] rename list -> array
-// [ ] add simple alloc and gc-dealloc for heap (array/list)
+// [X] add simple alloc and gc-dealloc for heap (array/list)
 // [ ] add support for VAL_IVEC2
 //     - lexer -> (1, 3)
 //     - asm add const
@@ -120,12 +120,13 @@ int main(int argv, char** argc) {
         }
     }
 
-
     if( path_arg < 0 ) {
         path = DEFAULT_PATH;
     } else {
         path = argc[path_arg];
     }
+
+    test();
 
     do {
 
