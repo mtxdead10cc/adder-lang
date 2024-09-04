@@ -15,7 +15,7 @@ token_t parser_peek(parser_t* p, int lookahead);
 token_t parser_current(parser_t* p);
 char*   parser_get_token_string_ptr(parser_t* parser, token_t token);
 int     parser_get_token_string_length(parser_t* parser, token_t token);
-int     parser_get_token_int_value(parser_t* parser, token_t token);
+float   parser_get_token_float_value(parser_t* parser, token_t token);
 void    parser_debug_print_tokens(parser_t* parser);
 
 #endif // GVM_PARSER_H_

@@ -115,8 +115,8 @@ int scheme_match(parser_t* p) {
     return -1;
 }
 
-int consts_add_number(valbuffer_t* consts, int value) {
-    int existing = valbuffer_find_int(consts, value);
+int consts_add_number(valbuffer_t* consts, float value) {
+    int existing = valbuffer_find_float(consts, value);
     if( existing >= 0 ) {
         return existing;
     }
@@ -154,15 +154,7 @@ int consts_add_char(valbuffer_t* consts, char value, bool force_contiguous) {
     return consts->size - 1;
 }
 
-int string_count_until(char* text, char stopchar) {
-    int len = strlen(text);
-    for(int i = 0; i < len; i++) {
-        if( text[i] == stopchar ) {
-            return i;
-        }
-    }
-    return len;
-}
+
 
 int consts_add_string(valbuffer_t* consts, char* text) {
     if( text[0] != '"' ) {
@@ -197,28 +189,23 @@ int consts_add_ivec2(valbuffer_t* consts, char* text) {
 
     text = text + 1; // skip open paren
 
-    char buf[16] = { 0 };
     ivec2_t value = { 0 };
 
     // read x
     int to_comma = string_count_until(text, ',');
-    for(int i = 0; i < to_comma; i++) {
-        buf[i] = text[i];
-    }
-    buf[to_comma] = '\0';
-    value.x = atoi(buf);
+    value.x = string_parse_int(text, to_comma);
 
     text += to_comma + 1;
-
+    
     // read y
     int to_rparen = string_count_until(text, ')');
-    for(int i = 0; i < to_rparen; i++) {
-        buf[i] = text[i];
-    }
-    buf[to_rparen] = '\0';
-    value.y = atoi(buf);
+    value.y = string_parse_int(text, to_rparen);
 
-    // TODO: CHECK FOR EXISTING
+    int existing = valbuffer_find_ivec2(consts, value);
+    if( existing >= 0 ) {
+        return existing;
+    }
+
     bool ok = valbuffer_add(consts, val_ivec2(value));
     return ok
         ? (consts->size - 1)
@@ -264,7 +251,7 @@ int consts_add_current(valbuffer_t* consts, parser_t* parser) {
             const_index = consts_add_string(consts, text);
         } break;
         case TT_NUMBER: {
-            int value = parser_get_token_int_value(parser, token);
+            float value = parser_get_token_float_value(parser, token);
             const_index = consts_add_number(consts, value);
         } break;
         case TT_VEC2: {
@@ -552,7 +539,7 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
                     DBG_LOG_OPERAND(parser);
                     DBG_LOG(" ");
                     token_t token = parser_current(parser);
-                    int operand = parser_get_token_int_value(parser, token);
+                    int operand = parser_get_token_float_value(parser, token);
                     u8buffer_write_i16(&code_section, operand);
                 }
                 keep_going &= parser_advance(parser);

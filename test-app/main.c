@@ -85,9 +85,9 @@ byte_code_block_t read_and_compile(char* path) {
 // TODO
 // [X] rename list -> array
 // [X] add simple alloc and gc-dealloc for heap (array/list)
-// [ ] add support for VAL_IVEC2
-//     - gvm add, sub, eq, (len?)
-// [ ] add support for operations
+// [X] add support for VAL_IVEC2
+// [ ] update the grid code
+// [ ] add support for grid operations
 //     - ??? grid-ref <ivec> (push grid ref by lookup on ivec2)
 //     - ??? grid-select <ivec> (push list of all flood fill refs with matching type)
 //     - ...

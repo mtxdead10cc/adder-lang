@@ -438,7 +438,7 @@ int parser_get_token_string_length(parser_t* parser, token_t token) {
     return str_end - str_start;
 }
 
-int parser_get_token_int_value(parser_t* parser, token_t token) {
+float parser_get_token_float_value(parser_t* parser, token_t token) {
     int str_start = token.src_index;
     int str_end = (token.index < (parser->tokens.size - 1))
         ? parser->tokens.array[(token.index + 1)].src_index
@@ -451,7 +451,7 @@ int parser_get_token_int_value(parser_t* parser, token_t token) {
     for(int i = 0; i < len; i++) {
         buf[i] = parser->text.array[i + str_start];
     }
-    return atoi(buf);
+    return atof(buf);
 }
 
 void parser_debug_print_tokens(parser_t* parser) {

@@ -71,12 +71,25 @@ bool valbuffer_add(valbuffer_t* buffer, val_t value) {
     return true;
 }
 
-int valbuffer_find_int(valbuffer_t* buffer, int value) {
+int valbuffer_find_float(valbuffer_t* buffer, float value) {
     for (int i = 0; i < buffer->size; i++) {
         if(VAL_GET_TYPE(buffer->values[i]) != VAL_NUMBER) {
             continue;
         }
         if((int) val_into_number(buffer->values[i]) == value) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int valbuffer_find_ivec2(valbuffer_t* buffer, ivec2_t value) {
+    for (int i = 0; i < buffer->size; i++) {
+        if(VAL_GET_TYPE(buffer->values[i]) != VAL_IVEC2) {
+            continue;
+        }
+        ivec2_t in_buffer = val_into_ivec2(buffer->values[i]);
+        if( in_buffer.x == value.x && in_buffer.y == value.y ) {
             return i;
         }
     }
@@ -145,4 +158,23 @@ void valbuffer_destroy(valbuffer_t* buffer) {
     }
     buffer->capacity = 0;
     buffer->size = 0;
+}
+
+int string_count_until(char* text, char stopchar) {
+    int len = strlen(text);
+    for(int i = 0; i < len; i++) {
+        if( text[i] == stopchar ) {
+            return i;
+        }
+    }
+    return len;
+}
+
+int string_parse_int(char* text, int string_length) {
+    char buf[string_length+1];
+    for(int i = 0; i < string_length; i++) {
+        buf[i] = text[i];
+    }
+    buf[string_length] = '\0';
+    return atoi(buf);
 }
