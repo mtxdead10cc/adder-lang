@@ -15,16 +15,27 @@ typedef struct grid_t {
     type_id_t* data;
 } grid_t;
 
+typedef struct valbuffer_t valbuffer_t;
+typedef uint64_t val_t;
+typedef uint16_t val_addr_t;
+
+typedef struct ivec2_t {
+    int16_t x;
+    int16_t y;
+} ivec2_t;
+
+typedef struct array_t {
+    val_addr_t address;
+    uint16_t length;
+} array_t;
+
 typedef enum val_type_t {
     VAL_NUMBER,
+    VAL_IVEC2,
     VAL_BOOL,
     VAL_CHAR,
     VAL_ARRAY
 } val_type_t;
-
-typedef struct valbuffer_t valbuffer_t;
-typedef uint64_t val_t;
-typedef uint16_t val_addr_t;
 
 typedef enum token_type_t {
     TT_UNKNOWN,

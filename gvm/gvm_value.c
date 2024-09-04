@@ -2,40 +2,27 @@
 #include <stdio.h>
 #include "gvm_utils.h"
 #include "gvm_memory.h"
- 
-val_t val_number(int value) {
-    return VAL_MK_NUMBER(value);
-}
-
-val_t val_bool(bool value) {
-    return VAL_MK_BOOL(value);
-}
-
-val_t val_char(char value) {
-    return VAL_MK_CHAR(value);
-}
-
-val_t val_array(uint16_t address, uint16_t length) {
-    return VAL_MK_ARRAY(address, length);
-}
 
 void val_print(val_t val) {
     switch (VAL_GET_TYPE(val))
     {
     case VAL_NUMBER:
-        printf("%f", VAL_GET_NUMBER(val));
+        printf("%f", val_into_number(val));
         break;
     case VAL_CHAR:
-        printf("%c", VAL_GET_CHAR(val));
+        printf("%c", val_into_char(val));
         break;
     case VAL_BOOL:
-        printf("%s", VAL_GET_BOOL(val) ? "TRUE" : "FALSE");
+        printf("%s", val_into_bool(val) ? "TRUE" : "FALSE");
         break;
+    case VAL_IVEC2: {
+        ivec2_t v = val_into_ivec2(val);
+        printf("(%i, %i)\n", v.x, v.y);
+    } break;
     case VAL_ARRAY: {
-        val_addr_t addr = VAL_GET_ARRAY_ADDR(val);
+        array_t a = val_into_array(val);
         printf("<ref: 0x%04X (%d), len: %d>",
-            addr, addr,
-            VAL_GET_ARRAY_LENGTH(val));
+            a.address, a.address, a.length);
         break;
     } break;
     default:
@@ -46,12 +33,13 @@ void val_print(val_t val) {
 
 void val_print_lookup(val_t val, addr_lookup_fn lookup, void* user) {
     if( VAL_GET_TYPE(val) == VAL_ARRAY && lookup != NULL && user != NULL ) {
-        val_t* buffer = lookup(user, VAL_GET_ARRAY_ADDR(val));
+        array_t array = val_into_array(val);
+        val_t* buffer = lookup(user, array.address);
         if( buffer == NULL ) {
             printf("<null buffer>");
             return;
         }
-        int length = VAL_GET_ARRAY_LENGTH(val);
+        int length = array.length;
         bool is_list = VAL_GET_TYPE(buffer[0]) != VAL_CHAR;
         if(is_list) {
             printf("[");
@@ -74,13 +62,14 @@ int val_get_string(val_t val, addr_lookup_fn lookup, void* user, char* dest, int
     if( lookup == NULL || VAL_GET_TYPE(val) != VAL_ARRAY ) {
         return 0;
     }
-    int length = VAL_GET_ARRAY_LENGTH(val);
+    array_t array = val_into_array(val);
+    int length = array.length;
     if( length > (dest_len - 1) ) {
         length = (dest_len - 1);
     }
-    val_t* vbuf = lookup(user, VAL_GET_ARRAY_ADDR(val));
+    val_t* vbuf = lookup(user, array.address);
     for(int i = 0; i < length; i++) {
-        dest[i] = VAL_GET_CHAR(vbuf[i]);
+        dest[i] = val_into_char(vbuf[i]);
     }
     dest[length] = '\0';
     return length;

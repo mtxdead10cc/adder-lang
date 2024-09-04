@@ -181,7 +181,7 @@ int consts_add_string(valbuffer_t* consts, char* text) {
     }
 
     bool ok = valbuffer_add(consts,
-        val_array( MEM_MK_CONST_ADDR(string_start),
+        val_array_from_args( MEM_MK_CONST_ADDR(string_start),
                   string_length));
     return ok
         ? (consts->size - 1)
@@ -201,7 +201,7 @@ int consts_add_symbol_as_string(valbuffer_t* consts, char* text, int length) {
     }
 
     bool ok = valbuffer_add(consts,
-        val_array( MEM_MK_CONST_ADDR(string_start),
+        val_array_from_args( MEM_MK_CONST_ADDR(string_start),
                   length));
     return ok
         ? (consts->size - 1)

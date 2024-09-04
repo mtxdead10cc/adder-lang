@@ -76,7 +76,7 @@ int valbuffer_find_int(valbuffer_t* buffer, int value) {
         if(VAL_GET_TYPE(buffer->values[i]) != VAL_NUMBER) {
             continue;
         }
-        if((int) VAL_GET_NUMBER(buffer->values[i]) == value) {
+        if((int) val_into_number(buffer->values[i]) == value) {
             return i;
         }
     }
@@ -88,7 +88,7 @@ int valbuffer_find_bool(valbuffer_t* buffer, bool value) {
         if(VAL_GET_TYPE(buffer->values[i]) != VAL_BOOL) {
             continue;
         }
-        if( VAL_GET_BOOL(buffer->values[i]) == value) {
+        if( val_into_bool(buffer->values[i]) == value) {
             return i;
         }
     }
@@ -100,7 +100,7 @@ int valbuffer_find_char(valbuffer_t* buffer, char value) {
         if(VAL_GET_TYPE(buffer->values[i]) != VAL_CHAR) {
             continue;
         }
-        if( VAL_GET_CHAR( buffer->values[i] ) == value) {
+        if( val_into_char( buffer->values[i] ) == value) {
             return i;
         }
     }
@@ -112,17 +112,16 @@ int valbuffer_find_string(valbuffer_t* buffer, char* chars, int len) {
         if(VAL_GET_TYPE(buffer->values[i]) != VAL_ARRAY ) {
             continue;
         }
-        val_addr_t addr = VAL_GET_ARRAY_ADDR(buffer->values[i]);
-        uint16_t list_len = VAL_GET_ARRAY_LENGTH(buffer->values[i]);
-        int buffer_offset = MEM_ADDR_TO_INDEX(addr);
-        if( list_len != len ) {
+        array_t array = val_into_array(buffer->values[i]);
+        int buffer_offset = MEM_ADDR_TO_INDEX(array.address);
+        if( array.length != len ) {
             continue;
         }
         bool match = true;
         val_t* values = buffer->values + buffer_offset;
-        for(int j = 0; j < list_len; j++) {
+        for(int j = 0; j < array.length; j++) {
             val_t entry = values[j];
-            if( chars[j] != VAL_GET_CHAR(entry) ||
+            if( chars[j] != val_into_char(entry) ||
                 VAL_GET_TYPE(entry) != VAL_CHAR    ) 
             {
                 match = false;

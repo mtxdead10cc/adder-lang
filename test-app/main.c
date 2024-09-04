@@ -86,12 +86,7 @@ byte_code_block_t read_and_compile(char* path) {
 // [X] rename list -> array
 // [X] add simple alloc and gc-dealloc for heap (array/list)
 // [ ] add support for VAL_IVEC2
-//     - lexer -> (1, 3)
-//     - asm add const
 //     - gvm add, sub, eq, (len?)
-// [ ] add support for VAL_GRID_REF
-//     - (can't push as constant)
-//     - integer index into grid elements
 // [ ] add support for operations
 //     - ??? grid-ref <ivec> (push grid ref by lookup on ivec2)
 //     - ??? grid-select <ivec> (push list of all flood fill refs with matching type)

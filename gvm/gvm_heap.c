@@ -26,22 +26,21 @@ void heap_gc_mark_used(gvm_t* vm, val_t* checkmem, int val_count) {
         if( VAL_GET_TYPE(value) != VAL_ARRAY ) {
             continue;
         }
-        val_addr_t val_addr = VAL_GET_ARRAY_ADDR(value);
-        if( val_addr < virt_addr_heap ) {
+        array_t array = val_into_array(value);
+        if( array.address < virt_addr_heap ) {
             continue;
         }
-        int array_len = VAL_GET_ARRAY_LENGTH(value);
-        if( array_len <= 0 ) {
+        if( array.length <= 0 ) {
             continue;
         }
-        int heap_start = (int) val_addr - (int) virt_addr_heap;
-        for(int j = 0; j < array_len; j++) {
+        int heap_start = (int) array.address - (int) virt_addr_heap;
+        for(int j = 0; j < array.length; j++) {
             put_mark(vm->mem.heap.gc_marks, heap_start + j);
         }
         // call recursively (arrays inside array)
         heap_gc_mark_used(vm,
             vm->mem.heap.values + heap_start + 1,
-            array_len);
+            array.length);
     }
 }
 
@@ -160,7 +159,7 @@ val_t heap_alloc_array(gvm_t* vm, int val_count) {
     // if GC did not free up memory we fail
     if( addr < 0 ) {
         printf("error: VM heap memory is full.\n");
-        return VAL_MK_ARRAY(0, 0);
+        return val_array_from_args(0, 0);
     }
 
     // mark whole pages
@@ -183,10 +182,10 @@ val_t heap_alloc_array(gvm_t* vm, int val_count) {
 
     // set all values
     for(int i = 0; i < val_count; i++) {
-        vm->mem.heap.values[addr + i] = VAL_MK_NUMBER(i);
+        vm->mem.heap.values[addr + i] = val_number(i);
     }
 
-    return VAL_MK_ARRAY(
+    return val_array_from_args(
         MEM_MK_PROGR_ADDR(vm->mem.stack.size + addr),
         val_count);
 }

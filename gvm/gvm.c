@@ -123,7 +123,7 @@ bool symbol_equals(gvm_t* vm, val_t symbol, char* name) {
         return false;
     }
     int slen = strlen(name);
-    int llen = VAL_GET_ARRAY_LENGTH(symbol);
+    int llen = val_into_array(symbol).length;
     if( slen != llen ) {
         return false;
     }
@@ -273,53 +273,53 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                 vm_mem->stack.top -= 2;
             } break;
             case OP_ADD: {
-                float a = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
-                float b = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
-                stack[++vm_mem->stack.top] = VAL_MK_NUMBER(a + b);
+                float a = val_into_number(stack[vm_mem->stack.top--]);
+                float b = val_into_number(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = val_number(a + b);
             } break;
             case OP_SUB: {
-                float a = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
-                float b = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
-                stack[++vm_mem->stack.top] = VAL_MK_NUMBER(a - b);
+                float a = val_into_number(stack[vm_mem->stack.top--]);
+                float b = val_into_number(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = val_number(a - b);
             } break;
             case OP_MUL: {
-                float a = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
-                float b = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
-                stack[++vm_mem->stack.top] = VAL_MK_NUMBER(a * b);
+                float a = val_into_number(stack[vm_mem->stack.top--]);
+                float b = val_into_number(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = val_number(a * b);
             } break;
             case OP_NEG: {
-                float a = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
-                stack[++vm_mem->stack.top] = VAL_MK_NUMBER(-a);
+                float a = val_into_number(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = val_number(-a);
             } break;
             case OP_CMP_LESS_THAN: {
-                float a = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
-                float b = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
-                stack[++vm_mem->stack.top] = VAL_MK_BOOL( a < b );
+                float a = val_into_number(stack[vm_mem->stack.top--]);
+                float b = val_into_number(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = val_bool( a < b );
             } break;
             case OP_CMP_MORE_THAN: {
-                float a = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
-                float b = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
-                stack[++vm_mem->stack.top] = VAL_MK_BOOL( a > b );
+                float a = val_into_number(stack[vm_mem->stack.top--]);
+                float b = val_into_number(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = val_bool( a > b );
             } break;
             case OP_CMP_EQUAL: {
                 const float epsilon = 0.0001f;
-                float a = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
-                float b = VAL_GET_NUMBER(stack[vm_mem->stack.top--]);
-                stack[++vm_mem->stack.top] = VAL_MK_BOOL( fabs(a - b) < epsilon );
+                float a = val_into_number(stack[vm_mem->stack.top--]);
+                float b = val_into_number(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = val_bool( fabs(a - b) < epsilon );
             } break;
             case OP_AND: {
-                bool a = VAL_GET_BOOL(stack[vm_mem->stack.top--]);
-                bool b = VAL_GET_BOOL(stack[vm_mem->stack.top--]);
-                stack[++vm_mem->stack.top] = VAL_MK_BOOL( a && b );
+                bool a = val_into_bool(stack[vm_mem->stack.top--]);
+                bool b = val_into_bool(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = val_bool( a && b );
             } break;
             case OP_OR: {
-                bool a = VAL_GET_BOOL(stack[vm_mem->stack.top--]);
-                bool b = VAL_GET_BOOL(stack[vm_mem->stack.top--]);
-                stack[++vm_mem->stack.top] = VAL_MK_BOOL( a || b );
+                bool a = val_into_bool(stack[vm_mem->stack.top--]);
+                bool b = val_into_bool(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = val_bool( a || b );
             } break;
             case OP_NOT: {
-                bool a = VAL_GET_BOOL(stack[vm_mem->stack.top--]);
-                stack[++vm_mem->stack.top] = VAL_MK_BOOL( !a );
+                bool a = val_into_bool(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = val_bool( !a );
             } break;
             case OP_DUP_1: {
                 val_t a = stack[vm_mem->stack.top];
@@ -343,7 +343,7 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
             } break;
             case OP_JUMP_IF_FALSE: {
                 TRACE_INT_ARG(READ_I16(instructions, vm_run->pc));
-                if( VAL_GET_BOOL(stack[vm_mem->stack.top--]) == false ) {
+                if( val_into_bool(stack[vm_mem->stack.top--]) == false ) {
                     vm_run->pc = READ_I16(instructions, vm_run->pc);
                 } else {
                     vm_run->pc += 2;
