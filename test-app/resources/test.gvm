@@ -1,7 +1,7 @@
 ######### START
 
 label:
-    push-value "HEJDÅ!"
+    push-value (4, 5)
     store msg
     push-value 10
     push-value 0

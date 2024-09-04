@@ -41,6 +41,7 @@ typedef enum token_type_t {
     TT_UNKNOWN,
     TT_COLON,
     TT_NUMBER,
+    TT_VEC2,
     TT_STRING,
     TT_SYMBOL,
     TT_SEPARATOR,

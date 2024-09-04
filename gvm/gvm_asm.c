@@ -24,6 +24,7 @@ static op_scheme_t schemes[] = {
 //  [string name]  [op bytecode id]    [arg type]              [store as const]   [label reference]    [register reference]
     {"push-value",  OP_PUSH_VALUE,      ARGSPEC1(TT_NUMBER),    0x01,              0x00,                0x00 },
     {"push-value",  OP_PUSH_VALUE,      ARGSPEC1(TT_STRING),    0x01,              0x00,                0x00 },
+    {"push-value",  OP_PUSH_VALUE,      ARGSPEC1(TT_VEC2),      0x01,              0x00,                0x00 },
     {"store",       OP_STORE,           ARGSPEC1(TT_SYMBOL),    0x00,              0x00,                0x01 },
     {"load",        OP_LOAD,            ARGSPEC1(TT_SYMBOL),    0x00,              0x00,                0x01 },
     {"pop-1",       OP_POP_1,           ARGSPEC1(0),            0x00,              0x00,                0x00 },
@@ -188,6 +189,42 @@ int consts_add_string(valbuffer_t* consts, char* text) {
         : (consts->size);
 }
 
+int consts_add_ivec2(valbuffer_t* consts, char* text) {
+
+    if( text[0] != '(' ) {
+        printf("error: expected ( at start of ivec2.\n");
+    }
+
+    text = text + 1; // skip open paren
+
+    char buf[16] = { 0 };
+    ivec2_t value = { 0 };
+
+    // read x
+    int to_comma = string_count_until(text, ',');
+    for(int i = 0; i < to_comma; i++) {
+        buf[i] = text[i];
+    }
+    buf[to_comma] = '\0';
+    value.x = atoi(buf);
+
+    text += to_comma + 1;
+
+    // read y
+    int to_rparen = string_count_until(text, ')');
+    for(int i = 0; i < to_rparen; i++) {
+        buf[i] = text[i];
+    }
+    buf[to_rparen] = '\0';
+    value.y = atoi(buf);
+
+    // TODO: CHECK FOR EXISTING
+    bool ok = valbuffer_add(consts, val_ivec2(value));
+    return ok
+        ? (consts->size - 1)
+        : (consts->size);
+}
+
 int consts_add_symbol_as_string(valbuffer_t* consts, char* text, int length) {
 
     int existing = valbuffer_find_string(consts, text, length);
@@ -229,6 +266,9 @@ int consts_add_current(valbuffer_t* consts, parser_t* parser) {
         case TT_NUMBER: {
             int value = parser_get_token_int_value(parser, token);
             const_index = consts_add_number(consts, value);
+        } break;
+        case TT_VEC2: {
+            const_index = consts_add_ivec2(consts, text);
         } break;
         case TT_SYMBOL: {
             bool is_bool_true = false;

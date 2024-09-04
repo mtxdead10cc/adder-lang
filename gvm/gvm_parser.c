@@ -43,6 +43,8 @@ typedef enum lexeme_t {
     L_NUMBER,
     L_DASH,
     L_DOT,
+    L_LPAREN,
+    L_RPAREN,
     L_QUOTE,
     L_COLON,
     L_PUND_SIGN,
@@ -61,6 +63,8 @@ lexeme_t scan(char c) {
         case ' ':   return L_WHITESPACE;
         case '\t':  return L_WHITESPACE;
         case '#':   return L_PUND_SIGN;
+        case '(':   return L_LPAREN;
+        case ')':   return L_RPAREN;
         default: {
             if( is_numeric(c) ) {
                 return L_NUMBER;
@@ -124,6 +128,7 @@ typedef enum tok_state_t {
     TS_COMMENT,
     TS_NUMBER,
     TS_SYMBOL,
+    TS_VEC2,
     TS_SEPARATOR,
     TS_COLON,
     TS_ERROR
@@ -145,75 +150,92 @@ bool lex_is_valid_symbol_part(lexeme_t lex) {
         || lex == L_DASH;
 }
 
-tok_state_t get_new_state(tok_state_t state, lexeme_t lexeme) {
+typedef struct state_update_t {
+    tok_state_t state;
+    tok_state_t prev_state;
+    bool is_part_of_prev;
+} state_update_t;
+
+#define _MK_RESULT(PREV, IS_PREV, NEXT) ((state_update_t) {(NEXT), (PREV), (IS_PREV)})
+
+state_update_t get_new_state(tok_state_t state, lexeme_t lexeme) {
     switch (state) {
         case TS_INIT: {
             switch(lexeme) {
-                case L_LETTER:      return TS_SYMBOL;
-                case L_NUMBER:      return TS_NUMBER;
-                case L_NEWLINE:     return TS_SEPARATOR;
-                case L_WHITESPACE:  return TS_SEPARATOR;
-                case L_PUND_SIGN:   return TS_COMMENT;
-                default:            return TS_ERROR;
+                case L_LETTER:      return _MK_RESULT(state, false, TS_SYMBOL);
+                case L_NUMBER:      return _MK_RESULT(state, false, TS_NUMBER);
+                case L_NEWLINE:     return _MK_RESULT(state, false, TS_SEPARATOR);
+                case L_WHITESPACE:  return _MK_RESULT(state, false, TS_SEPARATOR);
+                case L_PUND_SIGN:   return _MK_RESULT(state, false, TS_COMMENT);
+                case L_LPAREN:      return _MK_RESULT(state, false, TS_VEC2);
+                default:            return _MK_RESULT(state, false, TS_ERROR);
             }
         } break;
         case TS_COMMENT: {
             if( lexeme != L_NEWLINE ) {
-                return TS_COMMENT;
+                return _MK_RESULT(state, false, TS_COMMENT);
             } else {
-                return TS_SEPARATOR;
+                return _MK_RESULT(state, false, TS_SEPARATOR);
             }
         } break;
         case TS_QUOTED: {
             if( lexeme != L_QUOTE ) {
-                return TS_QUOTED;
+                return _MK_RESULT(state, false, TS_QUOTED);
             } else {
-                return TS_SEPARATOR;
+                return _MK_RESULT(state, true, TS_SEPARATOR);
             }
         } break;
         case TS_NUMBER: {
             if( lex_is_valid_number_part(lexeme) ) {
-                return TS_NUMBER;
+                return _MK_RESULT(state, false, TS_NUMBER);
             } else if ( lex_is_separator(lexeme) ) {
-                return TS_SEPARATOR;
+                return _MK_RESULT(state, false, TS_SEPARATOR);
             } else {
-                return TS_ERROR;
+                return _MK_RESULT(state, false, TS_ERROR);
             }
         } break;
         case TS_SYMBOL: {
             if( lex_is_valid_symbol_part(lexeme) ) {
-                return TS_SYMBOL;
+                return _MK_RESULT(state, false, TS_SYMBOL);
             } else if ( lex_is_separator(lexeme) ) {
-                return TS_SEPARATOR;
+                return _MK_RESULT(state, false, TS_SEPARATOR);
             } else if ( lexeme == L_COLON ) {
-                return TS_COLON;
+                return _MK_RESULT(state, false, TS_COLON);
             } else {
-                return TS_ERROR;
+                return _MK_RESULT(state, false, TS_ERROR);
             }
         } break;
         case TS_COLON: {
             if ( lex_is_separator(lexeme) ) {
-                return TS_SEPARATOR;
+                return _MK_RESULT(state, false, TS_SEPARATOR);
             } else if ( lexeme == L_PUND_SIGN ) {
-                return TS_COMMENT;
+                return _MK_RESULT(state, false, TS_COMMENT);
             } else {
-                return TS_ERROR;
+                return _MK_RESULT(state, false, TS_ERROR);
             }
         } break;
-        case TS_SEPARATOR: {
-            if ( lex_is_separator(lexeme) ) {
-                return TS_SEPARATOR;
-            }
-            switch (lexeme) {
-                case L_DASH: return TS_NUMBER;
-                case L_NUMBER: return TS_NUMBER;
-                case L_PUND_SIGN: return TS_COMMENT;
-                case L_QUOTE: return TS_QUOTED;
-                case L_LETTER: return TS_SYMBOL;
-                default: return TS_ERROR;
+        case TS_VEC2: {
+            if( lexeme != L_RPAREN ) {
+                return _MK_RESULT(state, false, TS_VEC2);
+            } else {
+                return _MK_RESULT(state, true, TS_SEPARATOR);
             }
         }
-        default: return TS_ERROR;
+        case TS_SEPARATOR: {
+            if ( lex_is_separator(lexeme) ) {
+                return _MK_RESULT(state, false, TS_SEPARATOR);
+            }
+            switch (lexeme) {
+                case L_DASH: return _MK_RESULT(state, false, TS_NUMBER);
+                case L_NUMBER: return _MK_RESULT(state, false, TS_NUMBER);
+                case L_PUND_SIGN: return _MK_RESULT(state, false, TS_COMMENT);
+                case L_QUOTE: return _MK_RESULT(state, false, TS_QUOTED);
+                case L_LETTER: return _MK_RESULT(state, false, TS_SYMBOL);
+                case L_LPAREN: return _MK_RESULT(state, false, TS_VEC2);
+                default: return _MK_RESULT(state, false, TS_ERROR);
+            }
+        }
+        default: return _MK_RESULT(state, false, TS_ERROR);
     }
 }
 
@@ -222,6 +244,7 @@ token_type_t state_to_type(tok_state_t state) {
         case TS_COMMENT: return TT_COMMENT;
         case TS_QUOTED: return TT_STRING;
         case TS_NUMBER: return TT_NUMBER;
+        case TS_VEC2: return TT_VEC2;
         case TS_SYMBOL: return TT_SYMBOL;
         case TS_COLON: return TT_COLON;
         case TS_SEPARATOR: return TT_SEPARATOR;
@@ -235,7 +258,12 @@ gvm_result_t tokenize(parser_text_t* text, parser_tokens_t* tokens) {
     int line = 1;
     int column = 1;
 
-    tok_state_t state = TS_INIT;
+    state_update_t update_result = (state_update_t) {
+        .state = TS_INIT,
+        .prev_state = TS_INIT,
+        .is_part_of_prev = false
+    };
+
     int text_length = text->size;
 
     for(int i = 0; i < (text_length + 1); i++) {
@@ -245,15 +273,21 @@ gvm_result_t tokenize(parser_text_t* text, parser_tokens_t* tokens) {
             ? scan(text->array[i])
             : L_NEWLINE; 
 
-        state = get_new_state(state, lex);
-        if( state == TS_ERROR ) {
+        update_result = get_new_state(update_result.state, lex);
+        if( update_result.state == TS_ERROR ) {
             printf("error: invalid lexer state.\n"
                    "\tline: %i column: %i\n",
                    line, column);
             break;
         }
 
-        res = tokens_push_on_change(tokens, state_to_type(state), line, column, i);
+        token_type_t token_type = TT_UNKNOWN;
+        if( update_result.is_part_of_prev ) {
+            token_type = state_to_type(update_result.prev_state);
+        } else {
+            token_type = state_to_type(update_result.state);
+        }
+        res = tokens_push_on_change(tokens, token_type, line, column, i);
         if( res != RES_OK ) {
             printf("error: failed to construct token buffer.\n");
             gvm_print_if_error(res, "tokenize");
@@ -366,6 +400,7 @@ char* parser_tt_to_str(token_type_t tt) {
     switch (tt) {
         case TT_COLON: return "COLON";
         case TT_NUMBER: return "NUMBER";
+        case TT_VEC2: return "VEC2";
         case TT_SEPARATOR: return "SEPARATOR";
         case TT_COMMENT: return "COMMENT";
         case TT_STRING: return "STRING";
@@ -409,10 +444,10 @@ int parser_get_token_int_value(parser_t* parser, token_t token) {
         ? parser->tokens.array[(token.index + 1)].src_index
         : parser->tokens.array[(parser->tokens.size - 1)].src_index;
     int len = str_end - str_start;
-    if( len > PARSER_INT_VALUE_BUFFER_LEN ) {
-        len = PARSER_INT_VALUE_BUFFER_LEN;
+    if( len > PARSER_CHAR_BUFFER_LEN ) {
+        len = PARSER_CHAR_BUFFER_LEN;
     }
-    char buf[PARSER_INT_VALUE_BUFFER_LEN] = { 0 };
+    char buf[PARSER_CHAR_BUFFER_LEN] = { 0 };
     for(int i = 0; i < len; i++) {
         buf[i] = parser->text.array[i + str_start];
     }

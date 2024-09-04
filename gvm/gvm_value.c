@@ -17,7 +17,7 @@ void val_print(val_t val) {
         break;
     case VAL_IVEC2: {
         ivec2_t v = val_into_ivec2(val);
-        printf("(%i, %i)\n", v.x, v.y);
+        printf("(%i, %i)", v.x, v.y);
     } break;
     case VAL_ARRAY: {
         array_t a = val_into_array(val);
