@@ -418,28 +418,7 @@ void gvm_code_destroy(byte_code_block_t* code_obj) {
 
 void test() {
 
-    gvm_t vm;
-    assert(gvm_create(&vm, 16, 256));
 
-    vm.mem.stack.top = -1;
-
-    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 70);
-    heap_gc_collect(&vm);
-    heap_print_usage(&vm);
-
-    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 70);
-    heap_gc_collect(&vm);
-    heap_print_usage(&vm);
-
-    vm.mem.stack.top--;
-    heap_gc_collect(&vm);
-    heap_print_usage(&vm);
-
-    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 5);
-    heap_gc_collect(&vm);
-    heap_print_usage(&vm);
-
-    gvm_destroy(&vm);
 
     /*grid_t grid;
     grid_init(&grid);

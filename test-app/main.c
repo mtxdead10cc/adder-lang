@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <assert.h>
+#include "gvm_test.h"
 
 time_t get_creation_time(char *path) {
     struct stat attr;
@@ -81,47 +82,22 @@ byte_code_block_t read_and_compile(char* path) {
 // 4. apply grid operations & queue vfx
 // 5. spawn new elements
 // 6. animate movement
+//
 // 
 // TODO
 // [X] rename list -> array
 // [X] add simple alloc and gc-dealloc for heap (array/list)
 // [X] add support for VAL_IVEC2
+// [ ] add support for function call frames
 // [ ] update the grid code
 // [ ] add support for grid operations
 //     - ??? grid-ref <ivec> (push grid ref by lookup on ivec2)
 //     - ??? grid-select <ivec> (push list of all flood fill refs with matching type)
 //     - ...
 
-int main(int argv, char** argc) {
-
-    char* path = DEFAULT_PATH;
-    bool verbose = false;
-    bool print_help = false;
-    bool keep_alive = false;
-    int path_arg = -1;
+bool run(char* path, bool verbose, bool keep_alive) {
     time_t last_creation_time = 0xFFFFFFFFFFFFFFFF;
-
-    for(int i = 0; i < argv; i++) {
-        verbose     |= strncmp(argc[i], "-v", 2) == 0;
-        print_help  |= strncmp(argc[i], "-h", 2) == 0;
-        keep_alive  |= strncmp(argc[i], "-k", 2) == 0;
-        int ext_pos      = strnlen(argc[i], 1024) - 4;
-        if( path_arg >= 0 ) {
-            continue;
-        } else if( ext_pos <= 0 ) {
-            continue;
-        } else if( strncmp(((argc[i]) + ext_pos), ".gvm", 4) == 0 ) {
-            path_arg = i;
-        }
-    }
-
-    if( path_arg < 0 ) {
-        path = DEFAULT_PATH;
-    } else {
-        path = argc[path_arg];
-    }
-
-    test();
+    bool compile_ok = true;
 
     do {
 
@@ -134,7 +110,7 @@ int main(int argv, char** argc) {
 
         last_creation_time = creation_time;
         byte_code_block_t obj = read_and_compile(path);
-        bool compile_ok = obj.size > 0;
+        compile_ok = obj.size > 0;
         printf("%s [%s]\n\n", path, compile_ok ? "OK" : "FAILED");
         
         if( compile_ok ) {
@@ -154,9 +130,51 @@ int main(int argv, char** argc) {
             gvm_destroy(&vm);
         }
 
-        print_help = print_help | ( compile_ok == false && keep_alive == false );
-
     } while ( keep_alive );
+
+    return compile_ok;
+}
+
+int main(int argv, char** argc) {
+
+    char* path = DEFAULT_PATH;
+    bool verbose = false;
+    bool print_help = false;
+    bool keep_alive = false;
+    bool run_tests = false;
+    int path_arg = -1;
+    
+
+    for(int i = 0; i < argv; i++) {
+        verbose     |= strncmp(argc[i], "-v", 2) == 0;
+        print_help  |= strncmp(argc[i], "-h", 2) == 0;
+        keep_alive  |= strncmp(argc[i], "-k", 2) == 0;
+        run_tests   |= strncmp(argc[i], "-t", 2) == 0;
+        int ext_pos      = strnlen(argc[i], 1024) - 4;
+        if( path_arg >= 0 ) {
+            continue;
+        } else if( ext_pos <= 0 ) {
+            continue;
+        } else if( strncmp(((argc[i]) + ext_pos), ".gvm", 4) == 0 ) {
+            path_arg = i;
+        }
+    }
+
+    if( path_arg < 0 ) {
+        path = DEFAULT_PATH;
+    } else {
+        path = argc[path_arg];
+    }
+
+    if( run_tests ) {
+        printf("RUNNING TESTS\n");
+        test_results_t result = run_testcases();
+        int total = result.nfailed + result.npassed;
+        printf("[%i / %i TESTS PASSED]\n", result.npassed, total);
+    } else {
+        bool compile_ok = run(path, verbose, keep_alive);
+        print_help = print_help || (compile_ok == false && keep_alive == false);
+    }
 
     if( print_help ) {
         printf( "usage: test-app <filename>"

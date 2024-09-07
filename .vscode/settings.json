@@ -21,6 +21,7 @@
         "gvm_utils.h": "c",
         "gvm_memory.h": "c",
         "gvm_value.h": "c",
-        "limits.h": "c"
+        "limits.h": "c",
+        "stdio.h": "c"
     }
 }

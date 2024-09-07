@@ -144,7 +144,7 @@ typedef struct gvm_proc_stack_t {
 typedef struct gvm_proc_heap_t {
     uint64_t*   gc_marks; // garbage collector (marking region)
     val_t*      values;   // pointer to heap memory region
-    int         size;     // size of the heap mempry (in val_t count)
+    int         size;     // size of the heap memory (in val_t count)
 } gvm_proc_heap_t;
 
 typedef struct gvm_proc_mem_t {
