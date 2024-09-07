@@ -179,9 +179,10 @@ int main(int argv, char** argc) {
     if( print_help ) {
         printf( "usage: test-app <filename>"
         "\n\toptions:"
-        "\n\t\t -v (verbose)"
-        "\n\t\t -h (show this help message)"
-        "\n\t\t -k (keep alive, reload and run on file update)"
+        "\n\t\t -v : verbose output"
+        "\n\t\t -h : show this help message"
+        "\n\t\t -k : keep alive, reload and run on file update"
+        "\n\t\t -t : run test cases"
         "\n" );
     }
 

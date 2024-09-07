@@ -3,7 +3,7 @@
 label:
     push-value (4, 5)
     push-value (4, 5)
-    store msg
+    store-global msg
     push-value 10
     push-value 0
     loop:
@@ -22,7 +22,7 @@ label:
         exit-loop:
             jump exit-label
 exit-label:
-    load msg
+    load-global msg
     call print
     pop-1
     return

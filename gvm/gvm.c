@@ -241,7 +241,7 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
     vm_run->instructions = instructions;
     vm_run->pc = 0;
     
-    gvm_proc_mem_t* vm_mem = &vm->mem;
+    gvm_mem_t* vm_mem = &vm->mem;
     vm_mem->stack.top = -1;
 
     memset(vm_mem->stack.values, 0, sizeof(val_t) * vm_mem->stack.size);

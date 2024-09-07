@@ -135,24 +135,24 @@ typedef struct byte_code_header_t {
     uint16_t code_bytes;
 } byte_code_header_t;
 
-typedef struct gvm_proc_stack_t {
+typedef struct gvm_value_stack_t {
     val_t* values;  // pointer to the stack
     int top;
     int size;       // size of the stack (in val_t count)
-} gvm_proc_stack_t;
+} gvm_value_stack_t;
 
-typedef struct gvm_proc_heap_t {
+typedef struct gvm_heap_t {
     uint64_t*   gc_marks; // garbage collector (marking region)
     val_t*      values;   // pointer to heap memory region
     int         size;     // size of the heap memory (in val_t count)
-} gvm_proc_heap_t;
+} gvm_heap_t;
 
-typedef struct gvm_proc_mem_t {
+typedef struct gvm_mem_t {
     val_t*  membase;   // base pointer to the memory region (stack + heap)
     int     memsize;   // total size of stack + heap (in val_t count)
-    gvm_proc_stack_t stack;
-    gvm_proc_heap_t heap;
-} gvm_proc_mem_t;
+    gvm_value_stack_t stack;
+    gvm_heap_t heap;
+} gvm_mem_t;
 
 typedef struct gvm_t gvm_t;
 
@@ -177,7 +177,7 @@ typedef struct gvm_runtime_t {
 
 typedef struct gvm_t {
     env_t           env;
-    gvm_proc_mem_t  mem;
+    gvm_mem_t       mem;
     gvm_runtime_t   run;
 } gvm_t;
 
