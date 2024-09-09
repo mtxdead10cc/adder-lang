@@ -88,7 +88,10 @@ byte_code_block_t read_and_compile(char* path) {
 // [X] rename list -> array
 // [X] add simple alloc and gc-dealloc for heap (array/list)
 // [X] add support for VAL_IVEC2
-// [ ] add support for function call frames
+// [X] add support for function call frames
+//     [ ] add in optional runtime verifications 
+//     [ ] add support for local variables
+//     [ ] call start-frame (instead of frameless) 
 // [ ] update the grid code
 // [ ] add support for grid operations
 //     - ??? grid-ref <ivec> (push grid ref by lookup on ivec2)

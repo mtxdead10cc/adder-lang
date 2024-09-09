@@ -37,7 +37,8 @@ static char* op_names[OP_OPCODE_COUNT] = {
     "OP_POP_2",
     "OP_JUMP",
     "OP_JUMP_IF_FALSE",
-    "OP_EXIT",
+    "OP_EXIT_IMMEDIATE",
+    "OP_EXIT_WITH_VALUE",
     "OP_CALL",
     "OP_MAKE_FRAME",
     "OP_RETURN",
@@ -228,8 +229,6 @@ int codeblk_get_instructions_count(byte_code_block_t* code_obj) {
     return h.code_bytes / sizeof(val_t);
 }
 
-
-
 val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
 
     assert(sizeof(float) == 4);
@@ -355,11 +354,15 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                 TRACE_NL();
                 return val_number(-1002);
             } break;
-            case OP_EXIT: {
+            case OP_EXIT_IMMEDIATE: {
                 TRACE_NL();
                 int return_value = READ_I16(instructions, vm_run->pc);
                 TRACE_INT_ARG(return_value);
                 return val_number(return_value);
+            } break;
+            case OP_EXIT_WITH_VALUE: {
+                TRACE_NL();
+                return stack[vm_mem->stack.top];
             } break;
             case OP_CALL: {
                 // push the return address
@@ -369,8 +372,14 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                 TRACE_INT_ARG(vm_run->pc);
             } break;
             case OP_MAKE_FRAME: {
+
                 int nargs = READ_I16(instructions, vm_run->pc);
                 TRACE_INT_ARG(nargs);
+                vm_run->pc += 2;
+
+                int nlocals = READ_I16(instructions, vm_run->pc);
+                TRACE_INT_ARG(nlocals);
+                vm_run->pc += 2;
 
                 // stack top should now be the return address
                 val_t call_site = stack[vm_mem->stack.top--];
@@ -379,16 +388,23 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                     .num_args = nargs
                 };
 
-                // move args +1 stack position and
-                // insert frame before args
-                vm_mem->stack.top += 1;
-                int frame_idx = vm_mem->stack.top - nargs;
+                // move args to after frame and locals
+                int frame_start = vm_mem->stack.top - nargs + 1;
                 for(int i = nargs; i > 0; i--) {
-                    stack[frame_idx + i] = stack[frame_idx + i - 1];
+                    stack[frame_start + nlocals + i] = stack[frame_start + i - 1];
                 }
-                stack[frame_idx] = val_frame(frame);
 
-                vm_run->pc += 2;
+                // insert frame before locals
+                stack[frame_start] = val_frame(frame);
+
+                // init locals (not needed)
+                int locals_idx = frame_start + 1;
+                for(int i = 0; i < nlocals; i++) {
+                    stack[locals_idx + i] = 0;
+                }
+
+                vm_mem->stack.top += nlocals + 1;
+
             } break;
             case OP_RETURN: {
                 val_t ret_val = stack[vm_mem->stack.top];

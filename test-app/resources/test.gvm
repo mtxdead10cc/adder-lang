@@ -1,15 +1,16 @@
 ######### START
 
-start:
-    push-value 2
-    push-value 2
-    call addfn
-    print
-    exit 1
+jump start # <- goto entry point
 
 addfn:
-    frame 2
+    make-frame 2 2
     add
     return
+
+start:
+    push-value 2
+    push-value 20
+    call addfn dup print
+    exit-with-value
 
 ######### END
