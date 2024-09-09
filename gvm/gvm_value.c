@@ -19,6 +19,10 @@ void val_print(val_t val) {
         ivec2_t v = val_into_ivec2(val);
         printf("(%i, %i)", v.x, v.y);
     } break;
+    case VAL_FRAME: {
+        frame_t frame = val_into_frame(val);
+        printf("<resume:%i, nargs:%i>", frame.return_pc, frame.num_args);
+    } break;
     case VAL_ARRAY: {
         array_t a = val_into_array(val);
         printf("<ref: 0x%04X (%d), len: %d>",

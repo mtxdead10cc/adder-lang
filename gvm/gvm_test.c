@@ -27,20 +27,85 @@ void test_heap_memory(test_case_t* this) {
     vm.mem.stack.top = -1;
 
     vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 70);
+
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[0] == 0xFFFFFFFFFFFFFFFFUL,
+        "#1.1 (heap_alloc_array) failed\n");
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[1] == 0x3FUL,
+        "#1.2 (heap_alloc_array) failed\n");
+
     heap_gc_collect(&vm);
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[0] == 0xFFFFFFFFFFFFFFFFUL,
+        "#2.1 (heap_gc_collect) failed\n");
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[1] == 0x3FUL,
+        "#2.2 (heap_gc_collect) failed\n");
     //heap_print_usage(&vm);
 
     vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 70);
     heap_gc_collect(&vm);
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[0] == 0xFFFFFFFFFFFFFFFFUL,
+        "#3.1 (heap_alloc_array & heap_gc_collect) failed\n");
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[1] == 0x3FUL,
+        "#3.2 (heap_alloc_array & heap_gc_collect) failed\n");
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[2] == 0xFFFFFFFFFFFFFFFFUL,
+        "#3.3 (heap_alloc_array & heap_gc_collect) failed\n");
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[3] == 0x3FUL,
+        "#3.4 (heap_alloc_array & heap_gc_collect) failed\n");
     //heap_print_usage(&vm);
 
     vm.mem.stack.top--;
     heap_gc_collect(&vm);
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[0] == 0xFFFFFFFFFFFFFFFFUL,
+        "#4.1 (pop & heap_gc_collect) failed\n");
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[1] == 0x3FUL,
+        "#4.2 (pop & heap_gc_collect) failed\n");
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[2] == 0x0UL,
+        "#4.3 (pop & heap_gc_collect) failed\n");
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[3] == 0x0UL,
+        "#4.4 (pop & heap_gc_collect) failed\n");
     //heap_print_usage(&vm);
 
-    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 5);
+    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 2);
     heap_gc_collect(&vm);
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[0] == 0xFFFFFFFFFFFFFFFFUL,
+        "#5.1 (heap_alloc_array & heap_gc_collect) failed\n");
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[1] == 0xFFUL,
+        "#5.2 (heap_alloc_array & heap_gc_collect) failed\n");
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[2] == 0x0UL,
+        "#5.3 (heap_alloc_array & heap_gc_collect) failed\n");
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[3] == 0x0UL,
+        "#5.4 (heap_alloc_array & heap_gc_collect) failed\n");
     //heap_print_usage(&vm);
+
+    vm.mem.stack.top--;
+    heap_gc_collect(&vm);
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[0] == 0xFFFFFFFFFFFFFFFFUL,
+        "#6.1 (pop & heap_gc_collect) failed\n");
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[1] == 0x3FUL,
+        "#6.2 (pop & heap_gc_collect) failed\n");
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[2] == 0x0UL,
+        "#6.3 (pop & heap_gc_collect) failed\n");
+    TEST_ASSERT_MSG(this,
+        vm.mem.heap.gc_marks[3] == 0x0UL,
+        "#6.4 (pop & heap_gc_collect) failed\n");
 
     gvm_destroy(&vm);
 }

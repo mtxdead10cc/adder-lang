@@ -38,10 +38,12 @@ static char* op_names[OP_OPCODE_COUNT] = {
     "OP_JUMP",
     "OP_JUMP_IF_FALSE",
     "OP_EXIT",
-    "OP_CALL_NATIVE",
+    "OP_CALL",
+    "OP_MAKE_FRAME",
     "OP_RETURN",
     "OP_STORE",
-    "OP_LOAD"
+    "OP_LOAD",
+    "OP_PRINT"
 };
 
 #if GVM_TRACE_LOG_LEVEL > 0
@@ -150,9 +152,9 @@ func_t find_func(gvm_t* vm, val_t symbol) {
     return NULL;
 }
 
-bool gvm_create(gvm_t* vm, uint16_t stack_size, uint16_t dyn_size) {
+bool gvm_create(gvm_t* vm, int stack_size, int dyn_size) {
 
-    int total_addressable = ( (int) stack_size + (int) dyn_size );
+    int total_addressable = ( stack_size + dyn_size );
     if( total_addressable > MEM_MAX_ADDRESSABLE ) {
         printf(  "warning: the requested VM memory size %i is too large.\n"
                 "\tmaximum addressable memory is %i.\n",
@@ -359,22 +361,52 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                 TRACE_INT_ARG(return_value);
                 return val_number(return_value);
             } break;
-            case OP_CALL_NATIVE: {
-                int const_index = READ_I16(instructions, vm_run->pc);
-                TRACE_INT_ARG(const_index);
-                func_t func = find_func(vm, consts[const_index]);
-                if( func == NULL ) {
-                    printf("error: failed to find native function \"");
-                    gvm_print_val(vm, consts[const_index]);
-                    printf("\".\n");
-                } else {
-                    func(vm); // function call
+            case OP_CALL: {
+                // push the return address
+                stack[++vm_mem->stack.top] = val_number(vm_run->pc + 2);
+                // jump to label / function
+                vm_run->pc = READ_I16(instructions, vm_run->pc);
+                TRACE_INT_ARG(vm_run->pc);
+            } break;
+            case OP_MAKE_FRAME: {
+                int nargs = READ_I16(instructions, vm_run->pc);
+                TRACE_INT_ARG(nargs);
+
+                // stack top should now be the return address
+                val_t call_site = stack[vm_mem->stack.top--];
+                frame_t frame = (frame_t) {
+                    .return_pc = (int) val_into_number(call_site),
+                    .num_args = nargs
+                };
+
+                // move args +1 stack position and
+                // insert frame before args
+                vm_mem->stack.top += 1;
+                int frame_idx = vm_mem->stack.top - nargs;
+                for(int i = nargs; i > 0; i--) {
+                    stack[frame_idx + i] = stack[frame_idx + i - 1];
                 }
+                stack[frame_idx] = val_frame(frame);
+
                 vm_run->pc += 2;
             } break;
             case OP_RETURN: {
-                TRACE_NL();
-                return stack[vm_mem->stack.top];
+                val_t ret_val = stack[vm_mem->stack.top];
+                // skip down to call frame
+                while ( VAL_GET_TYPE(stack[vm_mem->stack.top]) != VAL_FRAME ) {
+                    vm_mem->stack.top --;
+                    assert(vm_mem->stack.top >= 0);
+                }
+                frame_t frame = val_into_frame(stack[vm_mem->stack.top--]);
+                vm->run.pc = frame.return_pc; // resume at call site
+                if( VAL_GET_TYPE(ret_val) != VAL_FRAME ) {
+                    // push the return value (if any)
+                    stack[++vm_mem->stack.top] = ret_val;
+                }
+            } break;
+            case OP_PRINT: {
+                gvm_print_val(vm, stack[vm_mem->stack.top--]);
+                printf("\n");
             } break;
             case OP_LOAD: {
                 int reg_index = READ_I16(instructions, vm_run->pc);

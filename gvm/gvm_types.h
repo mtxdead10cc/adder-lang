@@ -17,7 +17,7 @@ typedef struct grid_t {
 
 typedef struct valbuffer_t valbuffer_t;
 typedef uint64_t val_t;
-typedef uint16_t val_addr_t;
+typedef uint32_t val_addr_t;
 
 typedef struct ivec2_t {
     int16_t x;
@@ -26,15 +26,21 @@ typedef struct ivec2_t {
 
 typedef struct array_t {
     val_addr_t address;
-    uint16_t length;
+    int length;
 } array_t;
+
+typedef struct frame_t {
+    int return_pc;      // the instruction to resume 
+    uint16_t num_args;   // the number of args preceeding the frame
+} frame_t;
 
 typedef enum val_type_t {
     VAL_NUMBER,
     VAL_IVEC2,
     VAL_BOOL,
     VAL_CHAR,
-    VAL_ARRAY
+    VAL_ARRAY,
+    VAL_FRAME
 } val_type_t;
 
 typedef enum token_type_t {
@@ -104,10 +110,12 @@ typedef enum gvm_op_t {
     OP_JUMP,
     OP_JUMP_IF_FALSE,
     OP_EXIT,
-    OP_CALL_NATIVE,
+    OP_CALL,
+    OP_MAKE_FRAME,
     OP_RETURN,
     OP_STORE,
     OP_LOAD,
+    OP_PRINT,
     OP_OPCODE_COUNT
 } gvm_op_t;
 

@@ -5,8 +5,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define VAL_MK_TYPE_ID(T) ( ((val_t)(T) & 0xFF) << 56 )
-#define VAL_GET_TYPE(V)     ((val_type_t)(((val_t)(V)) >> 56))
+#define VAL_MK_TYPE_ID(T) ( ((val_t)(T) & 0xF) << 60 )
+#define VAL_GET_TYPE(V)     ((val_type_t)(((val_t)(V)) >> 60))
 
 inline static val_t val_number(float value) {
     uint32_t tmp = *((uint32_t*)&value);
@@ -31,14 +31,26 @@ inline static val_t val_char(char value) {
 
 inline static val_t val_array(array_t value) {
     return ( VAL_MK_TYPE_ID(VAL_ARRAY)\
-                            | (  (val_t)(((val_t)(value.length) & 0xFFFF) << 16) )\
-                            | (  (val_t)( (val_t)(value.address) & 0xFFFF      ) ) );
+                            | (  (val_t)(((val_t)(value.length) & 0xFFFFFF) << 32) )\
+                            | (  (val_t)( (val_t)(value.address) & 0xFFFFFFFF    ) ) );
 }
 
-inline static val_t val_array_from_args(val_addr_t addr, uint16_t length) {
+inline static val_t val_array_from_args(val_addr_t addr, int length) {
     return ( VAL_MK_TYPE_ID(VAL_ARRAY)\
-                            | (  (val_t)(((val_t)(length) & 0xFFFF) << 16) )\
-                            | (  (val_t)( (val_t)(addr) & 0xFFFF      ) ) );
+                            | (  (val_t)(((val_t)(length) & 0xFFFFFF) << 32) )\
+                            | (  (val_t)( (val_t)(addr) & 0xFFFFFFFF       ) ) );
+}
+
+inline static val_t val_frame(frame_t value) {
+    return ( VAL_MK_TYPE_ID(VAL_FRAME)\
+                            | (  (val_t)(((val_t)(value.num_args) & 0xFFFF) << 32) )\
+                            | (  (val_t)( (val_t)(value.return_pc) & 0xFFFFFFFF   ) ) );
+}
+
+inline static val_t val_frame_from_args(int return_pc, uint16_t num_args) {
+    return ( VAL_MK_TYPE_ID(VAL_FRAME)\
+                            | (  (val_t)(((val_t)(num_args) & 0xFFFF) << 32) )\
+                            | (  (val_t)( (val_t)(return_pc) & 0xFFFFFFFF   ) ) );
 }
 
 inline static float val_into_number(val_t value) {
@@ -63,8 +75,15 @@ inline static char val_into_char(val_t value) {
 
 inline static array_t val_into_array(val_t value) {
     return (array_t) {
-        .length = (uint16_t) (((val_t)(value) >> 16) & 0xFFFF),
-        .address = (val_addr_t)((val_t)(value) & 0xFFFF)
+        .length = (int) (((val_t)(value) >> 32) & 0xFFFFFF),
+        .address = (val_addr_t)((val_t)(value) & 0xFFFFFFFF)
+    };
+}
+
+inline static frame_t val_into_frame(val_t value) {
+    return (frame_t) {
+        .num_args = (uint16_t) (((val_t)(value) >> 32) & 0xFFFF),
+        .return_pc = (int)((val_t)(value) & 0xFFFFFFFF)
     };
 }
 

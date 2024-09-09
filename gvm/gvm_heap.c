@@ -173,11 +173,12 @@ val_t heap_alloc_array(gvm_t* vm, int val_count) {
 
     // mark sub-page bits
     int trail_addr = addr + (num_pages * num_bits_per_page);
-    int trail_page = page + num_pages + 1;
+    int trail_page = page + num_pages;
     int trail_bits = val_count - (num_pages * num_bits_per_page);
     int shift = HEAP_TO_BIT_INDEX(trail_addr);
     uint64_t chunk_mask = MK_CHUNK_MASK(trail_bits);
-    assert((vm->mem.heap.gc_marks[trail_page] & chunk_mask) == 0);
+    // assert that we are not overwriting previous data
+    assert((vm->mem.heap.gc_marks[trail_page] & (chunk_mask << shift)) == 0);
     vm->mem.heap.gc_marks[trail_page] |= (chunk_mask << shift);
 
     // set all values
