@@ -95,3 +95,15 @@ void val_print_lookup_val_array(val_t* lookup_buffer, val_t val) {
 int val_get_string_val_array(val_t* lookup_buffer, val_t val, char* dest, int dest_len) {
     return val_get_string(val, &lookup_single_buffer, lookup_buffer, dest, dest_len);
 }
+
+char* val_get_type_name(val_type_t type) {
+    switch (type) {
+        case VAL_ARRAY:  return "array";
+        case VAL_BOOL:   return "bool";
+        case VAL_CHAR:   return "char";
+        case VAL_FRAME:  return "frame";
+        case VAL_IVEC2:  return "ivec2";
+        case VAL_NUMBER: return "number";
+        default:         return "<unknown-type>";
+    }
+}

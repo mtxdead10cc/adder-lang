@@ -92,5 +92,6 @@ void val_print_lookup(val_t val, addr_lookup_fn lookup, void* user);
 int  val_get_string(val_t val, addr_lookup_fn lookup, void* user, char* dest, int dest_len);
 void val_print_lookup_val_array(val_t* lookup_buffer, val_t val);
 int  val_get_string_val_array(val_t* lookup_buffer, val_t val, char* dest, int dest_len);
+char* val_get_type_name(val_type_t type);
 
 #endif // GVM_VALUE_H_

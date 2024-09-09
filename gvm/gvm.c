@@ -9,6 +9,7 @@
 #include "gvm_config.h"
 #include "gvm_memory.h"
 #include "gvm_heap.h"
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -16,41 +17,45 @@
 #include <assert.h>
 #include <limits.h>
 
-static char* op_names[OP_OPCODE_COUNT] = {
-    "OP_HALT",
-    "OP_AND",
-    "OP_OR",
-    "OP_NOR",
-    "OP_NOT",
-    "OP_MUL",
-    "OP_ADD",
-    "OP_SUB",
-    "OP_NEG",
-    "OP_DUP_1",
-    "OP_DUP_2",
-    "OP_ROT_2",
-    "OP_CMP_EQUAL",
-    "OP_CMP_LESS_THAN",
-    "OP_CMP_MORE_THAN",
-    "OP_PUSH_VALUE",
-    "OP_POP_1",
-    "OP_POP_2",
-    "OP_JUMP",
-    "OP_JUMP_IF_FALSE",
-    "OP_EXIT_IMMEDIATE",
-    "OP_EXIT_WITH_VALUE",
-    "OP_CALL",
-    "OP_MAKE_FRAME",
-    "OP_RETURN",
-    "OP_STORE",
-    "OP_LOAD",
-    "OP_PRINT"
-};
+char* gvm_get_op_name(gvm_op_t opcode) {
+    switch(opcode) {
+        case OP_HALT:               return "OP_HALT";
+        case OP_AND:                return "OP_AND";
+        case OP_OR:                 return "OP_OR";
+        case OP_NOR:                return "OP_NOR";
+        case OP_NOT:                return "OP_NOT";
+        case OP_MUL:                return "OP_MUL";
+        case OP_ADD:                return "OP_ADD";
+        case OP_SUB:                return "OP_SUB";
+        case OP_NEG:                return "OP_NEG";
+        case OP_DUP_1:              return "OP_DUP_1";
+        case OP_DUP_2:              return "OP_DUP_2";
+        case OP_ROT_2:              return "OP_ROT_2";
+        case OP_CMP_EQUAL:          return "OP_CMP_EQUAL";
+        case OP_CMP_LESS_THAN:      return "OP_CMP_LESS_THAN";
+        case OP_CMP_MORE_THAN:      return "OP_CMP_MORE_THAN";
+        case OP_PUSH_VALUE:         return "OP_PUSH_VALUE";
+        case OP_POP_1:              return "OP_POP_1";
+        case OP_POP_2:              return "OP_POP_2";
+        case OP_JUMP:               return "OP_JUMP";
+        case OP_JUMP_IF_FALSE:      return "OP_JUMP_IF_FALSE";
+        case OP_EXIT_IMMEDIATE:     return "OP_EXIT_IMMEDIATE";
+        case OP_EXIT_WITH_VALUE:    return "OP_EXIT_WITH_VALUE";
+        case OP_CALL:               return "OP_CALL";
+        case OP_MAKE_FRAME:         return "OP_MAKE_FRAME";
+        case OP_RETURN:             return "OP_RETURN";
+        case OP_STORE:              return "OP_STORE";
+        case OP_LOAD:               return "OP_LOAD";
+        case OP_PRINT:              return "OP_PRINT";
+        default:                    return "<OP-UNKNOWN>";
+    }
+}
+
 
 #if GVM_TRACE_LOG_LEVEL > 0
 
 # define TRACE_LOG(...) printf(__VA_ARGS__)
-# define TRACE_OP(C) TRACE_LOG("> %s ", ((C) >= 0 && (C) < OP_OPCODE_COUNT) ? op_names[(C)] : "<unk>")
+# define TRACE_OP(C) TRACE_LOG("> %s ", gvm_get_op_name(C))
 # define TRACE_INT_ARG(A) TRACE_LOG("%i ", (A))
 # define TRACE_NL() printf("\n");
 
@@ -229,6 +234,82 @@ int codeblk_get_instructions_count(byte_code_block_t* code_obj) {
     return h.code_bytes / sizeof(val_t);
 }
 
+
+#if GVM_RUNTIME_VALIDATION > 0
+
+char* check_stack_arg_count(gvm_t* vm, char* context, int nargs) {
+    int stack_top = vm->mem.stack.top;
+    if( (stack_top + 1) < nargs ) {
+        static char message[257];
+        snprintf(message, 256,
+            "error: '%s' requres %i args, but the stack is empty.\n",
+            context, nargs);
+        message[256] = '\0';
+        return message;
+    }
+    return NULL;
+}
+
+char* check_stack_args(gvm_t* vm, char* context, int arg_count, ...) {
+    char* msg = check_stack_arg_count(vm, context, arg_count);
+    if( msg != NULL ) {
+        return msg;
+    }
+    va_list	arg_ptr;
+    va_start(arg_ptr, arg_count);
+    int stack_top = vm->mem.stack.top;
+    for(int i = 0; i < arg_count; i++) {
+        val_t arg = vm->mem.stack.values[stack_top - i];
+        val_type_t arg_type = VAL_GET_TYPE(arg);
+        val_type_t expected = va_arg(arg_ptr, val_type_t);
+        if( expected != arg_type ) {
+            static char message[257];
+            snprintf(message, 256,
+                "error: '%s' arg #%i should have been %s but was %s.\n",
+                context,
+                i + 1,
+                val_get_type_name(expected),
+                val_get_type_name(arg_type));
+            message[256] = '\0';
+            return message;
+        }
+    }
+    return NULL;
+}
+
+char* check_stack(gvm_t* vm, char* context) {
+    static char message[257];
+    if( vm->mem.stack.top >= vm->mem.stack.size ) {
+        snprintf(message, 256,
+                "error: '%s' stack overflow.\n",
+                context);
+        message[256] = '\0';
+        return message;
+    }
+    if( vm->mem.stack.top < 0 ) {
+        snprintf(message, 256,
+                "error: '%s' stack underflow.\n",
+                context);
+        message[256] = '\0';
+        return message;
+    }
+    return NULL;
+}
+
+# define CHECK(C) do { if( C != NULL ) { printf("%s\n", C); assert(false); } } while(false)
+# define CHECK_ARGS(VM, CTX, N, ...) CHECK(check_stack_args(VM, CTX, N, __VA_ARGS__))
+# define CHECK_ARG_COUNT(VM, CTX, N) CHECK(check_stack_arg_count(VM, CTX, N))
+# define CHECK_STACK(VM, CTX) CHECK(check_stack(VM, CTX))
+
+#else
+
+# define CHECK(C)
+# define CHECK_ARGS(VM, CTX, N, ...)
+# define CHECK_ARG_COUNT(VM, CTX, N)
+# define CHECK_STACK(VM, CTX)
+
+#endif
+
 val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
 
     assert(sizeof(float) == 4);
@@ -244,6 +325,7 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
     
     gvm_mem_t* vm_mem = &vm->mem;
     vm_mem->stack.top = -1;
+    vm_mem->stack.frame = 0;
 
     memset(vm_mem->stack.values, 0, sizeof(val_t) * vm_mem->stack.size);
 
@@ -266,73 +348,102 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                 TRACE_INT_ARG(const_index);
                 stack[++vm_mem->stack.top] = consts[const_index];
                 vm_run->pc += 2;
+                CHECK_STACK(vm, "OP_PUSH_VALUE");
             } break;
             case OP_POP_1: {
+                CHECK_ARG_COUNT(vm, "OP_POP_1", 1);
                 vm_mem->stack.top -= 1;
+                CHECK_STACK(vm, "OP_POP_1");
             } break;
             case OP_POP_2: {
+                CHECK_ARG_COUNT(vm, "OP_POP_2", 2);
                 vm_mem->stack.top -= 2;
+                CHECK_STACK(vm, "OP_POP_2");
             } break;
             case OP_ADD: {
+                CHECK_ARGS(vm, "OP_ADD", 2, VAL_NUMBER, VAL_NUMBER);
                 float a = val_into_number(stack[vm_mem->stack.top--]);
                 float b = val_into_number(stack[vm_mem->stack.top--]);
                 stack[++vm_mem->stack.top] = val_number(a + b);
+                CHECK_STACK(vm, "OP_ADD");
             } break;
             case OP_SUB: {
+                CHECK_ARGS(vm, "OP_SUB", 2, VAL_NUMBER, VAL_NUMBER);
                 float a = val_into_number(stack[vm_mem->stack.top--]);
                 float b = val_into_number(stack[vm_mem->stack.top--]);
                 stack[++vm_mem->stack.top] = val_number(a - b);
+                CHECK_STACK(vm, "OP_SUB");
             } break;
             case OP_MUL: {
+                CHECK_ARGS(vm, "OP_MUL", 2, VAL_NUMBER, VAL_NUMBER);
                 float a = val_into_number(stack[vm_mem->stack.top--]);
                 float b = val_into_number(stack[vm_mem->stack.top--]);
                 stack[++vm_mem->stack.top] = val_number(a * b);
+                CHECK_STACK(vm, "OP_MUL");
             } break;
             case OP_NEG: {
+                CHECK_ARGS(vm, "OP_NEG", 1, VAL_NUMBER);
                 float a = val_into_number(stack[vm_mem->stack.top--]);
                 stack[++vm_mem->stack.top] = val_number(-a);
+                CHECK_STACK(vm, "OP_NEG");
             } break;
             case OP_CMP_LESS_THAN: {
+                CHECK_ARGS(vm, "OP_CMP_LESS_THAN", 2, VAL_NUMBER, VAL_NUMBER);
                 float a = val_into_number(stack[vm_mem->stack.top--]);
                 float b = val_into_number(stack[vm_mem->stack.top--]);
                 stack[++vm_mem->stack.top] = val_bool( a < b );
+                CHECK_STACK(vm, "OP_CMP_LESS_THAN");
             } break;
             case OP_CMP_MORE_THAN: {
+                CHECK_ARGS(vm, "OP_CMP_MORE_THAN", 2, VAL_NUMBER, VAL_NUMBER);
                 float a = val_into_number(stack[vm_mem->stack.top--]);
                 float b = val_into_number(stack[vm_mem->stack.top--]);
                 stack[++vm_mem->stack.top] = val_bool( a > b );
+                CHECK_STACK(vm, "OP_CMP_MORE_THAN");
             } break;
             case OP_CMP_EQUAL: {
+                CHECK_ARGS(vm, "OP_CMP_EQUAL", 2, VAL_NUMBER, VAL_NUMBER);
                 const float epsilon = 0.0001f;
                 float a = val_into_number(stack[vm_mem->stack.top--]);
                 float b = val_into_number(stack[vm_mem->stack.top--]);
                 stack[++vm_mem->stack.top] = val_bool( fabs(a - b) < epsilon );
+                CHECK_STACK(vm, "OP_CMP_EQUAL");
             } break;
             case OP_AND: {
+                CHECK_ARGS(vm, "OP_AND", 2, VAL_BOOL, VAL_BOOL);
                 bool a = val_into_bool(stack[vm_mem->stack.top--]);
                 bool b = val_into_bool(stack[vm_mem->stack.top--]);
                 stack[++vm_mem->stack.top] = val_bool( a && b );
+                CHECK_STACK(vm, "OP_AND");
             } break;
             case OP_OR: {
+                CHECK_ARGS(vm, "OP_OR", 2, VAL_BOOL, VAL_BOOL);
                 bool a = val_into_bool(stack[vm_mem->stack.top--]);
                 bool b = val_into_bool(stack[vm_mem->stack.top--]);
                 stack[++vm_mem->stack.top] = val_bool( a || b );
+                CHECK_STACK(vm, "OP_OR");
             } break;
             case OP_NOT: {
+                CHECK_ARGS(vm, "OP_NOT", 1, VAL_BOOL);
                 bool a = val_into_bool(stack[vm_mem->stack.top--]);
                 stack[++vm_mem->stack.top] = val_bool( !a );
+                CHECK_STACK(vm, "OP_NOT");
             } break;
             case OP_DUP_1: {
+                CHECK_ARG_COUNT(vm, "OP_DUP_1", 1);
                 val_t a = stack[vm_mem->stack.top];
                 stack[++vm_mem->stack.top] = a;
             } break;
             case OP_DUP_2: {
+                CHECK_ARG_COUNT(vm, "OP_DUP_2", 2);
                 val_t a = stack[vm_mem->stack.top - 1];
                 val_t b = stack[vm_mem->stack.top];
                 stack[++vm_mem->stack.top] = a;
                 stack[++vm_mem->stack.top] = b;
+                CHECK_STACK(vm, "OP_DUP_2");
             } break;
             case OP_ROT_2: {
+                CHECK_ARG_COUNT(vm, "OP_ROT_2", 2);
                 val_t a = stack[vm_mem->stack.top - 1];
                 val_t b = stack[vm_mem->stack.top];
                 stack[vm_mem->stack.top - 1] = b;
@@ -343,12 +454,14 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                 TRACE_INT_ARG(vm_run->pc);
             } break;
             case OP_JUMP_IF_FALSE: {
+                CHECK_ARGS(vm, "OP_JUMP_IF_FALSE", 1, VAL_BOOL);
                 TRACE_INT_ARG(READ_I16(instructions, vm_run->pc));
                 if( val_into_bool(stack[vm_mem->stack.top--]) == false ) {
                     vm_run->pc = READ_I16(instructions, vm_run->pc);
                 } else {
                     vm_run->pc += 2;
                 }
+                CHECK_STACK(vm, "OP_JUMP_IF_FALSE");
             } break;
             case OP_HALT:{
                 TRACE_NL();
@@ -362,16 +475,20 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
             } break;
             case OP_EXIT_WITH_VALUE: {
                 TRACE_NL();
+                CHECK_ARG_COUNT(vm, "OP_EXIT_WITH_VALUE", 1);
                 return stack[vm_mem->stack.top];
             } break;
             case OP_CALL: {
                 // push the return address
                 stack[++vm_mem->stack.top] = val_number(vm_run->pc + 2);
+                CHECK_STACK(vm, "OP_CALL");
                 // jump to label / function
                 vm_run->pc = READ_I16(instructions, vm_run->pc);
                 TRACE_INT_ARG(vm_run->pc);
             } break;
             case OP_MAKE_FRAME: {
+
+                CHECK_ARGS(vm, "OP_MAKE_FRAME", 1, VAL_NUMBER);
 
                 int nargs = READ_I16(instructions, vm_run->pc);
                 TRACE_INT_ARG(nargs);
@@ -404,6 +521,7 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                 }
 
                 vm_mem->stack.top += nlocals + 1;
+                CHECK_STACK(vm, "OP_MAKE_FRAME");
 
             } break;
             case OP_RETURN: {
@@ -411,7 +529,7 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                 // skip down to call frame
                 while ( VAL_GET_TYPE(stack[vm_mem->stack.top]) != VAL_FRAME ) {
                     vm_mem->stack.top --;
-                    assert(vm_mem->stack.top >= 0);
+                    CHECK_STACK(vm, "OP_RETURN");
                 }
                 frame_t frame = val_into_frame(stack[vm_mem->stack.top--]);
                 vm->run.pc = frame.return_pc; // resume at call site
@@ -421,6 +539,8 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                 }
             } break;
             case OP_PRINT: {
+                CHECK_ARG_COUNT(vm, "OP_PRINT", 1);
+                CHECK_STACK(vm, "OP_PRINT");
                 gvm_print_val(vm, stack[vm_mem->stack.top--]);
                 printf("\n");
             } break;
@@ -428,18 +548,18 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                 int reg_index = READ_I16(instructions, vm_run->pc);
                 TRACE_INT_ARG(reg_index);
                 stack[++vm_mem->stack.top] = vm_run->registers[reg_index];
+                CHECK_STACK(vm, "OP_LOAD");
                 vm_run->pc += 2;
             } break;
             case OP_STORE: {
+                CHECK_STACK(vm, "OP_STORE");
                 int reg_index = READ_I16(instructions, vm_run->pc);
                 TRACE_INT_ARG(reg_index);
                 vm_run->registers[reg_index] = stack[vm_mem->stack.top--];
                 vm_run->pc += 2;
             } break;
             default: {
-                char* op_str = (opcode >= 0 && opcode < OP_OPCODE_COUNT)
-                    ? op_names[opcode]
-                    : "<unk>";
+                char* op_str = gvm_get_op_name(opcode);
                 printf("\nunknown op %i (%s)\n", opcode, op_str);
                 return val_number(-1003);
             } break;

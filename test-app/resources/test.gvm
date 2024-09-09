@@ -10,7 +10,8 @@ addfn:
 start:
     push-value 2
     push-value 20
-    call addfn dup print
+    call addfn
+    dup print
     exit-with-value
 
 ######### END

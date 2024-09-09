@@ -8,5 +8,6 @@
 #define STRMAP_INITIAL_CAPACITY     16
 #define GVM_ASM_MAX_LABELS          64
 #define GVM_ASM_MAX_REGISTERS       64
+#define GVM_RUNTIME_VALIDATION      1
 
 #endif

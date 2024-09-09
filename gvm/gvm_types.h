@@ -40,7 +40,8 @@ typedef enum val_type_t {
     VAL_BOOL,
     VAL_CHAR,
     VAL_ARRAY,
-    VAL_FRAME
+    VAL_FRAME,
+    VAL_TYPE_COUNT
 } val_type_t;
 
 typedef enum token_type_t {
@@ -144,11 +145,12 @@ typedef struct byte_code_header_t {
     uint16_t code_bytes;
 } byte_code_header_t;
 
-typedef struct gvm_value_stack_t {
+typedef struct gvm_stack_t {
     val_t* values;  // pointer to the stack
     int top;
+    int frame;
     int size;       // size of the stack (in val_t count)
-} gvm_value_stack_t;
+} gvm_stack_t;
 
 typedef struct gvm_heap_t {
     uint64_t*   gc_marks; // garbage collector (marking region)
@@ -159,7 +161,7 @@ typedef struct gvm_heap_t {
 typedef struct gvm_mem_t {
     val_t*  membase;   // base pointer to the memory region (stack + heap)
     int     memsize;   // total size of stack + heap (in val_t count)
-    gvm_value_stack_t stack;
+    gvm_stack_t stack;
     gvm_heap_t heap;
 } gvm_mem_t;
 
