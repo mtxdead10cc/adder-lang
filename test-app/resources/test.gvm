@@ -3,11 +3,8 @@
 jump start # <- goto entry point
 
 test-fn:
-    frame 0 1
-    push 33
-    store 0
-    push "OK"
-    load 0
+    frame 0 0
+    push "TEST-OK"
     call dump
     return
 
@@ -21,12 +18,10 @@ dump:
 addfn:
     frame 2 0
     add
-    push "hello"
-    call dump
     return
 
 start:
-    push 2
+    push 65
     push 20
     call addfn
     call test-fn

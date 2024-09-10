@@ -39,7 +39,7 @@ byte_code_block_t read_and_compile(char* path) {
             retry_counter = -10;
             asm_code[fsize] = '\0';
         } else {
-            usleep(10000);
+            usleep(100000);
             retry_counter --;
         }
     }
@@ -92,7 +92,12 @@ byte_code_block_t read_and_compile(char* path) {
 //     [X] add in optional runtime verifications 
 //     [X] add support for local variables
 //     [X] call start-frame (instead of frameless) 
-// [ ] array init, set, get
+// [ ] array
+//     [ ] array-alloc  |size|                          : pops size and pushes array reference to stack
+//     [ ] array        |n items on stack|item1|...     : allocates array of n-items on heap and moves n-items from stack to heap-location then pushes array ref
+//     [ ] arrget       |array-ref|index|               : pops array-ref and number from stack and uses that as index into the array then pushes that value 
+//     [ ] arrset       |array-ref|index|value|         : pops array-ref, number and value from stack and uses number as index into the array then sets value to that index
+//
 // [ ] update the grid code
 // [ ] add support for grid operations
 //     - ??? grid-ref <ivec> (push grid ref by lookup on ivec2)

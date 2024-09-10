@@ -393,7 +393,7 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                 // this way of updating current frame may turn out
                 // to be too slow.
                 vm_mem->stack.frame = -1;
-                for(int i = vm_mem->stack.top - 1; i >= 0; i--) {
+                for(int i = vm_mem->stack.top; i >= 0; i--) {
                     if( VAL_GET_TYPE(stack[i]) == VAL_FRAME ) {
                         vm_mem->stack.frame = i;
                         break;
