@@ -2,7 +2,7 @@
 
 ## Operations
 
-### push number (or string or ivec2)
+### push [number] (or [string] or [ivec2])
 
 Push constant value to the stack.
 
@@ -61,7 +61,7 @@ Duplicates the top of the stack and pushes the duplicated value.
 
 ### dup2
 
-Duplicates the two top-most values of the stack and pushes the duplicated values.
+Duplicates the two topmost values of the stack and pushes the duplicated values.
 
 ### rot2
 
@@ -69,11 +69,23 @@ Swaps the order of the two topmost values on the stack.
 
 ### is-less
 
+1. pops a value from the stack (A)
+2. pops a value from the stack (B)
+3. pushes a boolean value (A < B)
+
 ### is-more
+
+1. pops a value from the stack (A)
+2. pops a value from the stack (B)
+3. pushes a boolean value (A > B)
 
 ### is-equal
 
-### if-false
+1. pops a value from the stack (A)
+2. pops a value from the stack (B)
+3. pushes a boolean value (A == B)
+
+### if-false label
 
 ### jump
 
