@@ -43,13 +43,15 @@ inline static val_t val_array_from_args(val_addr_t addr, int length) {
 
 inline static val_t val_frame(frame_t value) {
     return ( VAL_MK_TYPE_ID(VAL_FRAME)\
-                            | (  (val_t)(((val_t)(value.num_args) & 0xFFFF) << 32) )\
+                            | (  (val_t)(((val_t)(value.num_args) & 0xFF) << 40) )\
+                            | (  (val_t)(((val_t)(value.num_locals) & 0xFF) << 32) )\
                             | (  (val_t)( (val_t)(value.return_pc) & 0xFFFFFFFF   ) ) );
 }
 
-inline static val_t val_frame_from_args(int return_pc, uint16_t num_args) {
+inline static val_t val_frame_from_args(int return_pc, uint8_t num_args, uint8_t num_locals) {
     return ( VAL_MK_TYPE_ID(VAL_FRAME)\
-                            | (  (val_t)(((val_t)(num_args) & 0xFFFF) << 32) )\
+                            | (  (val_t)(((val_t)(num_args) & 0xFF) << 40) )\
+                            | (  (val_t)(((val_t)(num_locals) & 0xFF) << 32) )\
                             | (  (val_t)( (val_t)(return_pc) & 0xFFFFFFFF   ) ) );
 }
 
@@ -82,7 +84,8 @@ inline static array_t val_into_array(val_t value) {
 
 inline static frame_t val_into_frame(val_t value) {
     return (frame_t) {
-        .num_args = (uint16_t) (((val_t)(value) >> 32) & 0xFFFF),
+        .num_args = (uint8_t) (((val_t)(value) >> 40) & 0xFF),
+        .num_locals = (uint8_t) (((val_t)(value) >> 32) & 0xFF),
         .return_pc = (int)((val_t)(value) & 0xFFFFFFFF)
     };
 }

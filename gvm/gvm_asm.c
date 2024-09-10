@@ -25,8 +25,10 @@ static op_scheme_t schemes[] = {
     {"push-value",      OP_PUSH_VALUE,      ARGSPEC1(TT_STRING),             0x01,              0x00,                0x00 },
     {"push-value",      OP_PUSH_VALUE,      ARGSPEC1(TT_NUMBER),             0x01,              0x00,                0x00 },
     {"push-value",      OP_PUSH_VALUE,      ARGSPEC1(TT_VEC2),               0x01,              0x00,                0x00 },
-    {"store-global",    OP_STORE,           ARGSPEC1(TT_SYMBOL),             0x00,              0x00,                0x01 },
-    {"load-global",     OP_LOAD,            ARGSPEC1(TT_SYMBOL),             0x00,              0x00,                0x01 },
+    {"store-global",    OP_STORE_GLOBAL,    ARGSPEC1(TT_SYMBOL),             0x00,              0x00,                0x01 },
+    {"load-global",     OP_LOAD_GLOBAL,     ARGSPEC1(TT_SYMBOL),             0x00,              0x00,                0x01 },
+    {"store-local",     OP_STORE_LOCAL,     ARGSPEC1(TT_NUMBER),             0x00,              0x00,                0x00 },
+    {"load-local",      OP_LOAD_LOCAL,      ARGSPEC1(TT_NUMBER),             0x00,              0x00,                0x00 },
     {"print",           OP_PRINT,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
     {"call",            OP_CALL,            ARGSPEC1(TT_SYMBOL),             0x00,              0x01,                0x00 },
     {"make-frame",      OP_MAKE_FRAME,      ARGSPEC2(TT_NUMBER, TT_NUMBER),  0x00,              0x00,                0x00 },
@@ -41,8 +43,7 @@ static op_scheme_t schemes[] = {
     {"is-equal",        OP_CMP_EQUAL,       ARGSPEC1(0),                     0x00,              0x00,                0x00 },
     {"if-false",        OP_JUMP_IF_FALSE,   ARGSPEC1(TT_SYMBOL),             0x00,              0x01,                0x00 },
     {"jump",            OP_JUMP,            ARGSPEC1(TT_SYMBOL),             0x00,              0x01,                0x00 },
-    {"exit-immediate",  OP_EXIT_IMMEDIATE,  ARGSPEC1(TT_NUMBER),             0x00,              0x00,                0x00 },
-    {"exit-with-value", OP_EXIT_WITH_VALUE, ARGSPEC1(0),                     0x00,              0x00,                0x00 },
+    {"exit",            OP_EXIT,            ARGSPEC1(TT_NUMBER),             0x00,              0x00,                0x00 },
     {"and",             OP_AND,             ARGSPEC1(0),                     0x00,              0x00,                0x00 },
     {"or",              OP_OR,              ARGSPEC1(0),                     0x00,              0x00,                0x00 },
     {"nor",             OP_NOR,             ARGSPEC1(0),                     0x00,              0x00,                0x00 },
@@ -156,8 +157,6 @@ int consts_add_char(valbuffer_t* consts, char value, bool force_contiguous) {
     }
     return consts->size - 1;
 }
-
-
 
 int consts_add_string(valbuffer_t* consts, char* text) {
     if( text[0] != '"' ) {

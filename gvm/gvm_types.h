@@ -31,7 +31,8 @@ typedef struct array_t {
 
 typedef struct frame_t {
     int return_pc;      // the instruction to resume 
-    uint16_t num_args;   // the number of args preceeding the frame
+    uint8_t num_args;   // the number of args 
+    uint8_t num_locals; // the number of locals 
 } frame_t;
 
 typedef enum val_type_t {
@@ -110,13 +111,14 @@ typedef enum gvm_op_t {
     OP_POP_2,
     OP_JUMP,
     OP_JUMP_IF_FALSE,
-    OP_EXIT_IMMEDIATE,
-    OP_EXIT_WITH_VALUE,
+    OP_EXIT,
     OP_CALL,
     OP_MAKE_FRAME,
     OP_RETURN,
-    OP_STORE,
-    OP_LOAD,
+    OP_STORE_GLOBAL,
+    OP_LOAD_GLOBAL,
+    OP_STORE_LOCAL,
+    OP_LOAD_LOCAL,
     OP_PRINT,
     OP_OPCODE_COUNT
 } gvm_op_t;
@@ -147,8 +149,8 @@ typedef struct byte_code_header_t {
 
 typedef struct gvm_stack_t {
     val_t* values;  // pointer to the stack
-    int top;
-    int frame;
+    int top;        // the index of the top element on the stack
+    int frame;      // the index of the current stack (call) frame
     int size;       // size of the stack (in val_t count)
 } gvm_stack_t;
 
@@ -190,6 +192,7 @@ typedef struct gvm_t {
     env_t           env;
     gvm_mem_t       mem;
     gvm_runtime_t   run;
+    void*           validation; // validation data (NULL if no validation)
 } gvm_t;
 
 #endif // GVM_TYPES_H_

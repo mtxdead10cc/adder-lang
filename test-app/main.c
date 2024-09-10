@@ -89,14 +89,16 @@ byte_code_block_t read_and_compile(char* path) {
 // [X] add simple alloc and gc-dealloc for heap (array/list)
 // [X] add support for VAL_IVEC2
 // [X] add support for function call frames
-//     [ ] add in optional runtime verifications 
-//     [ ] add support for local variables
-//     [ ] call start-frame (instead of frameless) 
+//     [X] add in optional runtime verifications 
+//     [X] add support for local variables
+//     [X] call start-frame (instead of frameless) 
 // [ ] update the grid code
 // [ ] add support for grid operations
 //     - ??? grid-ref <ivec> (push grid ref by lookup on ivec2)
 //     - ??? grid-select <ivec> (push list of all flood fill refs with matching type)
 //     - ...
+
+// TODO: LOCALS!!!!!
 
 bool run(char* path, bool verbose, bool keep_alive) {
     time_t last_creation_time = 0xFFFFFFFFFFFFFFFF;

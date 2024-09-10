@@ -21,12 +21,15 @@ void val_print(val_t val) {
     } break;
     case VAL_FRAME: {
         frame_t frame = val_into_frame(val);
-        printf("<resume:%i, nargs:%i>", frame.return_pc, frame.num_args);
+        printf("<pc: %i, nargs: %i, nlocals: %i>",
+            frame.return_pc,
+            frame.num_args,
+            frame.num_locals);
     } break;
     case VAL_ARRAY: {
         array_t a = val_into_array(val);
-        printf("<ref: 0x%04X (%d), len: %d>",
-            a.address, a.address, a.length);
+        printf("[addr: 0x%08X, len: %d]",
+            a.address, a.length);
         break;
     } break;
     default:
