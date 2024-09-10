@@ -6,31 +6,31 @@
 
 Push constant value to the stack.
 
-### globstore symbol
+### globstore [symbol]
 
 Stores value on top of stack to a global register.
 
-### globload symbol
+### globload [symbol]
 
 Loads a value from a global register onto the stack.
 
-### store index
+### store [index]
 
 Stores the value on the top of the stack to a local register.
 
-### load index
+### load [index]
 
 Loads a value from a local variable to the top of the stack.
 
 ### print 
 
-Prints the value on the top of the stack.
+Pops the top off the stack and then prints the value.
 
-### call label
+### call [label]
 
 Pushes the current instruction pointer to the stack and then jumps to label.
 
-### frame num-args num-locals
+### frame [num-args] [num-locals]
 
 Sets up a function frame on the stack.
 1. pops the return address from stack
@@ -85,22 +85,49 @@ Swaps the order of the two topmost values on the stack.
 2. pops a value from the stack (B)
 3. pushes a boolean value (A == B)
 
-### if-false label
+### if-false [label]
 
-### jump
+Pop the top off the stack. If the value is True continue with next instruction otherwise jump to the label.
 
-### exit 
+### jump [label]
+
+Jump to [label].
+
+### exit [number]
+
+Exit with an exit code ([number]).
 
 ### and 
 
-### or   
+1. pops a value from the stack (A)
+2. pops a value from the stack (B)
+3. pushes a boolean value (A and B)
 
-### nor
+### or
+
+1. pops a value from the stack (A)
+2. pops a value from the stack (B)
+3. pushes a boolean value (A or B)
 
 ### mul
 
-### add 
+1. pops a value from the stack (A)
+2. pops a value from the stack (B)
+3. pushes a number value (A * B)
+
+### add
+
+1. pops a value from the stack (A)
+2. pops a value from the stack (B)
+3. pushes a number value (A + B)
 
 ### sub
 
+1. pops a value from the stack (A)
+2. pops a value from the stack (B)
+3. pushes a number value (A - B)
+
 ### neg
+
+1. pops a value from the stack (A)
+3. pushes a number value (-A)
