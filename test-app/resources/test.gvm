@@ -2,32 +2,34 @@
 
 jump start # <- goto entry point
 
-test:
-    make-frame 0 1
-    push-value 33
-    store-local 0
-    push-value "OK"
-    load-local 0
+test-fn:
+    frame 0 1
+    push 33
+    store 0
+    push "OK"
+    load 0
     call dump
     return
 
 dump:
-    make-frame 1 0
+    frame 1 0
+    print
+    push " "
     print
     return
 
 addfn:
-    make-frame 2 0
+    frame 2 0
     add
-    push-value "hello"
+    push "hello"
     call dump
     return
 
 start:
-    push-value 2
-    push-value 20
+    push 2
+    push 20
     call addfn
-    call test
+    call test-fn
     return
 
 ######### END

@@ -42,6 +42,7 @@ typedef enum lexeme_t {
     L_LETTER,
     L_NUMBER,
     L_DASH,
+    L_UNDERSCORE,
     L_DOT,
     L_LPAREN,
     L_RPAREN,
@@ -58,6 +59,7 @@ lexeme_t scan(char c) {
         case ':':   return L_COLON;
         case '"':   return L_QUOTE;
         case '-':   return L_DASH;
+        case '_':   return L_UNDERSCORE;
         case '.':   return L_DOT;
         case '\n':  return L_NEWLINE;
         case ' ':   return L_WHITESPACE;
@@ -147,7 +149,8 @@ bool lex_is_valid_number_part(lexeme_t lex) {
 bool lex_is_valid_symbol_part(lexeme_t lex) {
     return lex == L_LETTER
         || lex == L_NUMBER
-        || lex == L_DASH;
+        || lex == L_DASH
+        || lex == L_UNDERSCORE;
 }
 
 typedef struct state_update_t {

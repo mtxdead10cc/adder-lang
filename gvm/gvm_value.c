@@ -50,15 +50,15 @@ void val_print_lookup(val_t val, addr_lookup_fn lookup, void* user) {
         bool is_list = VAL_GET_TYPE(buffer[0]) != VAL_CHAR;
         if(is_list) {
             printf("[");
-        }
-        for(int i = 0; i < length; i++) {
-            val_print_lookup(buffer[i], lookup, user);
-            if(is_list) {
+            for(int i = 0; i < length; i++) {
+                val_print_lookup(buffer[i], lookup, user);
                 printf(" ");
             }
-        }
-        if(is_list) {
             printf("]");
+        } else { // string
+            for(int i = 0; i < length; i++) {
+                val_print_lookup(buffer[i], lookup, user);
+            }
         }
     } else {
         val_print(val);

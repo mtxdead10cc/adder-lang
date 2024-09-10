@@ -22,22 +22,22 @@ typedef struct op_scheme_t {
 
 static op_scheme_t schemes[] = {
 //  [string name]      [op bytecode id]    [arg type]                       [store as const]   [label reference]    [register reference]
-    {"push-value",      OP_PUSH_VALUE,      ARGSPEC1(TT_STRING),             0x01,              0x00,                0x00 },
-    {"push-value",      OP_PUSH_VALUE,      ARGSPEC1(TT_NUMBER),             0x01,              0x00,                0x00 },
-    {"push-value",      OP_PUSH_VALUE,      ARGSPEC1(TT_VEC2),               0x01,              0x00,                0x00 },
-    {"store-global",    OP_STORE_GLOBAL,    ARGSPEC1(TT_SYMBOL),             0x00,              0x00,                0x01 },
-    {"load-global",     OP_LOAD_GLOBAL,     ARGSPEC1(TT_SYMBOL),             0x00,              0x00,                0x01 },
-    {"store-local",     OP_STORE_LOCAL,     ARGSPEC1(TT_NUMBER),             0x00,              0x00,                0x00 },
-    {"load-local",      OP_LOAD_LOCAL,      ARGSPEC1(TT_NUMBER),             0x00,              0x00,                0x00 },
+    {"push",            OP_PUSH_VALUE,      ARGSPEC1(TT_STRING),             0x01,              0x00,                0x00 },
+    {"push",            OP_PUSH_VALUE,      ARGSPEC1(TT_NUMBER),             0x01,              0x00,                0x00 },
+    {"push",            OP_PUSH_VALUE,      ARGSPEC1(TT_VEC2),               0x01,              0x00,                0x00 },
+    {"globstore",       OP_STORE_GLOBAL,    ARGSPEC1(TT_SYMBOL),             0x00,              0x00,                0x01 },
+    {"globload",        OP_LOAD_GLOBAL,     ARGSPEC1(TT_SYMBOL),             0x00,              0x00,                0x01 },
+    {"store",           OP_STORE_LOCAL,     ARGSPEC1(TT_NUMBER),             0x00,              0x00,                0x00 },
+    {"load",            OP_LOAD_LOCAL,      ARGSPEC1(TT_NUMBER),             0x00,              0x00,                0x00 },
     {"print",           OP_PRINT,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
     {"call",            OP_CALL,            ARGSPEC1(TT_SYMBOL),             0x00,              0x01,                0x00 },
-    {"make-frame",      OP_MAKE_FRAME,      ARGSPEC2(TT_NUMBER, TT_NUMBER),  0x00,              0x00,                0x00 },
+    {"frame",           OP_MAKE_FRAME,      ARGSPEC2(TT_NUMBER, TT_NUMBER),  0x00,              0x00,                0x00 },
     {"return",          OP_RETURN,          ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"pop-1",           OP_POP_1,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"pop-2",           OP_POP_2,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"dup-1",           OP_DUP_1,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"dup-2",           OP_DUP_2,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"rot-2",           OP_ROT_2,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
+    {"pop1",            OP_POP_1,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
+    {"pop2",            OP_POP_2,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
+    {"dup1",            OP_DUP_1,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
+    {"dup2",            OP_DUP_2,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
+    {"rot2",            OP_ROT_2,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
     {"is-less",         OP_CMP_LESS_THAN,   ARGSPEC1(0),                     0x00,              0x00,                0x00 },
     {"is-more",         OP_CMP_MORE_THAN,   ARGSPEC1(0),                     0x00,              0x00,                0x00 },
     {"is-equal",        OP_CMP_EQUAL,       ARGSPEC1(0),                     0x00,              0x00,                0x00 },
@@ -159,25 +159,60 @@ int consts_add_char(valbuffer_t* consts, char value, bool force_contiguous) {
 }
 
 int consts_add_string(valbuffer_t* consts, char* text) {
+
     if( text[0] != '"' ) {
         printf("error: expected \" at start of string.\n");
     }
+
     text = text + 1;
-    int string_length = string_count_until(text, '\"');
+
+    int in_len = string_count_until(text, '\"');
     
-    int existing = valbuffer_find_string(consts, text, string_length);
+    // UN-ESCAPE input string
+    // need this step (with malloc) to unescape '\n' etc.
+    char* tmp_buffer = malloc((in_len + 1) * sizeof(char));
+    int r_count = 0;
+    int w_count = 0;
+    while( r_count < in_len ) {
+        if( text[r_count] == '\\' && (r_count + 1) < in_len ) {
+            char next = text[r_count + 1];
+            switch (next) {
+                case 'n':
+                    r_count += 2;
+                    tmp_buffer[w_count++] = '\n';
+                    continue; // continue next while-iteration
+                case 't':
+                    r_count += 2;
+                    tmp_buffer[w_count++] = '\t';
+                    continue; // continue next while-iteration
+                case '\\':
+                    r_count += 2;
+                    tmp_buffer[w_count++] = '\\';
+                    continue; // continue next while-iteration
+                default:
+                    printf("unhandled escaped character '\\%c'", next);
+                    break;
+            }
+        }
+        tmp_buffer[w_count++] = text[r_count++];
+    }
+    tmp_buffer[w_count] = '\0';
+    
+    int existing = valbuffer_find_string(consts, tmp_buffer, w_count);
     if( existing >= 0 ) {
         return existing;
     }
 
     int string_start = consts->size;
-    for(int i = 0; i < string_length; i++) {
-        consts_add_char(consts, text[i], true);
+    for(int i = 0; i < w_count; i++) {
+        consts_add_char(consts, tmp_buffer[i], true);
     }
+
+    free(tmp_buffer); // free the UN-ESCAPE buffer
 
     bool ok = valbuffer_add(consts,
         val_array_from_args( MEM_MK_CONST_ADDR(string_start),
-                  string_length));
+                  w_count));
     return ok
         ? (consts->size - 1)
         : (consts->size);

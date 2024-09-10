@@ -402,7 +402,6 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
             } break;
             case OP_PRINT: {
                 gvm_print_val(vm, stack[vm_mem->stack.top--]);
-                printf("\n");
             } break;
             case OP_LOAD_GLOBAL: {
                 int reg_index = READ_I16(instructions, vm_run->pc);
