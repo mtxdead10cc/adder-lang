@@ -94,6 +94,9 @@ int scheme_match(parser_t* p) {
     int nschemes = sizeof(schemes) / sizeof(schemes[0]);
 
     for(int i = 0; i < nschemes; i++) {
+        if( strlen(schemes[i].name) != (size_t) str_len ) {
+            continue;
+        }
         if( strncmp(str, schemes[i].name, str_len) != 0 ) {
             continue;
         }
@@ -330,10 +333,21 @@ typedef struct label_set_t {
 } label_set_t;
 
 gvm_result_t label_add(label_set_t* set, char* str, int len, int address) {
+
     if( set->count > GVM_ASM_MAX_LABELS ) {
         printf("error: hit max labels threashold\n");
         return RES_NOT_SUPPORTED;
     }
+
+    // check that the label name is not a reserved name 
+    int nschemes = sizeof(schemes) / sizeof(schemes[0]);
+    for(int i = 0; i < nschemes; i++) {
+        if(strncmp(schemes[i].name, str, len) == 0) {
+            printf("error: invalid label name, '%.*s' is a reserved keyword.\n", len, str);
+            return RES_INVALID_INPUT;
+        }
+    }
+
     for(int i = 0; i < set->count; i++) {
         char* existing = set->label[i];
         int len = set->length[i];
@@ -343,6 +357,7 @@ gvm_result_t label_add(label_set_t* set, char* str, int len, int address) {
             return RES_INVALID_INPUT;
         }
     }
+
     set->label[set->count] = str;
     set->length[set->count] = len;
     set->address[set->count] = address;
@@ -558,6 +573,7 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
                     char* ptr = parser_get_token_string_ptr(parser, token);
                     int label_index = label_get_address(&label_set, ptr, len);
                     if( label_index < 0 ) {
+                        printf("error: label '%.*s' not found.\n", len, ptr);
                         result_code = RES_NOT_SUPPORTED;
                         goto on_error;
                     }
@@ -570,6 +586,7 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
                     char* ptr = parser_get_token_string_ptr(parser, token);
                     int reg_index = reg_add(&reg_set, ptr, len);
                     if( reg_index < 0 ) {
+                        printf("error: global '%.*s' not found.\n", len, ptr);
                         result_code = RES_NOT_SUPPORTED;
                         goto on_error;
                     }
