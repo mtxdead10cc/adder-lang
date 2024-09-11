@@ -19,6 +19,10 @@ void val_print(val_t val) {
         ivec2_t v = val_into_ivec2(val);
         printf("(%i, %i)", v.x, v.y);
     } break;
+    case VAL_ITER: {
+        iter_t v = val_into_iter(val);
+        printf("{curr:0x%08X, rem:%i}", v.current, v.remaining);
+    } break;
     case VAL_FRAME: {
         frame_t frame = val_into_frame(val);
         printf("<pc: %i, nargs: %i, nlocals: %i>",
@@ -49,7 +53,7 @@ void val_print_lookup(val_t val, addr_lookup_fn lookup, void* user) {
         int length = array.length;
         bool is_list = VAL_GET_TYPE(buffer[0]) != VAL_CHAR;
         if(is_list) {
-            printf("[");
+            printf("[ ");
             for(int i = 0; i < length; i++) {
                 val_print_lookup(buffer[i], lookup, user);
                 printf(" ");

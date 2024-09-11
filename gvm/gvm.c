@@ -53,8 +53,7 @@ val_t* gvm_addr_lookup(void* user, val_addr_t addr) {
     if( MEM_IS_CONST_ADDR(addr) ) {
         return VM->run.constants + offset;
     } else {
-        printf("addr_lookup memory: NOT IMPLEMENTED!");
-        return NULL;
+        return VM->mem.membase + offset;
     }
 }
 
@@ -375,6 +374,10 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                 vm_mem->stack.top += nlocals + 1;
             } break;
             case OP_RETURN: {
+                
+                // TODO: LOCALS are returned now
+                // when there are no values left
+
                 val_t ret_val = stack[vm_mem->stack.top];
                 // return without a frame
                 if( vm_mem->stack.frame < 0 ) {
@@ -427,9 +430,58 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                 stack[++vm_mem->stack.top] = stack[vm_mem->stack.frame + 1 + local_idx];
                 vm_run->pc += 2;
             } break;
+            case OP_MAKE_ARRAY: {
+                // pop array size
+                val_t size = stack[vm_mem->stack.top--];
+                int count = (int) val_into_number(size);
+                // allocate array
+                val_t array_ref = heap_alloc_array(vm, count);
+                if( VAL_GET_TYPE(array_ref) != VAL_ARRAY ) {
+                    printf("\nheap alloc failed\n");
+                    return val_number(-1005);
+                }
+                // copy all data to the array
+                val_t* source_ptr = &stack[vm_mem->stack.top + 1 - count];
+                heap_array_set(vm, array_ref, source_ptr, count);
+                // remove the data from the stack
+                vm_mem->stack.top -= count; 
+                stack[++vm_mem->stack.top] = array_ref;
+            } break;
+            case OP_ARRAY_LENGTH: {
+                val_t array_val = stack[vm_mem->stack.top--];
+                array_t array = val_into_array(array_val);
+                stack[++vm_mem->stack.top] = val_number(array.length);
+            } break;
+            case OP_MAKE_ITER: {
+                val_t array_val = stack[vm_mem->stack.top--];
+                array_t array = val_into_array(array_val);
+                iter_t iter = (iter_t) {
+                    .current = array.address,
+                    .remaining = array.length
+                };
+                stack[++vm_mem->stack.top] = val_iter(iter);
+            } break;
+            case OP_ITER_NEXT: {
+                int exit_pc = READ_I16(instructions, vm_run->pc);
+                TRACE_INT_ARG(exit_pc);
+                val_t iter_val = stack[vm_mem->stack.top];
+                iter_t iter = val_into_iter(iter_val);
+                if( iter.remaining == 0 ) {
+                    vm_mem->stack.top --;
+                    vm_run->pc = exit_pc;
+                } else {
+                    int mem_index = MEM_ADDR_TO_INDEX(iter.current);
+                    val_t value = vm_mem->membase[mem_index];
+                    iter.remaining -= 1;
+                    iter.current = MEM_MK_PROGR_ADDR(mem_index + 1);
+                    stack[vm_mem->stack.top] = val_iter(iter);
+                    stack[++vm_mem->stack.top] = value;
+                    vm_run->pc += 2;
+                }
+            } break;
             default: {
                 char* op_str = gvm_get_op_name(opcode);
-                printf("\nunknown op %i (%s)\n", opcode, op_str);
+                printf("\nunhandled operatioin %i (%s)\n", opcode, op_str);
                 return val_number(-1003);
             } break;
         }

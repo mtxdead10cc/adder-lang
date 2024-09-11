@@ -131,3 +131,28 @@ Exit with an exit code ([number]).
 
 1. pops a value from the stack (A)
 3. pushes a number value (-A)
+
+### array
+
+1. Pops the array-length off the stack (number).
+2. Allocates array-length amount of heap space. 
+3. Copies array-length number of values from the stack and into the heap location.
+4. Pops array-length number of values off the stack.
+5. Pushes a reference to the array onto the stack.
+
+### len
+
+1. Pops an array-reference off the stack.
+2. Pushes the length of the array onto the stack.
+
+### iter
+
+1. Pops an array-reference off the stack.
+2. Pushes an iterator onto the stack.
+
+### iter-next [exit-label]
+
+1. Leaves iterator on the stack (not popping it).
+2. Then either
+ - Advance the iterator and push the corresponding value.
+ - Otherwise, jump to exit-label.

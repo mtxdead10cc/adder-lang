@@ -8,6 +8,10 @@
 #define VAL_MK_TYPE_ID(T) ( ((val_t)(T) & 0xF) << 60 )
 #define VAL_GET_TYPE(V)     ((val_type_t)(((val_t)(V)) >> 60))
 
+inline static val_t val_none() {
+    return VAL_MK_TYPE_ID(VAL_NONE);
+}
+
 inline static val_t val_number(float value) {
     uint32_t tmp = *((uint32_t*)&value);
     return (VAL_MK_TYPE_ID(VAL_NUMBER) | tmp);
@@ -55,6 +59,12 @@ inline static val_t val_frame_from_args(int return_pc, uint8_t num_args, uint8_t
                             | (  (val_t)( (val_t)(return_pc) & 0xFFFFFFFF   ) ) );
 }
 
+inline static val_t val_iter(iter_t value) {
+    return ( VAL_MK_TYPE_ID(VAL_ITER)\
+                        | (  (val_t)(((val_t)(value.remaining) & 0xFFFFFF) << 32) )\
+                        | (  (val_t)( (val_t)(value.current) & 0xFFFFFFFF    ) ) );
+}
+
 inline static float val_into_number(val_t value) {
     uint32_t tmp = (uint32_t)(value & 0xFFFFFFFF);
     return *(float*)&tmp;
@@ -87,6 +97,13 @@ inline static frame_t val_into_frame(val_t value) {
         .num_args = (uint8_t) (((val_t)(value) >> 40) & 0xFF),
         .num_locals = (uint8_t) (((val_t)(value) >> 32) & 0xFF),
         .return_pc = (int)((val_t)(value) & 0xFFFFFFFF)
+    };
+}
+
+inline static iter_t val_into_iter(val_t value) {
+    return (iter_t) {
+        .remaining = (int) (((val_t)(value) >> 32) & 0xFFFFFF),
+        .current = (val_addr_t)((val_t)(value) & 0xFFFFFFFF)
     };
 }
 

@@ -25,8 +25,8 @@ typedef struct ivec2_t {
 } ivec2_t;
 
 typedef struct array_t {
-    val_addr_t address;
-    int length;
+    val_addr_t address; // the address of the first value
+    int length;         // the length of the array
 } array_t;
 
 typedef struct frame_t {
@@ -35,13 +35,20 @@ typedef struct frame_t {
     uint8_t num_locals; // the number of locals 
 } frame_t;
 
+typedef struct iter_t {
+    val_addr_t current; // the address of the current value
+    int remaining;      // the number of iterations remaining 
+} iter_t;
+
 typedef enum val_type_t {
+    VAL_NONE,
     VAL_NUMBER,
     VAL_IVEC2,
     VAL_BOOL,
     VAL_CHAR,
     VAL_ARRAY,
     VAL_FRAME,
+    VAL_ITER,
     VAL_TYPE_COUNT
 } val_type_t;
 
@@ -120,6 +127,10 @@ typedef enum gvm_op_t {
     OP_STORE_LOCAL,
     OP_LOAD_LOCAL,
     OP_PRINT,
+    OP_MAKE_ARRAY,
+    OP_ARRAY_LENGTH,
+    OP_MAKE_ITER,
+    OP_ITER_NEXT,
     OP_OPCODE_COUNT
 } gvm_op_t;
 

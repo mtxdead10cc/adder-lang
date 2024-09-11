@@ -44,6 +44,10 @@ inline static char* gvm_get_op_name(gvm_op_t opcode) {
         case OP_STORE_LOCAL:        return "OP_STORE_LOCAL";
         case OP_LOAD_LOCAL:         return "OP_LOAD_LOCAL";
         case OP_PRINT:              return "OP_PRINT";
+        case OP_MAKE_ARRAY:         return "OP_MAKE_ARRAY";
+        case OP_ARRAY_LENGTH:       return "OP_ARRAY_LENGTH";
+        case OP_MAKE_ITER:          return "OP_MAKE_ITER";
+        case OP_ITER_NEXT:          return "OP_ITER_NEXT";
         default:                    return "<OP-UNKNOWN>";
     }
 }

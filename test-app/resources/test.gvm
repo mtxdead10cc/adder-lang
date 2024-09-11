@@ -3,17 +3,25 @@
 jump start # <- goto entry point
 
 test-fn:
-    frame 0 0
-    push "TEST-OK"
-    call dump
+    frame 0 1
+    push "HEJ"
+    push "PÅ"
+    push "DIG!"
+    push 3
+    array
     return
 
-dump:
+dump-array:
     frame 1 0
-    print
-    push " "
-    print
-    return
+    iter
+    loop:
+        iter-next quit
+            print
+            push " . "
+            print
+            jump loop
+    quit:
+        return
 
 addfn:
     frame 2 0
@@ -25,6 +33,8 @@ start:
     push 20
     call addfn
     call test-fn
+    call dump-array
     return
+    
 
 ######### END

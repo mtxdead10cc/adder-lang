@@ -13,6 +13,7 @@
 void heap_gc_collect(gvm_t* vm);
 void heap_print_usage(gvm_t* vm);
 val_t heap_alloc_array(gvm_t* vm, int val_count);
+int heap_array_set(gvm_t* vm, val_t dest, val_t* source, int source_length);
 
 
 #endif // GVM_HEAP_H_
