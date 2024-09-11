@@ -131,6 +131,7 @@ typedef enum gvm_op_t {
     OP_ARRAY_LENGTH,
     OP_MAKE_ITER,
     OP_ITER_NEXT,
+    OP_CALL_NATIVE,
     OP_OPCODE_COUNT
 } gvm_op_t;
 
@@ -180,14 +181,20 @@ typedef struct gvm_mem_t {
 
 typedef struct gvm_t gvm_t;
 
+typedef struct func_result_t {
+    int arg_count;
+    val_t value;
+} func_result_t;
+
 typedef val_t* (*addr_lookup_fn)(void* user, val_addr_t addr);
-typedef void (*func_t)(gvm_t* vm);
+typedef val_t (*func_t)(gvm_t* gvm, val_t* args);
 
 typedef struct env_t {
     gvm_t* vm;
     struct {
         int count;
         func_t funcs[16];
+        int argcounts[16];
         char* names[16];
     } native;
 } env_t;

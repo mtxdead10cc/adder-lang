@@ -55,7 +55,8 @@ static op_scheme_t schemes[] = {
     {"add",             OP_ADD,             ARGSPEC1(0),                     0x00,              0x00,                0x00 },
     {"sub",             OP_SUB,             ARGSPEC1(0),                     0x00,              0x00,                0x00 },
     {"neg",             OP_NEG,             ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-};       
+    {"ncall",           OP_CALL_NATIVE,     ARGSPEC1(TT_SYMBOL),             0x01,              0x00,                0x00 }
+};
 
 #if GVM_TRACE_LOG_LEVEL >= 3
 static inline void asm_debug_print_token(parser_t* parser) {

@@ -9,5 +9,7 @@
 #define GVM_ASM_MAX_LABELS          64
 #define GVM_ASM_MAX_REGISTERS       64
 #define GVM_RUNTIME_VALIDATION      1
+#define GVM_ENV_NFUNC_NAME_MAX_LEN  128
+
 
 #endif

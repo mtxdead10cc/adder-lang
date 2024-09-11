@@ -87,41 +87,6 @@ void gvm_print_if_error(gvm_result_t res, char* context) {
     }
 }
 
-bool pred(type_id_t init, type_id_t curr) {
-    return init == curr;
-}
-
-bool symbol_equals(gvm_t* vm, val_t symbol, char* name) {
-    if( VAL_GET_TYPE(symbol) != VAL_ARRAY ) {
-        return false;
-    }
-    int slen = strlen(name);
-    int llen = val_into_array(symbol).length;
-    if( slen != llen ) {
-        return false;
-    }
-    char buf[128] = {0};
-    if(gvm_get_string(vm, symbol, buf, 127) != llen) {
-        return false;
-    }
-    for(int i = 0; i < slen; i++) {
-        if( buf[i] != name[i] ) {
-            return false;
-        }
-    }
-    return true;
-}
-
-func_t find_func(gvm_t* vm, val_t symbol) {
-    env_t* env = &vm->env;
-    int count = env->native.count;
-    for(int i = 0; i < count; i++) {
-        if( symbol_equals(vm, symbol, env->native.names[i]) ) {
-            return env->native.funcs[i];
-        }
-    }
-    return NULL;
-}
 
 bool gvm_create(gvm_t* vm, int stack_size, int dyn_size) {
 
@@ -482,6 +447,16 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                     stack[++vm_mem->stack.top] = value;
                     vm_run->pc += 2;
                 }
+            } break;
+            case OP_CALL_NATIVE: {
+                int native_op_name = READ_I16(instructions, vm_run->pc);
+                TRACE_INT_ARG(native_op_name);
+                func_result_t res = env_nfunc_call(&vm->env,
+                    consts[native_op_name],
+                    &stack[vm_mem->stack.top]);
+                vm_mem->stack.top -= res.arg_count;
+                stack[++vm_mem->stack.top] = res.value;
+                vm_run->pc += 2;
             } break;
             default: {
                 char* op_str = gvm_get_op_name(opcode);

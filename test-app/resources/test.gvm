@@ -34,6 +34,12 @@ start:
     call addfn
     call test-fn
     call dump-array
+
+    push "A"
+    push "B"
+    ncall nprint
+    pop1
+
     return
     
 
