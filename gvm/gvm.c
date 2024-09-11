@@ -374,22 +374,26 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                 vm_mem->stack.top += nlocals + 1;
             } break;
             case OP_RETURN: {
-                
-                // TODO: LOCALS are returned now
-                // when there are no values left
-
-                val_t ret_val = stack[vm_mem->stack.top];
-                // return without a frame
+                // check if we are doing a frameless return
                 if( vm_mem->stack.frame < 0 ) {
-                    return stack[vm_mem->stack.top];
+                    if( vm_mem->stack.top >= 0 ) {
+                        return stack[vm_mem->stack.top];
+                    } else {
+                        return val_none();
+                    }
                 }
-                // skip down to call frame
-                vm_mem->stack.top = vm_mem->stack.frame;
-                // pop frame, update the PC, push return value
-                frame_t frame = val_into_frame(stack[vm_mem->stack.top--]);
-                vm->run.pc = frame.return_pc; // resume at call site
-                if( VAL_GET_TYPE(ret_val) != VAL_FRAME ) {
-                    // push the return value (if any)
+                frame_t frame = val_into_frame(stack[vm_mem->stack.frame]);
+                int body_start = vm_mem->stack.frame + frame.num_locals;
+                int invoked_top = vm_mem->stack.top;
+                // copy possible return value
+                val_t ret_val = stack[invoked_top];
+                // hop down to parent call frame - 1
+                vm_mem->stack.top = vm_mem->stack.frame - 1;
+                // update pc to resume at call site
+                vm->run.pc = frame.return_pc; 
+                // check if we have a return value
+                if(invoked_top > body_start) {
+                    // push return value
                     stack[++vm_mem->stack.top] = ret_val;
                 }
                 // find index of previous frame

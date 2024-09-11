@@ -17,7 +17,7 @@ dump-array:
     loop:
         iter-next quit
             print
-            push " . "
+            push " "
             print
             jump loop
     quit:

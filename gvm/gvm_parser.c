@@ -401,16 +401,16 @@ bool parser_consume(parser_t* p, token_type_t tt) {
 
 char* parser_tt_to_str(token_type_t tt) {
     switch (tt) {
-        case TT_COLON: return "COLON";
-        case TT_NUMBER: return "NUMBER";
-        case TT_VEC2: return "VEC2";
-        case TT_SEPARATOR: return "SEPARATOR";
-        case TT_COMMENT: return "COMMENT";
-        case TT_STRING: return "STRING";
-        case TT_SYMBOL: return "SYMBOL";
-        case TT_UNKNOWN: return "UNKNOWN";
-        case TT_END: return "END";
-        default: return "<undefined>";
+        case TT_COLON:      return "COLON";
+        case TT_NUMBER:     return "NUMBER";
+        case TT_VEC2:       return "VEC2";
+        case TT_SEPARATOR:  return "SEPARATOR";
+        case TT_COMMENT:    return "COMMENT";
+        case TT_STRING:     return "STRING";
+        case TT_SYMBOL:     return "SYMBOL";
+        case TT_UNKNOWN:    return "UNKNOWN";
+        case TT_END:        return "END";
+        default:            return "<UNKNOWN-TT>";
     }
 }
 
