@@ -189,14 +189,20 @@ typedef struct func_result_t {
 typedef val_t* (*addr_lookup_fn)(void* user, val_addr_t addr);
 typedef val_t (*func_t)(gvm_t* gvm, val_t* args);
 
+typedef struct tabval_t {
+    int     argc;
+    func_t  func;
+} tabval_t;
+
+typedef struct func_table_t {
+    char      key[GVM_ENV_NFUNC_NAME_MAX_LEN][GVM_ENV_NFUNC_TABLE_SIZE];
+    bool      is_in_use[GVM_ENV_NFUNC_TABLE_SIZE];
+    tabval_t  value[GVM_ENV_NFUNC_TABLE_SIZE];
+} func_table_t;
+
 typedef struct env_t {
-    gvm_t* vm;
-    struct {
-        int count;
-        func_t funcs[16];
-        int argcounts[16];
-        char* names[16];
-    } native;
+    gvm_t*       vm;
+    func_table_t table;
 } env_t;
 
 typedef struct gvm_runtime_t {

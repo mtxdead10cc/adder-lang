@@ -11,6 +11,7 @@ void gvm_code_destroy(byte_code_block_t* code_obj);
 void gvm_code_disassemble(byte_code_block_t* code_obj);
 
 bool  gvm_create(gvm_t* vm, int stack_size, int dyn_size);
+bool gvm_native_func(gvm_t* vm, char* name, int num_args, func_t func);
 val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles);
 void  gvm_destroy(gvm_t* vm);
 

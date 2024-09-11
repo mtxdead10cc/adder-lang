@@ -10,6 +10,7 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <string.h>
 #include <assert.h>
 #include "gvm_test.h"
 
@@ -99,6 +100,14 @@ byte_code_block_t read_and_compile(char* path) {
 //     - ??? grid-select <ivec> (push list of all flood fill refs with matching type)
 //     - ...
 
+val_t nprint(gvm_t* vm, val_t* args) {
+    printf(">> ");
+    gvm_print_val(vm, args[0]);
+    gvm_print_val(vm, args[1]);
+    printf("\n");
+    return val_none();
+}
+
 bool run(char* path, bool verbose, bool keep_alive) {
     time_t last_creation_time = 0xFFFFFFFFFFFFFFFF;
     bool compile_ok = true;
@@ -118,6 +127,7 @@ bool run(char* path, bool verbose, bool keep_alive) {
         printf("%s [%s]\n\n", path, compile_ok ? "OK" : "FAILED");
         
         if( compile_ok ) {
+
             if( verbose ) {
                 gvm_code_disassemble(&obj);
             }
@@ -125,7 +135,12 @@ bool run(char* path, bool verbose, bool keep_alive) {
             gvm_t vm = { 0 };
             gvm_create(&vm, 128, 128);
 
+            // register native functions
+            gvm_native_func(&vm, "nprint", 2, &nprint);
+
+            // execute script
             val_t result = gvm_execute(&vm, &obj, 500);
+
             printf("\n> ");
             gvm_print_val(&vm, result);
             printf("\n");

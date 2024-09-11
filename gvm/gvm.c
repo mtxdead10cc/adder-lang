@@ -137,6 +137,10 @@ bool gvm_create(gvm_t* vm, int stack_size, int dyn_size) {
     return true;
 }
 
+bool gvm_native_func(gvm_t* vm, char* name, int num_args, func_t func) {
+    return env_add_native_func(&vm->env, name, num_args, func);
+}
+
 void gvm_destroy(gvm_t* vm) {
     if( vm == NULL || vm->mem.membase == 0 ) {
         return;
@@ -451,7 +455,7 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
             case OP_CALL_NATIVE: {
                 int native_op_name = READ_I16(instructions, vm_run->pc);
                 TRACE_INT_ARG(native_op_name);
-                func_result_t res = env_nfunc_call(&vm->env,
+                func_result_t res = env_native_func_call(&vm->env,
                     consts[native_op_name],
                     &stack[vm_mem->stack.top]);
                 vm_mem->stack.top -= res.arg_count;
