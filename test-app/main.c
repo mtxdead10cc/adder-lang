@@ -201,11 +201,35 @@ void tscr_draw_background(tscr_t* scr) {
 
 void tscr_draw_cell(tscr_t* scr, int board_x, int board_y, int cell_width, int color) {
     int inv_x = scr->top_left.x + (board_x * cell_width);
-    int inv_y = scr->top_left.y + board_y;
+    int inv_y = scr->top_left.y + scr->size.y - board_y - 1;
     for(int i = 0; i < cell_width; i++) {
         termhax_set_pos(thv2(inv_x + i, inv_y));
         termhax_print_color(" ", color);
     }
+}
+
+void draw_board(board_t* board) {
+    int cell_width = 2;
+    tscr_t scr = {
+        .size = thv2(board->dim[0] * cell_width, board->dim[1]),
+        .title = "BOARD",
+        .top_left = thv2(3, 3)
+    };
+    board_lookup_refresh(board);
+    termhax_reserve_lines(board->dim[1]);
+    tscr_draw_background(&scr);
+    for(int y = 0; y < board->dim[1]; y++) {
+        for(int x = 0; x < board->dim[0]; x++) {
+            piece_t* piece = board_lookup(board, x, y);
+            if( piece == NULL ) {
+                continue;
+            }
+            int color = COL_BG_MIN + (piece->type % COL_BG_COUNT);
+            tscr_draw_cell(&scr, x, y, cell_width, color);
+        }
+    }
+    termhax_set_pos(thv2(1, board->dim[1] + 5));
+    termhax_flush();
 }
 
 int main(int argv, char** argc) {
@@ -217,7 +241,6 @@ int main(int argv, char** argc) {
     bool run_tests = false;
     int path_arg = -1;
     
-
     for(int i = 0; i < argv; i++) {
         verbose     |= strncmp(argc[i], "-v", 2) == 0;
         print_help  |= strncmp(argc[i], "-h", 2) == 0;
@@ -260,26 +283,15 @@ int main(int argv, char** argc) {
     }
 
     board_t board = (board_t) { 0 };
-    int cell_width = 2;
+
     board_init(&board, 6, 8);
-    tscr_t scr = {
-        .size = thv2(board.dim[0] * cell_width, board.dim[1]),
-        .title = "BOARD",
-        .top_left = thv2(3, 3)
-    };
-    board_lookup_refresh(&board);
-    termhax_reserve_lines(board.dim[1]);
-    tscr_draw_background(&scr);
-    for(int y = 0; y < board.dim[1]; y++) {
-        for(int x = 0; x < board.dim[0]; x++) {
-            piece_t* piece = board_lookup(&board, x, y);
-            if( piece == NULL ) {
-                continue;
-            }
-            int color = COL_BG_MIN + (piece->type % COL_BG_COUNT);
-            tscr_draw_cell(&scr, x, y, cell_width, color);
-        }
-    }
-    termhax_set_pos(thv2(1, board.dim[1] + 5));
+    draw_board(&board);
+
+    sleep(2);
+
+    board_set_size(&board, 12, 16);
+    draw_board(&board);
+
+
     return 0;
 }

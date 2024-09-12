@@ -28,9 +28,9 @@ typedef struct board_t {
 } board_t;
 
 void  board_init(board_t* board, int ncols, int nrows);
-bool  board_is_piece_in_play(board_t* board, piece_t* piece);
+bool  board_is_piece_in_play(piece_t* piece);
 void  board_lookup_refresh(board_t* board);
 piece_t* board_lookup(board_t* board, int x, int y);
-bool  board_set_size(board_t* board, int ncols, int nrows);
+void  board_set_size(board_t* board, int ncols, int nrows);
 
 #endif // BOARD_H_
