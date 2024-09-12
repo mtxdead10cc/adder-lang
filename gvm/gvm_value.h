@@ -2,8 +2,10 @@
 #define GVM_VALUE_H_
 
 #include "gvm_types.h"
+#include "gvm_memory.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include <assert.h>
 
 #define VAL_MK_TYPE_ID(T) ( ((val_t)(T) & 0xF) << 60 )
 #define VAL_GET_TYPE(V)     ((val_type_t)(((val_t)(V)) >> 60))
@@ -105,6 +107,24 @@ inline static iter_t val_into_iter(val_t value) {
         .remaining = (int) (((val_t)(value) >> 32) & 0xFFFFFF),
         .current = (val_addr_t)((val_t)(value) & 0xFFFFFFFF)
     };
+}
+
+inline static val_t* array_get_ptr(gvm_t* vm, array_t array, int index) {
+    assert(ADDR_IS_NULL(array.address) == false);
+    if( ADDR_IS_CONST(array.address) ) {
+        return (vm->run.constants + MEM_ADDR_TO_INDEX(array.address) + index);
+    } else {
+        return (vm->mem.membase + MEM_ADDR_TO_INDEX(array.address) + index);
+    }
+}
+
+inline static val_t array_get(gvm_t* vm, array_t array, int index) {
+    return *array_get_ptr(vm, array, index);
+}
+
+inline static void array_set(gvm_t* vm, array_t array, int index, val_t value) {
+    val_t* loc = array_get_ptr(vm, array, index);
+    *loc = value;
 }
 
 void val_print(val_t val);

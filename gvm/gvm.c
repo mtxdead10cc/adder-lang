@@ -1,5 +1,4 @@
 #include "gvm.h"
-#include "gvm_grid.h"
 #include "gvm_parser.h"
 #include "gvm_asm.h"
 #include "gvm_env.h"
@@ -50,7 +49,7 @@ void print_stack(val_t* stack, int stack_size) {
 val_t* gvm_addr_lookup(void* user, val_addr_t addr) {
     gvm_t* VM = (gvm_t*) user;
     int offset = MEM_ADDR_TO_INDEX(addr);
-    if( MEM_IS_CONST_ADDR(addr) ) {
+    if( ADDR_IS_CONST(addr) ) {
         return VM->run.constants + offset;
     } else {
         return VM->mem.membase + offset;
@@ -408,17 +407,17 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
                 val_t size = stack[vm_mem->stack.top--];
                 int count = (int) val_into_number(size);
                 // allocate array
-                val_t array_ref = heap_alloc_array(vm, count);
-                if( VAL_GET_TYPE(array_ref) != VAL_ARRAY ) {
+                array_t array = heap_array_alloc(vm, count);
+                if( ADDR_IS_NULL(array.address) ) {
                     printf("\nheap alloc failed\n");
                     return val_number(-1005);
                 }
                 // copy all data to the array
                 val_t* source_ptr = &stack[vm_mem->stack.top + 1 - count];
-                heap_array_set(vm, array_ref, source_ptr, count);
+                heap_array_copy_to(vm, source_ptr, count, array);
                 // remove the data from the stack
                 vm_mem->stack.top -= count; 
-                stack[++vm_mem->stack.top] = array_ref;
+                stack[++vm_mem->stack.top] = val_array(array);
             } break;
             case OP_ARRAY_LENGTH: {
                 val_t array_val = stack[vm_mem->stack.top--];
@@ -487,30 +486,4 @@ void gvm_code_disassemble(byte_code_block_t* code_obj) {
 
 void gvm_code_destroy(byte_code_block_t* code_obj) {
     asm_destroy_code_object(code_obj);
-}
-
-void test() {
-
-
-
-    /*grid_t grid;
-    grid_init(&grid);
-    grid_fill(&grid, 1);
-
-    grid_print(&grid);
-    grid_set_size(&grid, 5, 5);
-    grid_print(&grid);
-
-    grid_set_size(&grid, 5, 12);
-    grid_print(&grid);
-
-    int buf[ 5 * 12 ] = { 0 };
-    int n = grid_select(&grid, 4, 4, pred, buf);
-    printf("n selected: %i\n", n);
-    for(int i = 0; i < n; i++) {
-        grid.data[buf[i]] = 2;
-    }
-    grid_print(&grid);
-    grid_destroy(&grid);*/
-
 }

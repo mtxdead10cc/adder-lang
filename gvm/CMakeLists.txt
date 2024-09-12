@@ -13,7 +13,6 @@ target_sources(gvm PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/gvm_utils.c
         ${CMAKE_CURRENT_SOURCE_DIR}/gvm_env.c
         ${CMAKE_CURRENT_SOURCE_DIR}/gvm_asm.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/gvm_grid.c
         ${CMAKE_CURRENT_SOURCE_DIR}/gvm_test.c # <- maybe break this out to a separate lib?
 )
 

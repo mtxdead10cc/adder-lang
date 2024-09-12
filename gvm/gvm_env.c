@@ -106,7 +106,7 @@ func_result_t env_native_func_call(env_t* env, val_t func_name, val_t* stack_top
     array_t key = val_into_array(func_name);
     assert( key.length < GVM_ENV_NFUNC_NAME_MAX_LEN && key.length > 0 );
     val_t* ptr = env->vm->mem.membase;
-    if( MEM_IS_CONST_ADDR(key.address) ) {
+    if( ADDR_IS_CONST(key.address) ) {
         ptr = env->vm->run.constants;
     }
     ptr += MEM_ADDR_TO_INDEX(key.address);

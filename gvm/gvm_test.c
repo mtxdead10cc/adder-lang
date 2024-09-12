@@ -2,6 +2,8 @@
 #include "gvm_types.h"
 #include "gvm.h"
 #include "gvm_heap.h"
+#include "gvm_value.h"
+#include "gvm_memory.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -26,14 +28,18 @@ void test_heap_memory(test_case_t* this) {
 
     vm.mem.stack.top = -1;
 
-    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 70);
+    array_t array = heap_array_alloc(&vm, 70);
+    TEST_ASSERT_MSG(this,
+        ADDR_IS_NULL(array.address) == false,
+        "#1.0 (heap_array_alloc) failed\n");
+    vm.mem.stack.values[++vm.mem.stack.top] = val_array(array);
 
     TEST_ASSERT_MSG(this,
         vm.mem.heap.gc_marks[0] == 0xFFFFFFFFFFFFFFFFUL,
-        "#1.1 (heap_alloc_array) failed\n");
+        "#1.1 (heap_array_alloc) failed\n");
     TEST_ASSERT_MSG(this,
         vm.mem.heap.gc_marks[1] == 0x3FUL,
-        "#1.2 (heap_alloc_array) failed\n");
+        "#1.2 (heap_array_alloc) failed\n");
 
     heap_gc_collect(&vm);
     TEST_ASSERT_MSG(this,
@@ -44,7 +50,11 @@ void test_heap_memory(test_case_t* this) {
         "#2.2 (heap_gc_collect) failed\n");
     //heap_print_usage(&vm);
 
-    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 70);
+    array = heap_array_alloc(&vm, 70);
+    TEST_ASSERT_MSG(this,
+        ADDR_IS_NULL(array.address) == false,
+        "#3.0 (heap_array_alloc) failed\n");
+    vm.mem.stack.values[++vm.mem.stack.top] = val_array(array);
     heap_gc_collect(&vm);
     TEST_ASSERT_MSG(this,
         vm.mem.heap.gc_marks[0] == 0xFFFFFFFFFFFFFFFFUL,
@@ -76,7 +86,11 @@ void test_heap_memory(test_case_t* this) {
         "#4.4 (pop & heap_gc_collect) failed\n");
     //heap_print_usage(&vm);
 
-    vm.mem.stack.values[++vm.mem.stack.top] = heap_alloc_array(&vm, 2);
+    array = heap_array_alloc(&vm, 2);
+    TEST_ASSERT_MSG(this,
+        ADDR_IS_NULL(array.address) == false,
+        "#4.0 (heap_array_alloc) failed\n");
+    vm.mem.stack.values[++vm.mem.stack.top] = val_array(array);
     heap_gc_collect(&vm);
     TEST_ASSERT_MSG(this,
         vm.mem.heap.gc_marks[0] == 0xFFFFFFFFFFFFFFFFUL,

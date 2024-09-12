@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "gvm_types.h"
+#include "gvm_memory.h"
 
 #define HEAP_TO_PAGE_INDEX(HI) ((HI) / (sizeof(uint64_t) * CHAR_BIT))
 #define HEAP_TO_BIT_INDEX(HI) ((HI) % (sizeof(uint64_t) * CHAR_BIT))
@@ -12,8 +13,7 @@
 
 void heap_gc_collect(gvm_t* vm);
 void heap_print_usage(gvm_t* vm);
-val_t heap_alloc_array(gvm_t* vm, int val_count);
-int heap_array_set(gvm_t* vm, val_t dest, val_t* source, int source_length);
-
+array_t heap_array_alloc(gvm_t* vm, int val_count);
+int heap_array_copy_to(gvm_t* vm, val_t* src, int length, array_t dest);
 
 #endif // GVM_HEAP_H_

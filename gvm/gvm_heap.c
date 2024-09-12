@@ -146,7 +146,9 @@ int heap_find_free_chunk(gvm_t* vm, int val_count) {
     }
 }
 
-val_t heap_alloc_array(gvm_t* vm, int val_count) {
+// TODO: Not checking if too much memory is allocated!
+
+array_t heap_array_alloc(gvm_t* vm, int val_count) {
 
     int addr = heap_find_free_chunk(vm, val_count);
 
@@ -159,7 +161,7 @@ val_t heap_alloc_array(gvm_t* vm, int val_count) {
     // if GC did not free up memory we fail
     if( addr < 0 ) {
         printf("error: VM heap memory is full.\n");
-        return val_none();
+        return (array_t) { 0 }; // null address makes this invalid
     }
 
     // mark whole pages
@@ -186,22 +188,22 @@ val_t heap_alloc_array(gvm_t* vm, int val_count) {
         vm->mem.heap.values[addr + i] = 0;
     }
 
-    return val_array_from_args(
+    return (array_t) {
         MEM_MK_PROGR_ADDR(vm->mem.stack.size + addr),
         val_count
-    );
+    };
 }
 
-int heap_array_set(gvm_t* vm, val_t dest, val_t* source, int source_length) {
-    array_t array = val_into_array(dest);
-    int dest_index = MEM_ADDR_TO_INDEX(array.address);
+int heap_array_copy_to(gvm_t* vm, val_t* src, int length, array_t dest) {
+    int dest_index = MEM_ADDR_TO_INDEX(dest.address);
     val_t* dest_ptr = vm->mem.membase + dest_index;
-    int dest_length = (int) array.length;
-    int copy_length = ( dest_length < source_length )
+    int dest_length = (int) dest.length;
+    int copy_length = ( dest_length < length )
         ? dest_length
-        : source_length;
+        : length;
     for(int i = 0; i < copy_length; i++) {
-        dest_ptr[i] = source[i];
+        dest_ptr[i] = src[i];
     }
     return copy_length;
 }
+

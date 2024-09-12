@@ -35,10 +35,10 @@ start:
     call test-fn
     call dump-array
 
-    push "A"
-    push "B"
-    ncall nprint
-    pop1
+    push 10
+    push 40
+    ncall test
+    print
 
     return
     

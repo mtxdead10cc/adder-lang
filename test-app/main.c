@@ -13,6 +13,8 @@
 #include <string.h>
 #include <assert.h>
 #include "gvm_test.h"
+#include <gvm_heap.h>
+#include <gvm_memory.h>
 
 time_t get_creation_time(char *path) {
     struct stat attr;
@@ -86,26 +88,19 @@ byte_code_block_t read_and_compile(char* path) {
 //
 // 
 // TODO
-// [X] rename list -> array
-// [X] add simple alloc and gc-dealloc for heap (array/list)
-// [X] add support for VAL_IVEC2
-// [X] add support for function call frames
-//     [X] add in optional runtime verifications 
-//     [X] add support for local variables
-//     [X] call start-frame (instead of frameless)  
-//
-// [ ] update the grid code
-// [ ] add support for grid operations
-//     - ??? grid-ref <ivec> (push grid ref by lookup on ivec2)
-//     - ??? grid-select <ivec> (push list of all flood fill refs with matching type)
-//     - ...
+// [ ] Implement board / grid
 
-val_t nprint(gvm_t* vm, val_t* args) {
-    printf(">> ");
-    gvm_print_val(vm, args[0]);
-    gvm_print_val(vm, args[1]);
-    printf("\n");
-    return val_none();
+val_t test(gvm_t* vm, val_t* args) {
+    int a = val_into_number(args[0]);
+    int b = val_into_number(args[1]);
+    int len = b - a + 1;
+    len = (len >= 0) ? len : 0;
+    array_t array = heap_array_alloc(vm, len);
+    val_t* ptr = array_get_ptr(vm, array, 0);
+    for(int i = 0; i < len; i++) {
+        ptr[i] = val_number(a + i);
+    }
+    return val_array(array);
 }
 
 bool run(char* path, bool verbose, bool keep_alive) {
@@ -136,7 +131,7 @@ bool run(char* path, bool verbose, bool keep_alive) {
             gvm_create(&vm, 128, 128);
 
             // register native functions
-            gvm_native_func(&vm, "nprint", 2, &nprint);
+            gvm_native_func(&vm, "test", 2, &test);
 
             // execute script
             val_t result = gvm_execute(&vm, &obj, 500);
