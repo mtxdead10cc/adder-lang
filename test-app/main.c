@@ -12,9 +12,11 @@
 #include <sys/types.h>
 #include <string.h>
 #include <assert.h>
-#include "gvm_test.h"
 #include <gvm_heap.h>
 #include <gvm_memory.h>
+#include "test/test_runner.h"
+#include "board/board.h"
+#include "board/termhax.h"
 
 time_t get_creation_time(char *path) {
     struct stat attr;
@@ -149,6 +151,63 @@ bool run(char* path, bool verbose, bool keep_alive) {
     return compile_ok;
 }
 
+#define MIN(A,B) ((A) < (B) ? (A) : (B))
+#define MAX(A,B) ((A) > (B) ? (A) : (B))
+
+typedef struct tscr_t {
+    char* title;
+    thv2_t top_left;
+    thv2_t size;
+} tscr_t;
+
+void tscr_draw_rect(thv2_t min, thv2_t max, int color) {
+    int len = (max.x-min.x);
+    char buf[len+2];
+    for(int i = 0; i < len; i++) {
+        buf[i] = ' ';
+    }
+    buf[len] = '\n';
+    buf[len+1] = '\0';
+    for(int y = min.y; y < max.y; y++) {
+        termhax_set_pos((thv2_t){ min.x, y });
+        termhax_print_color(buf, color);
+    }
+}
+
+void tscr_draw_background(tscr_t* scr) {
+    int title_w = strlen(scr->title);
+
+    int top = scr->top_left.y;
+    int left = scr->top_left.x;
+    int bottom = scr->size.y + top;
+    int right = scr->size.x + left;
+
+    thv2_t center = thv2(
+         left + ((right - left) / 2),
+         top  + ((bottom - top) / 2));
+
+    termhax_clear_screen();
+    termhax_set_pos(thv2(MAX(center.x - (title_w / 2), 1), 1));
+    printf("%s", scr->title);
+
+    tscr_draw_rect(scr->top_left,
+        thv2_add(scr->top_left, scr->size),
+        COL_BG_YELLOW);
+    
+    termhax_set_pos(thv2(1, bottom));
+    termhax_move_down(1);
+    printf("min (%d, %d) max (%d,%d)\n", left, top, right, bottom);
+}
+
+void tscr_draw_cell(tscr_t* scr, int board_x, int board_y, int cell_width, int color) {
+    int inv_x = scr->top_left.x + (board_x * cell_width);
+    int inv_y = scr->top_left.y + board_y;
+    for(int i = 0; i < cell_width; i++) {
+        termhax_set_pos(thv2(inv_x + i, inv_y));
+        termhax_print_color(" ", color);
+    }
+}
+
 int main(int argv, char** argc) {
 
     char* path = DEFAULT_PATH;
@@ -200,5 +259,27 @@ int main(int argv, char** argc) {
         "\n" );
     }
 
+    board_t board = (board_t) { 0 };
+    int cell_width = 2;
+    board_init(&board, 6, 8);
+    tscr_t scr = {
+        .size = thv2(board.dim[0] * cell_width, board.dim[1]),
+        .title = "BOARD",
+        .top_left = thv2(3, 3)
+    };
+    board_lookup_refresh(&board);
+    termhax_reserve_lines(board.dim[1]);
+    tscr_draw_background(&scr);
+    for(int y = 0; y < board.dim[1]; y++) {
+        for(int x = 0; x < board.dim[0]; x++) {
+            piece_t* piece = board_lookup(&board, x, y);
+            if( piece == NULL ) {
+                continue;
+            }
+            int color = COL_BG_MIN + (piece->type % COL_BG_COUNT);
+            tscr_draw_cell(&scr, x, y, cell_width, color);
+        }
+    }
+    termhax_set_pos(thv2(1, board.dim[1] + 5));
     return 0;
 }

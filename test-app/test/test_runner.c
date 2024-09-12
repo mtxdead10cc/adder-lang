@@ -1,9 +1,9 @@
-#include "gvm_test.h"
-#include "gvm_types.h"
-#include "gvm.h"
-#include "gvm_heap.h"
-#include "gvm_value.h"
-#include "gvm_memory.h"
+#include "test_runner.h"
+#include <gvm_types.h>
+#include <gvm.h>
+#include <gvm_heap.h>
+#include <gvm_value.h>
+#include <gvm_memory.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
