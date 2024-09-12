@@ -199,16 +199,18 @@ void tscr_draw_background(tscr_t* scr) {
     printf("min (%d, %d) max (%d,%d)\n", left, top, right, bottom);
 }
 
-void tscr_draw_cell(tscr_t* scr, int board_x, int board_y, int cell_width, int color) {
+void tscr_draw_cell(tscr_t* scr, int board_x, int board_y, int cell_width, char content, int color) {
     int inv_x = scr->top_left.x + (board_x * cell_width);
     int inv_y = scr->top_left.y + scr->size.y - board_y - 1;
+    char buf[2] = { 0 };
+    sprintf(buf, "%c", content);
     for(int i = 0; i < cell_width; i++) {
         termhax_set_pos(thv2(inv_x + i, inv_y));
-        termhax_print_color(" ", color);
+        termhax_print_color(buf, color);
     }
 }
 
-void draw_board(board_t* board) {
+void draw_board(board_t* board, int cursor_x, int cursor_y) {
     int cell_width = 2;
     tscr_t scr = {
         .size = thv2(board->dim[0] * cell_width, board->dim[1]),
@@ -216,7 +218,6 @@ void draw_board(board_t* board) {
         .top_left = thv2(3, 3)
     };
     board_lookup_refresh(board);
-    termhax_reserve_lines(board->dim[1]);
     tscr_draw_background(&scr);
     for(int y = 0; y < board->dim[1]; y++) {
         for(int x = 0; x < board->dim[0]; x++) {
@@ -225,11 +226,40 @@ void draw_board(board_t* board) {
                 continue;
             }
             int color = COL_BG_MIN + (piece->type % COL_BG_COUNT);
-            tscr_draw_cell(&scr, x, y, cell_width, color);
+            tscr_draw_cell(&scr, x, y, cell_width, ' ', color);
         }
     }
+    tscr_draw_cell(&scr, cursor_x, cursor_y, cell_width, '#', COL_FG_MAGENTA);
     termhax_set_pos(thv2(1, board->dim[1] + 5));
     termhax_flush();
+}
+
+typedef enum keypress_t {
+    KEY_UP,
+    KEY_DOWN,
+    KEY_LEFT,
+    KEY_RIGHT,
+    KEY_SELECT,
+    KEY_QUIT,
+    KEY_INCREASE_SIZE,
+    KEY_DECREASE_SIZE,
+    KEY_UNK
+} keypress_t;
+
+
+keypress_t read_key() {
+    int inchar = termhax_getch();
+    switch(termhax_to_upper(inchar)) {
+        case 'A':    return KEY_LEFT;
+        case 'W':    return KEY_UP;
+        case 'S':    return KEY_DOWN;
+        case 'D': return KEY_RIGHT;
+        case 'Q': return KEY_QUIT;
+        case '+': return KEY_INCREASE_SIZE;
+        case '-': return KEY_DECREASE_SIZE;
+        case ' ': return KEY_SELECT;
+        default: return KEY_UNK;
+    } 
 }
 
 int main(int argv, char** argc) {
@@ -282,16 +312,50 @@ int main(int argv, char** argc) {
         "\n" );
     }
 
+    termhax_reserve_lines(50);
+
     board_t board = (board_t) { 0 };
-
     board_init(&board, 6, 8);
-    draw_board(&board);
 
-    sleep(2);
+    bool quit = false;
+    int cursor_x = board.dim[0] / 2;
+    int cursor_y = board.dim[1] / 2;
 
-    board_set_size(&board, 12, 16);
-    draw_board(&board);
+    do {
 
-
+        draw_board(&board, cursor_x, cursor_y);
+        
+        switch(read_key()) {
+            case KEY_DOWN:
+                cursor_y = MAX(0, cursor_y-1);
+                break;
+            case KEY_UP:
+                cursor_y = MIN(board.dim[1], cursor_y+1);
+                break;
+            case KEY_LEFT:
+                cursor_x = MAX(0, cursor_x-1);
+                break;
+            case KEY_RIGHT:
+                cursor_x = MIN(board.dim[1], cursor_x+1);
+                break;
+            case KEY_SELECT:
+                break;
+            case KEY_INCREASE_SIZE:
+                board_set_size(&board, board.dim[0]+1, board.dim[1]+1);
+                break;
+            case KEY_DECREASE_SIZE:
+                board_set_size(&board, board.dim[0]-1, board.dim[1]-1);
+                break;
+            case KEY_UNK:
+                printf("unknown key\n");
+                break;
+            case KEY_QUIT:
+            default:
+                quit = true;
+                break;
+        }
+        
+    } while (quit == false);
+    
     return 0;
 }

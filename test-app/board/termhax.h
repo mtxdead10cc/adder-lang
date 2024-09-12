@@ -6,6 +6,9 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <termios.h>
+#include <unistd.h>
+
 #define MOVE_UP "\033[A"
 #define MOVE_DOWN "\033[X"
 #define ERASE_LINE "\33[2K"
@@ -15,6 +18,32 @@ typedef struct thv2_t {
     int x;
     int y;
 } thv2_t;
+
+
+
+int termhax_getch() { 
+    int ch;
+    struct termios oldattr, newattr;
+    tcgetattr(STDIN_FILENO, &oldattr);
+    newattr = oldattr;
+    newattr.c_lflag &= ~ICANON;
+    newattr.c_lflag &= ~ECHO;
+    newattr.c_cc[VMIN] = 1;
+    newattr.c_cc[VTIME] = 0;
+    tcsetattr(STDIN_FILENO, TCSANOW, &newattr);
+    ch = getchar();
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldattr);
+    return ch; 
+}
+
+int termhax_to_upper(int c) {
+    if( c >= 'a' && c <= 'z' ) {
+        int offs = c - 'a';
+        return 'A' + offs;
+    } else {
+        return c;
+    }
+}
 
 inline static thv2_t thv2(int x, int y) {
     return (thv2_t) {
