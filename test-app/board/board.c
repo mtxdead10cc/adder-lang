@@ -4,6 +4,10 @@
 #include <string.h>
 #include <stdio.h>
 
+void board_set_dirty(board_t* board) {
+    board->mod_cntr ++;
+}
+
 void board_init(board_t* board, int ncols, int nrows) {
     board->dim[0] = ncols;
     board->dim[1] = nrows;
@@ -21,6 +25,8 @@ void board_init(board_t* board, int ncols, int nrows) {
             .type = (i / BOARD_MAX_ROWS) + 1
         };
     }
+    board_set_dirty(board);
+    board_lookup_refresh(board);
 }
 
 bool board_is_piece_in_play(piece_t* piece) {
@@ -50,6 +56,9 @@ piece_t* board_lookup(board_t* board, int x, int y) {
 }
 
 void board_lookup_refresh(board_t* board) {
+    if( board->lookup.mod_cntr == board->mod_cntr ) {
+        return;
+    }
     // clear LUT
     for(int i = 0; i < BOARD_MAX_PIECES; i++) {
         board->lookup.index[i] = -1;
@@ -65,6 +74,7 @@ void board_lookup_refresh(board_t* board) {
         assert(board->lookup.index[(y*board->dim[0]) + x] == -1);
         board->lookup.index[(y*board->dim[0]) + x] = i;
     }
+    board->lookup.mod_cntr = board->mod_cntr;
 }
 
 #define _MIN(A,B) ((A) < (B) ? (A) : (B))
@@ -82,6 +92,7 @@ void board_set_size(board_t* board, int ncols, int nrows) {
     }
     board->dim[0] = ncols;
     board->dim[1] = nrows;
+    board_set_dirty(board);
     board_lookup_refresh(board);
 }
 
@@ -124,6 +135,7 @@ void query_check(board_t* board, piece_t* initial, int x, int y, query_filter_t 
 }
 
 int board_query(board_t* board, int x, int y, query_filter_t filter, query_result_t* result) {
+    board_lookup_refresh(board);
     piece_t* initial = board_lookup(board, x, y);
     if( initial == NULL ) {
         return 0;

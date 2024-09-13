@@ -41,8 +41,10 @@
 // 5. spawn new elements
 // 6. animate movement
 //
-// TODO
-// [ ] Implement board / grid
+
+
+
+
 
 #define DEFAULT_PATH "scripts"
 
@@ -55,7 +57,7 @@ bool filter(piece_t* initial, piece_t* current) {
 
 int main(int argv, char** argc) {
 
-    char* path = DEFAULT_PATH;
+    //char* path = DEFAULT_PATH;
     bool print_help = false;
     
     for(int i = 0; i < argv; i++) {
@@ -89,8 +91,6 @@ int main(int argv, char** argc) {
         int ncols = board.dim[0];
         int nrows = board.dim[1];
 
-        board_lookup_refresh(&board);
-
         tgfx_begin_draw(&screen);
 
             for (int y = 0; y < nrows; y++) {
@@ -108,10 +108,15 @@ int main(int argv, char** argc) {
             
         tgfx_end_draw(&screen);
 
+        // status line 0
         tgfx_clear_status_line(&screen, 0);
+        printf("  ");
         printf("screen-size=(%d, %d) ", screen.size.x, screen.size.y);
         printf("board-pos=(%d, %d) ", cursor_x, nrows-cursor_y-1);
         
+        // status line 1
+        printf("\n  ");
+
         switch(kb_read()) {
             case KEY_S:
             case KEY_ARROW_DOWN:
@@ -132,7 +137,7 @@ int main(int argv, char** argc) {
             case KEY_SPACE: {
                 board_query(&board, cursor_x, nrows-cursor_y-1, filter, &qres);
                 tgfx_clear_status_line(&screen, 1);
-                printf("\ncount: %i | ", qres.match_count);
+                printf("count: %i | ", qres.match_count);
                 for (int i = 0; i < qres.match_count; i++) {
                     int index = qres.matches[i];
                     int x = index % board.dim[0];
@@ -156,6 +161,7 @@ int main(int argv, char** argc) {
                 quit = true;
                 break;
         }
+
         
     } while (quit == false);
 
