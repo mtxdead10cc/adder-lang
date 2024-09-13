@@ -1,0 +1,7 @@
+jump start      # <- entry point
+
+start:
+    push "type #1\n"
+    print
+    push 0
+    return

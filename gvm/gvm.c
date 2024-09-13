@@ -16,6 +16,8 @@
 #include <math.h>
 #include <assert.h>
 #include <limits.h>
+#include <dlfcn.h>
+#include <unistd.h>
 
 #if GVM_TRACE_LOG_LEVEL > 0
 
@@ -486,4 +488,41 @@ void gvm_code_disassemble(gvm_byte_code_t* code_obj) {
 
 void gvm_code_destroy(gvm_byte_code_t* code_obj) {
     asm_destroy_code_object(code_obj);
+}
+
+gvm_byte_code_t gvm_read_and_compile(char* path) {
+
+    FILE* f = fopen(path, "r");
+    
+    if( f == NULL ) {
+        printf("error: %s not found.\n", path);
+        return (gvm_byte_code_t) { 0 };
+    }
+
+    char *asm_code = malloc(1);
+    int retry_counter = 100; 
+    while( retry_counter > 0 ) {
+        fseek(f, 0, SEEK_END);
+        long fsize = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        asm_code = realloc(asm_code, fsize + 1);
+        if( fread(asm_code, fsize, 1, f) > 0 ) {
+            retry_counter = -10;
+            asm_code[fsize] = '\0';
+        } else {
+            usleep(100000);
+            retry_counter --;
+        }
+    }
+
+    fclose(f);
+
+    if( retry_counter == 0 ) {
+        printf("error: failed to read file: %s\n", path);
+    }
+
+    gvm_byte_code_t obj = gvm_code_compile(asm_code);
+    free(asm_code);
+
+    return obj;
 }

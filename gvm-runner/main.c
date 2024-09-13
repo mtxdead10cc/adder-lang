@@ -24,41 +24,6 @@ time_t get_creation_time(char *path) {
 
 #define DEFAULT_PATH "resources/test.gvm"
 
-gvm_byte_code_t read_and_compile(char* path) {
-    FILE* f = fopen(path, "r");
-    if( f == NULL ) {
-        printf("%s not found.\n", path);
-        return (gvm_byte_code_t) { 0 };
-    }
-
-    char *asm_code = malloc(1);
-    int retry_counter = 100; 
-    while( retry_counter > 0 ) {
-        fseek(f, 0, SEEK_END);
-        long fsize = ftell(f);
-        fseek(f, 0, SEEK_SET);
-        asm_code = realloc(asm_code, fsize + 1);
-        if( fread(asm_code, fsize, 1, f) > 0 ) {
-            retry_counter = -10;
-            asm_code[fsize] = '\0';
-        } else {
-            usleep(100000);
-            retry_counter --;
-        }
-    }
-
-    fclose(f);
-
-    if( retry_counter == 0 ) {
-        printf("failed to read file.\n");
-    }
-
-    gvm_byte_code_t obj = gvm_code_compile(asm_code);
-    free(asm_code);
-
-    return obj;
-}
-
 val_t test(gvm_t* vm, val_t* args) {
     int a = val_into_number(args[0]);
     int b = val_into_number(args[1]);
@@ -86,7 +51,7 @@ bool run(char* path, bool verbose, bool keep_alive) {
         }
 
         last_creation_time = creation_time;
-        gvm_byte_code_t obj = read_and_compile(path);
+        gvm_byte_code_t obj = gvm_read_and_compile(path);
         compile_ok = obj.size > 0;
         printf("%s [%s]\n\n", path, compile_ok ? "OK" : "FAILED");
         

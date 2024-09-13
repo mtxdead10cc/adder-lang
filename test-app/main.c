@@ -49,24 +49,44 @@ bool filter(piece_t* initial, piece_t* current) {
     return false;
 }
 
-#define NUM_PIECE_TYPES 5
+#define MAKE_PATH(F) ("../test-app/scripts/" F)
+
+void destroy_scripts(gvm_byte_code_t* byte_code_array, int count) {
+    for(int i = 0; i < count; i++) {
+        gvm_code_destroy(&byte_code_array[i]);
+    }
+}
+
+int compile_scripts(char** path_array, gvm_byte_code_t* byte_code_array, int count) {
+    int err_count = 0;
+    destroy_scripts(byte_code_array, count);
+    for(int i = 0; i < count; i++) {
+        byte_code_array[i] = gvm_read_and_compile(path_array[i]);
+        if( byte_code_array[i].size == 0 ) {
+            printf("failed to compile '%s'\n", path_array[i]);
+            err_count ++;
+        }
+    }
+    return err_count;
+}
 
 int main(int argv, char** argc) {
 
+    char* script_paths[] = {
+        MAKE_PATH("type_1.gvm")
+    };
+    int script_count = sizeof(script_paths) / sizeof(script_paths[0]);
+    gvm_byte_code_t byte_code[script_count];
+    memset(byte_code, 0, sizeof(gvm_byte_code_t) * script_count);
+
+    compile_scripts(script_paths, byte_code, script_count);
+    
     gvm_t vm = (gvm_t) { 0 };
     gvm_create(&vm, 500, 500);
 
-    char* program = "jump start\n"
-        "start:\n"
-        "   push \"HELLO!\\n\"\n"
-        "   print\n"
-        "   exit 1\n";
+    gvm_execute(&vm, &byte_code[0], 500);
 
-    gvm_byte_code_t bc = gvm_code_compile(program);
-    gvm_execute(&vm, &bc, 500);
-    gvm_execute(&vm, &bc, 500);
-    gvm_execute(&vm, &bc, 500);
-    gvm_code_destroy(&bc);
+    destroy_scripts(byte_code, script_count);
 
     bool print_help = false;
     bool run_game = false;
