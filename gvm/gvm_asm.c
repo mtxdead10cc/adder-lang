@@ -490,11 +490,11 @@ void u8buffer_write_i16(u8buffer_t* buffer, int16_t val) {
 *     valbuffer_t. The constant is referred to by its index (in
 *     the val_buffer) in the byte code that is generated.
 */
-byte_code_block_t asm_assemble_code_object(char* code_buffer) {
+gvm_byte_code_t asm_assemble_code_object(char* code_buffer) {
     
     parser_t* parser = parser_create(code_buffer);
     if( parser == NULL ) {
-        return (byte_code_block_t) { 0 };
+        return (gvm_byte_code_t) { 0 };
     }
 
     gvm_result_t result_code = RES_OK;
@@ -621,7 +621,7 @@ byte_code_block_t asm_assemble_code_object(char* code_buffer) {
     printf("END CONSTANTS\n");
 #endif
 
-    byte_code_block_t obj = { 0 };
+    gvm_byte_code_t obj = { 0 };
     int byte_count_consts = sizeof(val_t) * const_store.size;
     int byte_count_code = code_section.size;
     int byte_count_header = 4;
@@ -655,7 +655,7 @@ on_error:
     valbuffer_destroy(&const_store);
     parser_destroy(parser);
     gvm_print_if_error(result_code, "asm_assemble");
-    return (byte_code_block_t) { 0 };
+    return (gvm_byte_code_t) { 0 };
 }
 
 int get_disasm_scheme_index(gvm_op_t op) {
@@ -668,7 +668,7 @@ int get_disasm_scheme_index(gvm_op_t op) {
     return -1;
 }
 
-void asm_debug_disassemble_code_object(byte_code_block_t* code_object) {
+void asm_debug_disassemble_code_object(gvm_byte_code_t* code_object) {
     int current_byte = 0;
     int current_instruction = 0;
     byte_code_header_t h = asm_read_byte_code_header(code_object);
@@ -702,7 +702,7 @@ void asm_debug_disassemble_code_object(byte_code_block_t* code_object) {
     }
 }
 
-void asm_destroy_code_object(byte_code_block_t* code_object) {
+void asm_destroy_code_object(gvm_byte_code_t* code_object) {
     if( code_object == NULL ) {
         return;
     }
@@ -713,7 +713,7 @@ void asm_destroy_code_object(byte_code_block_t* code_object) {
     }
 }
 
-byte_code_header_t asm_read_byte_code_header(byte_code_block_t* code_obj) {
+byte_code_header_t asm_read_byte_code_header(gvm_byte_code_t* code_obj) {
     if( code_obj->size < 4 ) {
         return ( byte_code_header_t ) { 0 };
     }

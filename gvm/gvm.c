@@ -150,28 +150,28 @@ void gvm_destroy(gvm_t* vm) {
     memset(vm, 0, sizeof(gvm_t));
 }
 
-val_t* codeblk_get_constants_ptr(byte_code_block_t* code_obj) {
+val_t* codeblk_get_constants_ptr(gvm_byte_code_t* code_obj) {
     byte_code_header_t h = asm_read_byte_code_header(code_obj);
     return (val_t*) (code_obj->data + h.header_size);
 }
 
-int codeblk_get_constants_count(byte_code_block_t* code_obj) {
+int codeblk_get_constants_count(gvm_byte_code_t* code_obj) {
     byte_code_header_t h = asm_read_byte_code_header(code_obj);
     return h.const_bytes / sizeof(val_t);
 }
 
-uint8_t* codeblk_get_instructions_ptr(byte_code_block_t* code_obj) {
+uint8_t* codeblk_get_instructions_ptr(gvm_byte_code_t* code_obj) {
     byte_code_header_t h = asm_read_byte_code_header(code_obj);
     return (code_obj->data + h.header_size + h.const_bytes);
 }
 
-int codeblk_get_instructions_count(byte_code_block_t* code_obj) {
+int codeblk_get_instructions_count(gvm_byte_code_t* code_obj) {
     byte_code_header_t h = asm_read_byte_code_header(code_obj);
     return h.code_bytes / sizeof(val_t);
 }
 
 
-val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
+val_t gvm_execute(gvm_t* vm, gvm_byte_code_t* code_obj, int max_cycles) {
 
     assert(sizeof(float) == 4);
     
@@ -476,14 +476,14 @@ val_t gvm_execute(gvm_t* vm, byte_code_block_t* code_obj, int max_cycles) {
     return val_number(-1004);
 }
 
-byte_code_block_t gvm_code_compile(char* program) {
+gvm_byte_code_t gvm_code_compile(char* program) {
     return asm_assemble_code_object(program);
 }
 
-void gvm_code_disassemble(byte_code_block_t* code_obj) {
+void gvm_code_disassemble(gvm_byte_code_t* code_obj) {
     asm_debug_disassemble_code_object(code_obj);
 }
 
-void gvm_code_destroy(byte_code_block_t* code_obj) {
+void gvm_code_destroy(gvm_byte_code_t* code_obj) {
     asm_destroy_code_object(code_obj);
 }

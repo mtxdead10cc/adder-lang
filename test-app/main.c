@@ -42,12 +42,6 @@
 // 6. animate movement
 //
 
-
-
-
-
-#define DEFAULT_PATH "scripts"
-
 bool filter(piece_t* initial, piece_t* current) {
     if( initial->type == current->type ) {
         return true;
@@ -55,20 +49,43 @@ bool filter(piece_t* initial, piece_t* current) {
     return false;
 }
 
+#define NUM_PIECE_TYPES 5
+
 int main(int argv, char** argc) {
 
-    //char* path = DEFAULT_PATH;
+    gvm_t vm = (gvm_t) { 0 };
+    gvm_create(&vm, 500, 500);
+
+    char* program = "jump start\n"
+        "start:\n"
+        "   push \"HELLO!\\n\"\n"
+        "   print\n"
+        "   exit 1\n";
+
+    gvm_byte_code_t bc = gvm_code_compile(program);
+    gvm_execute(&vm, &bc, 500);
+    gvm_execute(&vm, &bc, 500);
+    gvm_execute(&vm, &bc, 500);
+    gvm_code_destroy(&bc);
+
     bool print_help = false;
+    bool run_game = false;
     
     for(int i = 0; i < argv; i++) {
         print_help  |= strncmp(argc[i], "-h", 2) == 0;
+        run_game    |= strncmp(argc[i], "-r", 2) == 0;
     }
 
     if( print_help ) {
         printf( "usage: test-app"
         "\n\toptions:"
         "\n\t\t -h : show this help message"
+        "\n\t\t -r : run game in the terminal"
         "\n" );
+        return 0;
+    }
+
+    if( run_game == false ) {
         return 0;
     }
 

@@ -122,7 +122,7 @@ inline static bool validation_check_stack(gvm_t* vm, char* context) {
         validation->message[256] = '\0';
         return false;
     }
-    if( vm->mem.stack.top < 0 ) {
+    if( vm->mem.stack.top < -1 ) {
         snprintf(validation->message, 256,
                 "'%s' stack underflow.\n",
                 context);

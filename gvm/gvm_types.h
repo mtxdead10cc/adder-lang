@@ -148,10 +148,10 @@ typedef struct valbuffer_t {
     val_t* values;
 } valbuffer_t;
 
-typedef struct byte_code_block_t {
+typedef struct gvm_byte_code_t {
     int size;
     uint8_t* data;
-} byte_code_block_t;
+} gvm_byte_code_t;
 
 typedef struct byte_code_header_t {
     uint16_t header_size;
