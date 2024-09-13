@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
+#include "termhax.h"
 
 typedef struct test_case_t test_case_t;
 
@@ -138,11 +139,16 @@ test_results_t run_testcases() {
     int test_case_count = sizeof(test_cases) / sizeof(test_cases[0]);
     for(int i = 0; i < test_case_count; i++) {
         test_cases[i].test(&test_cases[i]);
+        printf("  test case '%s' ", test_cases[i].name);
         if( test_cases[i].nfailed != 0 ) {
-            printf("  test case '%s' [FAILED]\n", test_cases[i].name);
+            printf("[");
+            termhax_print_color("FAILED", COL_FG_RED);
+            printf("]\n");
             result.nfailed ++;
         } else {
-            printf("  test case '%s' [PASSED]\n", test_cases[i].name);
+            printf("[");
+            termhax_print_color("PASSED", COL_FG_GREEN);
+            printf("]\n");
             result.npassed ++;
         }
     }

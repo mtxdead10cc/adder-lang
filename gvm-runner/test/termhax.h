@@ -64,20 +64,8 @@ inline static void termhax_clear_screen() {
     printf("\033[2J");
 }
 
-inline static void termhax_clear_screen_above_cursor(int line) {
-    printf("\033[%d;1H", line);
-    printf("\033[1J");
-}
-
-inline static void termhax_clear_line(int line) {
-    printf("\0337"); // save cursor
-    printf("\033[%d;0H", line);
-    printf("\033[K");
-    printf("\0338"); // restore cursor
-}
-
 inline static void termhax_set_pos(thv2_t v) {
-    //assert(v.y > 0 && v.x > 0); // minimum value is 1
+    assert(v.y > 0 && v.x > 0); // minimum value is 1
     printf("\033[%d;%dH", v.y, v.x);
 }
 

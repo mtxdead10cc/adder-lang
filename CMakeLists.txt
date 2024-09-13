@@ -13,4 +13,5 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -march=native -funroll-loops -ftree-vectorize")
 
 add_subdirectory(gvm)
+add_subdirectory(gvm-runner)
 add_subdirectory(test-app)

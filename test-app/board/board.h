@@ -27,10 +27,20 @@ typedef struct board_t {
     lut_t lookup;
 } board_t;
 
+typedef struct query_result_t {
+    int match_count;
+    int matches[BOARD_MAX_PIECES];
+    int visited_count;
+    int visited[BOARD_MAX_PIECES];
+} query_result_t;
+
+typedef bool (*query_filter_t)(piece_t* initial, piece_t* test);
+
 void  board_init(board_t* board, int ncols, int nrows);
 bool  board_is_piece_in_play(piece_t* piece);
 void  board_lookup_refresh(board_t* board);
 piece_t* board_lookup(board_t* board, int x, int y);
 void  board_set_size(board_t* board, int ncols, int nrows);
+int board_query(board_t* board, int x, int y, query_filter_t filter, query_result_t* result);
 
 #endif // BOARD_H_
