@@ -16,7 +16,8 @@
 #include <gvm_memory.h>
 #include "test/test_runner.h"
 #include "board/board.h"
-#include "board/termhax.h"
+#include "utils/termhax.h"
+#include "utils/keyboard.h"
 
 time_t get_creation_time(char *path) {
     struct stat attr;
@@ -234,34 +235,6 @@ void draw_board(board_t* board, int cursor_x, int cursor_y) {
     termhax_flush();
 }
 
-typedef enum keypress_t {
-    KEY_UP,
-    KEY_DOWN,
-    KEY_LEFT,
-    KEY_RIGHT,
-    KEY_SELECT,
-    KEY_QUIT,
-    KEY_INCREASE_SIZE,
-    KEY_DECREASE_SIZE,
-    KEY_UNK
-} keypress_t;
-
-
-keypress_t read_key() {
-    int inchar = termhax_getch();
-    switch(termhax_to_upper(inchar)) {
-        case 'A':    return KEY_LEFT;
-        case 'W':    return KEY_UP;
-        case 'S':    return KEY_DOWN;
-        case 'D': return KEY_RIGHT;
-        case 'Q': return KEY_QUIT;
-        case '+': return KEY_INCREASE_SIZE;
-        case '-': return KEY_DECREASE_SIZE;
-        case ' ': return KEY_SELECT;
-        default: return KEY_UNK;
-    } 
-}
-
 int main(int argv, char** argc) {
 
     char* path = DEFAULT_PATH;
@@ -325,31 +298,35 @@ int main(int argv, char** argc) {
 
         draw_board(&board, cursor_x, cursor_y);
         
-        switch(read_key()) {
-            case KEY_DOWN:
+        switch(kb_read()) {
+            case KEY_S:
+            case KEY_ARROW_DOWN:
                 cursor_y = MAX(0, cursor_y-1);
                 break;
-            case KEY_UP:
+            case KEY_ARROW_UP:
+            case KEY_W:
                 cursor_y = MIN(board.dim[1], cursor_y+1);
                 break;
-            case KEY_LEFT:
+            case KEY_A:
+            case KEY_ARROW_LEFT:
                 cursor_x = MAX(0, cursor_x-1);
                 break;
-            case KEY_RIGHT:
+            case KEY_D:
+            case KEY_ARROW_RIGHT:
                 cursor_x = MIN(board.dim[1], cursor_x+1);
                 break;
-            case KEY_SELECT:
+            case KEY_SPACE:
                 break;
-            case KEY_INCREASE_SIZE:
+            case KEY_PLUS:
                 board_set_size(&board, board.dim[0]+1, board.dim[1]+1);
                 break;
-            case KEY_DECREASE_SIZE:
+            case KEY_MINUS:
                 board_set_size(&board, board.dim[0]-1, board.dim[1]-1);
                 break;
             case KEY_UNK:
                 printf("unknown key\n");
                 break;
-            case KEY_QUIT:
+            case KEY_Q:
             default:
                 quit = true;
                 break;

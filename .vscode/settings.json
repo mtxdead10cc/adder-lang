@@ -24,6 +24,8 @@
         "limits.h": "c",
         "stdio.h": "c",
         "gvm_types.h": "c",
-        "math.h": "c"
+        "math.h": "c",
+        "termbits.h": "c",
+        "unistd.h": "c"
     }
 }
