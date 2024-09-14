@@ -7,11 +7,13 @@
 
 
 bool u8buffer_create(u8buffer_t* ub, int capacity);
+void u8buffer_clear(u8buffer_t* ub);
 bool u8buffer_write(u8buffer_t* ub, uint8_t wbyte);
 bool u8buffer_write_multiple(u8buffer_t* ub, int count, ...);
 void u8buffer_destroy(u8buffer_t* ub);
 
 bool valbuffer_create(valbuffer_t* buffer, int capacity);
+void valbuffer_clear(valbuffer_t* buffer);
 bool valbuffer_add(valbuffer_t* buffer, val_t value);
 void valbuffer_destroy(valbuffer_t* buffer);
 

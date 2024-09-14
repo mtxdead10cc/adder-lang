@@ -130,6 +130,13 @@ void test_vm(test_case_t* this) {
 
     gvm_t vm;
 
+    gvm_program_t program = { 0 };
+
+    gvm_exec_args_t args = {
+        .args = { 0 },
+        .cycle_limit = 10
+    };
+
     TEST_ASSERT_MSG(this,
         gvm_create(&vm, 16, 16),
         "#1.0 failed to create VM.");
@@ -144,6 +151,10 @@ void test_vm(test_case_t* this) {
         valbuffer_create(&const_buf, 1),
         "#1.2 failed to create const buffer");
 
+    // TEST simple program: 100 - 3
+
+    // PROGRAM -- BEGIN
+
     TEST_ASSERT_MSG(this,
         0 == au_consts_add_number(&const_buf, 100),
         "2.1 unexpected index.");
@@ -157,16 +168,12 @@ void test_vm(test_case_t* this) {
     au_write_instr(&instr_buf, OP_SUB);
     au_write_instr(&instr_buf, OP_RETURN);
 
-    gvm_program_t program = { 0 };
+    // PROGRAM -- END
+
     program.cons.buffer = const_buf.values;
     program.cons.count = const_buf.size;
     program.inst.size = instr_buf.size;
     program.inst.buffer = instr_buf.data;
-
-    gvm_exec_args_t args = {
-        .args = { 0 },
-        .cycle_limit = 10
-    };
 
     val_t ret = gvm_execute(&vm, &program, &args);
 
@@ -177,6 +184,42 @@ void test_vm(test_case_t* this) {
     TEST_ASSERT_MSG(this,
         val_into_number(ret) == 97.0f,
         "#3.2 unexpected return value.");
+
+    // TEST simple program: 100 + VM ARG
+
+    valbuffer_clear(&const_buf);
+    u8buffer_clear(&instr_buf);
+
+    // PROGRAM -- BEGIN
+
+    TEST_ASSERT_MSG(this,
+        0 == au_consts_add_number(&const_buf, 100),
+        "2.1 unexpected index.");
+
+    au_write_instr(&instr_buf, OP_PUSH_VALUE, 0);
+    au_write_instr(&instr_buf, OP_ADD);
+    au_write_instr(&instr_buf, OP_RETURN);
+
+    // PROGRAM -- END
+
+    val_t num = val_number(10);
+    args.args.buffer = &num;
+    args.args.count = 1;
+
+    program.cons.buffer = const_buf.values;
+    program.cons.count = const_buf.size;
+    program.inst.size = instr_buf.size;
+    program.inst.buffer = instr_buf.data;
+
+    ret = gvm_execute(&vm, &program, &args);
+
+    TEST_ASSERT_MSG(this,
+        VAL_GET_TYPE(ret) == VAL_NUMBER,
+        "#4.1 unexpected return type.");
+
+    TEST_ASSERT_MSG(this,
+        val_into_number(ret) == 110.0f,
+        "#4.2 unexpected return value.");
 
     gvm_destroy(&vm);
     u8buffer_destroy(&instr_buf);

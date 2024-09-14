@@ -19,6 +19,10 @@ bool u8buffer_create(u8buffer_t* ub, int capacity) {
     return true;
 }
 
+void u8buffer_clear(u8buffer_t* ub) {
+    ub->size = 0;
+}
+
 bool u8buffer_ensure_capacity(u8buffer_t* ub, int additional) {
     int size = ub->size + additional;
     if( size >= ub->capacity ) {
@@ -74,6 +78,10 @@ bool valbuffer_create(valbuffer_t* buffer, int capacity) {
     buffer->values = values;
     buffer->size = 0;
     return true;
+}
+
+void valbuffer_clear(valbuffer_t* buffer) {
+    buffer->size = 0;
 }
 
 bool valbuffer_add(valbuffer_t* buffer, val_t value) {
