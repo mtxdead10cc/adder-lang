@@ -26,7 +26,9 @@
         "gvm_types.h": "c",
         "math.h": "c",
         "termbits.h": "c",
-        "unistd.h": "c"
+        "unistd.h": "c",
+        "varargs.h": "c",
+        "gvm_asm.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

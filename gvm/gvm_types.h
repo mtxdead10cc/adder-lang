@@ -101,7 +101,6 @@ typedef enum gvm_op_t {
     OP_HALT = 0x00,
     OP_AND,
     OP_OR,
-    OP_NOR,
     OP_NOT,
     OP_MUL,
     OP_ADD,
@@ -148,16 +147,24 @@ typedef struct valbuffer_t {
     val_t* values;
 } valbuffer_t;
 
-typedef struct gvm_byte_code_t {
-    int size;
-    uint8_t* data;
-} gvm_byte_code_t;
+typedef struct gvm_program_t {
+    struct {
+        int         size;   // size in bytes
+        uint8_t*    buffer; // instructions
+    } inst;
+    struct {
+        int         count;  // number of constants (values)
+        val_t*      buffer; // values
+    } cons;
+} gvm_program_t;
 
-typedef struct byte_code_header_t {
-    uint16_t header_size;
-    uint16_t const_bytes;
-    uint16_t code_bytes;
-} byte_code_header_t;
+typedef struct gvm_exec_args_t {
+    struct {
+        int     count; 
+        val_t*  buffer;
+    } args;
+    int     cycle_limit;
+} gvm_exec_args_t;
 
 typedef struct gvm_stack_t {
     val_t* values;  // pointer to the stack

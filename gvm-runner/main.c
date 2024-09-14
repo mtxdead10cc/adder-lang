@@ -51,14 +51,14 @@ bool run(char* path, bool verbose, bool keep_alive) {
         }
 
         last_creation_time = creation_time;
-        gvm_byte_code_t obj = gvm_read_and_compile(path);
-        compile_ok = obj.size > 0;
+        gvm_program_t program = gvm_program_read_and_compile(path);
+        compile_ok = program.inst.size > 0;
         printf("%s [%s]\n\n", path, compile_ok ? "OK" : "FAILED");
         
         if( compile_ok ) {
 
             if( verbose ) {
-                gvm_code_disassemble(&obj);
+                gvm_program_disassemble(&program);
             }
 
             gvm_t vm = { 0 };
@@ -68,13 +68,15 @@ bool run(char* path, bool verbose, bool keep_alive) {
             gvm_native_func(&vm, "test", 2, &test);
 
             // execute script
-            val_t result = gvm_execute(&vm, &obj, 500);
+            gvm_exec_args_t args = { 0 };
+            args.cycle_limit = 500;
+            val_t result = gvm_execute(&vm, &program, &args);
 
             printf("\n> ");
             gvm_print_val(&vm, result);
             printf("\n");
 
-            gvm_code_destroy(&obj);
+            gvm_program_destroy(&program);
             gvm_destroy(&vm);
         }
 

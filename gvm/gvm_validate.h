@@ -5,6 +5,7 @@
 #include "gvm_config.h"
 #include "gvm_value.h"
 #include "gvm_asm.h"
+#include "gvm_asmutils.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -12,45 +13,6 @@
 #include <math.h>
 #include <assert.h>
 #include <limits.h>
-
-inline static char* gvm_get_op_name(gvm_op_t opcode) {
-    switch(opcode) {
-        case OP_HALT:               return "OP_HALT";
-        case OP_AND:                return "OP_AND";
-        case OP_OR:                 return "OP_OR";
-        case OP_NOR:                return "OP_NOR";
-        case OP_NOT:                return "OP_NOT";
-        case OP_MUL:                return "OP_MUL";
-        case OP_ADD:                return "OP_ADD";
-        case OP_SUB:                return "OP_SUB";
-        case OP_NEG:                return "OP_NEG";
-        case OP_DUP_1:              return "OP_DUP_1";
-        case OP_DUP_2:              return "OP_DUP_2";
-        case OP_ROT_2:              return "OP_ROT_2";
-        case OP_CMP_EQUAL:          return "OP_CMP_EQUAL";
-        case OP_CMP_LESS_THAN:      return "OP_CMP_LESS_THAN";
-        case OP_CMP_MORE_THAN:      return "OP_CMP_MORE_THAN";
-        case OP_PUSH_VALUE:         return "OP_PUSH_VALUE";
-        case OP_POP_1:              return "OP_POP_1";
-        case OP_POP_2:              return "OP_POP_2";
-        case OP_JUMP:               return "OP_JUMP";
-        case OP_JUMP_IF_FALSE:      return "OP_JUMP_IF_FALSE";
-        case OP_EXIT:               return "OP_EXIT";
-        case OP_CALL:               return "OP_CALL";
-        case OP_MAKE_FRAME:         return "OP_MAKE_FRAME";
-        case OP_RETURN:             return "OP_RETURN";
-        case OP_STORE_GLOBAL:       return "OP_STORE_GLOBAL";
-        case OP_LOAD_GLOBAL:        return "OP_LOAD_GLOBAL";
-        case OP_STORE_LOCAL:        return "OP_STORE_LOCAL";
-        case OP_LOAD_LOCAL:         return "OP_LOAD_LOCAL";
-        case OP_PRINT:              return "OP_PRINT";
-        case OP_MAKE_ARRAY:         return "OP_MAKE_ARRAY";
-        case OP_ARRAY_LENGTH:       return "OP_ARRAY_LENGTH";
-        case OP_MAKE_ITER:          return "OP_MAKE_ITER";
-        case OP_ITER_NEXT:          return "OP_ITER_NEXT";
-        default:                    return "<OP-UNKNOWN>";
-    }
-}
 
 #if GVM_RUNTIME_VALIDATION > 0
 
@@ -134,7 +96,7 @@ inline static bool validation_check_stack(gvm_t* vm, char* context) {
 
 inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
     validation_t* validation = ((validation_t*)vm->validation);
-    char* op_name = gvm_get_op_name(opcode);
+    char* op_name = au_get_op_name(opcode);
     bool no_error = true;
     if( validation->last_opcode == OP_CALL && opcode != OP_MAKE_FRAME ) {
         snprintf(validation->message, 256,
@@ -217,7 +179,7 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
 }
 
 inline static bool validation_post_exec(gvm_t* vm, gvm_op_t opcode) {
-    char* op_name = gvm_get_op_name(opcode);
+    char* op_name = au_get_op_name(opcode);
     validation_t* validation = ((validation_t*)vm->validation);
     bool no_error = true;
     switch (opcode) {

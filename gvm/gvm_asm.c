@@ -5,6 +5,7 @@
 #include "gvm_utils.h"
 #include "gvm_memory.h"
 #include "gvm_config.h"
+#include "gvm_asmutils.h"
 #include <string.h>
 #include <assert.h>
 
@@ -50,7 +51,6 @@ static op_scheme_t schemes[] = {
     {"exit",            OP_EXIT,            ARGSPEC1(TT_NUMBER),             0x00,              0x00,                0x00 },
     {"and",             OP_AND,             ARGSPEC1(0),                     0x00,              0x00,                0x00 },
     {"or",              OP_OR,              ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"nor",             OP_NOR,             ARGSPEC1(0),                     0x00,              0x00,                0x00 },
     {"mul",             OP_MUL,             ARGSPEC1(0),                     0x00,              0x00,                0x00 },
     {"add",             OP_ADD,             ARGSPEC1(0),                     0x00,              0x00,                0x00 },
     {"sub",             OP_SUB,             ARGSPEC1(0),                     0x00,              0x00,                0x00 },
@@ -127,156 +127,6 @@ int scheme_match(parser_t* p) {
     return -1;
 }
 
-int consts_add_number(valbuffer_t* consts, float value) {
-    int existing = valbuffer_find_float(consts, value);
-    if( existing >= 0 ) {
-        return existing;
-    }
-
-    if( valbuffer_add(consts, val_number(value)) == false ) {
-        printf("error: consts_add_number\n");
-        return consts->size;
-    }
-    return consts->size - 1;
-}
-
-int consts_add_bool(valbuffer_t* consts, bool value) {
-    int existing = valbuffer_find_bool(consts, value);
-    if( existing >= 0 ) {
-        return existing;
-    }
-    if(valbuffer_add(consts, val_bool(value)) == false) {
-        printf("error: consts_add_bool\n");
-        return consts->size;
-    }
-    return consts->size - 1;
-}
-
-int consts_add_char(valbuffer_t* consts, char value, bool force_contiguous) {
-    if( force_contiguous == false ) {
-        int existing = valbuffer_find_char(consts, value);
-        if( existing >= 0 ) {
-            return existing;
-        }
-    }
-    if(valbuffer_add(consts, val_char(value)) == false) {
-        printf("error: consts_add_char\n");
-        return consts->size;
-    }
-    return consts->size - 1;
-}
-
-int consts_add_string(valbuffer_t* consts, char* text) {
-
-    if( text[0] != '"' ) {
-        printf("error: expected \" at start of string.\n");
-    }
-
-    text = text + 1;
-
-    int in_len = string_count_until(text, '\"');
-    
-    // UN-ESCAPE input string
-    // need this step (with malloc) to unescape '\n' etc.
-    char* tmp_buffer = malloc((in_len + 1) * sizeof(char));
-    int r_count = 0;
-    int w_count = 0;
-    while( r_count < in_len ) {
-        if( text[r_count] == '\\' && (r_count + 1) < in_len ) {
-            char next = text[r_count + 1];
-            switch (next) {
-                case 'n':
-                    r_count += 2;
-                    tmp_buffer[w_count++] = '\n';
-                    continue; // continue next while-iteration
-                case 't':
-                    r_count += 2;
-                    tmp_buffer[w_count++] = '\t';
-                    continue; // continue next while-iteration
-                case '\\':
-                    r_count += 2;
-                    tmp_buffer[w_count++] = '\\';
-                    continue; // continue next while-iteration
-                default:
-                    printf("unhandled escaped character '\\%c'", next);
-                    break;
-            }
-        }
-        tmp_buffer[w_count++] = text[r_count++];
-    }
-    tmp_buffer[w_count] = '\0';
-    
-    int existing = valbuffer_find_string(consts, tmp_buffer, w_count);
-    if( existing >= 0 ) {
-        return existing;
-    }
-
-    int string_start = consts->size;
-    for(int i = 0; i < w_count; i++) {
-        consts_add_char(consts, tmp_buffer[i], true);
-    }
-
-    free(tmp_buffer); // free the UN-ESCAPE buffer
-
-    bool ok = valbuffer_add(consts,
-        val_array_from_args( MEM_MK_CONST_ADDR(string_start),
-                  w_count));
-    return ok
-        ? (consts->size - 1)
-        : (consts->size);
-}
-
-int consts_add_ivec2(valbuffer_t* consts, char* text) {
-
-    if( text[0] != '(' ) {
-        printf("error: expected ( at start of ivec2.\n");
-    }
-
-    text = text + 1; // skip open paren
-
-    ivec2_t value = { 0 };
-
-    // read x
-    int to_comma = string_count_until(text, ',');
-    value.x = string_parse_int(text, to_comma);
-
-    text += to_comma + 1;
-    
-    // read y
-    int to_rparen = string_count_until(text, ')');
-    value.y = string_parse_int(text, to_rparen);
-
-    int existing = valbuffer_find_ivec2(consts, value);
-    if( existing >= 0 ) {
-        return existing;
-    }
-
-    bool ok = valbuffer_add(consts, val_ivec2(value));
-    return ok
-        ? (consts->size - 1)
-        : (consts->size);
-}
-
-int consts_add_symbol_as_string(valbuffer_t* consts, char* text, int length) {
-
-    int existing = valbuffer_find_string(consts, text, length);
-    if( existing >= 0 ) {
-        return existing;
-    }
-
-    int string_start = consts->size;
-    for(int i = 0; i < length; i++) {
-        consts_add_char(consts, text[i], true);
-    }
-
-    bool ok = valbuffer_add(consts,
-        val_array_from_args( MEM_MK_CONST_ADDR(string_start),
-                  length));
-    return ok
-        ? (consts->size - 1)
-        : (consts->size);
-}
-
 /* [consts_add_current]
     Adds the current token to the constants buffer.
     TT_STRING -> VAL_ARRAY
@@ -293,14 +143,14 @@ int consts_add_current(valbuffer_t* consts, parser_t* parser) {
     switch (token.type)
     {
         case TT_STRING: {
-            const_index = consts_add_string(consts, text);
+            const_index = au_consts_add_string(consts, text);
         } break;
         case TT_NUMBER: {
             float value = parser_get_token_float_value(parser, token);
-            const_index = consts_add_number(consts, value);
+            const_index = au_consts_add_number(consts, value);
         } break;
         case TT_VEC2: {
-            const_index = consts_add_ivec2(consts, text);
+            const_index = au_consts_add_ivec2(consts, text);
         } break;
         case TT_SYMBOL: {
             bool is_bool_true = false;
@@ -310,11 +160,11 @@ int consts_add_current(valbuffer_t* consts, parser_t* parser) {
                 is_bool_false = strncmp(text, "false", 5) == 0;
             }
             if( is_bool_false ) {
-                const_index = consts_add_bool(consts, false);
+                const_index = au_consts_add_bool(consts, false);
             } else if ( is_bool_true ) {
-                const_index = consts_add_bool(consts, true);
+                const_index = au_consts_add_bool(consts, true);
             } else {
-                const_index = consts_add_symbol_as_string(consts, text, text_len);
+                const_index = au_consts_add_symbol_as_string(consts, text, text_len);
             }
         } break;
         default: {
@@ -490,11 +340,11 @@ void u8buffer_write_i16(u8buffer_t* buffer, int16_t val) {
 *     valbuffer_t. The constant is referred to by its index (in
 *     the val_buffer) in the byte code that is generated.
 */
-gvm_byte_code_t asm_assemble_code_object(char* code_buffer) {
+gvm_program_t asm_assemble_code_object(char* code_buffer) {
     
     parser_t* parser = parser_create(code_buffer);
     if( parser == NULL ) {
-        return (gvm_byte_code_t) { 0 };
+        return (gvm_program_t) { 0 };
     }
 
     gvm_result_t result_code = RES_OK;
@@ -621,41 +471,27 @@ gvm_byte_code_t asm_assemble_code_object(char* code_buffer) {
     printf("END CONSTANTS\n");
 #endif
 
-    gvm_byte_code_t obj = { 0 };
-    int byte_count_consts = sizeof(val_t) * const_store.size;
-    int byte_count_code = code_section.size;
-    int byte_count_header = 4;
+    gvm_program_t prog = { 0 };
+    prog.cons.count = const_store.size;
+    prog.cons.buffer = (val_t*) malloc(sizeof(val_t) * const_store.size);
+    memcpy(prog.cons.buffer, const_store.values, sizeof(val_t) * const_store.size);
 
-    obj.size = byte_count_consts + byte_count_code + byte_count_header;
-    obj.data = (uint8_t*) malloc(obj.size);
+    prog.inst.size = code_section.size;
+    prog.inst.buffer = (uint8_t*) malloc(code_section.size * sizeof(uint8_t));
+    memcpy(prog.inst.buffer, code_section.data, code_section.size * sizeof(uint8_t));
 
-    uint8_t* write_ptr = obj.data;
-    write_ptr[0] = byte_count_consts;
-    write_ptr[1] = byte_count_consts >> 8;
-    write_ptr[2] = byte_count_code;
-    write_ptr[3] = byte_count_code >> 8;
-
-    write_ptr += 4;
-
-    // write the const section
-    memcpy(write_ptr, const_store.values, byte_count_consts);
-    write_ptr += byte_count_consts;
-
-    // write the code
-    memcpy(write_ptr, code_section.data, byte_count_code);
-    
     u8buffer_destroy(&code_section);
     valbuffer_destroy(&const_store);
     parser_destroy(parser);
     
-    return obj;
+    return prog;
 
 on_error:
     u8buffer_destroy(&code_section);
     valbuffer_destroy(&const_store);
     parser_destroy(parser);
     gvm_print_if_error(result_code, "asm_assemble");
-    return (gvm_byte_code_t) { 0 };
+    return (gvm_program_t) { 0 };
 }
 
 int get_disasm_scheme_index(gvm_op_t op) {
@@ -668,13 +504,13 @@ int get_disasm_scheme_index(gvm_op_t op) {
     return -1;
 }
 
-void asm_debug_disassemble_code_object(gvm_byte_code_t* code_object) {
+void asm_debug_disassemble_code_object(gvm_program_t* code_object) {
     int current_byte = 0;
     int current_instruction = 0;
-    byte_code_header_t h = asm_read_byte_code_header(code_object);
-    val_t* consts = (val_t*) (code_object->data + h.header_size);
-    uint8_t* instructions = code_object->data + h.header_size + h.const_bytes;
-    while( current_byte < h.code_bytes ) {
+    val_t* consts = code_object->cons.buffer;
+    uint8_t* instructions = code_object->inst.buffer;
+    int instr_byte_count = code_object->inst.size;
+    while( current_byte < instr_byte_count ) {
         gvm_op_t opcode = instructions[current_byte];
         int scheme_index = get_disasm_scheme_index(opcode);
         if( scheme_index < 0 ) {
@@ -702,24 +538,18 @@ void asm_debug_disassemble_code_object(gvm_byte_code_t* code_object) {
     }
 }
 
-void asm_destroy_code_object(gvm_byte_code_t* code_object) {
+void asm_destroy_code_object(gvm_program_t* code_object) {
     if( code_object == NULL ) {
         return;
     }
-    if( code_object->data != NULL ) {
-        free(code_object->data);
-        code_object->data = NULL;
-        code_object->size = 0;
+    if( code_object->cons.buffer != NULL ) {
+        free(code_object->cons.buffer);
+        code_object->cons.count = 0;
+        code_object->cons.buffer = NULL;
     }
-}
-
-byte_code_header_t asm_read_byte_code_header(gvm_byte_code_t* code_obj) {
-    if( code_obj->size < 4 ) {
-        return ( byte_code_header_t ) { 0 };
+    if( code_object->inst.buffer != NULL ) {
+        free(code_object->inst.buffer);
+        code_object->inst.size = 0;
+        code_object->inst.buffer = NULL;
     }
-    byte_code_header_t header;
-    header.const_bytes = code_obj->data[0] | code_obj->data[1] << 8;
-    header.code_bytes  = code_obj->data[2] | code_obj->data[3] << 8;
-    header.header_size = 4;
-    return header;
 }

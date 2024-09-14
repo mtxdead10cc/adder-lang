@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <stdarg.h>
 
 bool u8buffer_create(u8buffer_t* ub, int capacity) {
     ub->data = (uint8_t*) malloc(capacity * sizeof(uint8_t));
@@ -18,8 +19,8 @@ bool u8buffer_create(u8buffer_t* ub, int capacity) {
     return true;
 }
 
-bool u8buffer_write(u8buffer_t* ub, uint8_t wbyte) {
-    int size = ub->size;
+bool u8buffer_ensure_capacity(u8buffer_t* ub, int additional) {
+    int size = ub->size + additional;
     if( size >= ub->capacity ) {
         uint8_t* new_mem = (uint8_t*) realloc(ub->data, size * 2);
         if( new_mem == NULL ) {
@@ -28,8 +29,27 @@ bool u8buffer_write(u8buffer_t* ub, uint8_t wbyte) {
         ub->data = new_mem;
         ub->capacity = size * 2;
     }
-    ub->data[size] = wbyte;
-    ub->size ++;
+    return true;
+}
+
+bool u8buffer_write(u8buffer_t* ub, uint8_t wbyte) {
+    if(u8buffer_ensure_capacity(ub, 1) == false) {
+        return false;
+    }
+    ub->data[ub->size++] = wbyte;
+    return true;
+}
+
+bool u8buffer_write_multiple(u8buffer_t* ub, int count, ...) {
+    if(u8buffer_ensure_capacity(ub, count) == false) {
+        return false;
+    }
+    va_list ap;
+    va_start(ap, count);
+    for(int i = 0; i < count; i++) {
+        ub->data[ub->size++] = (uint8_t)(va_arg(ap, int) & 0xFF);
+    }
+    va_end(ap);
     return true;
 }
 

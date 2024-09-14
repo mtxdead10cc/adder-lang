@@ -9,6 +9,7 @@
 #include "gvm_memory.h"
 #include "gvm_heap.h"
 #include "gvm_validate.h"
+#include "gvm_asmutils.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -152,34 +153,13 @@ void gvm_destroy(gvm_t* vm) {
     memset(vm, 0, sizeof(gvm_t));
 }
 
-val_t* codeblk_get_constants_ptr(gvm_byte_code_t* code_obj) {
-    byte_code_header_t h = asm_read_byte_code_header(code_obj);
-    return (val_t*) (code_obj->data + h.header_size);
-}
-
-int codeblk_get_constants_count(gvm_byte_code_t* code_obj) {
-    byte_code_header_t h = asm_read_byte_code_header(code_obj);
-    return h.const_bytes / sizeof(val_t);
-}
-
-uint8_t* codeblk_get_instructions_ptr(gvm_byte_code_t* code_obj) {
-    byte_code_header_t h = asm_read_byte_code_header(code_obj);
-    return (code_obj->data + h.header_size + h.const_bytes);
-}
-
-int codeblk_get_instructions_count(gvm_byte_code_t* code_obj) {
-    byte_code_header_t h = asm_read_byte_code_header(code_obj);
-    return h.code_bytes / sizeof(val_t);
-}
-
-
-val_t gvm_execute(gvm_t* vm, gvm_byte_code_t* code_obj, int max_cycles) {
+val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args) {
 
     assert(sizeof(float) == 4);
     
     val_t* stack = vm->mem.stack.values;
-    val_t* consts = codeblk_get_constants_ptr(code_obj);
-    uint8_t* instructions = codeblk_get_instructions_ptr(code_obj);
+    val_t* consts = program->cons.buffer;
+    uint8_t* instructions = program->inst.buffer;
 
     gvm_runtime_t* vm_run = &vm->run;
     vm_run->constants = consts;
@@ -192,11 +172,14 @@ val_t gvm_execute(gvm_t* vm, gvm_byte_code_t* code_obj, int max_cycles) {
 
     memset(vm_mem->stack.values, 0, sizeof(val_t) * vm_mem->stack.size);
 
-    int cycles_remaining = max_cycles;
-
-    if (code_obj->size == 0) {
+    // push initial args (if any)
+    for(int i = 0; i < exec_args->args.count; i++) {
+        stack[++vm_mem->stack.top] = exec_args->args.buffer[i];
+    }
+    
+    int cycles_remaining = exec_args->cycle_limit;
+    if (program->inst.size == 0) {
         cycles_remaining = 0;
-        max_cycles = 0;
     }
 
     while ( (cycles_remaining--) != 0 ) {
@@ -464,7 +447,7 @@ val_t gvm_execute(gvm_t* vm, gvm_byte_code_t* code_obj, int max_cycles) {
                 vm_run->pc += 2;
             } break;
             default: {
-                char* op_str = gvm_get_op_name(opcode);
+                char* op_str = au_get_op_name(opcode);
                 printf("\nunhandled operatioin %i (%s)\n", opcode, op_str);
                 return val_number(-1003);
             } break;
@@ -478,25 +461,25 @@ val_t gvm_execute(gvm_t* vm, gvm_byte_code_t* code_obj, int max_cycles) {
     return val_number(-1004);
 }
 
-gvm_byte_code_t gvm_code_compile(char* program) {
-    return asm_assemble_code_object(program);
+gvm_program_t gvm_program_compile_source(char* program_code) {
+    return asm_assemble_code_object(program_code);
 }
 
-void gvm_code_disassemble(gvm_byte_code_t* code_obj) {
-    asm_debug_disassemble_code_object(code_obj);
+void gvm_program_disassemble(gvm_program_t* prog) {
+    asm_debug_disassemble_code_object(prog);
 }
 
-void gvm_code_destroy(gvm_byte_code_t* code_obj) {
-    asm_destroy_code_object(code_obj);
+void gvm_program_destroy(gvm_program_t* prog) {
+    asm_destroy_code_object(prog);
 }
 
-gvm_byte_code_t gvm_read_and_compile(char* path) {
+gvm_program_t gvm_program_read_and_compile(char* path) {
 
     FILE* f = fopen(path, "r");
     
     if( f == NULL ) {
         printf("error: %s not found.\n", path);
-        return (gvm_byte_code_t) { 0 };
+        return (gvm_program_t) { 0 };
     }
 
     char *asm_code = malloc(1);
@@ -521,7 +504,7 @@ gvm_byte_code_t gvm_read_and_compile(char* path) {
         printf("error: failed to read file: %s\n", path);
     }
 
-    gvm_byte_code_t obj = gvm_code_compile(asm_code);
+    gvm_program_t obj = gvm_program_compile_source(asm_code);
     free(asm_code);
 
     return obj;
