@@ -19,4 +19,10 @@ void  gvm_destroy(gvm_t* vm);
 void gvm_print_val(gvm_t* vm, val_t val);
 int  gvm_get_string(gvm_t* vm, val_t val, char* dest, int dest_len);
 
+/*
+
+
+
+*/
+
 #endif // GVM_H_
