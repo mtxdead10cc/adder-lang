@@ -123,5 +123,25 @@ fun main() {
 
 	unop ::= `-´ | not | `#´
 ```
+### Reference info
 
+#### EBNF
+
+```<term> ::= [ "-" ] <factor>```
+here the - is optional
+
+```<args> ::= <arg> { "," <arg> }```
+comma separated list, the {}-part is optional
+
+```<expr> ::= <term> ("+" | "-")``` <expr>
+allows both + and -
+
+#### Regular extensions to BNF
+
+- postfix * means "repeated 0 or more times"
+- postfix + means "repeated 1 or more times"
+- postfix ? means "0 or 1 times"
+
+##### Python example
+https://docs.python.org/3/reference/grammar.html
 
