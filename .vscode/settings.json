@@ -28,7 +28,8 @@
         "termbits.h": "c",
         "unistd.h": "c",
         "varargs.h": "c",
-        "gvm_asm.h": "c"
+        "gvm_asm.h": "c",
+        "compare": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

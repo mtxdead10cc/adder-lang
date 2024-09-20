@@ -8,7 +8,6 @@
 
 typedef enum ast_node_type_t {
     AST_VALUE,
-    AST_SYMBOL,
     AST_ARRAY,
     AST_IF,
     AST_IF_ELSE,
@@ -17,6 +16,7 @@ typedef enum ast_node_type_t {
     AST_UNOP,
     AST_ASSIGN,
     AST_VAR_DECL,
+    AST_VAR_REF,
     AST_FUN_DECL,
     AST_FUN_CALL,
     AST_RETURN,
@@ -28,12 +28,12 @@ typedef enum ast_value_type_t {
     AST_VALUE_TYPE_NONE,
     AST_VALUE_TYPE_NUMBER,
     AST_VALUE_TYPE_BOOL,
-    AST_VALUE_TYPE_CHAR
+    AST_VALUE_TYPE_STRING
 } ast_value_type_t;
 
 typedef enum ast_binop_type_t {
-    AST_BIN_PLUS,
-    AST_BIN_MINUS,
+    AST_BIN_ADD,
+    AST_BIN_SUB,
     AST_BIN_MUL,
     AST_BIN_DIV,
     AST_BIN_AND,
@@ -48,7 +48,7 @@ typedef enum ast_binop_type_t {
 
 typedef enum ast_unop_type_t {
     AST_UN_NOT,
-    AST_UN_MINUS
+    AST_UN_NEG
 } ast_unop_type_t;
 
 typedef struct srcref_t {
@@ -64,7 +64,7 @@ typedef struct ast_value_t {
     union {
         float       _number;
         bool        _bool;
-        char        _char;
+        srcref_t    _string;
     } u;
 } ast_value_t;
 
@@ -80,13 +80,13 @@ typedef struct ast_block_t {
 } ast_block_t;
 
 typedef struct ast_vardecl_t {
-    srcref_t        name;
+    srcref_t         name;
     ast_value_type_t type;
 } ast_vardecl_t;
 
-typedef struct ast_symbol_t {
-    srcref_t        text;
-} ast_symbol_t;
+typedef struct ast_varref_t {
+    srcref_t        name;
+} ast_varref_t;
 
 typedef struct ast_if_t {
     ast_node_t* cond;
@@ -100,7 +100,7 @@ typedef struct ast_ifelse_t {
 } ast_ifelse_t;
 
 typedef struct ast_foreach_t {
-    ast_node_t* vardecl;    // this should be an ast_vardecl_T
+    ast_node_t* vardecl;    // this should be an ast_vardecl_t
     ast_node_t* collection; // var-ref or array-decl
     ast_node_t* during;     // block or single instruction
     ast_node_t* onexit;     // block or single instruction
@@ -119,18 +119,18 @@ typedef struct ast_unop_t {
 
 typedef struct ast_fundecl_t {
     ast_value_type_t rettype;
-    ast_node_t* funname;    // this should be a symbol
+    srcref_t    name;    
     ast_node_t* args;       // block, single instruction or null
     ast_node_t* body;       // block, single instruction or null
 } ast_fundecl_t;
 
 typedef struct ast_funcall_t {
-    ast_node_t* funname;
+    srcref_t    name;
     ast_node_t* args;
 } ast_funcall_t;
 
 typedef struct ast_assign_t {
-    ast_node_t* left_symbol;
+    ast_node_t* left_var;
     ast_node_t* right_value;
 } ast_assign_t;
 
@@ -142,7 +142,7 @@ typedef struct ast_node_t {
     ast_node_type_t     type;
     union {
         ast_value_t     n_value;
-        ast_symbol_t    n_symbol;
+        ast_varref_t    n_varref;
         ast_array_t     n_array;
         ast_vardecl_t   n_vardecl;
         ast_block_t     n_block;
@@ -182,7 +182,7 @@ inline static void srcref_print(srcref_t ref) {
     printf("%s", buf);
 }
 
-inline static ast_node_t* ast_value_number(float val) {
+inline static ast_node_t* ast_number(float val) {
     ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
     node->type = AST_VALUE,
     node->u.n_value = (ast_value_t) {
@@ -192,7 +192,7 @@ inline static ast_node_t* ast_value_number(float val) {
     return node;
 }
 
-inline static ast_node_t* ast_value_bool(bool val) {
+inline static ast_node_t* ast_bool(bool val) {
     ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
     node->type = AST_VALUE,
     node->u.n_value = (ast_value_t) {
@@ -202,11 +202,21 @@ inline static ast_node_t* ast_value_bool(bool val) {
     return node;
 }
 
-inline static ast_node_t* ast_symbol(srcref_t symbol) {
+inline static ast_node_t* ast_string(srcref_t val) {
     ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
-    node->type = AST_SYMBOL,
-    node->u.n_symbol = (ast_symbol_t) {
-        .text = symbol
+    node->type = AST_VALUE,
+    node->u.n_value = (ast_value_t) {
+        .type = AST_VALUE_TYPE_STRING,
+        .u._string = val
+    };
+    return node;
+}
+
+inline static ast_node_t* ast_varref(srcref_t name) {
+    ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
+    node->type = AST_VAR_REF,
+    node->u.n_varref = (ast_varref_t) {
+        .name = name
     };
     return node;
 }
@@ -242,6 +252,27 @@ inline static void ast_block_add(ast_node_t* block, ast_node_t* node) {
     block->u.n_block.content[block->u.n_block.count++] = node;
 }
 
+inline static ast_node_t* ast_array() {
+    ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
+    node->type = AST_ARRAY,
+    node->u.n_array = (ast_array_t) {
+        .count = 0,
+        .content = NULL
+    };
+    return node;
+}
+
+inline static void ast_array_add(ast_node_t* array, ast_node_t* node) {
+    assert(array->type == AST_ARRAY);
+    if( array->u.n_array.count == 0 ) {
+        assert(array->u.n_array.content == NULL);
+        array->u.n_array.content = (ast_node_t**) malloc(sizeof(ast_node_t*));
+    } else {
+        array->u.n_array.content = (ast_node_t**) realloc(array->u.n_array.content, sizeof(ast_node_t*) * (array->u.n_array.count + 1));
+    }
+    array->u.n_array.content[array->u.n_array.count++] = node;
+}
+
 inline static ast_node_t* ast_return(ast_node_t* ret) {
     ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
     node->type = AST_RETURN,
@@ -251,7 +282,6 @@ inline static ast_node_t* ast_return(ast_node_t* ret) {
     return node;
 }
 
-
 inline static ast_node_t* ast_fundecl( srcref_t name,
                                        ast_value_type_t return_type,
                                        ast_node_t* args,
@@ -260,13 +290,99 @@ inline static ast_node_t* ast_fundecl( srcref_t name,
     ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
     node->type = AST_FUN_DECL,
     node->u.n_fundecl = (ast_fundecl_t) {
-        .funname = ast_symbol(name),
+        .name = name,
         .rettype = return_type,
         .args = args,
         .body = body
     };
     return node;
 }
+
+inline static ast_node_t* ast_funcall( srcref_t name,
+                                       ast_node_t* args ) 
+{
+    ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
+    node->type = AST_FUN_CALL,
+    node->u.n_funcall = (ast_funcall_t) {
+        .name = name,
+        .args = args,
+    };
+    return node;
+}
+
+inline static ast_node_t* ast_if( ast_node_t* cond,
+                                  ast_node_t* if_true ) 
+{
+    ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
+    node->type = AST_IF,
+    node->u.n_if = (ast_if_t) {
+        .cond = cond,
+        .iftrue = if_true
+    };
+    return node;
+}
+
+inline static ast_node_t* ast_if_else( ast_node_t* cond,
+                                       ast_node_t* if_true,
+                                       ast_node_t* if_false ) 
+{
+    ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
+    node->type = AST_IF_ELSE,
+    node->u.n_ifelse = (ast_ifelse_t) {
+        .cond = cond,
+        .iftrue = if_true,
+        .iffalse = if_false
+    };
+    return node;
+}
+
+inline static ast_node_t* ast_foreach( ast_node_t* vardecl,
+                                       ast_node_t* collection,
+                                       ast_node_t* loop_body,
+                                       ast_node_t* loop_exit ) 
+{
+    ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
+    node->type = AST_FOREACH,
+    node->u.n_foreach = (ast_foreach_t) {
+        .vardecl = vardecl,
+        .collection = collection,
+        .onexit = loop_exit,
+        .during = loop_body
+    };
+    return node;
+}
+
+inline static ast_node_t* ast_binop(ast_binop_type_t op, ast_node_t* left, ast_node_t* right) {
+    ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
+    node->type = AST_BINOP,
+    node->u.n_binop = (ast_binop_t) {
+        .type = op,
+        .left = left,
+        .right = right
+    };
+    return node;
+}
+
+inline static ast_node_t* ast_unnop(ast_unop_type_t op, ast_node_t* inner) {
+    ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
+    node->type = AST_UNOP,
+    node->u.n_unop = (ast_unop_t) {
+        .type = op,
+        .inner = inner
+    };
+    return node;
+}
+
+inline static ast_node_t* ast_assign(ast_node_t* left, ast_node_t* right) {
+    ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
+    node->type = AST_ASSIGN,
+    node->u.n_assign = (ast_assign_t) {
+        .left_var = left,
+        .right_value = right
+    };
+    return node;
+}
+
 
 inline static void ast_free(ast_node_t* node) {
     switch(node->type) {
@@ -278,7 +394,7 @@ inline static void ast_free(ast_node_t* node) {
             ast_free(node->u.n_unop.inner);
         } break;
         case AST_ASSIGN: {
-            ast_free(node->u.n_assign.left_symbol);
+            ast_free(node->u.n_assign.left_var);
             ast_free(node->u.n_assign.right_value);
         } break;
         case AST_ARRAY: {
@@ -322,15 +438,13 @@ inline static void ast_free(ast_node_t* node) {
             ast_free(node->u.n_foreach.onexit);
         } break;
         case AST_FUN_DECL: {
-            ast_free(node->u.n_fundecl.funname);
             ast_free(node->u.n_fundecl.args);
             ast_free(node->u.n_fundecl.body);
         } break;
         case AST_FUN_CALL: {
-            ast_free(node->u.n_funcall.funname);
             ast_free(node->u.n_funcall.args);
         } break;
-        case AST_SYMBOL:
+        case AST_VAR_REF:
         case AST_VALUE:
         case AST_VAR_DECL:
         case AST_BREAK: {
@@ -344,7 +458,7 @@ inline static void ast_free(ast_node_t* node) {
 inline static char* ast_node_type_as_string(ast_node_type_t type) {
     switch (type) {
         case AST_VALUE:     return "VALUE";
-        case AST_SYMBOL:    return "SYMBOL";
+        case AST_VAR_REF:   return "VAR_REF";
         case AST_ARRAY:     return "ARRAY";
         case AST_IF:        return "IF";
         case AST_IF_ELSE:   return "IF_ELSE";
@@ -367,15 +481,15 @@ inline static char* ast_value_type_as_string(ast_value_type_t type) {
         case AST_VALUE_TYPE_NONE:       return "NONE";
         case AST_VALUE_TYPE_NUMBER:     return "NUMBER";
         case AST_VALUE_TYPE_BOOL:       return "BOOL";
-        case AST_VALUE_TYPE_CHAR:       return "CHAR";
+        case AST_VALUE_TYPE_STRING:     return "STRING";
         default: return "<UNKNOWN-AST-VALUE_TYPE>";
     }
 }
 
 inline static char* ast_binop_type_as_string(ast_binop_type_t type) {
     switch(type) {
-        case AST_BIN_PLUS:  return "PLUS";
-        case AST_BIN_MINUS: return "MINUS";
+        case AST_BIN_ADD:   return "ADD";
+        case AST_BIN_SUB:   return "SUB";
         case AST_BIN_MUL:   return "MUL";
         case AST_BIN_DIV:   return "DIV";
         case AST_BIN_AND:   return "AND";
@@ -393,7 +507,7 @@ inline static char* ast_binop_type_as_string(ast_binop_type_t type) {
 inline static char* ast_unop_type_as_string(ast_unop_type_t type) {
     switch(type) {
         case AST_UN_NOT: return "NOT";
-        case AST_UN_MINUS: return "MINUS";
+        case AST_UN_NEG: return "NEG";
         default: return "<UNKNOWN-UNOP-TYPE>";
     }
 }
@@ -403,7 +517,7 @@ inline static void ast_dump_value(ast_value_t val) {
         case AST_VALUE_TYPE_NONE:   printf("-none-"); break;
         case AST_VALUE_TYPE_NUMBER: printf("%f", val.u._number); break;
         case AST_VALUE_TYPE_BOOL:   printf("%s", val.u._bool ? "true" : "false"); break;
-        case AST_VALUE_TYPE_CHAR:   printf("%c", val.u._char); break;
+        case AST_VALUE_TYPE_STRING: srcref_print(val.u._string); break;
         default: printf("-unk-"); break;
     }
 }
@@ -416,8 +530,8 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
     printf("[");
     printf("%s ", ast_node_type_as_string(node->type));
     switch(node->type) {
-        case AST_SYMBOL: {
-            srcref_print(node->u.n_symbol.text);
+        case AST_VAR_REF: {
+            srcref_print(node->u.n_varref.name);
         } break;
         case AST_VALUE: {
             printf("%s ", ast_value_type_as_string(node->u.n_value.type));
@@ -433,9 +547,9 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
             _ast_dump(node->u.n_unop.inner, indent);
         } break;
         case AST_ASSIGN: {
-            _ast_dump(node->u.n_binop.left, indent);
+            _ast_dump(node->u.n_assign.left_var, indent);
             printf(" ");
-            _ast_dump(node->u.n_binop.right, indent);
+            _ast_dump(node->u.n_assign.right_value, indent);
         } break;
         case AST_ARRAY: {
             _ast_nl(indent);
@@ -490,13 +604,13 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
         } break;
         case AST_FUN_DECL: {
             _ast_nl(indent + 1);
-            printf(" name: "); _ast_dump(node->u.n_fundecl.funname, 0);                             _ast_nl(indent + 1);
+            printf(" name: "); srcref_print(node->u.n_fundecl.name);                                _ast_nl(indent + 1);
             printf(" type: "); printf("%s", ast_value_type_as_string(node->u.n_fundecl.rettype));   _ast_nl(indent + 1);
             printf(" args: "); _ast_dump(node->u.n_fundecl.args, indent + 2);                       _ast_nl(indent + 1);
             printf(" body: "); _ast_dump(node->u.n_fundecl.body, indent + 2);                       _ast_nl(indent);
         } break;
         case AST_FUN_CALL: {
-            _ast_dump(node->u.n_funcall.funname, indent);
+            srcref_print(node->u.n_funcall.name);
             printf(" ");
             _ast_dump(node->u.n_funcall.args, indent);
         } break;

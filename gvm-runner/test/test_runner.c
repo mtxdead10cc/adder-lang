@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include "termhax.h"
+#include <gvm_codegen.h>
 
 typedef struct test_case_t test_case_t;
 
@@ -228,7 +229,7 @@ void test_vm(test_case_t* this) {
 }
 
 void test_ast(test_case_t* this) {
-    char* buf = "testAB";
+    char* buf = "mainABtmpI";
 
     ast_node_t* decl_args = ast_block();
 
@@ -243,7 +244,44 @@ void test_ast(test_case_t* this) {
             AST_VALUE_TYPE_NUMBER));
 
     ast_node_t* body = ast_block();
-    ast_block_add(body, ast_return(ast_value_number(11.0f)));
+
+    ast_block_add(body, 
+        ast_assign(
+            ast_vardecl(srcref(buf, 6, 3), AST_VALUE_TYPE_NUMBER),
+            ast_binop(AST_BIN_ADD,
+                ast_varref(srcref(buf, 5, 1)),
+                ast_varref(srcref(buf, 4, 1))
+            )));
+
+    ast_block_add(body,
+        ast_if(
+            ast_binop(AST_BIN_LT,
+                ast_varref(srcref(buf, 6, 3)),
+                ast_number(0.0f)),
+            ast_return(ast_number(0.0f))));
+
+    ast_node_t* array = ast_array();
+    ast_array_add(array, ast_number(1));
+    ast_array_add(array, ast_number(2));
+    ast_array_add(array, ast_number(3));
+    ast_array_add(array, ast_number(4));
+
+    ast_block_add(body,
+        ast_foreach(
+            ast_vardecl(
+                srcref(buf, 9, 1),
+                AST_VALUE_TYPE_NUMBER),
+            array,
+            ast_assign(
+                ast_varref(srcref(buf, 6, 3)),
+                ast_binop(AST_BIN_ADD,
+                    ast_varref(srcref(buf, 6, 3)),
+                    ast_varref(srcref(buf, 9, 1)))),
+            ast_bool(true) // <- not sure if this should exist!?!?
+        ));
+    
+    ast_block_add(body,
+        ast_return(ast_varref(srcref(buf, 6, 3))));
 
     ast_node_t* fun = ast_fundecl(
         srcref(buf, 0, 4),
@@ -251,6 +289,8 @@ void test_ast(test_case_t* this) {
         decl_args, body);
 
     ast_dump(fun);
+
+    gvm_codegen(fun);
 
     ast_free(fun);
 }
