@@ -3,8 +3,8 @@
 ## Syntax
 
 ```
-fun hello(arg1, arg2) {
-    a = add(arg1, arg2);
+fun hello(num arg1, num arg2) -> none {
+    num a = add(arg1, arg2);
     if( a <= 10 ) {
         print("a:", a, "\n");
     } else {
@@ -13,8 +13,8 @@ fun hello(arg1, arg2) {
 }
 
 fun main() {
-    list = [1,2,3,4,5];
-    for(item in list) {
+    arr<num> list = [1,2,3,4,5];
+    for(num item in list) {
         hello(item, 5);
     }
 }
@@ -35,21 +35,27 @@ fun main() {
 
 <blockstop>         = "return" [<expression>] | "break"
 
-<statement>         = <symbol>, "=", <expression>
-                    | <symbol>, "=", <symbol> <function-body>
+<statement>         = <var-name>, "=", <expression>
                     | "if", "(", <expression>, ")", <block>
                     | "if", "(", <expression>, ")", <block> { "else", "if", <block> } ["else" <block>]
                     | "for", "(", <symbol>, "in", <symbol>, ")", <block>
                     | <func-call>
-                    | "[", [ <expression> { ",", <expression> } ], "]"
 
-<func-call>         = <symbol>, "(", [ <expression>, {"," <expression> } ], ")"
+<var-name>			= <symbol>
 
-<expression>        = <number>
-                    | <symbol>
-                    | <string>
-                    | <boolean>
+<func-call>         = <symbol>, "(", [ <exp-list> ], ")"
+
+<array-def>			= "[", [ <value> { ",", <value> } ], "]"
+
+<value>				= <number>
+					| <string>
+					| <boolean>
+					| <character>
+
+<expression>        = <value>
+                    | <var-name>
                     | <func-call>
+					| <array-def>
                     | <expression> <binop> <expression>
                     | <unop> <expression>
                     | "(", <expression>, ")"
@@ -62,6 +68,13 @@ fun main() {
 <unop>              = "not" | "-"
 
 ```
+
+
+### Required Changes
+
+* [ ] Function arguments in VM needs to be treated like locals.
+* [ ] Use indices instead of strings for identifiers (locals, globals, function names, etc).
+* [ ] Remove the concept of globals. There should always be a stack-frame present.
 
 ### Lua EBNF (for reference)
 

@@ -5,6 +5,7 @@
 #include <gvm_value.h>
 #include <gvm_memory.h>
 #include <gvm_asmutils.h>
+#include <gvm_ast.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -226,6 +227,34 @@ void test_vm(test_case_t* this) {
     valbuffer_destroy(&const_buf);
 }
 
+void test_ast(test_case_t* this) {
+    char* buf = "testAB";
+
+    ast_node_t* decl_args = ast_block();
+
+    ast_block_add(decl_args,
+        ast_vardecl(
+            srcref(buf, 4, 1),
+            AST_VALUE_TYPE_NUMBER));
+
+    ast_block_add(decl_args,
+        ast_vardecl(
+            srcref(buf, 5, 1),
+            AST_VALUE_TYPE_NUMBER));
+
+    ast_node_t* body = ast_block();
+    ast_block_add(body, ast_return(ast_value_number(11.0f)));
+
+    ast_node_t* fun = ast_fundecl(
+        srcref(buf, 0, 4),
+        AST_VALUE_TYPE_NUMBER,
+        decl_args, body);
+
+    ast_dump(fun);
+
+    ast_free(fun);
+}
+
 test_results_t run_testcases() {
 
     test_case_t test_cases[] = {
@@ -237,6 +266,11 @@ test_results_t run_testcases() {
         {
             .name = "gvm virtual machine",
             .test = test_vm,
+            .nfailed = 0
+        },
+        {
+            .name = "gvm ast",
+            .test = test_ast,
             .nfailed = 0
         }
     };
