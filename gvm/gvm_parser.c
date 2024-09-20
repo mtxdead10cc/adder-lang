@@ -79,36 +79,36 @@ lexeme_t scan(char c) {
     }
 }
 
-gvm_result_t tokens_init(parser_tokens_t* tokens, int initial_capacity) {
+bool tokens_init(parser_tokens_t* tokens, int initial_capacity) {
     tokens->array = (token_t*) malloc(initial_capacity * sizeof(token_t));
     if( tokens->array == NULL ) {
         tokens->capacity = 0;
         tokens->size = 0;
-        return RES_OUT_OF_MEMORY;
+        return false;
     }
     tokens->size = 0;
     tokens->capacity = initial_capacity;
-    return RES_OK;
+    return true;
 }
 
-gvm_result_t tokens_push_token(parser_tokens_t* tokens, token_t token) {
+bool tokens_push_token(parser_tokens_t* tokens, token_t token) {
     if( tokens->size >= tokens->capacity ) {
         int new_capacity = (int) ( (float) tokens->size * 1.3f );
         token_t* new_tokens = (token_t*) realloc(tokens->array, new_capacity * sizeof(token_t));
         if( new_tokens == NULL ) {
-            return RES_OUT_OF_MEMORY;
+            return false;
         }
         tokens->array = new_tokens;
         tokens->capacity = new_capacity;
     }
     tokens->array[tokens->size] = token;
     tokens->size ++;
-    return RES_OK;
+    return true;
 }
 
-gvm_result_t tokens_push_on_change(parser_tokens_t* tokens, token_type_t tt, int line, int column, int index) {
+bool tokens_push_on_change(parser_tokens_t* tokens, token_type_t tt, int line, int column, int index) {
     token_type_t last = TT_UNKNOWN;
-    gvm_result_t res = RES_OK;
+    bool res = true;
     if( tokens->size > 0 ) {
         last = tokens->array[tokens->size - 1].type;
     }
@@ -255,9 +255,9 @@ token_type_t state_to_type(tok_state_t state) {
     }
 }
 
-gvm_result_t tokenize(parser_text_t* text, parser_tokens_t* tokens) {
+bool tokenize(parser_text_t* text, parser_tokens_t* tokens) {
 
-    gvm_result_t res = tokens_init(tokens, 16);
+    bool res = tokens_init(tokens, 16);
     int line = 1;
     int column = 1;
 
@@ -291,9 +291,8 @@ gvm_result_t tokenize(parser_text_t* text, parser_tokens_t* tokens) {
             token_type = state_to_type(update_result.state);
         }
         res = tokens_push_on_change(tokens, token_type, line, column, i);
-        if( res != RES_OK ) {
+        if( res == false ) {
             printf("error: failed to construct token buffer.\n");
-            gvm_print_if_error(res, "tokenize");
             break;
         }
 
@@ -328,9 +327,8 @@ parser_t* parser_create(char* text) {
     p->text.array[p->text.size] = '\0';
     memcpy(p->text.array, text, p->text.size);
     p->current = 0;
-    gvm_result_t res = tokenize(&p->text, &p->tokens);
-    gvm_print_if_error(res, "tokenize");
-    if( res != RES_OK ) {
+    bool res = tokenize(&p->text, &p->tokens);
+    if( res == false ) {
         parser_destroy(p);
         return NULL;
     }

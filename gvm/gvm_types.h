@@ -89,14 +89,6 @@ typedef struct parser_t {
     int current;
 } parser_t;
 
-typedef enum gvm_result_t {
-    RES_OK,
-    RES_INVALID_INPUT,
-    RES_NOT_SUPPORTED,
-    RES_OUT_OF_MEMORY,
-    RES_ERROR
-} gvm_result_t;
-
 typedef enum gvm_op_t {
     OP_HALT = 0x00,
     OP_AND,

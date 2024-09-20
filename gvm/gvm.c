@@ -67,29 +67,6 @@ int gvm_get_string(gvm_t* vm, val_t val, char* dest, int dest_len) {
     return val_get_string(val, &gvm_addr_lookup, vm, dest, dest_len);
 }
 
-char* gvm_result_to_string(gvm_result_t res) {
-    switch (res) {
-        case RES_OK:            return "OK";
-        case RES_OUT_OF_MEMORY: return "OUT OF MEMORY";
-        case RES_ERROR:         return "PROCEDURE ERROR";
-        case RES_NOT_SUPPORTED: return "NOT SUPPORTED";
-        case RES_INVALID_INPUT: return "INVALID INPUT";
-        default:                return "UNKNOWN";
-    }
-}
-
-void gvm_print_if_error(gvm_result_t res, char* context) {
-    if( res == RES_OK ) {
-        return;
-    }
-    if( context == (char*) 0 ) {
-        printf("error: %s\n", gvm_result_to_string(res));
-    } else {
-        printf("error: %s -- %s\n", context, gvm_result_to_string(res));
-    }
-}
-
-
 bool gvm_create(gvm_t* vm, int stack_size, int dyn_size) {
 
     int total_addressable = ( stack_size + dyn_size );

@@ -3,9 +3,6 @@
 
 #include "gvm_types.h"
 
-char* gvm_result_to_string(gvm_result_t res);
-void gvm_print_if_error(gvm_result_t res, char* context);
-
 gvm_program_t gvm_program_read_and_compile(char* path);
 gvm_program_t gvm_program_compile_source(char* program_code);
 void gvm_program_destroy(gvm_program_t* prog);

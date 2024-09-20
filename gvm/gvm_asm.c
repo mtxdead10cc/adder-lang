@@ -183,11 +183,11 @@ typedef struct label_set_t {
     int count;
 } label_set_t;
 
-gvm_result_t label_add(label_set_t* set, char* str, int len, int address) {
+bool label_add(label_set_t* set, char* str, int len, int address) {
 
     if( set->count > GVM_ASM_MAX_LABELS ) {
         printf("error: hit max labels threashold\n");
-        return RES_NOT_SUPPORTED;
+        return false;
     }
 
     // check that the label name is not a reserved name 
@@ -195,7 +195,7 @@ gvm_result_t label_add(label_set_t* set, char* str, int len, int address) {
     for(int i = 0; i < nschemes; i++) {
         if(strncmp(schemes[i].name, str, len) == 0) {
             printf("error: invalid label name, '%.*s' is a reserved keyword.\n", len, str);
-            return RES_INVALID_INPUT;
+            return false;
         }
     }
 
@@ -205,7 +205,7 @@ gvm_result_t label_add(label_set_t* set, char* str, int len, int address) {
         // already added
         if( strncmp(existing, str, len) == 0 ) {
             printf("error: duplicate label definition '%.*s'.\n", len, existing);
-            return RES_INVALID_INPUT;
+            return false;
         }
     }
 
@@ -213,7 +213,7 @@ gvm_result_t label_add(label_set_t* set, char* str, int len, int address) {
     set->length[set->count] = len;
     set->address[set->count] = address;
     set->count ++;
-    return RES_OK;
+    return true;
 }
 
 int label_get_address(label_set_t* set, char* str, int len) {
@@ -260,7 +260,7 @@ int reg_add(register_set_t* set, char* str, int len) {
     keep track of op addresses. For every label encountered
     the label name and address (byte index) is stored in
     the provided label_set. */
-gvm_result_t asm_scan_labels(parser_t* parser, label_set_t* label_set) {
+bool asm_scan_labels(parser_t* parser, label_set_t* label_set) {
 
     bool keep_going = true;
     int address = 0;
@@ -281,8 +281,8 @@ gvm_result_t asm_scan_labels(parser_t* parser, label_set_t* label_set) {
             DBG_LOG("> add label: ");
             DBG_LOG("%.*s", length, label);
             DBG_LOG(" (%i)\n", address);
-            gvm_result_t res = label_add(label_set, label, length, address);
-            if( res != RES_OK ) {
+            bool res = label_add(label_set, label, length, address);
+            if( res == false ) {
                 return res;
             }
             keep_going &= parser_consume(parser, TT_SYMBOL);
@@ -316,12 +316,12 @@ gvm_result_t asm_scan_labels(parser_t* parser, label_set_t* label_set) {
             char buf[128] = { 0 };
             strncpy(buf, str, str_len);
             printf("no operation matching '%s'.\n", buf);
-            return RES_NOT_SUPPORTED;
+            return false;
         }
 
     }
 
-    return RES_OK;
+    return true;
 }
 
 void u8buffer_write_i16(u8buffer_t* buffer, int16_t val) {
@@ -347,7 +347,6 @@ gvm_program_t asm_assemble_code_object(char* code_buffer) {
         return (gvm_program_t) { 0 };
     }
 
-    gvm_result_t result_code = RES_OK;
     label_set_t label_set = { 0 };
     register_set_t reg_set = { 0 };
     u8buffer_t code_section = { 0 };
@@ -359,20 +358,18 @@ gvm_program_t asm_assemble_code_object(char* code_buffer) {
     printf("END TOKENS\n");
 #endif
 
-    result_code = asm_scan_labels(parser, &label_set);
-    if( result_code != RES_OK ) {
+    bool res = asm_scan_labels(parser, &label_set);
+    if( res == false ) {
         goto on_error;
     }
 
     parser_reset(parser);
 
     if( valbuffer_create(&const_store, 5) == false ) {
-        result_code = RES_OUT_OF_MEMORY;
         goto on_error;
     }
     
     if( u8buffer_create(&code_section, 16) == false ) {
-        result_code = RES_OUT_OF_MEMORY;
         goto on_error;
     }
 
@@ -425,7 +422,6 @@ gvm_program_t asm_assemble_code_object(char* code_buffer) {
                     int label_index = label_get_address(&label_set, ptr, len);
                     if( label_index < 0 ) {
                         printf("error: label '%.*s' not found.\n", len, ptr);
-                        result_code = RES_NOT_SUPPORTED;
                         goto on_error;
                     }
                     DBG_LOG("%i (%.*s) ", label_index, len, ptr);
@@ -438,7 +434,6 @@ gvm_program_t asm_assemble_code_object(char* code_buffer) {
                     int reg_index = reg_add(&reg_set, ptr, len);
                     if( reg_index < 0 ) {
                         printf("error: global '%.*s' not found.\n", len, ptr);
-                        result_code = RES_NOT_SUPPORTED;
                         goto on_error;
                     }
                     DBG_LOG("%i (%.*s) ", reg_index, len, ptr);
@@ -490,7 +485,6 @@ on_error:
     u8buffer_destroy(&code_section);
     valbuffer_destroy(&const_store);
     parser_destroy(parser);
-    gvm_print_if_error(result_code, "asm_assemble");
     return (gvm_program_t) { 0 };
 }
 
