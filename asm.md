@@ -30,7 +30,7 @@ Pops the top off the stack and then prints the value.
 
 Pushes the current instruction pointer to the stack and then jumps to label.
 
-### frame [num-args] [num-locals]
+### frame-old [num-args] [num-locals]
 
 Sets up a function frame on the stack.
 1. pops the return address from stack
@@ -38,6 +38,15 @@ Sets up a function frame on the stack.
 3. pushes frame-value to the stack
 4. pushes num-locals to the stack
 5. pushes arguments (poped at 2) to the stack 
+
+### frame [num-args] [num-locals]
+
+Sets up a function frame on the stack.
+1. pops the return address from stack
+2. pops num-args from the stack
+3. pushes frame-value to the stack
+4. pushes arguments (poped at 2) to the stack 
+5. pushes num-locals to the stack
 
 ### return
 

@@ -91,7 +91,7 @@ int main(int argv, char** argc) {
     bool verbose = false;
     bool print_help = false;
     bool keep_alive = false;
-    bool run_tests = true;
+    bool run_tests = false;
     int path_arg = -1;
     
     for(int i = 0; i < argv; i++) {

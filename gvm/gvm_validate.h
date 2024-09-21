@@ -91,6 +91,23 @@ inline static bool validation_check_stack(gvm_t* vm, char* context) {
         validation->message[256] = '\0';
         return false;
     }
+    int stack_frame = vm->mem.stack.frame;
+    if( stack_frame < 0 ) {
+        snprintf(validation->message, 256,
+                "'%s' missing call-frame.\n",
+                context);
+        validation->message[256] = '\0';
+        return false;
+    }
+    frame_t frame = val_into_frame(vm->mem.stack.values[stack_frame]);
+    int frame_upper = stack_frame + frame.num_args + frame.num_locals;
+    if( vm->mem.stack.top < frame_upper ) {
+        snprintf(validation->message, 256,
+            "'%s' stack call-frame compromised.\n",
+            context);
+        validation->message[256] = '\0';
+        return false;
+    }
     return true;
 }
 
@@ -98,12 +115,12 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
     validation_t* validation = ((validation_t*)vm->validation);
     char* op_name = au_get_op_name(opcode);
     bool no_error = true;
-    if( validation->last_opcode == OP_CALL && opcode != OP_MAKE_FRAME ) {
+    if( validation->last_opcode == OP_CALL && opcode != OP_MAKE_FRAME  ) {
         snprintf(validation->message, 256,
                 "the OP_CALL instruction must be immediatly followed by OP_MAKE_FRAME.\n");
         validation->message[256] = '\0';
         no_error = false;
-    } else if( opcode == OP_MAKE_FRAME && validation->last_opcode != OP_CALL ) {
+    } else if( opcode == OP_MAKE_FRAME && validation->last_opcode != OP_CALL && vm->mem.stack.top > 0 ) {
         snprintf(validation->message, 256,
                 "the OP_MAKE_FRAME instruction must be preceeded by OP_CALL.\n");
         validation->message[256] = '\0';
@@ -145,17 +162,18 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
             case OP_LOAD_LOCAL: {
                 val_t val = vm->mem.stack.values[vm->mem.stack.frame];
                 frame_t frame = val_into_frame(val);
+                int nreserved = (frame.num_locals + frame.num_args);
                 int id = READ_I16(vm->run.instructions, vm->run.pc);
-                if( id < 0 || id >= frame.num_locals ) {
-                    if( frame.num_locals < 1 ) {
+                if( id < 0 || id >= nreserved ) {
+                    if( nreserved < 1 ) {
                         snprintf(validation->message, 256,
-                            "'%s' tried to load local with index %i "
-                            "but the current frame has no locals.",
+                            "'%s' tried to load local/arg with index %i "
+                            "but the current frame has no reserved values.",
                             op_name, id);
                     } else {
                         snprintf(validation->message, 256,
                             "'%s' tried to load local with index %i "
-                            "but the current frame has locals #0 to #%i.",
+                            "but the current frame has reserved #0 to #%i.",
                              op_name, id, frame.num_locals - 1);
                     }
                     validation->message[256] = '\0';

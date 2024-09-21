@@ -23,7 +23,7 @@
 #if GVM_TRACE_LOG_LEVEL > 0
 
 # define TRACE_LOG(...) printf(__VA_ARGS__)
-# define TRACE_OP(C) TRACE_LOG("> %s ", gvm_get_op_name(C))
+# define TRACE_OP(C) TRACE_LOG("> %s ", au_get_op_name(C))
 # define TRACE_INT_ARG(A) TRACE_LOG("%i ", (A))
 # define TRACE_NL() printf("\n");
 
@@ -144,12 +144,11 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
     vm_run->pc = 0;
     
     gvm_mem_t* vm_mem = &vm->mem;
-    vm_mem->stack.top = -1;
-    vm_mem->stack.frame = -1;
-
     memset(vm_mem->stack.values, 0, sizeof(val_t) * vm_mem->stack.size);
 
     // push initial args (if any)
+    vm_mem->stack.frame = -1;
+    vm_mem->stack.top = -1;
     for(int i = 0; i < exec_args->args.count; i++) {
         stack[++vm_mem->stack.top] = exec_args->args.buffer[i];
     }
@@ -277,45 +276,67 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
                 TRACE_INT_ARG(vm_run->pc);
             } break;
             case OP_MAKE_FRAME: {
+
                 int nargs = READ_I16(instructions, vm_run->pc);
                 TRACE_INT_ARG(nargs);
                 vm_run->pc += 2;
+
                 int nlocals = READ_I16(instructions, vm_run->pc);
                 TRACE_INT_ARG(nlocals);
                 vm_run->pc += 2;
+
                 // stack top should now be the return address
-                val_t call_site = stack[vm_mem->stack.top--];
+                // Note: if the return address is negative we exit the vm
+                //       returning the top of stack element.
+                float call_site = val_into_number(stack[vm_mem->stack.top--]);
                 frame_t frame = (frame_t) {
-                    .return_pc = (int) val_into_number(call_site),
+                    .return_pc = (int) call_site,
                     .num_args = nargs,
                     .num_locals = nlocals
                 };
-                // move args to after frame and locals
+
+                // move args to after the frame
                 int frame_start = vm_mem->stack.top - nargs + 1;
                 for(int i = nargs; i > 0; i--) {
-                    stack[frame_start + nlocals + i] = stack[frame_start + i - 1];
+                    // stack[i+N] = stack[i+N-1]
+                    stack[frame_start + i] = stack[frame_start + i - 1];
                 }
+
                 // insert frame before locals
                 stack[frame_start] = val_frame(frame);
                 vm_mem->stack.frame = frame_start;
+
+                // OBS: ZERO INIT MIGHT NOT BE NEEDED!!
                 // init locals (not needed)
-                int locals_idx = frame_start + 1;
+                int locals_idx = frame_start + 1 + nargs;
                 for(int i = 0; i < nlocals; i++) {
                     stack[locals_idx + i] = 0;
                 }
+
+                // make room for the locals on the stack
                 vm_mem->stack.top += nlocals + 1;
+
             } break;
             case OP_RETURN: {
-                // check if we are doing a frameless return
+
+                // check if we are doing a return from
+                // frameless context
                 if( vm_mem->stack.frame < 0 ) {
+                    return val_number(-1008);
+                }
+
+                frame_t frame = val_into_frame(stack[vm_mem->stack.frame]);
+                if( frame.return_pc < 0 ) {
+                    // Note: if the return address is negative we exit the vm
+                    //       returning the top of stack element.
                     if( vm_mem->stack.top >= 0 ) {
                         return stack[vm_mem->stack.top];
                     } else {
                         return val_none();
                     }
                 }
-                frame_t frame = val_into_frame(stack[vm_mem->stack.frame]);
-                int body_start = vm_mem->stack.frame + frame.num_locals;
+
+                int body_start = vm_mem->stack.frame + frame.num_locals + frame.num_args;
                 int invoked_top = vm_mem->stack.top;
                 // copy possible return value
                 val_t ret_val = stack[invoked_top];

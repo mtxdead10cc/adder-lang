@@ -1,5 +1,5 @@
 ######### START
-
+push -1
 jump start # <- goto entry point
 
 test-fn:
@@ -25,10 +25,13 @@ dump-array:
 
 addfn:
     frame 2 0
+    load 0
+    load 1
     add
     return
 
 start:
+    frame 0 0
     push 65
     push 20
     call addfn
