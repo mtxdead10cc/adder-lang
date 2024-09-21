@@ -49,8 +49,6 @@ void heap_gc_collect(gvm_t* vm) {
     memset(vm->mem.heap.gc_marks, 0, CALC_GC_MARK_U64_COUNT(vm->mem.heap.size) * sizeof(uint64_t));
     // mark all references from the stack
     heap_gc_mark_used(vm, vm->mem.stack.values, vm->mem.stack.top + 1);
-    // mark all references from the registers
-    heap_gc_mark_used(vm, vm->run.registers, GVM_ASM_MAX_REGISTERS);
 }
 
 void heap_print_usage(gvm_t* vm) {

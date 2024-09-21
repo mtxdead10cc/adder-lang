@@ -21,10 +21,10 @@ label:
             jump loop
         exit-loop:
             jump exit-label
-exit-label:
-    load-global msg
-    print
-    pop-1
-    exit 1
+    exit-label:
+        load-global msg
+        print
+        pop-1
+        exit 1
 
 ######### END

@@ -15,47 +15,44 @@ typedef struct op_scheme_t {
     uint32_t typespec;
     uint32_t isconst;
     uint32_t islabel;
-    uint32_t isreg;
 } op_scheme_t;
 
 #define ARGSPEC1(A1) (uint64_t)((uint8_t)((A1)))
 #define ARGSPEC2(A1, A2) (ARGSPEC1(A1) | (uint64_t)((uint8_t)((A2)) << 4))
 
 static op_scheme_t schemes[] = {
-//  [string name]      [op bytecode id]    [arg type]                       [store as const]   [label reference]    [register reference]
-    {"push",            OP_PUSH_VALUE,      ARGSPEC1(TT_STRING),             0x01,              0x00,                0x00 },
-    {"push",            OP_PUSH_VALUE,      ARGSPEC1(TT_NUMBER),             0x01,              0x00,                0x00 },
-    {"push",            OP_PUSH_VALUE,      ARGSPEC1(TT_VEC2),               0x01,              0x00,                0x00 },
-    {"globstore",       OP_STORE_GLOBAL,    ARGSPEC1(TT_SYMBOL),             0x00,              0x00,                0x01 },
-    {"globload",        OP_LOAD_GLOBAL,     ARGSPEC1(TT_SYMBOL),             0x00,              0x00,                0x01 },
-    {"store",           OP_STORE_LOCAL,     ARGSPEC1(TT_NUMBER),             0x00,              0x00,                0x00 },
-    {"load",            OP_LOAD_LOCAL,      ARGSPEC1(TT_NUMBER),             0x00,              0x00,                0x00 },
-    {"print",           OP_PRINT,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"call",            OP_CALL,            ARGSPEC1(TT_SYMBOL),             0x00,              0x01,                0x00 },
-    {"frame",           OP_MAKE_FRAME,      ARGSPEC2(TT_NUMBER, TT_NUMBER),  0x00,              0x00,                0x00 },
-    {"array",           OP_MAKE_ARRAY,      ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"array-len",       OP_ARRAY_LENGTH,    ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"iter",            OP_MAKE_ITER,       ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"iter-next",       OP_ITER_NEXT,       ARGSPEC1(TT_SYMBOL),             0x00,              0x01,                0x00 },
-    {"return",          OP_RETURN,          ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"pop1",            OP_POP_1,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"pop2",            OP_POP_2,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"dup1",            OP_DUP_1,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"dup2",            OP_DUP_2,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"rot2",            OP_ROT_2,           ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"is-less",         OP_CMP_LESS_THAN,   ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"is-more",         OP_CMP_MORE_THAN,   ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"is-equal",        OP_CMP_EQUAL,       ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"if-false",        OP_JUMP_IF_FALSE,   ARGSPEC1(TT_SYMBOL),             0x00,              0x01,                0x00 },
-    {"jump",            OP_JUMP,            ARGSPEC1(TT_SYMBOL),             0x00,              0x01,                0x00 },
-    {"exit",            OP_EXIT,            ARGSPEC1(TT_NUMBER),             0x00,              0x00,                0x00 },
-    {"and",             OP_AND,             ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"or",              OP_OR,              ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"mul",             OP_MUL,             ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"add",             OP_ADD,             ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"sub",             OP_SUB,             ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"neg",             OP_NEG,             ARGSPEC1(0),                     0x00,              0x00,                0x00 },
-    {"ncall",           OP_CALL_NATIVE,     ARGSPEC1(TT_SYMBOL),             0x01,              0x00,                0x00 }
+//  [string name]      [op bytecode id]    [arg type]                       [store as const]   [label reference]
+    {"push",            OP_PUSH_VALUE,      ARGSPEC1(TT_STRING),             0x01,              0x00 },
+    {"push",            OP_PUSH_VALUE,      ARGSPEC1(TT_NUMBER),             0x01,              0x00 },
+    {"push",            OP_PUSH_VALUE,      ARGSPEC1(TT_VEC2),               0x01,              0x00 },
+    {"store",           OP_STORE_LOCAL,     ARGSPEC1(TT_NUMBER),             0x00,              0x00 },
+    {"load",            OP_LOAD_LOCAL,      ARGSPEC1(TT_NUMBER),             0x00,              0x00 },
+    {"print",           OP_PRINT,           ARGSPEC1(0),                     0x00,              0x00 },
+    {"call",            OP_CALL,            ARGSPEC1(TT_SYMBOL),             0x00,              0x01 },
+    {"frame",           OP_MAKE_FRAME,      ARGSPEC2(TT_NUMBER, TT_NUMBER),  0x00,              0x00 },
+    {"array",           OP_MAKE_ARRAY,      ARGSPEC1(0),                     0x00,              0x00 },
+    {"array-len",       OP_ARRAY_LENGTH,    ARGSPEC1(0),                     0x00,              0x00 },
+    {"iter",            OP_MAKE_ITER,       ARGSPEC1(0),                     0x00,              0x00 },
+    {"iter-next",       OP_ITER_NEXT,       ARGSPEC1(TT_SYMBOL),             0x00,              0x01 },
+    {"return",          OP_RETURN,          ARGSPEC1(0),                     0x00,              0x00 },
+    {"pop1",            OP_POP_1,           ARGSPEC1(0),                     0x00,              0x00 },
+    {"pop2",            OP_POP_2,           ARGSPEC1(0),                     0x00,              0x00 },
+    {"dup1",            OP_DUP_1,           ARGSPEC1(0),                     0x00,              0x00 },
+    {"dup2",            OP_DUP_2,           ARGSPEC1(0),                     0x00,              0x00 },
+    {"rot2",            OP_ROT_2,           ARGSPEC1(0),                     0x00,              0x00 },
+    {"is-less",         OP_CMP_LESS_THAN,   ARGSPEC1(0),                     0x00,              0x00 },
+    {"is-more",         OP_CMP_MORE_THAN,   ARGSPEC1(0),                     0x00,              0x00 },
+    {"is-equal",        OP_CMP_EQUAL,       ARGSPEC1(0),                     0x00,              0x00 },
+    {"if-false",        OP_JUMP_IF_FALSE,   ARGSPEC1(TT_SYMBOL),             0x00,              0x01 },
+    {"jump",            OP_JUMP,            ARGSPEC1(TT_SYMBOL),             0x00,              0x01 },
+    {"exit",            OP_EXIT,            ARGSPEC1(TT_NUMBER),             0x00,              0x00 },
+    {"and",             OP_AND,             ARGSPEC1(0),                     0x00,              0x00 },
+    {"or",              OP_OR,              ARGSPEC1(0),                     0x00,              0x00 },
+    {"mul",             OP_MUL,             ARGSPEC1(0),                     0x00,              0x00 },
+    {"add",             OP_ADD,             ARGSPEC1(0),                     0x00,              0x00 },
+    {"sub",             OP_SUB,             ARGSPEC1(0),                     0x00,              0x00 },
+    {"neg",             OP_NEG,             ARGSPEC1(0),                     0x00,              0x00 },
+    {"ncall",           OP_CALL_NATIVE,     ARGSPEC1(TT_SYMBOL),             0x01,              0x00 }
 };
 
 #if GVM_TRACE_LOG_LEVEL >= 3
@@ -93,6 +90,8 @@ int scheme_match(parser_t* p) {
     char* str = parser_get_token_string_ptr(p, token);
     int str_len = parser_get_token_string_length(p, token);
     int nschemes = sizeof(schemes) / sizeof(schemes[0]);
+
+    assert(OP_OPCODE_COUNT == 31 && "Opcode count changed (update schemes[]).");
 
     for(int i = 0; i < nschemes; i++) {
         if( strlen(schemes[i].name) != (size_t) str_len ) {
@@ -225,36 +224,6 @@ int label_get_address(label_set_t* set, char* str, int len) {
     return -1;
 }
 
-typedef struct register_set_t {
-    char* label[GVM_ASM_MAX_REGISTERS];
-    int length[GVM_ASM_MAX_REGISTERS];
-    int count;
-} register_set_t;
-
-int reg_find_index(register_set_t* set, char* str, int len) {
-    for(int i = 0; i < set->count; i++) {
-        if( strncmp(set->label[i], str, len) == 0 ) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-int reg_add(register_set_t* set, char* str, int len) {
-    if( set->count > GVM_ASM_MAX_REGISTERS ) {
-        printf("error: hit max registers threashold\n");
-        return -1;
-    }
-    int index = reg_find_index(set, str, len);
-    if( index >= 0 ) {
-        return index;
-    }
-    set->label[set->count] = str;
-    set->length[set->count] = len;
-    set->count ++;
-    return set->count - 1;
-}
-
 /* [asm_scan_labels]
     Runs through all the tokens counting bytes in order to 
     keep track of op addresses. For every label encountered
@@ -348,7 +317,6 @@ gvm_program_t asm_assemble_code_object(char* code_buffer) {
     }
 
     label_set_t label_set = { 0 };
-    register_set_t reg_set = { 0 };
     u8buffer_t code_section = { 0 };
     valbuffer_t const_store = { 0 };
 
@@ -427,18 +395,6 @@ gvm_program_t asm_assemble_code_object(char* code_buffer) {
                     DBG_LOG("%i (%.*s) ", label_index, len, ptr);
                     assert(label_index >= 0 && label_index < 256);
                     u8buffer_write_i16(&code_section, label_index);
-                } else if (scheme_is_flag_set(op_scheme.isreg, arg_index)) {
-                    token_t token = parser_current(parser);
-                    int len = parser_get_token_string_length(parser, token);
-                    char* ptr = parser_get_token_string_ptr(parser, token);
-                    int reg_index = reg_add(&reg_set, ptr, len);
-                    if( reg_index < 0 ) {
-                        printf("error: global '%.*s' not found.\n", len, ptr);
-                        goto on_error;
-                    }
-                    DBG_LOG("%i (%.*s) ", reg_index, len, ptr);
-                    assert(reg_index >= 0 && reg_index < 256);
-                    u8buffer_write_i16(&code_section, reg_index);
                 } else {
                     DBG_LOG_OPERAND(parser);
                     DBG_LOG(" ");

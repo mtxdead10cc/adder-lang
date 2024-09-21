@@ -103,7 +103,6 @@ typedef struct ast_foreach_t {
     ast_node_t* vardecl;    // this should be an ast_vardecl_t
     ast_node_t* collection; // var-ref or array-decl
     ast_node_t* during;     // block or single instruction
-    ast_node_t* onexit;     // block or single instruction
 } ast_foreach_t;
 
 typedef struct ast_binop_t {
@@ -338,15 +337,13 @@ inline static ast_node_t* ast_if_else( ast_node_t* cond,
 
 inline static ast_node_t* ast_foreach( ast_node_t* vardecl,
                                        ast_node_t* collection,
-                                       ast_node_t* loop_body,
-                                       ast_node_t* loop_exit ) 
+                                       ast_node_t* loop_body ) 
 {
     ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
     node->type = AST_FOREACH,
     node->u.n_foreach = (ast_foreach_t) {
         .vardecl = vardecl,
         .collection = collection,
-        .onexit = loop_exit,
         .during = loop_body
     };
     return node;
@@ -435,7 +432,6 @@ inline static void ast_free(ast_node_t* node) {
             ast_free(node->u.n_foreach.collection);
             ast_free(node->u.n_foreach.vardecl);
             ast_free(node->u.n_foreach.during);
-            ast_free(node->u.n_foreach.onexit);
         } break;
         case AST_FUN_DECL: {
             ast_free(node->u.n_fundecl.args);
@@ -599,8 +595,6 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
             _ast_dump(node->u.n_foreach.collection, indent);
             printf(" ");
             _ast_dump(node->u.n_foreach.during, indent);
-            printf(" ");
-            _ast_dump(node->u.n_foreach.onexit, indent);
         } break;
         case AST_FUN_DECL: {
             _ast_nl(indent + 1);

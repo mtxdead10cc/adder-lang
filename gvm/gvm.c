@@ -167,6 +167,8 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
 
         VALIDATE_PRE(vm, opcode);
 
+        assert(OP_OPCODE_COUNT == 31 && "Opcode count changed.");
+
         switch (opcode) {
             case OP_PUSH_VALUE: {
                 int const_index = READ_I16(instructions, vm_run->pc);
@@ -339,18 +341,6 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
             } break;
             case OP_PRINT: {
                 gvm_print_val(vm, stack[vm_mem->stack.top--]);
-            } break;
-            case OP_LOAD_GLOBAL: {
-                int reg_index = READ_I16(instructions, vm_run->pc);
-                TRACE_INT_ARG(reg_index);
-                stack[++vm_mem->stack.top] = vm_run->registers[reg_index];
-                vm_run->pc += 2;
-            } break;
-            case OP_STORE_GLOBAL: {
-                int reg_index = READ_I16(instructions, vm_run->pc);
-                TRACE_INT_ARG(reg_index);
-                vm_run->registers[reg_index] = stack[vm_mem->stack.top--];
-                vm_run->pc += 2;
             } break;
             case OP_STORE_LOCAL: {
                 int local_idx = READ_I16(instructions, vm_run->pc);

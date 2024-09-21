@@ -276,8 +276,7 @@ void test_ast(test_case_t* this) {
                 ast_varref(srcref(buf, 6, 3)),
                 ast_binop(AST_BIN_ADD,
                     ast_varref(srcref(buf, 6, 3)),
-                    ast_varref(srcref(buf, 9, 1)))),
-            ast_bool(true) // <- not sure if this should exist!?!?
+                    ast_varref(srcref(buf, 9, 1))))
         ));
     
     ast_block_add(body,

@@ -179,6 +179,7 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
 }
 
 inline static bool validation_post_exec(gvm_t* vm, gvm_op_t opcode) {
+    assert(OP_OPCODE_COUNT == 31 && "Opcode count changed.");
     char* op_name = au_get_op_name(opcode);
     validation_t* validation = ((validation_t*)vm->validation);
     bool no_error = true;
@@ -202,8 +203,6 @@ inline static bool validation_post_exec(gvm_t* vm, gvm_op_t opcode) {
             case OP_CALL:
             case OP_MAKE_FRAME:
             case OP_PRINT:
-            case OP_LOAD_GLOBAL:
-            case OP_STORE_GLOBAL:
             case OP_STORE_LOCAL:
             case OP_LOAD_LOCAL: {
                 no_error = validation_check_stack(vm, op_name);

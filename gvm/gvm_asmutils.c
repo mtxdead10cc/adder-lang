@@ -4,6 +4,7 @@
 #include <limits.h>
 
 char* au_get_op_name(gvm_op_t opcode) {
+    assert(OP_OPCODE_COUNT == 31 && "Opcode count changed.");
     switch(opcode) {
         case OP_HALT:               return "OP_HALT";
         case OP_AND:                return "OP_AND";
@@ -28,8 +29,6 @@ char* au_get_op_name(gvm_op_t opcode) {
         case OP_CALL:               return "OP_CALL";
         case OP_MAKE_FRAME:         return "OP_MAKE_FRAME";
         case OP_RETURN:             return "OP_RETURN";
-        case OP_STORE_GLOBAL:       return "OP_STORE_GLOBAL";
-        case OP_LOAD_GLOBAL:        return "OP_LOAD_GLOBAL";
         case OP_STORE_LOCAL:        return "OP_STORE_LOCAL";
         case OP_LOAD_LOCAL:         return "OP_LOAD_LOCAL";
         case OP_PRINT:              return "OP_PRINT";
@@ -43,6 +42,7 @@ char* au_get_op_name(gvm_op_t opcode) {
 }
 
 int au_get_op_instr_arg_count(gvm_op_t opcode) {
+    assert(OP_OPCODE_COUNT == 31 && "Opcode count changed.");
     switch(opcode) {
         case OP_HALT:
         case OP_AND:
@@ -69,8 +69,6 @@ int au_get_op_instr_arg_count(gvm_op_t opcode) {
         case OP_JUMP_IF_FALSE:
         case OP_EXIT:
         case OP_CALL:
-        case OP_STORE_GLOBAL:
-        case OP_LOAD_GLOBAL:
         case OP_STORE_LOCAL:
         case OP_LOAD_LOCAL:
         case OP_ARRAY_LENGTH:

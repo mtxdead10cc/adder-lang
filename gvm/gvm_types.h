@@ -113,8 +113,6 @@ typedef enum gvm_op_t {
     OP_CALL,
     OP_MAKE_FRAME,
     OP_RETURN,
-    OP_STORE_GLOBAL,
-    OP_LOAD_GLOBAL,
     OP_STORE_LOCAL,
     OP_LOAD_LOCAL,
     OP_PRINT,
@@ -205,7 +203,6 @@ typedef struct env_t {
 } env_t;
 
 typedef struct gvm_runtime_t {
-    val_t    registers[GVM_ASM_MAX_REGISTERS];
     val_t*   constants;
     uint8_t* instructions;
     int pc;

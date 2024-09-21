@@ -124,7 +124,6 @@ void gvm_codegen(ast_node_t* node) {
             gvm_codegen(node->u.n_foreach.during);
             printf("jump [todolabel:loopstart]\n");
             printf("[todolabel:exit]:\n");
-            gvm_codegen(node->u.n_foreach.onexit);
             printf("# FOR EACH END\n");
         } break;
         case AST_FUN_DECL: {
