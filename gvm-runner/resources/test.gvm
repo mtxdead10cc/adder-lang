@@ -1,6 +1,5 @@
 ######### START
-push -1
-jump start # <- goto entry point
+init start
 
 test-fn:
     frame 0 1

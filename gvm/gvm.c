@@ -166,7 +166,7 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
 
         VALIDATE_PRE(vm, opcode);
 
-        assert(OP_OPCODE_COUNT == 31 && "Opcode count changed.");
+        assert(OP_OPCODE_COUNT == 32 && "Opcode count changed.");
 
         switch (opcode) {
             case OP_PUSH_VALUE: {
@@ -275,6 +275,13 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
                 vm_run->pc = READ_I16(instructions, vm_run->pc);
                 TRACE_INT_ARG(vm_run->pc);
             } break;
+            case OP_INIT: {
+                // push the return address
+                stack[++vm_mem->stack.top] = val_number(-1.0f);
+                // jump to label / function
+                vm_run->pc = READ_I16(instructions, vm_run->pc);
+                TRACE_INT_ARG(vm_run->pc);
+            } break;
             case OP_MAKE_FRAME: {
 
                 int nargs = READ_I16(instructions, vm_run->pc);
@@ -318,12 +325,7 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
 
             } break;
             case OP_RETURN: {
-
-                // check if we are doing a return from
-                // frameless context
-                if( vm_mem->stack.frame < 0 ) {
-                    return val_number(-1008);
-                }
+                assert(vm_mem->stack.frame >= 0);
 
                 frame_t frame = val_into_frame(stack[vm_mem->stack.frame]);
                 if( frame.return_pc < 0 ) {

@@ -52,7 +52,8 @@ static op_scheme_t schemes[] = {
     {"add",             OP_ADD,             ARGSPEC1(0),                     0x00,              0x00 },
     {"sub",             OP_SUB,             ARGSPEC1(0),                     0x00,              0x00 },
     {"neg",             OP_NEG,             ARGSPEC1(0),                     0x00,              0x00 },
-    {"ncall",           OP_CALL_NATIVE,     ARGSPEC1(TT_SYMBOL),             0x01,              0x00 }
+    {"ncall",           OP_CALL_NATIVE,     ARGSPEC1(TT_SYMBOL),             0x01,              0x00 },
+    {"init",            OP_INIT,            ARGSPEC1(TT_SYMBOL),             0x00,              0x01 }
 };
 
 #if GVM_TRACE_LOG_LEVEL >= 3
@@ -91,7 +92,7 @@ int scheme_match(parser_t* p) {
     int str_len = parser_get_token_string_length(p, token);
     int nschemes = sizeof(schemes) / sizeof(schemes[0]);
 
-    assert(OP_OPCODE_COUNT == 31 && "Opcode count changed (update schemes[]).");
+    assert(OP_OPCODE_COUNT == 32 && "Opcode count changed (update schemes[]).");
 
     for(int i = 0; i < nschemes; i++) {
         if( strlen(schemes[i].name) != (size_t) str_len ) {

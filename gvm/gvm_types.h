@@ -111,6 +111,7 @@ typedef enum gvm_op_t {
     OP_JUMP_IF_FALSE,
     OP_EXIT,
     OP_CALL,
+    OP_INIT,
     OP_MAKE_FRAME,
     OP_RETURN,
     OP_STORE_LOCAL,

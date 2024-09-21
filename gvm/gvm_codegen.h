@@ -19,32 +19,20 @@ void gvm_codegen(ast_node_t* node) {
                 case AST_BIN_MUL: {
                     printf("mul");
                 } break;
-                case AST_BIN_DIV: {
-                    printf("div");
-                } break;
                 case AST_BIN_AND: {
                     printf("and");
                 } break;
                 case AST_BIN_OR: {
                     printf("or");
                 } break;
-                case AST_BIN_XOR: {
-                    printf("xor");
-                } break;
                 case AST_BIN_EQ: {
-                    printf("eq");
-                } break;
-                case AST_BIN_LT_EQ: {
-                    printf("le");
-                } break;
-                case AST_BIN_GT_EQ: {
-                    printf("ge");
+                    printf("is-equal");
                 } break;
                 case AST_BIN_LT: {
-                    printf("lt");
+                    printf("is-less");
                 } break;
                 case AST_BIN_GT: {
-                    printf("gt");
+                    printf("is-more");
                 } break;
                 default: {
                     printf("<unk>");
@@ -57,9 +45,6 @@ void gvm_codegen(ast_node_t* node) {
             switch(node->u.n_unop.type) {
                 case AST_UN_NEG: {
                     printf("neg");
-                } break;
-                case AST_UN_NOT: {
-                    printf("not");
                 } break;
                 default: {
                     printf("<unk>");

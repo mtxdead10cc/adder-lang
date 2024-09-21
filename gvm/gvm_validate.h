@@ -19,6 +19,7 @@
 typedef struct validation_t {
     char message[257];
     gvm_op_t last_opcode;
+    unsigned int opcntr;
 } validation_t;
 
 inline static bool validation_init(gvm_t* vm) {
@@ -120,9 +121,12 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
                 "the OP_CALL instruction must be immediatly followed by OP_MAKE_FRAME.\n");
         validation->message[256] = '\0';
         no_error = false;
-    } else if( opcode == OP_MAKE_FRAME && validation->last_opcode != OP_CALL && vm->mem.stack.top > 0 ) {
+    } else if( opcode == OP_MAKE_FRAME
+            && validation->last_opcode != OP_CALL
+            && validation->last_opcode != OP_INIT )
+    {
         snprintf(validation->message, 256,
-                "the OP_MAKE_FRAME instruction must be preceeded by OP_CALL.\n");
+                "the OP_MAKE_FRAME instruction must be preceeded by OP_CALL or OP_INIT.\n");
         validation->message[256] = '\0';
         no_error = false;
     } else {
@@ -180,6 +184,15 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
                     no_error = false;
                 }
             } break;
+            case OP_INIT: {
+                if( validation->opcntr != 0 ) {
+                    snprintf(validation->message, 256,
+                            "'%s' has to be the first instruction.",
+                             op_name);
+                    validation->message[256] = '\0';
+                    no_error = false;
+                }
+            } break;
             default: {
                 /* nothing */
             } break;
@@ -187,6 +200,7 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
     }
 
     validation->last_opcode = opcode;
+    validation->opcntr ++;
 
     if( no_error == false ) {
         printf("ERROR: %s\n",
@@ -197,7 +211,7 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
 }
 
 inline static bool validation_post_exec(gvm_t* vm, gvm_op_t opcode) {
-    assert(OP_OPCODE_COUNT == 31 && "Opcode count changed.");
+    assert(OP_OPCODE_COUNT == 32 && "Opcode count changed.");
     char* op_name = au_get_op_name(opcode);
     validation_t* validation = ((validation_t*)vm->validation);
     bool no_error = true;
