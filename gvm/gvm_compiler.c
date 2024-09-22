@@ -591,21 +591,20 @@ gvm_program_t gvm_compile(ast_node_t* node) {
     if( s2sim_init(&state.functions, IRID_INS, 16) == false ) {
         return (gvm_program_t) {0};
     }
+    
     if( s2sim_init(&state.localvars, IRID_VAR, 16) == false ) {
         return (gvm_program_t) {0};
     }
+
     if( irl_init(&state.instrs, 16) == false ) {
         return (gvm_program_t) {0};
     }
+
     if( valbuffer_create(&state.consts, 16) == false ) {
         return (gvm_program_t) {0};
     }
 
-    // TODO: INDEXING IS INCORRECT WHEN WRITING TO BYTECODE
-    // SINCE WE NEED THE OFFSET IN BYTES INTO THE BUFFER
-    // AND NOT THE IR_INDEX
-
-    ir_index_t entrypoint= irl_add(&state.instrs, (ir_inst_t) {
+    ir_index_t entrypoint = irl_add(&state.instrs, (ir_inst_t) {
         .opcode = OP_ENTRY_POINT,
         .args = { 0 }
     });

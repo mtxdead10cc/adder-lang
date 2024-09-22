@@ -12,7 +12,7 @@ fun hello(num arg1, num arg2) -> none {
     }
 }
 
-fun main() {
+fun main() -> none {
     arr<num> list = [1,2,3,4,5];
     for(num item in list) {
         hello(item, 5);
@@ -69,12 +69,20 @@ fun main() {
 
 ```
 
+### TODO
 
-### Required Changes
-
-* [ ] Function arguments in VM needs to be treated like locals.
-* [ ] Use indices instead of strings for identifiers (locals, globals, function names, etc).
-* [ ] Remove the concept of globals. There should always be a stack-frame present.
+* [ ] The parsing of language source code.
+* [ ] IR based typechecking.
+* [ ] OP_NATIVE_CALL via AST_CALL.
+* [ ] OP_BREAK needs an implementation.
+* [ ] Remove gvm_asm and clean up unused datatypes.
+* [ ] Remove or cleanup asmutils.
+* [ ] Bytecode op args should be 32 bit.
+* [ ] Compiler errors and warnings.
+* [ ] Proper VM traps instead of asserts and exit(1).
+* [X] Function arguments in VM needs to be treated like locals.
+* [X] Use indices instead of strings for identifiers (locals, globals, function names, etc).
+* [X] Remove the concept of globals. There should always be a stack-frame present.
 
 ### Lua EBNF (for reference)
 
