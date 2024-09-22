@@ -5,7 +5,6 @@
 #include <stdbool.h>
 #include "gvm_value.h"
 
-
 bool u8buffer_create(u8buffer_t* ub, int capacity);
 void u8buffer_clear(u8buffer_t* ub);
 bool u8buffer_write(u8buffer_t* ub, uint8_t wbyte);

@@ -53,7 +53,7 @@ static op_scheme_t schemes[] = {
     {"sub",             OP_SUB,             ARGSPEC1(0),                     0x00,              0x00 },
     {"neg",             OP_NEG,             ARGSPEC1(0),                     0x00,              0x00 },
     {"ncall",           OP_CALL_NATIVE,     ARGSPEC1(TT_SYMBOL),             0x01,              0x00 },
-    {"init",            OP_INIT,            ARGSPEC1(TT_SYMBOL),             0x00,              0x01 }
+    {"init",            OP_ENTRY_POINT,            ARGSPEC1(TT_SYMBOL),             0x00,              0x01 }
 };
 
 #if GVM_TRACE_LOG_LEVEL >= 3

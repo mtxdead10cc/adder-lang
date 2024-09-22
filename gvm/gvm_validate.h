@@ -94,11 +94,7 @@ inline static bool validation_check_stack(gvm_t* vm, char* context) {
     }
     int stack_frame = vm->mem.stack.frame;
     if( stack_frame < 0 ) {
-        snprintf(validation->message, 256,
-                "'%s' missing call-frame.\n",
-                context);
-        validation->message[256] = '\0';
-        return false;
+        return true;
     }
     frame_t frame = val_into_frame(vm->mem.stack.values[stack_frame]);
     int frame_upper = stack_frame + frame.num_args + frame.num_locals;
@@ -123,10 +119,10 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
         no_error = false;
     } else if( opcode == OP_MAKE_FRAME
             && validation->last_opcode != OP_CALL
-            && validation->last_opcode != OP_INIT )
+            && validation->last_opcode != OP_ENTRY_POINT )
     {
         snprintf(validation->message, 256,
-                "the OP_MAKE_FRAME instruction must be preceeded by OP_CALL or OP_INIT.\n");
+                "the OP_MAKE_FRAME instruction must be preceeded by OP_CALL or OP_ENTRY_POINT.\n");
         validation->message[256] = '\0';
         no_error = false;
     } else {
@@ -184,7 +180,7 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
                     no_error = false;
                 }
             } break;
-            case OP_INIT: {
+            case OP_ENTRY_POINT: {
                 if( validation->opcntr != 0 ) {
                     snprintf(validation->message, 256,
                             "'%s' has to be the first instruction.",

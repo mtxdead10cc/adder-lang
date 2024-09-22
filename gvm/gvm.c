@@ -275,8 +275,8 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
                 vm_run->pc = READ_I16(instructions, vm_run->pc);
                 TRACE_INT_ARG(vm_run->pc);
             } break;
-            case OP_INIT: {
-                // push the return address
+            case OP_ENTRY_POINT: {
+                // push negative number as return address
                 stack[++vm_mem->stack.top] = val_number(-1.0f);
                 // jump to label / function
                 vm_run->pc = READ_I16(instructions, vm_run->pc);
@@ -325,9 +325,14 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
 
             } break;
             case OP_RETURN: {
-                assert(vm_mem->stack.frame >= 0);
 
-                frame_t frame = val_into_frame(stack[vm_mem->stack.frame]);
+                frame_t frame;
+                if( vm_mem->stack.frame >= 0 ) {
+                    frame = val_into_frame(stack[vm_mem->stack.frame]);
+                } else {
+                    frame.return_pc = -1;
+                }
+
                 if( frame.return_pc < 0 ) {
                     // Note: if the return address is negative we exit the vm
                     //       returning the top of stack element.

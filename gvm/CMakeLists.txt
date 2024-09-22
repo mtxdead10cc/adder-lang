@@ -14,6 +14,7 @@ target_sources(gvm PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/gvm_env.c
         ${CMAKE_CURRENT_SOURCE_DIR}/gvm_asm.c
         ${CMAKE_CURRENT_SOURCE_DIR}/gvm_asmutils.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/gvm_compiler.c
 )
 
 

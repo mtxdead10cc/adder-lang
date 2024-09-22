@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include "termhax.h"
-#include <gvm_codegen.h>
+#include <gvm_compiler.h>
 
 typedef struct test_case_t test_case_t;
 
@@ -289,7 +289,8 @@ void test_ast(test_case_t* this) {
 
     ast_dump(fun);
 
-    gvm_codegen(fun);
+    // TODO: FIX
+    gvm_compile(fun);
 
     ast_free(fun);
 }

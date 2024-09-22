@@ -5,6 +5,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <assert.h>
+
 
 typedef enum ast_node_type_t {
     AST_VALUE,
@@ -179,6 +182,16 @@ inline static void srcref_print(srcref_t ref) {
     strncpy(buf, srcref_to_str(ref), len);
     buf[len] = '\0';
     printf("%s", buf);
+}
+
+inline static bool srcref_equals(srcref_t a, srcref_t b) {
+    size_t len = srcref_len(a);
+    if( len != srcref_len(b) ) {
+        return false;
+    }
+    char* a_str = srcref_to_str(a);
+    char* b_str = srcref_to_str(b);
+    return strncmp(a_str, b_str, len) == 0;
 }
 
 inline static ast_node_t* ast_number(float val) {
