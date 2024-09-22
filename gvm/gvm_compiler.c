@@ -1,21 +1,168 @@
 #include "gvm_compiler.h"
 #include <assert.h>
-#include "gvm_ir.h"
 
-#define GVM_COMPILER_MAP_SIZE 5
+typedef struct ir_inst_t {
+    gvm_op_t opcode;
+    uint32_t args[2];
+} ir_inst_t;
+
+typedef struct ir_list_t {
+    uint32_t count;
+    uint32_t capacity;
+    ir_inst_t* irs;
+} ir_list_t;
+
+typedef enum ir_index_tag_t {
+    IRID_INVALID = 0,
+    IRID_VAR,
+    IRID_INS
+} ir_index_tag_t;
+
+typedef struct ir_index_t {
+    ir_index_tag_t tag;
+    uint32_t    idx;
+} ir_index_t;
+
+bool irl_init(ir_list_t* list, uint32_t capacity) {
+    list->count = 0;
+    list->irs = (ir_inst_t*) malloc( sizeof(ir_inst_t) * capacity );
+    if( list->irs == NULL ) {
+        return false;
+    }
+    list->capacity = capacity;
+    return true;
+}
+
+void irl_destroy(ir_list_t* list) {
+    if( list->irs != NULL ) {
+        free(list->irs);
+    }
+    list->irs = NULL;
+    list->capacity = 0;
+    list->count = 0;
+}
+
+bool irl_reserve(ir_list_t* list, uint32_t additional) {
+    uint32_t required = (list->count + additional);
+    if( list->capacity <= required ) {
+        ir_inst_t* ptr = (ir_inst_t*) realloc(list->irs, sizeof(ir_inst_t) * required);
+        if( ptr == NULL ) {
+            return false;
+        }
+        list->irs = ptr;
+    }
+    return true;
+}
+
+ir_index_t irl_add(ir_list_t* list, ir_inst_t instr) {
+    if( irl_reserve(list, 1) == false ) {
+        printf("error: out of memory, can't realloc.");
+        return (ir_index_t) {0};
+    }
+    list->irs[list->count++] = instr;
+    return (ir_index_t) {
+        .idx = list->count - 1,
+        .tag = IRID_INS
+    };
+}
+
+ir_inst_t* irl_get(ir_list_t* list, ir_index_t index) {
+    assert(index.tag == IRID_INS && "index has mismatching tag");
+    return list->irs + index.idx;
+}
+
+void irl_dump(ir_list_t* list) {
+    for(uint32_t i = 0; i < list->count; i++) {
+        int argcount = au_get_op_instr_arg_count(list->irs[i].opcode);
+        printf("%03d #  ('%s'", i, au_get_op_name(list->irs[i].opcode));
+        for (int j = 0; j < argcount; j++) {
+            printf(" %d", list->irs[i].args[j]);
+        }
+        printf(")\n");
+    }
+}
 
 typedef struct src2idxmap_t {
-    size_t          size;
+    size_t          count;
+    size_t          capacity;
     ir_index_tag_t  tag;
-    srcref_t        key[GVM_COMPILER_MAP_SIZE];
-    bool            is_in_use[GVM_COMPILER_MAP_SIZE];
-    ir_index_t      value[GVM_COMPILER_MAP_SIZE];
+    srcref_t*       key;
+    bool*           is_in_use;
+    ir_index_t*     value;
 } src2idxmap_t;
 
-void s2sim_init(src2idxmap_t* map, ir_index_tag_t tag) {
-    *map = (src2idxmap_t) { 0 };
-    map->tag = tag;
+void s2sim_destroy(src2idxmap_t* map) {
+    if( map == NULL ) {
+        return;
+    }
+    if( map->is_in_use != NULL ) {
+        free(map->is_in_use);
+        map->is_in_use = NULL;
+    }
+    if( map->key != NULL ) {
+        free(map->key);
+        map->key = NULL;
+    }
+    if( map->value != NULL ) {
+        free(map->value);
+        map->value = NULL;
+    }
+    map->capacity = 0;
+    map->count = 0;
+    map->tag = IRID_INVALID;
 }
+
+bool s2sim_init(src2idxmap_t* map, ir_index_tag_t tag, size_t initial_capacity) {
+    map->capacity = initial_capacity;
+    map->count = 0;
+    map->tag = tag;
+    map->is_in_use = (bool*) malloc(sizeof(bool) * map->capacity);
+    if( map->is_in_use == NULL ) {
+        s2sim_destroy(map);
+        return false;
+    }
+    memset(map->is_in_use, 0, sizeof(bool) * map->capacity); // in_use = fale
+    map->key = (srcref_t*) malloc(sizeof(srcref_t) * map->capacity);
+    if( map->key == NULL ) {
+        s2sim_destroy(map);
+        return false;
+    }
+    map->value = (ir_index_t*) malloc(sizeof(ir_index_t) * map->capacity);
+    if( map->value == NULL ) {
+        s2sim_destroy(map);
+        return false;
+    }
+    return true;
+}
+
+bool s2sim_ensure_capacity(src2idxmap_t* map, size_t additional) {
+    // this is a map and not a list so we try to
+    // have some headroom.
+    size_t required = (map->count + additional); 
+    if( map->capacity <= (required + (required / 4)) ) {
+        size_t new_capacity = required * 2;
+        bool* is_in_use = (bool*) realloc(map->is_in_use, sizeof(bool) * new_capacity);
+        if( is_in_use != NULL ) {
+            map->is_in_use = is_in_use;
+        }
+        srcref_t* key = (srcref_t*) realloc(map->key, sizeof(bool) * new_capacity);
+        if( is_in_use != NULL ) {
+            map->key = key;
+        }
+        ir_index_t* value = (ir_index_t*) realloc(map->value, sizeof(bool) * new_capacity);
+        if( is_in_use != NULL ) {
+            map->value = value;
+        }
+        if( (key == NULL) || (value == NULL) | (is_in_use == NULL) ) {
+            printf("error: out of memory\n");
+            return false;
+        }
+        map->capacity = new_capacity;
+    }
+    return true;
+}
+
+
 
 size_t s2im_hash(srcref_t ref) {
     size_t len = srcref_len(ref);
@@ -29,15 +176,18 @@ size_t s2im_hash(srcref_t ref) {
 
 bool s2im_insert(src2idxmap_t* map, srcref_t key, ir_index_t val) {
     assert(val.tag == map->tag && "table tag and value mismatch");
+    if( s2sim_ensure_capacity(map, 1) == false ) {
+        return false;
+    }
     size_t hk = s2im_hash(key);
-    size_t start_index = hk % GVM_COMPILER_MAP_SIZE;
-    for(size_t i = 0; i < GVM_COMPILER_MAP_SIZE; i++) {
-        size_t tab_index = (i + start_index) % GVM_COMPILER_MAP_SIZE;
+    size_t start_index = hk % map->capacity;
+    for(size_t i = 0; i < map->capacity; i++) {
+        size_t tab_index = (i + start_index) % map->capacity;
         if( map->is_in_use[tab_index] == false ) {
             map->value[tab_index] = val;
             map->is_in_use[tab_index] = true;
             map->key[tab_index] = key;
-            map->size ++;
+            map->count ++;
             return true;
         } else if ( srcref_equals(map->key[tab_index], key) ) {
             return false;
@@ -48,14 +198,14 @@ bool s2im_insert(src2idxmap_t* map, srcref_t key, ir_index_t val) {
 
 void s2im_clear(src2idxmap_t* map) {
     ir_index_tag_t tag = map->tag;
-    *map = (src2idxmap_t) { 0 }; 
+    memset(map->is_in_use, 0, sizeof(bool) * map->capacity);
     map->tag = tag;
 }
 
 void s2im_print(src2idxmap_t* map) {
-    printf("[Source -> Index Map (size=%d)]\n", (uint32_t) map->size);
-    for(int i = 0; i < GVM_COMPILER_MAP_SIZE; i++) {
-        printf("%i > ", i);
+    printf("[Source -> Index Map (size=%d)]\n", (uint32_t) map->count);
+    for(size_t i = 0; i < map->capacity; i++) {
+        printf("%i > ", (uint32_t) i);
         if( map->is_in_use[i] == false ) {
             printf("<empty>");
         } else {
@@ -67,19 +217,15 @@ void s2im_print(src2idxmap_t* map) {
 
 ir_index_t* s2im_lookup(src2idxmap_t* map, srcref_t key) {
     size_t hk = s2im_hash(key);
-    size_t start_index = hk % GVM_COMPILER_MAP_SIZE;
-    size_t hit_count = 0;
-    for(size_t i = 0; i < GVM_COMPILER_MAP_SIZE; i++) {
-        size_t tab_index = (i + start_index) % GVM_COMPILER_MAP_SIZE;
+    size_t start_index = hk % map->capacity;
+    for(size_t i = 0; i < map->capacity; i++) {
+        size_t tab_index = (i + start_index) % map->capacity;
         if( map->is_in_use[tab_index] == false ) {
-            continue;
+            return NULL;
         }
         if( srcref_equals(map->key[tab_index], key) ) {
             return &map->value[tab_index];
         }
-        if( (hit_count ++) == map->size ) {
-            return NULL;
-        } 
     }
     return NULL;
 }
@@ -202,7 +348,7 @@ void codegen_value(ast_value_t node, compiler_state_t* state) {
 
 void codegen_fundecl(ast_fundecl_t node, compiler_state_t* state) {
     assert(node.args->type == AST_BLOCK);
-    assert(state->localvars.size == 0 && "Function declared inside function?");
+    assert(state->localvars.count == 0 && "Function declared inside function?");
     ir_index_t frame_index = irl_add(&state->instrs, (ir_inst_t){
         .opcode = OP_MAKE_FRAME,
         .args = { 0 }
@@ -211,9 +357,9 @@ void codegen_fundecl(ast_fundecl_t node, compiler_state_t* state) {
     assert(ok == true);
     s2im_clear(&state->localvars);
     codegen(node.args, state); // in order to "add" arg names
-    uint32_t arg_count = (uint32_t) state->localvars.size;
+    uint32_t arg_count = (uint32_t) state->localvars.count;
     codegen(node.body, state); // adds locals to frame
-    uint32_t locals_count = ((uint32_t) state->localvars.size) - arg_count;
+    uint32_t locals_count = ((uint32_t) state->localvars.count) - arg_count;
     irl_get(&state->instrs, frame_index)->args[0] = arg_count;
     irl_get(&state->instrs, frame_index)->args[1] = locals_count;
     s2im_clear(&state->localvars);
@@ -232,7 +378,7 @@ void codegen_funcall(ast_funcall_t node, compiler_state_t* state) {
 
 void codegen_assignment(ast_assign_t node, compiler_state_t* state) {
     codegen(node.right_value, state);
-    assert(state->localvars.size > 0 && "local vars was empty");
+    assert(state->localvars.count > 0 && "local vars was empty");
     srcref_t varname = { 0 };
     // depending on declared variable or just
     // a reference to already existing
@@ -367,7 +513,7 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
             // just add valiable name to frame local var set.
             s2im_insert(&state->localvars, node->u.n_vardecl.name, (ir_index_t){
                 .tag = IRID_VAR,
-                .idx = (uint32_t) state->localvars.size
+                .idx = (uint32_t) state->localvars.count
             });
         } break;
         case AST_BREAK: {
@@ -376,19 +522,79 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
     }
 }
 
+gvm_program_t write_program(ir_list_t* ir_instrs, valbuffer_t* consts) {
+
+    u8buffer_t bytecode;
+    u8buffer_create(&bytecode, ir_instrs->count);
+    for (uint32_t i = 0; i < ir_instrs->count; i++) {
+        u8buffer_write(&bytecode, (uint8_t) ir_instrs->irs[i].opcode);
+        int argcount = au_get_op_instr_arg_count(ir_instrs->irs[i].opcode);
+        for (int j = 0; j < argcount; j++) {
+            uint32_t value = ir_instrs->irs[i].args[j];
+            u8buffer_write(&bytecode, (uint8_t) (value & 0xFF));
+            u8buffer_write(&bytecode, (uint8_t) ((value >> 8) & 0xFF));
+        }
+    }
+
+    val_t* const_buf = (val_t*) malloc( sizeof(val_t) * consts->size );
+    memcpy(const_buf, consts->values, sizeof(val_t) * consts->size);
+
+    uint8_t* code_buf = (uint8_t*) malloc( sizeof(uint8_t) * bytecode.size );
+    memcpy(code_buf, bytecode.data, sizeof(uint8_t) * bytecode.size );
+
+    gvm_program_t result = (gvm_program_t) {
+        .cons.buffer = const_buf,
+        .cons.count = consts->size,
+        .inst.buffer = code_buf,
+        .inst.size = bytecode.size
+    };
+
+    u8buffer_destroy(&bytecode);
+    return result;
+}
+
 
 gvm_program_t gvm_compile(ast_node_t* node) {
 
     compiler_state_t state = (compiler_state_t) { 0 };
-    s2sim_init(&state.functions, IRID_INS);
-    s2sim_init(&state.localvars, IRID_VAR);
-    irl_init(&state.instrs, 16);
-    valbuffer_create(&state.consts, 16);
+
+    if( s2sim_init(&state.functions, IRID_INS, 16) == false ) {
+        return (gvm_program_t) {0};
+    }
+    if( s2sim_init(&state.localvars, IRID_VAR, 16) == false ) {
+        return (gvm_program_t) {0};
+    }
+    if( irl_init(&state.instrs, 16) == false ) {
+        return (gvm_program_t) {0};
+    }
+    if( valbuffer_create(&state.consts, 16) == false ) {
+        return (gvm_program_t) {0};
+    }
+
+    // TODO: INDEXING IS INCORRECT WHEN WRITING TO BYTECODE
+    // SINCE WE NEED THE OFFSET IN BYTES INTO THE BUFFER
+    // AND NOT THE IR_INDEX
+
+    ir_index_t entrypoint= irl_add(&state.instrs, (ir_inst_t) {
+        .opcode = OP_ENTRY_POINT,
+        .args = { 0 }
+    });
+
     codegen(node, &state);
 
-    irl_dump(&state.instrs);
-    
-    // destroy valbuffer
+    ir_index_t* index = s2im_lookup( &state.functions,
+                                     srcref("main", 0, 4) );
+    assert(index != NULL && "main entrypoint not found");
+    irl_get(&state.instrs, entrypoint)->args[0] = index->idx;
 
-    return (gvm_program_t) {0};
+    irl_dump(&state.instrs);
+
+    gvm_program_t program = write_program(&state.instrs, &state.consts);
+    
+    valbuffer_destroy(&state.consts);
+    irl_destroy(&state.instrs);
+    s2sim_destroy(&state.localvars);
+    s2sim_destroy(&state.functions);
+
+    return program;
 }

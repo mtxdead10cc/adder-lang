@@ -64,6 +64,7 @@ int au_get_op_instr_arg_count(gvm_op_t opcode) {
         case OP_PRINT:
         case OP_MAKE_ARRAY:
         case OP_CMP_MORE_THAN:
+        case OP_MAKE_ITER:
             return 0;
         case OP_PUSH_VALUE:   
         case OP_JUMP:         
@@ -74,7 +75,6 @@ int au_get_op_instr_arg_count(gvm_op_t opcode) {
         case OP_STORE_LOCAL:
         case OP_LOAD_LOCAL:
         case OP_ARRAY_LENGTH:
-        case OP_MAKE_ITER:
         case OP_ITER_NEXT:
         case OP_CALL_NATIVE:
             return 1;

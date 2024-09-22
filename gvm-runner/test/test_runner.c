@@ -289,10 +289,30 @@ void test_ast(test_case_t* this) {
 
     ast_dump(fun);
 
-    // TODO: FIX
-    gvm_compile(fun);
+    gvm_program_t program = gvm_compile(fun);
 
     ast_free(fun);
+
+    gvm_program_disassemble(&program);
+
+    gvm_t vm;
+    val_t argbuf[] = { val_number(1), val_number(2) };
+    gvm_exec_args_t args = {
+        .args = { .buffer = argbuf, .count = 2 },
+        .cycle_limit = 100
+    };
+
+    TEST_ASSERT_MSG(this,
+        gvm_create(&vm, 16, 16),
+        "#1.0 failed to create VM.");
+
+    val_t res = gvm_execute(&vm, &program, &args);
+    printf("VM: ");
+    val_print(res);
+    printf("\n");
+
+    gvm_program_destroy(&program);
+    gvm_destroy(&vm);
 }
 
 test_results_t run_testcases() {
