@@ -40,7 +40,7 @@ void heap_gc_mark_used(gvm_t* vm, val_t* checkmem, int val_count) {
         // call recursively (arrays inside array)
         heap_gc_mark_used(vm,
             vm->mem.heap.values + heap_start + 1,
-            array.length);
+            array.length - 1);
     }
 }
 

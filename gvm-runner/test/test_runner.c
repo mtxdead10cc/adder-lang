@@ -287,7 +287,7 @@ void test_ast(test_case_t* this) {
         AST_VALUE_TYPE_NUMBER,
         decl_args, body);
 
-    ast_dump(fun);
+    // ast_dump(fun);
 
     gvm_program_t program = gvm_compile(fun);
 
@@ -306,10 +306,14 @@ void test_ast(test_case_t* this) {
         gvm_create(&vm, 16, 16),
         "#1.0 failed to create VM.");
 
-    val_t res = gvm_execute(&vm, &program, &args);
-    printf("VM: ");
-    val_print(res);
-    printf("\n");
+    val_t ret = gvm_execute(&vm, &program, &args);
+     TEST_ASSERT_MSG(this,
+        VAL_GET_TYPE(ret) == VAL_NUMBER,
+        "#1.1 unexpected return type.");
+
+    TEST_ASSERT_MSG(this,
+        val_into_number(ret) == 4.0f,
+        "#1.2 unexpected return value.");
 
     gvm_program_destroy(&program);
     gvm_destroy(&vm);
