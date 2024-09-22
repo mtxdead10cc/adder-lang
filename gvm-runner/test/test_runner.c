@@ -262,9 +262,9 @@ void test_ast(test_case_t* this) {
 
     ast_node_t* array = ast_array();
     ast_array_add(array, ast_number(1));
-    ast_array_add(array, ast_number(2));
-    ast_array_add(array, ast_number(3));
-    ast_array_add(array, ast_number(4));
+    ast_array_add(array, ast_number(1));
+    ast_array_add(array, ast_number(1));
+    ast_array_add(array, ast_number(1));
 
     ast_block_add(body,
         ast_foreach(
@@ -293,10 +293,10 @@ void test_ast(test_case_t* this) {
 
     ast_free(fun);
 
-    gvm_program_disassemble(&program);
+    // gvm_program_disassemble(&program);
 
     gvm_t vm;
-    val_t argbuf[] = { val_number(1), val_number(2) };
+    val_t argbuf[] = { val_number(1), val_number(-1) };
     gvm_exec_args_t args = {
         .args = { .buffer = argbuf, .count = 2 },
         .cycle_limit = 100

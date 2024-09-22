@@ -241,8 +241,8 @@ typedef struct compiler_state_t {
 void codegen(ast_node_t* node, compiler_state_t* state);
 
 void codegen_binop(ast_binop_t node, compiler_state_t* state) {
-    codegen(node.left, state);
     codegen(node.right, state);
+    codegen(node.left, state);
     switch(node.type) {
         case AST_BIN_ADD: {
             irl_add(&state->instrs, (ir_inst_t){
@@ -522,15 +522,45 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
     }
 }
 
-gvm_program_t write_program(ir_list_t* ir_instrs, valbuffer_t* consts) {
+void recalc_index_to_bytecode_adress(ir_list_t* instrs) {
+    
+    uint32_t idx2addr[instrs->count];
+    uint32_t addr = 0;
+    const uint32_t argbytes = 2; // 16-bit args
+    
+    for (uint32_t i = 0; i < instrs->count; i++) {
+        idx2addr[i] = addr;
+        uint32_t argcount = au_get_op_instr_arg_count(instrs->irs[i].opcode);
+        addr = addr + (argcount * argbytes) + 1;
+    }
+
+    for (uint32_t i = 0; i < instrs->count; i++) {
+        switch(instrs->irs[i].opcode) {
+            case OP_CALL:
+            case OP_ENTRY_POINT:
+            case OP_ITER_NEXT:
+            case OP_JUMP:
+            case OP_JUMP_IF_FALSE: {
+                uint32_t index = instrs->irs[i].args[0];
+                instrs->irs[i].args[0] = idx2addr[index];
+            } break;
+            default: break;
+        }
+    }
+}
+
+gvm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts) {
+
+    recalc_index_to_bytecode_adress(instrs);
 
     u8buffer_t bytecode;
-    u8buffer_create(&bytecode, ir_instrs->count);
-    for (uint32_t i = 0; i < ir_instrs->count; i++) {
-        u8buffer_write(&bytecode, (uint8_t) ir_instrs->irs[i].opcode);
-        int argcount = au_get_op_instr_arg_count(ir_instrs->irs[i].opcode);
-        for (int j = 0; j < argcount; j++) {
-            uint32_t value = ir_instrs->irs[i].args[j];
+    u8buffer_create(&bytecode, instrs->count);
+
+    for (uint32_t i = 0; i < instrs->count; i++) {
+        u8buffer_write(&bytecode, (uint8_t) instrs->irs[i].opcode);
+        uint32_t argcount = au_get_op_instr_arg_count(instrs->irs[i].opcode);
+        for (uint32_t j = 0; j < argcount; j++) {
+            uint32_t value = instrs->irs[i].args[j];
             u8buffer_write(&bytecode, (uint8_t) (value & 0xFF));
             u8buffer_write(&bytecode, (uint8_t) ((value >> 8) & 0xFF));
         }
@@ -587,7 +617,7 @@ gvm_program_t gvm_compile(ast_node_t* node) {
     assert(index != NULL && "main entrypoint not found");
     irl_get(&state.instrs, entrypoint)->args[0] = index->idx;
 
-    irl_dump(&state.instrs);
+    // irl_dump(&state.instrs);
 
     gvm_program_t program = write_program(&state.instrs, &state.consts);
     

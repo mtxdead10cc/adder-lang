@@ -549,6 +549,7 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
         case AST_BINOP: {
             printf("%s ", ast_binop_type_as_string(node->u.n_binop.type));
             _ast_dump(node->u.n_binop.left, indent);
+            printf(" ");
             _ast_dump(node->u.n_binop.right, indent);
         } break;
         case AST_UNOP: {
@@ -561,7 +562,7 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
             _ast_dump(node->u.n_assign.right_value, indent);
         } break;
         case AST_ARRAY: {
-            _ast_nl(indent);
+            _ast_nl(indent + 1);
             size_t count = node->u.n_array.count;
             for(size_t i = 0; i < count; i++) {
                 _ast_dump(node->u.n_array.content[i], indent + 1);
@@ -606,7 +607,7 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
             _ast_dump(node->u.n_foreach.vardecl, indent);
             printf(" ");
             _ast_dump(node->u.n_foreach.collection, indent);
-            printf(" ");
+            _ast_nl(indent + 1);
             _ast_dump(node->u.n_foreach.during, indent);
         } break;
         case AST_FUN_DECL: {
