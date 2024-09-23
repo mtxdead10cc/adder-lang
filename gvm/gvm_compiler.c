@@ -317,7 +317,7 @@ void codegen_unop(ast_unop_t node, compiler_state_t* state) {
 }
 
 void codegen_value(ast_value_t node, compiler_state_t* state) {
-    int const_index = -1;
+    uint32_t const_index;
     switch(node.type) {
         case AST_VALUE_TYPE_BOOL: {
             const_index = au_consts_add_bool(&state->consts,
@@ -338,9 +338,10 @@ void codegen_value(ast_value_t node, compiler_state_t* state) {
             /* ignore */
             printf("error: cant push constant reference, unsupported value type %d\n",
                 node.type);
+            assert(false && "unsupported constant value");
         } break;
     }
-    assert((const_index >= 0) && "unsupported constant value");
+    
     irl_add(&state->instrs, (ir_inst_t){
         .opcode = OP_PUSH_VALUE,
         .args = { const_index, 0 }
@@ -442,7 +443,7 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
             for(size_t i = 0; i < count; i++) {
                 codegen(node->u.n_array.content[i], state);
             }
-            int const_index = au_consts_add_number(&state->consts, (float)count);
+            uint32_t const_index = au_consts_add_number(&state->consts, (float)count);
             irl_add(&state->instrs, (ir_inst_t){
                 .opcode = OP_PUSH_VALUE,
                 .args = { (uint32_t) const_index, 0 }

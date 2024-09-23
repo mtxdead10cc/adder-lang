@@ -99,56 +99,60 @@ bool valbuffer_add(valbuffer_t* buffer, val_t value) {
     return true;
 }
 
-uint32_t valbuffer_find_float(valbuffer_t* buffer, float value) {
+bool valbuffer_find_float(valbuffer_t* buffer, float value, uint32_t* index) {
     for (uint32_t i = 0; i < buffer->size; i++) {
         if(VAL_GET_TYPE(buffer->values[i]) != VAL_NUMBER) {
             continue;
         }
-        if((int) val_into_number(buffer->values[i]) == value) {
-            return i;
+        if(val_into_number(buffer->values[i]) == value) {
+            *index = i;
+            return true;
         }
     }
-    return -1;
+    return false;
 }
 
-uint32_t valbuffer_find_ivec2(valbuffer_t* buffer, ivec2_t value) {
+bool valbuffer_find_ivec2(valbuffer_t* buffer, ivec2_t value, uint32_t* index) {
     for (uint32_t i = 0; i < buffer->size; i++) {
         if(VAL_GET_TYPE(buffer->values[i]) != VAL_IVEC2) {
             continue;
         }
         ivec2_t in_buffer = val_into_ivec2(buffer->values[i]);
         if( in_buffer.x == value.x && in_buffer.y == value.y ) {
-            return i;
+            *index = i;
+            return true;
         }
     }
-    return -1;
+    return false;
 }
 
-uint32_t valbuffer_find_bool(valbuffer_t* buffer, bool value) {
+bool valbuffer_find_bool(valbuffer_t* buffer, bool value, uint32_t* index) {
     for (uint32_t i = 0; i < buffer->size; i++) {
         if(VAL_GET_TYPE(buffer->values[i]) != VAL_BOOL) {
             continue;
         }
         if( val_into_bool(buffer->values[i]) == value) {
-            return i;
+            *index = i;
+            return true;
         }
     }
-    return -1;
+    return false;
 }
 
-uint32_t valbuffer_find_char(valbuffer_t* buffer, char value) {
+bool valbuffer_find_char(valbuffer_t* buffer, char value, uint32_t* index) {
     for (uint32_t i = 0; i < buffer->size; i++) {
         if(VAL_GET_TYPE(buffer->values[i]) != VAL_CHAR) {
             continue;
         }
         if( val_into_char( buffer->values[i] ) == value) {
-            return i;
+            *index = i;
+            return true;
         }
     }
-    return -1;
+    return false;
 }
 
-uint32_t valbuffer_find_string(valbuffer_t* buffer, char* chars, int len) {
+bool valbuffer_find_string(valbuffer_t* buffer, char* chars, int len, uint32_t* index) {
     for (uint32_t i = 0; i < buffer->size; i++) {
         if(VAL_GET_TYPE(buffer->values[i]) != VAL_ARRAY ) {
             continue;
@@ -170,10 +174,11 @@ uint32_t valbuffer_find_string(valbuffer_t* buffer, char* chars, int len) {
             }
         }
         if( match ) {
-            return i;
+            *index = i;
+            return true;
         }
     }
-    return -1;
+    return false;
 }
 
 void valbuffer_destroy(valbuffer_t* buffer) {

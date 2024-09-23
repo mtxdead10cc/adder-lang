@@ -16,11 +16,11 @@ void valbuffer_clear(valbuffer_t* buffer);
 bool valbuffer_add(valbuffer_t* buffer, val_t value);
 void valbuffer_destroy(valbuffer_t* buffer);
 
-uint32_t valbuffer_find_float(valbuffer_t* buffer, float value);
-uint32_t valbuffer_find_ivec2(valbuffer_t* buffer, ivec2_t value);
-uint32_t valbuffer_find_bool(valbuffer_t* buffer, bool value);
-uint32_t valbuffer_find_char(valbuffer_t* buffer, char value);
-uint32_t valbuffer_find_string(valbuffer_t* buffer, char* chars, int len);
+bool valbuffer_find_float(valbuffer_t* buffer, float value, uint32_t* index);
+bool valbuffer_find_ivec2(valbuffer_t* buffer, ivec2_t value, uint32_t* index);
+bool valbuffer_find_bool(valbuffer_t* buffer, bool value, uint32_t* index);
+bool valbuffer_find_char(valbuffer_t* buffer, char value, uint32_t* index);
+bool valbuffer_find_string(valbuffer_t* buffer, char* chars, int len, uint32_t* index);
 
 int string_count_until(char* text, char stopchar);
 int string_parse_int(char* text, int string_length);

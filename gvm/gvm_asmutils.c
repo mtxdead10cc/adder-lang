@@ -3,9 +3,9 @@
 #include <stdarg.h>
 #include <limits.h>
 
-int au_consts_add_number(valbuffer_t* consts, float value) {
-    int existing = valbuffer_find_float(consts, value);
-    if( existing >= 0 ) {
+uint32_t au_consts_add_number(valbuffer_t* consts, float value) {
+    uint32_t existing = 0;
+    if( valbuffer_find_float(consts, value, &existing) ) {
         return existing;
     }
 
@@ -16,9 +16,9 @@ int au_consts_add_number(valbuffer_t* consts, float value) {
     return consts->size - 1;
 }
 
-int au_consts_add_bool(valbuffer_t* consts, bool value) {
-    int existing = valbuffer_find_bool(consts, value);
-    if( existing >= 0 ) {
+uint32_t au_consts_add_bool(valbuffer_t* consts, bool value) {
+    uint32_t existing = 0;
+    if( valbuffer_find_bool(consts, value, &existing) ) {
         return existing;
     }
     if(valbuffer_add(consts, val_bool(value)) == false) {
@@ -28,10 +28,10 @@ int au_consts_add_bool(valbuffer_t* consts, bool value) {
     return consts->size - 1;
 }
 
-int au_consts_add_char(valbuffer_t* consts, char value, bool force_contiguous) {
+uint32_t au_consts_add_char(valbuffer_t* consts, char value, bool force_contiguous) {
     if( force_contiguous == false ) {
-        int existing = valbuffer_find_char(consts, value);
-        if( existing >= 0 ) {
+        uint32_t existing = 0;
+        if( valbuffer_find_char(consts, value, &existing) ) {
             return existing;
         }
     }
@@ -42,7 +42,7 @@ int au_consts_add_char(valbuffer_t* consts, char value, bool force_contiguous) {
     return consts->size - 1;
 }
 
-int au_consts_add_string(valbuffer_t* consts, char* text) {
+uint32_t au_consts_add_string(valbuffer_t* consts, char* text) {
 
     if( text[0] != '"' ) {
         printf("error: expected \" at start of string.\n");
@@ -82,8 +82,8 @@ int au_consts_add_string(valbuffer_t* consts, char* text) {
     }
     tmp_buffer[w_count] = '\0';
     
-    int existing = valbuffer_find_string(consts, tmp_buffer, w_count);
-    if( existing >= 0 ) {
+    uint32_t existing = 0;
+    if( valbuffer_find_string(consts, tmp_buffer, w_count, &existing) ) {
         return existing;
     }
 
@@ -102,7 +102,7 @@ int au_consts_add_string(valbuffer_t* consts, char* text) {
         : (consts->size);
 }
 
-int au_consts_add_ivec2(valbuffer_t* consts, char* text) {
+uint32_t au_consts_add_ivec2(valbuffer_t* consts, char* text) {
 
     if( text[0] != '(' ) {
         printf("error: expected ( at start of ivec2.\n");
@@ -122,8 +122,8 @@ int au_consts_add_ivec2(valbuffer_t* consts, char* text) {
     int to_rparen = string_count_until(text, ')');
     value.y = string_parse_int(text, to_rparen);
 
-    int existing = valbuffer_find_ivec2(consts, value);
-    if( existing >= 0 ) {
+    uint32_t existing = 0;
+    if( valbuffer_find_ivec2(consts, value, &existing) ) {
         return existing;
     }
 
@@ -133,10 +133,10 @@ int au_consts_add_ivec2(valbuffer_t* consts, char* text) {
         : (consts->size);
 }
 
-int au_consts_add_symbol_as_string(valbuffer_t* consts, char* text, int length) {
+uint32_t au_consts_add_symbol_as_string(valbuffer_t* consts, char* text, int length) {
 
-    int existing = valbuffer_find_string(consts, text, length);
-    if( existing >= 0 ) {
+    uint32_t existing = 0;
+    if( valbuffer_find_string(consts, text, length, &existing)) {
         return existing;
     }
 

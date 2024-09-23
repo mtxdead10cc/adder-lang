@@ -314,8 +314,8 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
 
                 // OBS: ZERO INIT MIGHT NOT BE NEEDED!!
                 // init locals (not needed)
-                int locals_idx = frame_start + 1 + nargs;
-                for(int i = 0; i < nlocals; i++) {
+                uint32_t locals_idx = frame_start + 1 + nargs;
+                for(uint32_t i = 0; i < nlocals; i++) {
                     stack[locals_idx + i] = 0;
                 }
 

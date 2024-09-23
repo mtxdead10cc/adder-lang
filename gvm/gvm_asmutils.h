@@ -19,11 +19,11 @@
                          (uint32_t)((D)[(AT) + 1] << (8*1)) |\
                          (uint32_t)((D)[(AT)]))
 
-int au_consts_add_number(valbuffer_t* consts, float value);
-int au_consts_add_bool(valbuffer_t* consts, bool value);
-int au_consts_add_char(valbuffer_t* consts, char value, bool force_contiguous);
-int au_consts_add_string(valbuffer_t* consts, char* text);
-int au_consts_add_ivec2(valbuffer_t* consts, char* text);
-int au_consts_add_symbol_as_string(valbuffer_t* consts, char* text, int length);
+uint32_t au_consts_add_number(valbuffer_t* consts, float value);
+uint32_t au_consts_add_bool(valbuffer_t* consts, bool value);
+uint32_t au_consts_add_char(valbuffer_t* consts, char value, bool force_contiguous);
+uint32_t au_consts_add_string(valbuffer_t* consts, char* text);
+uint32_t au_consts_add_ivec2(valbuffer_t* consts, char* text);
+uint32_t au_consts_add_symbol_as_string(valbuffer_t* consts, char* text, int length);
 
 #endif // GVM_ASMUTILS_H_
