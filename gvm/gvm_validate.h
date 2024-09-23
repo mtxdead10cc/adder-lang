@@ -4,8 +4,8 @@
 #include "gvm_types.h"
 #include "gvm_config.h"
 #include "gvm_value.h"
-#include "gvm_asm.h"
 #include "gvm_asmutils.h"
+#include "gvm_asminfo.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -110,7 +110,7 @@ inline static bool validation_check_stack(gvm_t* vm, char* context) {
 
 inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
     validation_t* validation = ((validation_t*)vm->validation);
-    char* op_name = au_get_op_name(opcode);
+    char* op_name = get_op_name(opcode);
     bool no_error = true;
     if( validation->last_opcode == OP_CALL && opcode != OP_MAKE_FRAME  ) {
         snprintf(validation->message, 256,
@@ -208,7 +208,7 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
 
 inline static bool validation_post_exec(gvm_t* vm, gvm_op_t opcode) {
     assert(OP_OPCODE_COUNT == 32 && "Opcode count changed.");
-    char* op_name = au_get_op_name(opcode);
+    char* op_name = get_op_name(opcode);
     validation_t* validation = ((validation_t*)vm->validation);
     bool no_error = true;
     switch (opcode) {

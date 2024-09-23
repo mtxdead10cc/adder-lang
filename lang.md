@@ -73,10 +73,10 @@ fun main() -> none {
 
 * [ ] The parsing of language source code.
 * [ ] IR based typechecking.
-* [ ] OP_NATIVE_CALL via AST_CALL.
+* [ ] OP_NATIVE_CALL via AST_CALL ( 'extern print(any val) -> none;' ).
 * [ ] OP_BREAK needs an implementation.
-* [ ] Remove gvm_asm and clean up unused datatypes.
-* [ ] Remove or cleanup asmutils.
+* [X] Remove gvm_asm and clean up unused datatypes.
+* [X] Remove or cleanup asmutils.
 * [ ] Bytecode op args should be 32 bit.
 * [ ] Compiler errors and warnings.
 * [ ] Proper VM traps instead of asserts and exit(1).

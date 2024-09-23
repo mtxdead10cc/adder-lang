@@ -165,10 +165,21 @@ void test_vm(test_case_t* this) {
         1 == au_consts_add_number(&const_buf, 3),
         "2.2 unexpected index.");
 
-    au_write_instr(&instr_buf, OP_PUSH_VALUE, 1);
-    au_write_instr(&instr_buf, OP_PUSH_VALUE, 0);
-    au_write_instr(&instr_buf, OP_SUB);
-    au_write_instr(&instr_buf, OP_RETURN);
+    
+    uint16_t value;
+
+    value = 1;
+    u8buffer_write(&instr_buf, OP_PUSH_VALUE);
+    u8buffer_write(&instr_buf,  value);
+    u8buffer_write(&instr_buf, (value >> 8));
+
+    value = 0;
+    u8buffer_write(&instr_buf, OP_PUSH_VALUE);
+    u8buffer_write(&instr_buf,  value);
+    u8buffer_write(&instr_buf, (value >> 8));
+
+    u8buffer_write(&instr_buf, OP_SUB);
+    u8buffer_write(&instr_buf, OP_RETURN);
 
     // PROGRAM -- END
 
@@ -198,9 +209,13 @@ void test_vm(test_case_t* this) {
         0 == au_consts_add_number(&const_buf, 100),
         "2.1 unexpected index.");
 
-    au_write_instr(&instr_buf, OP_PUSH_VALUE, 0);
-    au_write_instr(&instr_buf, OP_ADD);
-    au_write_instr(&instr_buf, OP_RETURN);
+    value = 0;
+    u8buffer_write(&instr_buf, OP_PUSH_VALUE);
+    u8buffer_write(&instr_buf,  value);
+    u8buffer_write(&instr_buf, (value >> 8));
+
+    u8buffer_write(&instr_buf, OP_ADD);
+    u8buffer_write(&instr_buf, OP_RETURN);
 
     // PROGRAM -- END
 
@@ -287,13 +302,13 @@ void test_ast(test_case_t* this) {
         AST_VALUE_TYPE_NUMBER,
         decl_args, body);
 
-    // ast_dump(fun);
+    ast_dump(fun);
 
     gvm_program_t program = gvm_compile(fun);
 
     ast_free(fun);
 
-    // gvm_program_disassemble(&program);
+    gvm_program_disassemble(&program);
 
     gvm_t vm;
     val_t argbuf[] = { val_number(1), val_number(-1) };

@@ -1,5 +1,6 @@
 #include "gvm_compiler.h"
 #include <assert.h>
+#include "gvm_asminfo.h"
 
 typedef struct ir_inst_t {
     gvm_op_t opcode;
@@ -73,8 +74,8 @@ ir_inst_t* irl_get(ir_list_t* list, ir_index_t index) {
 
 void irl_dump(ir_list_t* list) {
     for(uint32_t i = 0; i < list->count; i++) {
-        int argcount = au_get_op_instr_arg_count(list->irs[i].opcode);
-        printf("%03d #  ('%s'", i, au_get_op_name(list->irs[i].opcode));
+        int argcount = get_op_arg_count(list->irs[i].opcode);
+        printf("%03d #  ('%s'", i, get_op_name(list->irs[i].opcode));
         for (int j = 0; j < argcount; j++) {
             printf(" %d", list->irs[i].args[j]);
         }
@@ -530,7 +531,7 @@ void recalc_index_to_bytecode_adress(ir_list_t* instrs) {
     
     for (uint32_t i = 0; i < instrs->count; i++) {
         idx2addr[i] = addr;
-        uint32_t argcount = au_get_op_instr_arg_count(instrs->irs[i].opcode);
+        uint32_t argcount = get_op_arg_count(instrs->irs[i].opcode);
         addr = addr + (argcount * argbytes) + 1;
     }
 
@@ -558,7 +559,7 @@ gvm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts) {
 
     for (uint32_t i = 0; i < instrs->count; i++) {
         u8buffer_write(&bytecode, (uint8_t) instrs->irs[i].opcode);
-        uint32_t argcount = au_get_op_instr_arg_count(instrs->irs[i].opcode);
+        uint32_t argcount = get_op_arg_count(instrs->irs[i].opcode);
         for (uint32_t j = 0; j < argcount; j++) {
             uint32_t value = instrs->irs[i].args[j];
             u8buffer_write(&bytecode, (uint8_t) (value & 0xFF));

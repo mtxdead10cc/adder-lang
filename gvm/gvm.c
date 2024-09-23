@@ -1,6 +1,5 @@
 #include "gvm.h"
 #include "gvm_parser.h"
-#include "gvm_asm.h"
 #include "gvm_env.h"
 #include "gvm_types.h"
 #include "gvm_value.h"
@@ -442,7 +441,7 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
                 vm_run->pc += 2;
             } break;
             default: {
-                char* op_str = au_get_op_name(opcode);
+                char* op_str = get_op_name(opcode);
                 printf("\nunhandled operatioin %i (%s)\n", opcode, op_str);
                 return val_number(-1003);
             } break;
@@ -457,15 +456,57 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
 }
 
 gvm_program_t gvm_program_compile_source(char* program_code) {
-    return asm_assemble_code_object(program_code);
+    (void)(program_code);
+    return (gvm_program_t) { 0 };
 }
 
-void gvm_program_disassemble(gvm_program_t* prog) {
-    asm_debug_disassemble_code_object(prog);
+void gvm_program_disassemble(gvm_program_t* program) {
+    int current_byte = 0;
+    int current_instruction = 0;
+    val_t* consts = program->cons.buffer;
+    uint8_t* instructions = program->inst.buffer;
+    int instr_byte_count = program->inst.size;
+    while( current_byte < instr_byte_count ) {
+        gvm_op_t opcode = instructions[current_byte];
+        int arg_count = get_op_arg_count(opcode);
+        if( arg_count < 0 ) {
+            printf("<op %i not found>", opcode);
+            current_byte ++;
+            continue;
+        }
+        char* name = get_op_name(opcode);
+        op_argtype_t* argtypes = get_op_arg_types(opcode);
+        printf("#%3i > %s", current_byte, name);
+        current_byte ++;
+        for (int i = 0; i < arg_count; i++) {
+            int val = READ_I16(instructions, current_byte);
+            printf(" %i", val);
+            current_byte += 2;
+            if( argtypes[i] == OP_ARG_CONSTANT ) {
+                printf(" (");
+                val_print_lookup_val_array(consts, consts[val]);
+                printf(")");
+            }
+        }
+        printf("\n");
+        current_instruction ++;
+    }
 }
 
 void gvm_program_destroy(gvm_program_t* prog) {
-    asm_destroy_code_object(prog);
+    if( prog == NULL ) {
+        return;
+    }
+    if( prog->cons.buffer != NULL ) {
+        free(prog->cons.buffer);
+        prog->cons.count = 0;
+        prog->cons.buffer = NULL;
+    }
+    if( prog->inst.buffer != NULL ) {
+        free(prog->inst.buffer);
+        prog->inst.size = 0;
+        prog->inst.buffer = NULL;
+    }
 }
 
 gvm_program_t gvm_program_read_and_compile(char* path) {

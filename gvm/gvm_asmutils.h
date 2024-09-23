@@ -14,9 +14,7 @@
     }\
 } while(false)
 
-char* au_get_op_name(gvm_op_t opcode);
-int au_get_op_instr_arg_count(gvm_op_t opcode);
-void au_write_instruction(u8buffer_t* buf, int count, ...);
+#define READ_I16(D, AT) ((int16_t)((D)[(AT) + 1] << 8) | (int16_t) (D)[(AT)])
 
 int au_consts_add_number(valbuffer_t* consts, float value);
 int au_consts_add_bool(valbuffer_t* consts, bool value);
@@ -24,9 +22,5 @@ int au_consts_add_char(valbuffer_t* consts, char value, bool force_contiguous);
 int au_consts_add_string(valbuffer_t* consts, char* text);
 int au_consts_add_ivec2(valbuffer_t* consts, char* text);
 int au_consts_add_symbol_as_string(valbuffer_t* consts, char* text, int length);
-
-#define _GET_NTH_ARG(_1, _2, _3, _4, _5, N, ...) N
-#define COUNT_VARARGS(...) _GET_NTH_ARG("ignored", ##__VA_ARGS__, 4, 3, 2, 1, 0)
-#define au_write_instr(BUF, ...) au_write_instruction((BUF), COUNT_VARARGS(__VA_ARGS__), __VA_ARGS__)
 
 #endif // GVM_ASMUTILS_H_

@@ -1,6 +1,5 @@
 #include "gvm_env.h"
 #include "gvm.h"
-#include "gvm_asm.h"
 #include "gvm_value.h"
 #include "gvm_config.h"
 #include "gvm_utils.h"

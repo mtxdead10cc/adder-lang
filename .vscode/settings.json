@@ -29,7 +29,8 @@
         "unistd.h": "c",
         "varargs.h": "c",
         "gvm_asm.h": "c",
-        "compare": "c"
+        "compare": "c",
+        "gvm_asmutils.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
