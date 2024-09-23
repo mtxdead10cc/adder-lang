@@ -14,7 +14,10 @@
     }\
 } while(false)
 
-#define READ_I16(D, AT) ((int16_t)((D)[(AT) + 1] << 8) | (int16_t) (D)[(AT)])
+#define READ_U32(D, AT) ((uint32_t)((D)[(AT) + 1] << (8*3)) |\
+                         (uint32_t)((D)[(AT) + 1] << (8*2)) |\
+                         (uint32_t)((D)[(AT) + 1] << (8*1)) |\
+                         (uint32_t)((D)[(AT)]))
 
 int au_consts_add_number(valbuffer_t* consts, float value);
 int au_consts_add_bool(valbuffer_t* consts, bool value);

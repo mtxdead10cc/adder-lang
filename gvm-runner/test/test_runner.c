@@ -166,17 +166,21 @@ void test_vm(test_case_t* this) {
         "2.2 unexpected index.");
 
     
-    uint16_t value;
+    uint32_t value;
 
     value = 1;
     u8buffer_write(&instr_buf, OP_PUSH_VALUE);
     u8buffer_write(&instr_buf,  value);
-    u8buffer_write(&instr_buf, (value >> 8));
+    u8buffer_write(&instr_buf, (value >> (8*1)));
+    u8buffer_write(&instr_buf, (value >> (8*2)));
+    u8buffer_write(&instr_buf, (value >> (8*3)));
 
     value = 0;
     u8buffer_write(&instr_buf, OP_PUSH_VALUE);
     u8buffer_write(&instr_buf,  value);
-    u8buffer_write(&instr_buf, (value >> 8));
+    u8buffer_write(&instr_buf, (value >> (8*1)));
+    u8buffer_write(&instr_buf, (value >> (8*2)));
+    u8buffer_write(&instr_buf, (value >> (8*3)));
 
     u8buffer_write(&instr_buf, OP_SUB);
     u8buffer_write(&instr_buf, OP_RETURN);
@@ -212,7 +216,9 @@ void test_vm(test_case_t* this) {
     value = 0;
     u8buffer_write(&instr_buf, OP_PUSH_VALUE);
     u8buffer_write(&instr_buf,  value);
-    u8buffer_write(&instr_buf, (value >> 8));
+    u8buffer_write(&instr_buf, (value >> (8*1)));
+    u8buffer_write(&instr_buf, (value >> (8*2)));
+    u8buffer_write(&instr_buf, (value >> (8*3)));
 
     u8buffer_write(&instr_buf, OP_ADD);
     u8buffer_write(&instr_buf, OP_RETURN);

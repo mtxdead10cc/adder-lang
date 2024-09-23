@@ -9,7 +9,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-bool u8buffer_create(u8buffer_t* ub, int capacity) {
+bool u8buffer_create(u8buffer_t* ub, uint32_t capacity) {
     ub->data = (uint8_t*) malloc(capacity * sizeof(uint8_t));
     if( ub->data == NULL ) {
         return false;
@@ -23,8 +23,8 @@ void u8buffer_clear(u8buffer_t* ub) {
     ub->size = 0;
 }
 
-bool u8buffer_ensure_capacity(u8buffer_t* ub, int additional) {
-    int size = ub->size + additional;
+bool u8buffer_ensure_capacity(u8buffer_t* ub, uint32_t additional) {
+    uint32_t size = ub->size + additional;
     if( size >= ub->capacity ) {
         uint8_t* new_mem = (uint8_t*) realloc(ub->data, size * 2);
         if( new_mem == NULL ) {
@@ -44,13 +44,13 @@ bool u8buffer_write(u8buffer_t* ub, uint8_t wbyte) {
     return true;
 }
 
-bool u8buffer_write_multiple(u8buffer_t* ub, int count, ...) {
+bool u8buffer_write_multiple(u8buffer_t* ub, uint32_t count, ...) {
     if(u8buffer_ensure_capacity(ub, count) == false) {
         return false;
     }
     va_list ap;
     va_start(ap, count);
-    for(int i = 0; i < count; i++) {
+    for(uint32_t i = 0; i < count; i++) {
         ub->data[ub->size++] = (uint8_t)(va_arg(ap, int) & 0xFF);
     }
     va_end(ap);
@@ -69,7 +69,7 @@ void u8buffer_destroy(u8buffer_t* ub) {
     ub->size = 0;
 }
 
-bool valbuffer_create(valbuffer_t* buffer, int capacity) {
+bool valbuffer_create(valbuffer_t* buffer, uint32_t capacity) {
     val_t* values = (val_t*) malloc(capacity * sizeof(val_t));
     if( values == NULL ) {
         return false;
@@ -99,8 +99,8 @@ bool valbuffer_add(valbuffer_t* buffer, val_t value) {
     return true;
 }
 
-int valbuffer_find_float(valbuffer_t* buffer, float value) {
-    for (int i = 0; i < buffer->size; i++) {
+uint32_t valbuffer_find_float(valbuffer_t* buffer, float value) {
+    for (uint32_t i = 0; i < buffer->size; i++) {
         if(VAL_GET_TYPE(buffer->values[i]) != VAL_NUMBER) {
             continue;
         }
@@ -111,8 +111,8 @@ int valbuffer_find_float(valbuffer_t* buffer, float value) {
     return -1;
 }
 
-int valbuffer_find_ivec2(valbuffer_t* buffer, ivec2_t value) {
-    for (int i = 0; i < buffer->size; i++) {
+uint32_t valbuffer_find_ivec2(valbuffer_t* buffer, ivec2_t value) {
+    for (uint32_t i = 0; i < buffer->size; i++) {
         if(VAL_GET_TYPE(buffer->values[i]) != VAL_IVEC2) {
             continue;
         }
@@ -124,8 +124,8 @@ int valbuffer_find_ivec2(valbuffer_t* buffer, ivec2_t value) {
     return -1;
 }
 
-int valbuffer_find_bool(valbuffer_t* buffer, bool value) {
-    for (int i = 0; i < buffer->size; i++) {
+uint32_t valbuffer_find_bool(valbuffer_t* buffer, bool value) {
+    for (uint32_t i = 0; i < buffer->size; i++) {
         if(VAL_GET_TYPE(buffer->values[i]) != VAL_BOOL) {
             continue;
         }
@@ -136,8 +136,8 @@ int valbuffer_find_bool(valbuffer_t* buffer, bool value) {
     return -1;
 }
 
-int valbuffer_find_char(valbuffer_t* buffer, char value) {
-    for (int i = 0; i < buffer->size; i++) {
+uint32_t valbuffer_find_char(valbuffer_t* buffer, char value) {
+    for (uint32_t i = 0; i < buffer->size; i++) {
         if(VAL_GET_TYPE(buffer->values[i]) != VAL_CHAR) {
             continue;
         }
@@ -148,8 +148,8 @@ int valbuffer_find_char(valbuffer_t* buffer, char value) {
     return -1;
 }
 
-int valbuffer_find_string(valbuffer_t* buffer, char* chars, int len) {
-    for (int i = 0; i < buffer->size; i++) {
+uint32_t valbuffer_find_string(valbuffer_t* buffer, char* chars, int len) {
+    for (uint32_t i = 0; i < buffer->size; i++) {
         if(VAL_GET_TYPE(buffer->values[i]) != VAL_ARRAY ) {
             continue;
         }

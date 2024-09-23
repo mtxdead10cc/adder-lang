@@ -163,7 +163,7 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
                 val_t val = vm->mem.stack.values[vm->mem.stack.frame];
                 frame_t frame = val_into_frame(val);
                 int nreserved = (frame.num_locals + frame.num_args);
-                int id = READ_I16(vm->run.instructions, vm->run.pc);
+                int id = READ_U32(vm->run.instructions, vm->run.pc);
                 if( id < 0 || id >= nreserved ) {
                     if( nreserved < 1 ) {
                         snprintf(validation->message, 256,

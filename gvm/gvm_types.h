@@ -126,35 +126,34 @@ typedef enum gvm_op_t {
 } gvm_op_t;
 
 typedef struct u8buffer_t {
-    int size;
-    int capacity;
+    uint32_t size;
+    uint32_t capacity;
     uint8_t* data;
 } u8buffer_t;
 
 typedef struct valbuffer_t {
-    int storage;
-    int size;
-    int capacity;
+    uint32_t size;
+    uint32_t capacity;
     val_t* values;
 } valbuffer_t;
 
 typedef struct gvm_program_t {
     struct {
-        int         size;   // size in bytes
+        uint32_t         size;   // size in bytes
         uint8_t*    buffer; // instructions
     } inst;
     struct {
-        int         count;  // number of constants (values)
+        uint32_t         count;  // number of constants (values)
         val_t*      buffer; // values
     } cons;
 } gvm_program_t;
 
 typedef struct gvm_exec_args_t {
     struct {
-        int     count; 
-        val_t*  buffer;
+        uint32_t    count; 
+        val_t*      buffer;
     } args;
-    int     cycle_limit;
+    uint32_t  cycle_limit;
 } gvm_exec_args_t;
 
 typedef struct gvm_stack_t {
@@ -171,10 +170,10 @@ typedef struct gvm_heap_t {
 } gvm_heap_t;
 
 typedef struct gvm_mem_t {
-    val_t*  membase;   // base pointer to the memory region (stack + heap)
-    int     memsize;   // total size of stack + heap (in val_t count)
+    val_t*      membase;   // base pointer to the memory region (stack + heap)
+    int         memsize;   // total size of stack + heap (in val_t count)
     gvm_stack_t stack;
-    gvm_heap_t heap;
+    gvm_heap_t  heap;
 } gvm_mem_t;
 
 typedef struct gvm_t gvm_t;
@@ -206,7 +205,7 @@ typedef struct env_t {
 typedef struct gvm_runtime_t {
     val_t*   constants;
     uint8_t* instructions;
-    int pc;
+    uint32_t pc;
 } gvm_runtime_t;
 
 typedef struct gvm_t {

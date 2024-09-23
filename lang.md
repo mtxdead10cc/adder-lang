@@ -77,7 +77,8 @@ fun main() -> none {
 * [ ] OP_BREAK needs an implementation.
 * [X] Remove gvm_asm and clean up unused datatypes.
 * [X] Remove or cleanup asmutils.
-* [ ] Bytecode op args should be 32 bit.
+* [X] Bytecode op args should be 32 bit.
+* [X] Update VM data structures to use unsigned 32 bit integers.
 * [ ] Compiler errors and warnings.
 * [ ] Proper VM traps instead of asserts and exit(1).
 * [X] Function arguments in VM needs to be treated like locals.

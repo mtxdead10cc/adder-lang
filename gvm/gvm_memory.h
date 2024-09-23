@@ -18,7 +18,7 @@
 #define MEM_MK_CONST_ADDR(INDEX)    ((val_addr_t)( 0x40000000 | ((INDEX) & 0x3FFFFFFF)))
 #define MEM_MK_PROGR_ADDR(INDEX)    ((val_addr_t)( 0x80000000 | ((INDEX) & 0x3FFFFFFF)))
 
-#define MEM_ADDR_TO_INDEX(VAL_ADDR) (int)((VAL_ADDR) & 0x3FFFFFFF)
+#define MEM_ADDR_TO_INDEX(VAL_ADDR) (uint32_t)((VAL_ADDR) & 0x3FFFFFFF)
 
 
 #endif // GVM_MEMORY_H_

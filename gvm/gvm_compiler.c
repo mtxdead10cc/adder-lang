@@ -527,7 +527,7 @@ void recalc_index_to_bytecode_adress(ir_list_t* instrs) {
     
     uint32_t idx2addr[instrs->count];
     uint32_t addr = 0;
-    const uint32_t argbytes = 2; // 16-bit args
+    const uint32_t argbytes = 4; // 32-bit args
     
     for (uint32_t i = 0; i < instrs->count; i++) {
         idx2addr[i] = addr;
@@ -563,7 +563,9 @@ gvm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts) {
         for (uint32_t j = 0; j < argcount; j++) {
             uint32_t value = instrs->irs[i].args[j];
             u8buffer_write(&bytecode, (uint8_t) (value & 0xFF));
-            u8buffer_write(&bytecode, (uint8_t) ((value >> 8) & 0xFF));
+            u8buffer_write(&bytecode, (uint8_t) ((value >> (8*1)) & 0xFF));
+            u8buffer_write(&bytecode, (uint8_t) ((value >> (8*2)) & 0xFF));
+            u8buffer_write(&bytecode, (uint8_t) ((value >> (8*3)) & 0xFF));
         }
     }
 

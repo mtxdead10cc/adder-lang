@@ -5,7 +5,9 @@
 #include "gvm_utils.h"
 #include "gvm_memory.h"
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
+#include <stdio.h>
 
 void env_init(env_t* env, gvm_t* vm) {
     env->vm = vm;

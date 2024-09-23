@@ -148,11 +148,11 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
     // push initial args (if any)
     vm_mem->stack.frame = -1;
     vm_mem->stack.top = -1;
-    for(int i = 0; i < exec_args->args.count; i++) {
+    for(uint32_t i = 0; i < exec_args->args.count; i++) {
         stack[++vm_mem->stack.top] = exec_args->args.buffer[i];
     }
     
-    int cycles_remaining = exec_args->cycle_limit;
+    uint32_t cycles_remaining = exec_args->cycle_limit;
     if (program->inst.size == 0) {
         cycles_remaining = 0;
     }
@@ -169,10 +169,10 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
 
         switch (opcode) {
             case OP_PUSH_VALUE: {
-                int const_index = READ_I16(instructions, vm_run->pc);
+                uint32_t const_index = READ_U32(instructions, vm_run->pc);
                 TRACE_INT_ARG(const_index);
                 stack[++vm_mem->stack.top] = consts[const_index];
-                vm_run->pc += 2;
+                vm_run->pc += 4;
             } break;
             case OP_POP_1: {
                 vm_mem->stack.top -= 1;
@@ -246,15 +246,15 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
                 stack[vm_mem->stack.top]     = a;
             } break;
             case OP_JUMP: {
-                vm_run->pc = READ_I16(instructions, vm_run->pc);
+                vm_run->pc = READ_U32(instructions, vm_run->pc);
                 TRACE_INT_ARG(vm_run->pc);
             } break;
             case OP_JUMP_IF_FALSE: {
                 TRACE_INT_ARG(READ_I16(instructions, vm_run->pc));
                 if( val_into_bool(stack[vm_mem->stack.top--]) == false ) {
-                    vm_run->pc = READ_I16(instructions, vm_run->pc);
+                    vm_run->pc = READ_U32(instructions, vm_run->pc);
                 } else {
-                    vm_run->pc += 2;
+                    vm_run->pc += 4;
                 }
             } break;
             case OP_HALT:{
@@ -263,7 +263,7 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
             } break;
             case OP_EXIT: {
                 TRACE_NL();
-                int return_value = READ_I16(instructions, vm_run->pc);
+                uint32_t return_value = READ_U32(instructions, vm_run->pc);
                 TRACE_INT_ARG(return_value);
                 return val_number(return_value);
             } break;
@@ -271,25 +271,25 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
                 // push the return address
                 stack[++vm_mem->stack.top] = val_number(vm_run->pc + 2);
                 // jump to label / function
-                vm_run->pc = READ_I16(instructions, vm_run->pc);
+                vm_run->pc = READ_U32(instructions, vm_run->pc);
                 TRACE_INT_ARG(vm_run->pc);
             } break;
             case OP_ENTRY_POINT: {
                 // push negative number as return address
                 stack[++vm_mem->stack.top] = val_number(-1.0f);
                 // jump to label / function
-                vm_run->pc = READ_I16(instructions, vm_run->pc);
+                vm_run->pc = READ_U32(instructions, vm_run->pc);
                 TRACE_INT_ARG(vm_run->pc);
             } break;
             case OP_MAKE_FRAME: {
 
-                int nargs = READ_I16(instructions, vm_run->pc);
+                uint32_t nargs = READ_U32(instructions, vm_run->pc);
                 TRACE_INT_ARG(nargs);
-                vm_run->pc += 2;
+                vm_run->pc += 4;
 
-                int nlocals = READ_I16(instructions, vm_run->pc);
+                uint32_t nlocals = READ_U32(instructions, vm_run->pc);
                 TRACE_INT_ARG(nlocals);
-                vm_run->pc += 2;
+                vm_run->pc += 4;
 
                 // stack top should now be the return address
                 // Note: if the return address is negative we exit the vm
@@ -370,21 +370,21 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
                 gvm_print_val(vm, stack[vm_mem->stack.top--]);
             } break;
             case OP_STORE_LOCAL: {
-                int local_idx = READ_I16(instructions, vm_run->pc);
+                uint32_t local_idx = READ_U32(instructions, vm_run->pc);
                 TRACE_INT_ARG(local_idx);
                 stack[vm_mem->stack.frame + 1 + local_idx] = stack[vm_mem->stack.top--];
-                vm_run->pc += 2;
+                vm_run->pc += 4;
             } break;
             case OP_LOAD_LOCAL: {
-                int local_idx = READ_I16(instructions, vm_run->pc);
+                uint32_t local_idx = READ_U32(instructions, vm_run->pc);
                 TRACE_INT_ARG(local_idx);
                 stack[++vm_mem->stack.top] = stack[vm_mem->stack.frame + 1 + local_idx];
-                vm_run->pc += 2;
+                vm_run->pc += 4;
             } break;
             case OP_MAKE_ARRAY: {
                 // pop array size
                 val_t size = stack[vm_mem->stack.top--];
-                int count = (int) val_into_number(size);
+                uint32_t count = val_into_number(size);
                 // allocate array
                 array_t array = heap_array_alloc(vm, count);
                 if( ADDR_IS_NULL(array.address) ) {
@@ -413,7 +413,7 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
                 stack[++vm_mem->stack.top] = val_iter(iter);
             } break;
             case OP_ITER_NEXT: {
-                int exit_pc = READ_I16(instructions, vm_run->pc);
+                uint32_t exit_pc = READ_U32(instructions, vm_run->pc);
                 TRACE_INT_ARG(exit_pc);
                 val_t iter_val = stack[vm_mem->stack.top];
                 iter_t iter = val_into_iter(iter_val);
@@ -421,24 +421,24 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
                     vm_mem->stack.top --;
                     vm_run->pc = exit_pc;
                 } else {
-                    int mem_index = MEM_ADDR_TO_INDEX(iter.current);
+                    uint32_t mem_index = MEM_ADDR_TO_INDEX(iter.current);
                     val_t value = vm_mem->membase[mem_index];
                     iter.remaining -= 1;
                     iter.current = MEM_MK_PROGR_ADDR(mem_index + 1);
                     stack[vm_mem->stack.top] = val_iter(iter);
                     stack[++vm_mem->stack.top] = value;
-                    vm_run->pc += 2;
+                    vm_run->pc += 4;
                 }
             } break;
             case OP_CALL_NATIVE: {
-                int native_op_name = READ_I16(instructions, vm_run->pc);
+                uint32_t native_op_name = READ_U32(instructions, vm_run->pc);
                 TRACE_INT_ARG(native_op_name);
                 func_result_t res = env_native_func_call(&vm->env,
                     consts[native_op_name],
                     &stack[vm_mem->stack.top]);
                 vm_mem->stack.top -= res.arg_count;
                 stack[++vm_mem->stack.top] = res.value;
-                vm_run->pc += 2;
+                vm_run->pc += 4;
             } break;
             default: {
                 char* op_str = get_op_name(opcode);
@@ -479,9 +479,9 @@ void gvm_program_disassemble(gvm_program_t* program) {
         printf("#%3i > %s", current_byte, name);
         current_byte ++;
         for (int i = 0; i < arg_count; i++) {
-            int val = READ_I16(instructions, current_byte);
+            int val = (int) READ_U32(instructions, current_byte);
             printf(" %i", val);
-            current_byte += 2;
+            current_byte += 4;
             if( argtypes[i] == OP_ARG_CONSTANT ) {
                 printf(" (");
                 val_print_lookup_val_array(consts, consts[val]);
