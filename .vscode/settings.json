@@ -33,7 +33,8 @@
         "gvm_asmutils.h": "c",
         "gvm_config.h": "c",
         "gvm_ast.h": "c",
-        "assert.h": "c"
+        "assert.h": "c",
+        "limits": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

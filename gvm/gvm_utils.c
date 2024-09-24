@@ -371,6 +371,25 @@ srcref_t srcref(char* text, size_t start, size_t len, char* filepath) {
     };
 }
 
+srcref_t srcref_const(const char* text) {
+    return (srcref_t) {
+        .idx_start = 0,
+        .idx_end = strlen(text),
+        .source = (char*) text,
+        .filepath = NULL
+    };
+}
+
+srcref_t srcref_combine(srcref_t a, srcref_t b) {
+    assert(a.source == b.source && "can't combine srcres from different sources");
+    return (srcref_t) {
+        .filepath   = (a.filepath != NULL)          ? a.filepath    : b.filepath,
+        .idx_end    = (a.idx_end > b.idx_end)       ? a.idx_end     : b.idx_end,
+        .idx_start  = (a.idx_start < b.idx_start)   ? a.idx_start   : b.idx_start,
+        .source     = a.source
+    };
+}
+
 size_t srcref_len(srcref_t ref) {
     return ref.idx_end - ref.idx_start;
 }

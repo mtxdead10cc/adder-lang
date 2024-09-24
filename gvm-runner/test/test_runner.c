@@ -5,6 +5,7 @@
 #include <gvm_value.h>
 #include <gvm_memory.h>
 #include <gvm_ast.h>
+#include <gvm_parser.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -339,6 +340,15 @@ void test_ast(test_case_t* this) {
     gvm_destroy(&vm);
 }
 
+void test_parser(test_case_t* this) {
+    parser_t parser;
+    char* text = "hej 1234 {(hello)\"HEJ PÅ DIG\"}\n[0]/56.23//comment";
+    TEST_ASSERT_MSG(this,
+        parser_init(&parser, text, strlen(text), "testfile"),
+        "#1.0 failed to initialize parser.");
+    parser_dump_tokens(&parser);
+}
+
 test_results_t run_testcases() {
 
     test_case_t test_cases[] = {
@@ -355,6 +365,11 @@ test_results_t run_testcases() {
         {
             .name = "gvm ast",
             .test = test_ast,
+            .nfailed = 0
+        },
+        {
+            .name = "gvm parser",
+            .test = test_parser,
             .nfailed = 0
         }
     };
