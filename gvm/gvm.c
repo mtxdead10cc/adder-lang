@@ -1,5 +1,4 @@
 #include "gvm.h"
-#include "gvm_parser.h"
 #include "gvm_env.h"
 #include "gvm_types.h"
 #include "gvm_value.h"
@@ -8,7 +7,6 @@
 #include "gvm_memory.h"
 #include "gvm_heap.h"
 #include "gvm_validate.h"
-#include "gvm_asmutils.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>

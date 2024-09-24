@@ -4,7 +4,6 @@
 #include "gvm_types.h"
 #include "gvm_config.h"
 #include "gvm_value.h"
-#include "gvm_asmutils.h"
 #include "gvm_asminfo.h"
 #include <stdarg.h>
 #include <stdio.h>

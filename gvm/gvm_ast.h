@@ -7,7 +7,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-
+#include "gvm_utils.h"
 
 typedef enum ast_node_type_t {
     AST_VALUE,
@@ -53,12 +53,6 @@ typedef enum ast_unop_type_t {
     AST_UN_NOT,
     AST_UN_NEG
 } ast_unop_type_t;
-
-typedef struct srcref_t {
-    char*   source;
-    size_t  idx_start;
-    size_t  idx_end;
-} srcref_t;
 
 typedef struct ast_node_t ast_node_t;
 
@@ -159,40 +153,6 @@ typedef struct ast_node_t {
         ast_funcall_t   n_funcall;
     } u;
 } ast_node_t;
-
-inline static srcref_t srcref(char* text, size_t start, size_t len) {
-    return (srcref_t) {
-        .idx_start = start,
-        .idx_end = start + len,
-        .source = text
-    };
-}
-
-inline static size_t srcref_len(srcref_t ref) {
-    return ref.idx_end - ref.idx_start;
-}
-
-inline static char* srcref_to_str(srcref_t ref) {
-    return ref.source + ref.idx_start;
-}
-
-inline static void srcref_print(srcref_t ref) {
-    size_t len = srcref_len(ref);
-    char buf[len + 1];
-    strncpy(buf, srcref_to_str(ref), len);
-    buf[len] = '\0';
-    printf("%s", buf);
-}
-
-inline static bool srcref_equals(srcref_t a, srcref_t b) {
-    size_t len = srcref_len(a);
-    if( len != srcref_len(b) ) {
-        return false;
-    }
-    char* a_str = srcref_to_str(a);
-    char* b_str = srcref_to_str(b);
-    return strncmp(a_str, b_str, len) == 0;
-}
 
 inline static ast_node_t* ast_number(float val) {
     ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));

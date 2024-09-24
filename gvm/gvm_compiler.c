@@ -168,7 +168,7 @@ bool s2sim_ensure_capacity(src2idxmap_t* map, size_t additional) {
 size_t s2im_hash(srcref_t ref) {
     size_t len = srcref_len(ref);
     size_t hash_code = len + 5;
-    char* keystr = srcref_to_str(ref); 
+    char* keystr = srcref_ptr(ref); 
     for(size_t i = 0; i < len; i++) {
         hash_code += (hash_code + keystr[i]) * 7919U;
     }
@@ -230,7 +230,6 @@ ir_index_t* s2im_lookup(src2idxmap_t* map, srcref_t key) {
     }
     return NULL;
 }
-
 
 typedef struct compiler_state_t {
     src2idxmap_t     localvars;
@@ -320,19 +319,19 @@ void codegen_value(ast_value_t node, compiler_state_t* state) {
     uint32_t const_index;
     switch(node.type) {
         case AST_VALUE_TYPE_BOOL: {
-            const_index = au_consts_add_bool(&state->consts,
+            const_index = valbuffer_add_bool(&state->consts,
                 node.u._bool);
         } break;
         case AST_VALUE_TYPE_NUMBER: {
-            const_index = au_consts_add_number(&state->consts,
+            const_index = valbuffer_add_number(&state->consts,
                 node.u._number);
         } break;
         case AST_VALUE_TYPE_STRING: {
             // Note: needs to start with a '"'
             srcref_t ref = node.u._string;
-            char* ptr = srcref_to_str(ref);
+            char* ptr = srcref_ptr(ref);
             assert(ptr[0] == '\"' && "current impl requres quoted strings.");
-            const_index = au_consts_add_string(&state->consts, ptr);
+            const_index = valbuffer_add_string(&state->consts, ptr);
         } break;
         default: {
             /* ignore */
@@ -443,7 +442,7 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
             for(size_t i = 0; i < count; i++) {
                 codegen(node->u.n_array.content[i], state);
             }
-            uint32_t const_index = au_consts_add_number(&state->consts, (float)count);
+            uint32_t const_index = valbuffer_add_number(&state->consts, (float)count);
             irl_add(&state->instrs, (ir_inst_t){
                 .opcode = OP_PUSH_VALUE,
                 .args = { (uint32_t) const_index, 0 }
@@ -616,7 +615,7 @@ gvm_program_t gvm_compile(ast_node_t* node) {
     codegen(node, &state);
 
     ir_index_t* index = s2im_lookup( &state.functions,
-                                     srcref("main", 0, 4) );
+                                     srcref("main", 0, 4, NULL) );
     assert(index != NULL && "main entrypoint not found");
     irl_get(&state.instrs, entrypoint)->args[0] = index->idx;
 

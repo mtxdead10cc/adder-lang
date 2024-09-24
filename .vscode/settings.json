@@ -30,7 +30,10 @@
         "varargs.h": "c",
         "gvm_asm.h": "c",
         "compare": "c",
-        "gvm_asmutils.h": "c"
+        "gvm_asmutils.h": "c",
+        "gvm_config.h": "c",
+        "gvm_ast.h": "c",
+        "assert.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

@@ -4,7 +4,6 @@
 #include <gvm_heap.h>
 #include <gvm_value.h>
 #include <gvm_memory.h>
-#include <gvm_asmutils.h>
 #include <gvm_ast.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -158,11 +157,11 @@ void test_vm(test_case_t* this) {
     // PROGRAM -- BEGIN
 
     TEST_ASSERT_MSG(this,
-        0 == au_consts_add_number(&const_buf, 100),
+        0 == valbuffer_add_number(&const_buf, 100),
         "2.1 unexpected index.");
 
     TEST_ASSERT_MSG(this,
-        1 == au_consts_add_number(&const_buf, 3),
+        1 == valbuffer_add_number(&const_buf, 3),
         "2.2 unexpected index.");
 
     
@@ -210,7 +209,7 @@ void test_vm(test_case_t* this) {
     // PROGRAM -- BEGIN
 
     TEST_ASSERT_MSG(this,
-        0 == au_consts_add_number(&const_buf, 100),
+        0 == valbuffer_add_number(&const_buf, 100),
         "2.1 unexpected index.");
 
     value = 0;
@@ -256,28 +255,28 @@ void test_ast(test_case_t* this) {
 
     ast_block_add(decl_args,
         ast_vardecl(
-            srcref(buf, 4, 1),
+            srcref(buf, 4, 1, NULL),
             AST_VALUE_TYPE_NUMBER));
 
     ast_block_add(decl_args,
         ast_vardecl(
-            srcref(buf, 5, 1),
+            srcref(buf, 5, 1, NULL),
             AST_VALUE_TYPE_NUMBER));
 
     ast_node_t* body = ast_block();
 
     ast_block_add(body, 
         ast_assign(
-            ast_vardecl(srcref(buf, 6, 3), AST_VALUE_TYPE_NUMBER),
+            ast_vardecl(srcref(buf, 6, 3, NULL), AST_VALUE_TYPE_NUMBER),
             ast_binop(AST_BIN_ADD,
-                ast_varref(srcref(buf, 5, 1)),
-                ast_varref(srcref(buf, 4, 1))
+                ast_varref(srcref(buf, 5, 1, NULL)),
+                ast_varref(srcref(buf, 4, 1, NULL))
             )));
 
     ast_block_add(body,
         ast_if(
             ast_binop(AST_BIN_LT,
-                ast_varref(srcref(buf, 6, 3)),
+                ast_varref(srcref(buf, 6, 3, NULL)),
                 ast_number(0.0f)),
             ast_return(ast_number(0.0f))));
 
@@ -290,21 +289,21 @@ void test_ast(test_case_t* this) {
     ast_block_add(body,
         ast_foreach(
             ast_vardecl(
-                srcref(buf, 9, 1),
+                srcref(buf, 9, 1, NULL),
                 AST_VALUE_TYPE_NUMBER),
             array,
             ast_assign(
-                ast_varref(srcref(buf, 6, 3)),
+                ast_varref(srcref(buf, 6, 3, NULL)),
                 ast_binop(AST_BIN_ADD,
-                    ast_varref(srcref(buf, 6, 3)),
-                    ast_varref(srcref(buf, 9, 1))))
+                    ast_varref(srcref(buf, 6, 3, NULL)),
+                    ast_varref(srcref(buf, 9, 1, NULL))))
         ));
     
     ast_block_add(body,
-        ast_return(ast_varref(srcref(buf, 6, 3))));
+        ast_return(ast_varref(srcref(buf, 6, 3, NULL))));
 
     ast_node_t* fun = ast_fundecl(
-        srcref(buf, 0, 4),
+        srcref(buf, 0, 4, NULL),
         AST_VALUE_TYPE_NUMBER,
         decl_args, body);
 

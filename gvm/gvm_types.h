@@ -52,43 +52,6 @@ typedef enum val_type_t {
     VAL_TYPE_COUNT
 } val_type_t;
 
-typedef enum token_type_t {
-    TT_UNKNOWN,
-    TT_COLON,
-    TT_NUMBER,
-    TT_VEC2,
-    TT_STRING,
-    TT_SYMBOL,
-    TT_SEPARATOR,
-    TT_COMMENT,
-    TT_END
-} token_type_t;
-
-typedef struct token_t {
-    token_type_t type;
-    int src_index;  // the start index in the source text (parser_text_t)
-    int src_line;   // line in the source text (parser_text_t)
-    int src_column; // column int he source text (parser_text_t)
-    int index;      // index of the token (parser_tokens_t)
-} token_t;
-
-typedef struct parser_text_t {
-    char* array;
-    int size;
-} parser_text_t;
-
-typedef struct parser_tokens_t {
-    token_t* array;
-    int size;
-    int capacity;
-} parser_tokens_t;
-
-typedef struct parser_t {
-    parser_text_t text;
-    parser_tokens_t tokens;
-    int current;
-} parser_t;
-
 typedef enum gvm_op_t {
     OP_HALT = 0x00,
     OP_AND,
@@ -125,17 +88,7 @@ typedef enum gvm_op_t {
     OP_OPCODE_COUNT
 } gvm_op_t;
 
-typedef struct u8buffer_t {
-    uint32_t size;
-    uint32_t capacity;
-    uint8_t* data;
-} u8buffer_t;
 
-typedef struct valbuffer_t {
-    uint32_t size;
-    uint32_t capacity;
-    val_t* values;
-} valbuffer_t;
 
 typedef struct gvm_program_t {
     struct {

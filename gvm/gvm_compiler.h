@@ -2,7 +2,6 @@
 #define GVM_COMPILER_H_
 
 #include "gvm_ast.h"
-#include "gvm_asmutils.h"
 #include "gvm_types.h"
 
 gvm_program_t gvm_compile(ast_node_t* node);
