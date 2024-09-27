@@ -34,7 +34,9 @@
         "gvm_config.h": "c",
         "gvm_ast.h": "c",
         "assert.h": "c",
-        "limits": "cpp"
+        "limits": "cpp",
+        "dlfcn.h": "c",
+        "random": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

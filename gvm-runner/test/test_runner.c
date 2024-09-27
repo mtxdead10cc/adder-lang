@@ -12,6 +12,8 @@
 #include <assert.h>
 #include "termhax.h"
 #include <gvm_compiler.h>
+#include <stdarg.h>
+#include <gvm_strmatch.h>
 
 typedef struct test_case_t test_case_t;
 
@@ -340,13 +342,36 @@ void test_ast(test_case_t* this) {
     gvm_destroy(&vm);
 }
 
-void test_parser(test_case_t* this) {
-    parser_t parser;
-    char* text = "hej 1234 {(hello)\"HEJ PÅ DIG\"}\n[0]/56.23//comment";
+void test_tokenizer(test_case_t* this) {
     TEST_ASSERT_MSG(this,
-        parser_init(&parser, text, strlen(text), "testfile"),
-        "#1.0 failed to initialize parser.");
-    parser_dump_tokens(&parser);
+        SM_IS_ANY_OF('a', 'b', 'r', 'a'),
+        "#1.1 - SM_ANY_OF match");
+    TEST_ASSERT_MSG(this,
+        SM_IS_ANY_OF('a', 'b', 'r', 'w') == false,
+        "#1.2 - SM_ANY_OF no match");
+    TEST_ASSERT_MSG(this,
+        SM_IS_IN_RANGE('t', 'a', 'z'),
+        "#1.2 - SM_IN_RANGE match");
+    TEST_ASSERT_MSG(this,
+        SM_IS_IN_RANGE('t', 'A', 'Z') == false,
+        "#1.2 - SM_IN_RANGE no match");
+
+    token_collection_t coll;
+    tokens_init(&coll, 16);
+
+    char* text = "//comment\n";
+    tokenizer_analyze(&coll, text, strlen(text), "test/test/test.txt");
+    tokens_print(&coll);
+
+    tokens_clear(&coll);
+    text = "\"hej hej\"\n";
+    tokenizer_analyze(&coll, text, strlen(text), "test/test/test.txt");
+    tokens_print(&coll);
+
+    tokens_clear(&coll);
+    text = "1.4";
+    tokenizer_analyze(&coll, text, strlen(text), "test/test/test.txt");
+    tokens_print(&coll);
 }
 
 test_results_t run_testcases() {
@@ -368,8 +393,8 @@ test_results_t run_testcases() {
             .nfailed = 0
         },
         {
-            .name = "gvm parser",
-            .test = test_parser,
+            .name = "gvm tokenizer",
+            .test = test_tokenizer,
             .nfailed = 0
         }
     };
