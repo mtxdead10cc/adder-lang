@@ -201,6 +201,7 @@ void s2im_clear(src2idxmap_t* map) {
     ir_index_tag_t tag = map->tag;
     memset(map->is_in_use, 0, sizeof(bool) * map->capacity);
     map->tag = tag;
+    map->count = 0;
 }
 
 void s2im_print(src2idxmap_t* map) {

@@ -12,6 +12,14 @@ typedef struct srcref_t {
     size_t  idx_end;
 } srcref_t;
 
+typedef struct srcref_map_t {
+    size_t          count;
+    size_t          capacity;
+    srcref_t*       key;
+    bool*           is_in_use;
+    uint32_t*       value;
+} srcref_map_t;
+
 typedef struct u8buffer_t {
     uint32_t size;
     uint32_t capacity;
@@ -64,5 +72,15 @@ size_t   srcref_len(srcref_t ref);
 char*    srcref_ptr(srcref_t ref);
 void     srcref_print(srcref_t ref);
 bool     srcref_equals(srcref_t a, srcref_t b);
+bool     srcref_equals_string(srcref_t a, const char* b_str);
+
+
+bool srcref_map_init(srcref_map_t* map, size_t initial_capacity);
+void srcref_map_destroy(srcref_map_t* map);
+void srcref_map_clear(srcref_map_t* map);
+void srcref_map_print(srcref_map_t* map);
+uint32_t* srcref_map_lookup(srcref_map_t* map, srcref_t key);
+bool srcref_map_contains_key(srcref_map_t* map, srcref_t key);
+bool srcref_map_insert(srcref_map_t* map, srcref_t key, uint32_t val);
 
 #endif // GVM_UTILS_H_

@@ -13,7 +13,6 @@
 #include "termhax.h"
 #include <gvm_compiler.h>
 #include <stdarg.h>
-#include <gvm_strmatch.h>
 
 typedef struct test_case_t test_case_t;
 
@@ -343,35 +342,29 @@ void test_ast(test_case_t* this) {
 }
 
 void test_tokenizer(test_case_t* this) {
-    TEST_ASSERT_MSG(this,
-        SM_IS_ANY_OF('a', 'b', 'r', 'a'),
-        "#1.1 - SM_ANY_OF match");
-    TEST_ASSERT_MSG(this,
-        SM_IS_ANY_OF('a', 'b', 'r', 'w') == false,
-        "#1.2 - SM_ANY_OF no match");
-    TEST_ASSERT_MSG(this,
-        SM_IS_IN_RANGE('t', 'a', 'z'),
-        "#1.2 - SM_IN_RANGE match");
-    TEST_ASSERT_MSG(this,
-        SM_IS_IN_RANGE('t', 'A', 'Z') == false,
-        "#1.2 - SM_IN_RANGE no match");
-
     token_collection_t coll;
     tokens_init(&coll, 16);
 
-    char* text = "//comment\n";
+    tokens_clear(&coll);
+    char* text = "fun hello(num arg1, num arg2) -> none {\n"
+    "    num a = add(arg1, arg2);\n"
+    "    if( a <= 10 ) {\n"
+    "        print(\"a:\", a, \"\\n\");\n"
+    "    } else {\n"
+    "        print(\"a:\", a, \"!\\n\");\n"
+    "    }\n"
+    "}\n"
+    "\n"
+    "fun main() -> none {\n"
+    "    arr<num> list = [1,2,3,4,5];\n"
+    "    for(num item in list) {\n"
+    "        hello(item, 5);\n"
+    "    }\n"
+    "}\n";
     tokenizer_analyze(&coll, text, strlen(text), "test/test/test.txt");
     tokens_print(&coll);
 
-    tokens_clear(&coll);
-    text = "\"hej hej\"\n";
-    tokenizer_analyze(&coll, text, strlen(text), "test/test/test.txt");
-    tokens_print(&coll);
-
-    tokens_clear(&coll);
-    text = "1.4";
-    tokenizer_analyze(&coll, text, strlen(text), "test/test/test.txt");
-    tokens_print(&coll);
+    tokens_destroy(&coll);
 }
 
 test_results_t run_testcases() {

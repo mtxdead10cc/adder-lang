@@ -415,3 +415,147 @@ bool srcref_equals(srcref_t a, srcref_t b) {
     char* b_str = srcref_ptr(b);
     return strncmp(a_str, b_str, len) == 0;
 }
+
+bool srcref_equals_string(srcref_t a, const char* b_str) {
+    size_t len = srcref_len(a);
+    if( len != strlen(b_str) ) {
+        return false;
+    }
+    char* a_str = srcref_ptr(a);
+    return strncmp(a_str, b_str, len) == 0;
+}
+
+void srcref_map_destroy(srcref_map_t* map) {
+    if( map == NULL ) {
+        return;
+    }
+    if( map->is_in_use != NULL ) {
+        free(map->is_in_use);
+        map->is_in_use = NULL;
+    }
+    if( map->key != NULL ) {
+        free(map->key);
+        map->key = NULL;
+    }
+    if( map->value != NULL ) {
+        free(map->value);
+        map->value = NULL;
+    }
+    map->capacity = 0;
+    map->count = 0;
+}
+
+bool srcref_map_init(srcref_map_t* map, size_t initial_capacity) {
+    map->capacity = initial_capacity;
+    map->count = 0;
+    map->is_in_use = (bool*) malloc(sizeof(bool) * map->capacity);
+    if( map->is_in_use == NULL ) {
+        srcref_map_destroy(map);
+        return false;
+    }
+    memset(map->is_in_use, 0, sizeof(bool) * map->capacity); // in_use = fale
+    map->key = (srcref_t*) malloc(sizeof(srcref_t) * map->capacity);
+    if( map->key == NULL ) {
+        srcref_map_destroy(map);
+        return false;
+    }
+    map->value = (uint32_t*) malloc(sizeof(uint32_t) * map->capacity);
+    if( map->value == NULL ) {
+        srcref_map_destroy(map);
+        return false;
+    }
+    return true;
+}
+
+bool srcref_map_ensure_capacity(srcref_map_t* map, size_t additional) {
+    // this is a map and not a list so we try to
+    // have some headroom.
+    size_t required = (map->count + additional); 
+    if( map->capacity <= (required + (required / 4)) ) {
+        size_t new_capacity = required * 2;
+        bool* is_in_use = (bool*) realloc(map->is_in_use, sizeof(bool) * new_capacity);
+        if( is_in_use != NULL ) {
+            map->is_in_use = is_in_use;
+        }
+        srcref_t* key = (srcref_t*) realloc(map->key, sizeof(bool) * new_capacity);
+        if( is_in_use != NULL ) {
+            map->key = key;
+        }
+        uint32_t* value = (uint32_t*) realloc(map->value, sizeof(bool) * new_capacity);
+        if( is_in_use != NULL ) {
+            map->value = value;
+        }
+        if( (key == NULL) || (value == NULL) | (is_in_use == NULL) ) {
+            printf("error: out of memory\n");
+            return false;
+        }
+        map->capacity = new_capacity;
+    }
+    return true;
+}
+
+size_t srcref_map_hash(srcref_t ref) {
+    size_t len = srcref_len(ref);
+    size_t hash_code = len + 5;
+    char* keystr = srcref_ptr(ref); 
+    for(size_t i = 0; i < len; i++) {
+        hash_code += (hash_code + keystr[i]) * 7919U;
+    }
+    return hash_code;
+}
+
+bool srcref_map_insert(srcref_map_t* map, srcref_t key, uint32_t val) {
+    if( srcref_map_ensure_capacity(map, 1) == false ) {
+        return false;
+    }
+    size_t hk = srcref_map_hash(key);
+    size_t start_index = hk % map->capacity;
+    for(size_t i = 0; i < map->capacity; i++) {
+        size_t tab_index = (i + start_index) % map->capacity;
+        if( map->is_in_use[tab_index] == false ) {
+            map->value[tab_index] = val;
+            map->is_in_use[tab_index] = true;
+            map->key[tab_index] = key;
+            map->count ++;
+            return true;
+        } else if ( srcref_equals(map->key[tab_index], key) ) {
+            return false;
+        }
+    }
+    return false;
+}
+
+void srcref_map_clear(srcref_map_t* map) {
+    memset(map->is_in_use, 0, sizeof(bool) * map->capacity);
+    map->count = 0;
+}
+
+void srcref_map_print(srcref_map_t* map) {
+    printf("[srcref_map (size=%d)]\n", (uint32_t) map->count);
+    for(size_t i = 0; i < map->capacity; i++) {
+        if( map->is_in_use[i] ) {
+            printf("%i > ", (uint32_t) i);
+            srcref_print(map->key[i]);
+            printf("\n");
+        }
+    }
+}
+
+uint32_t* srcref_map_lookup(srcref_map_t* map, srcref_t key) {
+    size_t hk = srcref_map_hash(key);
+    size_t start_index = hk % map->capacity;
+    for(size_t i = 0; i < map->capacity; i++) {
+        size_t tab_index = (i + start_index) % map->capacity;
+        if( map->is_in_use[tab_index] == false ) {
+            return NULL;
+        }
+        if( srcref_equals(map->key[tab_index], key) ) {
+            return &map->value[tab_index];
+        }
+    }
+    return NULL;
+}
+
+bool srcref_map_contains_key(srcref_map_t* map, srcref_t key) {
+    return srcref_map_lookup(map, key) != NULL;
+}
