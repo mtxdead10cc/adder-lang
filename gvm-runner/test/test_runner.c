@@ -341,39 +341,121 @@ void test_ast(test_case_t* this) {
     gvm_destroy(&vm);
 }
 
+typedef struct toktest_t {
+    char*           text;
+    token_type_t*   tokens_types;
+    bool            incl_comments;
+    bool            incl_space;
+} toktest_t;
+
 void test_tokenizer(test_case_t* this) {
     token_collection_t coll;
     tokens_init(&coll, 16);
 
-    tokens_clear(&coll);
-    char* text = "fun hello(num arg1, num arg2) -> none {\n"
-    "    num a = add(arg1, arg2);\n"
-    "    if( a <= 10 ) {\n"
-    "        print(\"a:\", a, \"\\n\");\n"
-    "    } else {\n"
-    "        print(\"a:\", a, \"!\\n\");\n"
-    "    }\n"
-    "}\n"
-    "\n"
-    "fun main() -> none {\n"
-    "    arr<num> list = [1,2,3,4,5];\n"
-    "    for(num item in list) {\n"
-    "        hello(item, 5);\n"
-    "    }\n"
-    "}\n";
-
-    tokenizer_args_t args = (tokenizer_args_t) {
-        .filepath = "test/test/test.txt",
-        .include_comments = false,
-        .include_spaces = false,
-        .text = text,
-        .text_length = strlen(text)
+    toktest_t subtests[] = {
+        {
+            .text = "hej\n1//test\n2",
+            .tokens_types = (token_type_t[]){
+                TT_INITIAL,
+                TT_SYMBOL,
+                TT_SPACE,
+                TT_NUMBER,
+                TT_COMMENT,
+                TT_NUMBER,
+                TT_FINAL
+            },
+            .incl_comments = true,
+            .incl_space = true
+        },
+        {
+            .text = "hej\n1.3 \t \n //test\n2.4567",
+            .tokens_types = (token_type_t[]){
+                TT_INITIAL,
+                TT_SYMBOL,
+                TT_SPACE,
+                TT_NUMBER,
+                TT_SPACE,
+                TT_COMMENT,
+                TT_NUMBER,
+                TT_FINAL
+            },
+            .incl_comments = true,
+            .incl_space = true
+        },
+        {
+            .text = "hej_325_sdg true False false//test234325",
+            .tokens_types = (token_type_t[]){
+                TT_INITIAL,
+                TT_SYMBOL,
+                TT_SPACE,
+                TT_BOOLEAN,
+                TT_SPACE,
+                TT_SYMBOL,
+                TT_SPACE,
+                TT_BOOLEAN,
+                TT_FINAL
+            },
+            .incl_comments = false,
+            .incl_space = true
+        },
+        {
+            .text = "(3.5) true\n//false\n/\"hej\"",
+            .tokens_types = (token_type_t[]){
+                TT_INITIAL,
+                TT_OPEN_PAREN,
+                TT_NUMBER,
+                TT_CLOSE_PAREN,
+                TT_BOOLEAN,
+                TT_SYMBOL,
+                TT_STRING,
+                TT_FINAL
+            },
+            .incl_comments = false,
+            .incl_space = false
+        }
     };
 
-    tokenizer_analyze(&coll, &args);
-    tokens_print(&coll);
+    size_t nsubcases = sizeof(subtests) / sizeof(subtests[0]);
 
-    tokens_destroy(&coll);
+    for(size_t i = 0; i < nsubcases; i++) {
+        
+        tokenizer_args_t args = (tokenizer_args_t) {
+            .filepath = "test/test/test.txt",
+            .include_comments = subtests[i].incl_comments,
+            .include_spaces = subtests[i].incl_space,
+            .text = subtests[i].text,
+            .text_length = strlen(subtests[i].text)
+        };
+
+        tokens_clear(&coll);
+        tokenizer_analyze(&coll, &args);
+
+        //tokens_print(&coll);
+        
+        size_t token_index = 0;
+        while( token_index < coll.count ) {
+            token_type_t expected = subtests[i].tokens_types[token_index];
+            token_type_t check = coll.tokens[token_index].type;
+            TEST_ASSERT_MSG(this,
+                expected == check,
+                "token #%d: expected(%s) != check(%s)",
+                    (unsigned int) token_index,
+                    token_get_type_name(expected),
+                    token_get_type_name(check));
+            token_index ++;
+            if( expected == TT_FINAL ) {
+                break;
+            }
+        }
+
+        TEST_ASSERT_MSG(this,
+            coll.count == token_index,
+            "token count: expected(%d) != check(%d)",
+                (unsigned int) token_index,
+                (unsigned int) coll.count);
+
+        tokens_destroy(&coll);
+    }
 }
 
 test_results_t run_testcases() {

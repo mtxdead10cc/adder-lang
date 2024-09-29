@@ -66,7 +66,7 @@ size_t sweep_while(tokenizer_state_t* state, size_t start_offset, lex_predicate_
     while ( lexer_match(lex, lexer_scan(state->buffer[cursor])) && cursor <= stop ) {
         cursor ++;
     }
-    return cursor - state->cursor;
+    return cursor - state->cursor - start_offset;
 }
 
 bool match_cursor(tokenizer_state_t* state, lex_predicate_t lex) {
@@ -215,6 +215,11 @@ bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
         .kw_map_symbolic = create_symbolic_token_map()
     };
 
+    tokens_append(collection, (token_t) {
+        .ref = srcref(args->text, 0, 0, args->filepath),
+        .type = TT_INITIAL
+    });
+
     while ( state.cursor < state.buffer_size ) {
         
         size_t last_cursor_pos = state.cursor;
@@ -246,6 +251,7 @@ bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
         }
 
         if( last_cursor_pos == state.cursor ) {
+            printf("error: tokenizer stalled.\n");
             break;
         }
     }
@@ -253,5 +259,12 @@ bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
     destroy_token_map(&state.kw_map_alpha);
     destroy_token_map(&state.kw_map_symbolic);
 
-    return true;
+    tokens_append(collection, (token_t) {
+        .ref = srcref(args->text,
+            args->text_length > 0 ? args->text_length - 1 : 0, 
+            0, args->filepath),
+        .type = TT_FINAL
+    });
+
+    return state.cursor == state.buffer_size;
 }
