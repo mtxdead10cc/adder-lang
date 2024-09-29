@@ -81,6 +81,8 @@ bool srcmap_ensure_capacity(srcmap_t* map, size_t additional) {
         free(map->keys);
         free(map->values);
 
+        assert(new_map.count == map->count);
+
         map->keys = new_map.keys;
         map->values = new_map.values;
         map->capacity = new_map.capacity;
