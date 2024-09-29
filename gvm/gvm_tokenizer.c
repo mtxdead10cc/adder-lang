@@ -1,4 +1,5 @@
 #include "gvm_tokenizer.h"
+#include "gvm_srcmap.h"
 #include <stdio.h>
 
 bool tokens_init(token_collection_t* collection, size_t capacity) {
@@ -51,12 +52,12 @@ void tokens_destroy(token_collection_t* collection) {
 }
 
 typedef struct tokenizer_state_t {
-    char*               buffer;
-    size_t              buffer_size;
-    char*               filepath;
-    size_t              cursor;
-    srcref_map_t        kw_map_alpha;
-    srcref_map_t        kw_map_symbolic;
+    char*           buffer;
+    size_t          buffer_size;
+    char*           filepath;
+    size_t          cursor;
+    srcmap_t        kw_map_alpha;
+    srcmap_t        kw_map_symbolic;
 } tokenizer_state_t;
 
 size_t sweep_while(tokenizer_state_t* state, size_t start_offset, lex_predicate_t lex) {
@@ -114,19 +115,19 @@ void sweep_discard_token(
     state->cursor = start + len;
 }
 
-srcref_map_t create_keyword_token_map() {
-    srcref_map_t map;
-    srcref_map_init(&map, 50);
+srcmap_t create_keyword_token_map() {
+    srcmap_t map;
+    srcmap_init(&map, 50);
 
-    srcref_map_insert(&map, srcref_const("if"),     TT_KW_IF);
-    srcref_map_insert(&map, srcref_const("else"),   TT_KW_ELSE);
-    srcref_map_insert(&map, srcref_const("for"),    TT_KW_FOR);
-    srcref_map_insert(&map, srcref_const("fun"),    TT_KW_FUN_DEF);
-    srcref_map_insert(&map, srcref_const("true"),   TT_BOOLEAN);
-    srcref_map_insert(&map, srcref_const("false"),  TT_BOOLEAN);
-    srcref_map_insert(&map, srcref_const("not"),    TT_KW_NOT);
-    srcref_map_insert(&map, srcref_const("and"),    TT_KW_AND);
-    srcref_map_insert(&map, srcref_const("or"),     TT_KW_OR);
+    srcmap_insert(&map, srcref_const("if"),     sm_val(TT_KW_IF));
+    srcmap_insert(&map, srcref_const("else"),   sm_val(TT_KW_ELSE));
+    srcmap_insert(&map, srcref_const("for"),    sm_val(TT_KW_FOR));
+    srcmap_insert(&map, srcref_const("fun"),    sm_val(TT_KW_FUN_DEF));
+    srcmap_insert(&map, srcref_const("true"),   sm_val(TT_BOOLEAN));
+    srcmap_insert(&map, srcref_const("false"),  sm_val(TT_BOOLEAN));
+    srcmap_insert(&map, srcref_const("not"),    sm_val(TT_KW_NOT));
+    srcmap_insert(&map, srcref_const("and"),    sm_val(TT_KW_AND));
+    srcmap_insert(&map, srcref_const("or"),     sm_val(TT_KW_OR));
 
     return map;
 }
@@ -138,32 +139,32 @@ token_t lookup_alpha_token(tokenizer_state_t* state) {
     assert(len > 0 && "unexpected sweep_while progress");
     state->cursor = start + len;
     srcref_t ref = srcref(state->buffer, start, len, state->filepath);
-    uint32_t* tt = srcref_map_lookup(&state->kw_map_alpha, ref);
+    srcmap_value_t* lookup_result = srcmap_lookup(&state->kw_map_alpha, ref);
     return (token_t) {
         .ref = ref,
-        .type = tt != NULL ? *tt : TT_SYMBOL
+        .type = lookup_result != NULL ? lookup_result->data : TT_SYMBOL
     };
 }
 
-srcref_map_t create_symbolic_token_map() {
-    srcref_map_t map;
-    srcref_map_init(&map, 50);
+srcmap_t create_symbolic_token_map() {
+    srcmap_t map;
+    srcmap_init(&map, 50);
 
-    srcref_map_insert(&map, srcref_const("->"), TT_ARROW);
-    srcref_map_insert(&map, srcref_const("=="), TT_CMP_EQ);
-    srcref_map_insert(&map, srcref_const("<="), TT_CMP_LT_EQ);
-    srcref_map_insert(&map, srcref_const(">="), TT_CMP_GT_EQ);
-    srcref_map_insert(&map, srcref_const("<"),  TT_LT_OR_OPEN_ABRACKET);
-    srcref_map_insert(&map, srcref_const(">"),  TT_GT_OR_CLOSE_ABRACKET);
-    srcref_map_insert(&map, srcref_const("("),  TT_OPEN_PAREN);
-    srcref_map_insert(&map, srcref_const(")"),  TT_CLOSE_PAREN);
-    srcref_map_insert(&map, srcref_const("{"),  TT_OPEN_CURLY);
-    srcref_map_insert(&map, srcref_const("}"),  TT_CLOSE_CURLY);
-    srcref_map_insert(&map, srcref_const("["),  TT_OPEN_SBRACKET);
-    srcref_map_insert(&map, srcref_const("]"),  TT_CLOSE_SBRACKET);
-    srcref_map_insert(&map, srcref_const("="),  TT_ASSIGN);
-    srcref_map_insert(&map, srcref_const(","),  TT_SEPARATOR);
-    srcref_map_insert(&map, srcref_const(";"),  TT_STATEMENT_END);
+    srcmap_insert(&map, srcref_const("->"), sm_val(TT_ARROW));
+    srcmap_insert(&map, srcref_const("=="), sm_val(TT_CMP_EQ));
+    srcmap_insert(&map, srcref_const("<="), sm_val(TT_CMP_LT_EQ));
+    srcmap_insert(&map, srcref_const(">="), sm_val(TT_CMP_GT_EQ));
+    srcmap_insert(&map, srcref_const("<"),  sm_val(TT_LT_OR_OPEN_ABRACKET));
+    srcmap_insert(&map, srcref_const(">"),  sm_val(TT_GT_OR_CLOSE_ABRACKET));
+    srcmap_insert(&map, srcref_const("("),  sm_val(TT_OPEN_PAREN));
+    srcmap_insert(&map, srcref_const(")"),  sm_val(TT_CLOSE_PAREN));
+    srcmap_insert(&map, srcref_const("{"),  sm_val(TT_OPEN_CURLY));
+    srcmap_insert(&map, srcref_const("}"),  sm_val(TT_CLOSE_CURLY));
+    srcmap_insert(&map, srcref_const("["),  sm_val(TT_OPEN_SBRACKET));
+    srcmap_insert(&map, srcref_const("]"),  sm_val(TT_CLOSE_SBRACKET));
+    srcmap_insert(&map, srcref_const("="),  sm_val(TT_ASSIGN));
+    srcmap_insert(&map, srcref_const(","),  sm_val(TT_SEPARATOR));
+    srcmap_insert(&map, srcref_const(";"),  sm_val(TT_STATEMENT_END));
 
     return map;
 }
@@ -192,15 +193,15 @@ token_t lookup_symbolic_token(tokenizer_state_t* state) {
     size_t len = get_symbolic_token_len(state);
     state->cursor = start + len;
     srcref_t ref = srcref(state->buffer, start, len, state->filepath);
-    uint32_t* tt = srcref_map_lookup(&state->kw_map_symbolic, ref);
+    srcmap_value_t* lookup_result = srcmap_lookup(&state->kw_map_symbolic, ref);
     return (token_t) {
         .ref = ref,
-        .type = tt != NULL ? *tt : TT_SYMBOL
+        .type = lookup_result != NULL ? lookup_result->data : TT_SYMBOL
     };
 }
 
-void destroy_token_map(srcref_map_t* map) {
-    srcref_map_destroy(map);
+void destroy_token_map(srcmap_t* map) {
+    srcmap_destroy(map);
 }
 
 bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {

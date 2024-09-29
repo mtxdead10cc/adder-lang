@@ -14,6 +14,7 @@ target_sources(gvm PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/gvm_parser.c
         ${CMAKE_CURRENT_SOURCE_DIR}/gvm_compiler.c
         ${CMAKE_CURRENT_SOURCE_DIR}/gvm_tokenizer.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/gvm_srcmap.c
 )
 
 
