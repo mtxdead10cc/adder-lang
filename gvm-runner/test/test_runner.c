@@ -361,7 +361,16 @@ void test_tokenizer(test_case_t* this) {
     "        hello(item, 5);\n"
     "    }\n"
     "}\n";
-    tokenizer_analyze(&coll, text, strlen(text), "test/test/test.txt");
+
+    tokenizer_args_t args = (tokenizer_args_t) {
+        .filepath = "test/test/test.txt",
+        .include_comments = false,
+        .include_spaces = false,
+        .text = text,
+        .text_length = strlen(text)
+    };
+
+    tokenizer_analyze(&coll, &args);
     tokens_print(&coll);
 
     tokens_destroy(&coll);

@@ -6,7 +6,7 @@
 #include <stdarg.h>
 #include <assert.h>
 
-typedef enum lex_category_t {
+typedef enum lexeme_t {
     LCAT_NONE           = 0x00000000,
 
     LCAT_NEWLINE        = 0x00000001,
@@ -19,17 +19,21 @@ typedef enum lex_category_t {
     LCAT_UNDERSCORE     = 0x00000080,
     LCAT_EQUAL          = 0x00000100,
     LCAT_LESS_THAN      = 0x00000200,
-    LCAT_GREATER_THAN   = 0x00000400,
+    LCAT_OPEN_PAREN     = 0x00000400,
+    LCAT_OPEN_CURLY     = 0x00000800,
+    LCAT_OPEN_SBRACKET  = 0x00001000,
+    LCAT_GREATER_THAN   = 0x00002000,
+    LCAT_CLOSE_PAREN    = 0x00004000,
+    LCAT_CLOSE_CURLY    = 0x00008000,
+    LCAT_CLOSE_SBRACKET = 0x00010000,
+    
+    LCAT_NUMBER         = 0x01000000,
+    LCAT_LETTER         = 0x02000000,
+    LCAT_SPACE          = 0x04000000,
+    LCAT_SEPARATOR      = 0x08000000,
+    LCAT_SYMBOLIC       = 0x10000000
 
-    LCAT_NUMBER         = 0x00010000,
-    LCAT_LETTER         = 0x00020000,
-    LCAT_SPACE          = 0x00040000,
-    LCAT_SCOPE_START    = 0x00080000,
-    LCAT_SCOPE_END      = 0x00100000,
-    LCAT_SEPARATOR      = 0x00200000,
-    LCAT_SYMBOL         = 0x00400000
-
-} lex_category_t;
+} lexeme_t;
 
 #define IS_LETTER(C) (((C) >= 'a' && (C) <= 'z') || ((C) >= 'A' && (C) <= 'Z'))
 #define IS_NUMBER(C)  ((C) >= '0' && (C) <= '9')
@@ -52,41 +56,44 @@ typedef enum lex_category_t {
 
 #define IS_SEPARATOR(C)  ( ((C) == ',') || ((C) == ';') )
 
-inline static lex_category_t lexer_scan(char character) {
-    lex_category_t category = LCAT_NONE;
-
+inline static lexeme_t lexer_scan_char_type(char character) {
     switch (character) {
-        case '\n':  category |= LCAT_NEWLINE;       break;
-        case '/':   category |= LCAT_SLASH;         break;
-        case '.':   category |= LCAT_DOT;           break;
-        case '-':   category |= LCAT_MINUS;         break;
-        case '"':   category |= LCAT_QUOTE;         break;
-        case ',':   category |= LCAT_COMMA;         break;
-        case ';':   category |= LCAT_SEMI_COLON;    break;
-        case '_':   category |= LCAT_UNDERSCORE;    break;
-        case '=':   category |= LCAT_EQUAL;         break;
-        case '<':   category |= LCAT_LESS_THAN;     break;
-        case '>':   category |= LCAT_GREATER_THAN;  break;
-        default:                                    break;
+        case '\n':  return LCAT_NEWLINE;
+        case '/':   return LCAT_SLASH;
+        case '.':   return LCAT_DOT;
+        case '-':   return LCAT_MINUS;
+        case '"':   return LCAT_QUOTE;
+        case ',':   return LCAT_COMMA;
+        case ';':   return LCAT_SEMI_COLON;
+        case '_':   return LCAT_UNDERSCORE;
+        case '=':   return LCAT_EQUAL;
+        case '<':   return LCAT_LESS_THAN;
+        case '(':   return LCAT_OPEN_PAREN;
+        case '{':   return LCAT_OPEN_CURLY;
+        case '[':   return LCAT_OPEN_SBRACKET;
+        case '>':   return LCAT_GREATER_THAN;
+        case ')':   return LCAT_CLOSE_PAREN;
+        case '}':   return LCAT_CLOSE_CURLY;
+        case ']':   return LCAT_CLOSE_SBRACKET;
+        default:    return LCAT_NONE;
     }
+}
+
+inline static lexeme_t lexer_scan(char character) {
+
+    lexeme_t lexeme = lexer_scan_char_type(character);
 
     if( IS_LETTER(character) ) {
-        category |= LCAT_LETTER;
+        lexeme |= LCAT_LETTER;
     } else if( IS_NUMBER(character) ) {
-        category |= LCAT_NUMBER;
+        lexeme |= LCAT_NUMBER;
     } else if( IS_WHITESPACE(character) ) {
-        category |= LCAT_SPACE;
-    } else if( IS_SCOPE_START(character) ) {
-        category |= LCAT_SCOPE_START;
-    } else if( IS_SCOPE_END(character) ) {
-        category |= LCAT_SCOPE_END;
-    }
-    
-    if( character >= 0x20 && character <= 0x7E  ) {
-        category |= LCAT_SYMBOL;
+        lexeme |= LCAT_SPACE;
+    } else if( lexeme != LCAT_NONE ) {
+        lexeme |= LCAT_SYMBOLIC;
     }
 
-    return category;
+    return lexeme;
 }
 
 typedef enum lex_ptype_t {
@@ -95,29 +102,29 @@ typedef enum lex_ptype_t {
 } lex_ptype_t;
 
 typedef struct lex_predicate_t {
-    lex_category_t  category;
+    lexeme_t        lexeme;
     lex_ptype_t     type;
 } lex_predicate_t;
 
 
-inline static lex_predicate_t lp_is(lex_category_t cat) {
+inline static lex_predicate_t lp_is(lexeme_t cat) {
     return (lex_predicate_t) {
-        .category = cat,
+        .lexeme = cat,
         .type = LP_IS
     };
 }
 
-inline static lex_predicate_t lp_is_not(lex_category_t cat) {
+inline static lex_predicate_t lp_is_not(lexeme_t cat) {
     return (lex_predicate_t) {
-        .category = cat,
+        .lexeme = cat,
         .type = LP_IS_NOT
     };
 }
 
-inline static bool lexer_match(lex_predicate_t predicate, lex_category_t actual) {
+inline static bool lexer_match(lex_predicate_t predicate, lexeme_t actual) {
     switch(predicate.type) {
-        case LP_IS:     return (predicate.category & actual) > 0;
-        case LP_IS_NOT: return (predicate.category & actual) == 0;
+        case LP_IS:     return (predicate.lexeme & actual) > 0;
+        case LP_IS_NOT: return (predicate.lexeme & actual) == 0;
         default:        return false;
     }
 }

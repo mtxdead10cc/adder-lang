@@ -445,8 +445,8 @@ void srcref_map_destroy(srcref_map_t* map) {
     map->count = 0;
 }
 
-bool srcref_map_init(srcref_map_t* map, size_t initial_capacity) {
-    map->capacity = initial_capacity;
+bool srcref_map_init(srcref_map_t* map, size_t fixed_capacity) {
+    map->capacity = fixed_capacity;
     map->count = 0;
     map->is_in_use = (bool*) malloc(sizeof(bool) * map->capacity);
     if( map->is_in_use == NULL ) {
@@ -467,33 +467,6 @@ bool srcref_map_init(srcref_map_t* map, size_t initial_capacity) {
     return true;
 }
 
-bool srcref_map_ensure_capacity(srcref_map_t* map, size_t additional) {
-    // this is a map and not a list so we try to
-    // have some headroom.
-    size_t required = (map->count + additional); 
-    if( map->capacity <= (required + (required / 4)) ) {
-        size_t new_capacity = required * 2;
-        bool* is_in_use = (bool*) realloc(map->is_in_use, sizeof(bool) * new_capacity);
-        if( is_in_use != NULL ) {
-            map->is_in_use = is_in_use;
-        }
-        srcref_t* key = (srcref_t*) realloc(map->key, sizeof(bool) * new_capacity);
-        if( is_in_use != NULL ) {
-            map->key = key;
-        }
-        uint32_t* value = (uint32_t*) realloc(map->value, sizeof(bool) * new_capacity);
-        if( is_in_use != NULL ) {
-            map->value = value;
-        }
-        if( (key == NULL) || (value == NULL) | (is_in_use == NULL) ) {
-            printf("error: out of memory\n");
-            return false;
-        }
-        map->capacity = new_capacity;
-    }
-    return true;
-}
-
 size_t srcref_map_hash(srcref_t ref) {
     size_t len = srcref_len(ref);
     size_t hash_code = len + 5;
@@ -505,7 +478,8 @@ size_t srcref_map_hash(srcref_t ref) {
 }
 
 bool srcref_map_insert(srcref_map_t* map, srcref_t key, uint32_t val) {
-    if( srcref_map_ensure_capacity(map, 1) == false ) {
+    if( map->capacity == map->count + 1 ) {
+        printf("error: srcref_map is at max capacity");
         return false;
     }
     size_t hk = srcref_map_hash(key);

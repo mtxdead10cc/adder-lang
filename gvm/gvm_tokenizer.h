@@ -17,8 +17,6 @@ typedef enum token_type_t {
     TT_SEPARATOR,
     TT_STATEMENT_END,
     TT_STRING,
-    TT_GROUP_START,
-    TT_GROUP_END,
     TT_ARROW,
     TT_ASSIGN,
     TT_KW_IF,
@@ -26,11 +24,20 @@ typedef enum token_type_t {
     TT_KW_FOR,
     TT_KW_RETURN,
     TT_KW_FUN_DEF,
+    TT_KW_AND,
+    TT_KW_OR,
+    TT_KW_NOT,
     TT_CMP_EQ,
-    TT_CMP_GT,
-    TT_CMP_LT,
     TT_CMP_GT_EQ,
     TT_CMP_LT_EQ,
+    TT_LT_OR_OPEN_ABRACKET,
+    TT_GT_OR_CLOSE_ABRACKET,
+    TT_OPEN_PAREN,
+    TT_CLOSE_PAREN,
+    TT_OPEN_CURLY,
+    TT_CLOSE_CURLY,
+    TT_OPEN_SBRACKET,
+    TT_CLOSE_SBRACKET,
     TT_FINAL,
     TT_TOKEN_TYPE_COUNT
 } token_type_t;
@@ -68,8 +75,6 @@ inline static char* token_get_type_name(token_type_t type) {
         case TT_SEPARATOR: return "TT_SEPARATOR";
         case TT_STATEMENT_END: return "TT_STATEMENT_END";
         case TT_STRING: return "TT_STRING";
-        case TT_GROUP_START: return "TT_GROUP_START";
-        case TT_GROUP_END: return "TT_GROUP_END";
         case TT_ARROW: return "TT_ARROW";
         case TT_ASSIGN: return "TT_ASSIGN";
         case TT_KW_IF: return "TT_KW_IF";
@@ -77,11 +82,20 @@ inline static char* token_get_type_name(token_type_t type) {
         case TT_KW_FOR: return "TT_KW_FOR";
         case TT_KW_RETURN: return "TT_KW_RETURN";
         case TT_KW_FUN_DEF: return "TT_KW_FUN_DEF";
+        case TT_KW_AND: return "TT_KW_AND";
+        case TT_KW_OR: return "TT_KW_OR";
+        case TT_KW_NOT: return "TT_KW_NOT";
         case TT_CMP_EQ: return "TT_CMP_EQ";
-        case TT_CMP_GT: return "TT_CMP_GT";
-        case TT_CMP_LT: return "TT_CMP_LT";
         case TT_CMP_GT_EQ: return "TT_CMP_GT_EQ";
         case TT_CMP_LT_EQ: return "TT_CMP_LT_EQ";
+        case TT_LT_OR_OPEN_ABRACKET: return "TT_LT_OR_OPEN_ABRACKET";
+        case TT_GT_OR_CLOSE_ABRACKET: return "TT_GT_OR_CLOSE_ABRACKET";
+        case TT_OPEN_PAREN: return "TT_OPEN_PAREN";
+        case TT_CLOSE_PAREN: return "TT_CLOSE_PAREN";
+        case TT_OPEN_CURLY: return "TT_OPEN_CURLY";
+        case TT_CLOSE_CURLY: return "TT_CLOSE_CURLY";
+        case TT_OPEN_SBRACKET: return "TT_OPEN_SBRACKET";
+        case TT_CLOSE_SBRACKET: return "TT_CLOSE_SBRACKET";
         case TT_FINAL: return "TT_FINAL";
         default: return "<UNKNOWN-TT>";
     }
@@ -92,6 +106,15 @@ void tokens_clear(token_collection_t* collection);
 bool tokens_append(token_collection_t* collection, token_t token);
 void tokens_print(token_collection_t* collection);
 void tokens_destroy(token_collection_t* collection);
-bool tokenizer_analyze(token_collection_t* collection, char* text, size_t text_length, char* filepath);
+
+typedef struct tokenizer_args_t {
+    bool include_comments;
+    bool include_spaces;
+    char* text;
+    size_t text_length;
+    char* filepath;
+} tokenizer_args_t;
+
+bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args);
 
 #endif // GVM_TOKENIZER_H_

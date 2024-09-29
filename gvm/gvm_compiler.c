@@ -176,6 +176,7 @@ size_t s2im_hash(srcref_t ref) {
 }
 
 bool s2im_insert(src2idxmap_t* map, srcref_t key, ir_index_t val) {
+    printf("TODO: BUG!!!! IF CAPACITY CHANGES ALL THE KEYS MOVE!\n");
     assert(val.tag == map->tag && "table tag and value mismatch");
     if( s2sim_ensure_capacity(map, 1) == false ) {
         return false;

@@ -30,20 +30,6 @@ bool tokens_append(token_collection_t* collection, token_t token) {
     return true;
 }
 
-bool tokens_merge_top(token_collection_t* collection) {
-    if( collection->count < 2 ) {
-        return collection->count == 1;
-    } else {
-        collection->count -= 1;
-        token_t pop = collection->tokens[collection->count];
-        token_t top = collection->tokens[collection->count-1]; 
-        assert( top.type == pop.type );
-        top.ref = srcref_combine(top.ref, pop.ref);
-        collection->tokens[collection->count-1] = top;
-        return true;
-    }
-}
-
 void tokens_print(token_collection_t* collection) {
     for(size_t i = 0; i < collection->count; i++) {
         printf("(%s '", token_get_type_name(collection->tokens[i].type));
@@ -65,10 +51,12 @@ void tokens_destroy(token_collection_t* collection) {
 }
 
 typedef struct tokenizer_state_t {
-    char* buffer;
-    size_t buffer_size;
-    char* filepath;
-    size_t cursor;
+    char*               buffer;
+    size_t              buffer_size;
+    char*               filepath;
+    size_t              cursor;
+    srcref_map_t        kw_map_alpha;
+    srcref_map_t        kw_map_symbolic;
 } tokenizer_state_t;
 
 size_t sweep_while(tokenizer_state_t* state, size_t start_offset, lex_predicate_t lex) {
@@ -77,7 +65,7 @@ size_t sweep_while(tokenizer_state_t* state, size_t start_offset, lex_predicate_
     while ( lexer_match(lex, lexer_scan(state->buffer[cursor])) && cursor <= stop ) {
         cursor ++;
     }
-    return cursor - state->cursor - start_offset;
+    return cursor - state->cursor;
 }
 
 bool match_cursor(tokenizer_state_t* state, lex_predicate_t lex) {
@@ -95,193 +83,165 @@ bool match_cursor_and_next(tokenizer_state_t* state, lex_predicate_t lex_0, lex_
          && lexer_match(lex_1, lexer_scan(state->buffer[state->cursor + 1]));
 }
 
-srcref_map_t create_token_map() {
-    srcref_map_t map;
-    srcref_map_init(&map, 16);
+token_t sweep_make_token(
+    tokenizer_state_t* state,
+    size_t offset,
+    size_t trailing,
+    lex_predicate_t while_true,
+    token_type_t token_type)
+{
+    size_t start = state->cursor;
+    size_t len = sweep_while(state, offset, while_true);
+    assert(len > 0 && "unexpected sweep_while progress");
+    len = len + offset + trailing;
+    state->cursor = start + len;
+    return (token_t) {
+        .ref = srcref(state->buffer, start, len, state->filepath),
+        .type = token_type
+    };
+}
 
-    srcref_map_insert(&map, srcref_const("if"), TT_KW_IF);
-    srcref_map_insert(&map, srcref_const("else"), TT_KW_ELSE);
-    srcref_map_insert(&map, srcref_const("for"), TT_KW_FOR);
-    srcref_map_insert(&map, srcref_const("fun"), TT_KW_FUN_DEF);
-    srcref_map_insert(&map, srcref_const("true"), TT_BOOLEAN);
-    srcref_map_insert(&map, srcref_const("false"), TT_BOOLEAN);
+void sweep_discard_token(
+    tokenizer_state_t* state,
+    size_t offset,
+    size_t trailing,
+    lex_predicate_t while_true)
+{
+    size_t start = state->cursor;
+    size_t len = sweep_while(state, offset, while_true);
+    assert(len > 0 && "unexpected sweep_while progress");
+    len = len + offset + trailing;
+    state->cursor = start + len;
+}
+
+srcref_map_t create_keyword_token_map() {
+    srcref_map_t map;
+    srcref_map_init(&map, 50);
+
+    srcref_map_insert(&map, srcref_const("if"),     TT_KW_IF);
+    srcref_map_insert(&map, srcref_const("else"),   TT_KW_ELSE);
+    srcref_map_insert(&map, srcref_const("for"),    TT_KW_FOR);
+    srcref_map_insert(&map, srcref_const("fun"),    TT_KW_FUN_DEF);
+    srcref_map_insert(&map, srcref_const("true"),   TT_BOOLEAN);
+    srcref_map_insert(&map, srcref_const("false"),  TT_BOOLEAN);
+    srcref_map_insert(&map, srcref_const("not"),    TT_KW_NOT);
+    srcref_map_insert(&map, srcref_const("and"),    TT_KW_AND);
+    srcref_map_insert(&map, srcref_const("or"),     TT_KW_OR);
 
     return map;
+}
+
+token_t lookup_alpha_token(tokenizer_state_t* state) {
+    size_t start = state->cursor;
+    size_t len = sweep_while(state, 0,
+        lp_is(LCAT_LETTER|LCAT_UNDERSCORE|LCAT_NUMBER));
+    assert(len > 0 && "unexpected sweep_while progress");
+    state->cursor = start + len;
+    srcref_t ref = srcref(state->buffer, start, len, state->filepath);
+    uint32_t* tt = srcref_map_lookup(&state->kw_map_alpha, ref);
+    return (token_t) {
+        .ref = ref,
+        .type = tt != NULL ? *tt : TT_SYMBOL
+    };
+}
+
+srcref_map_t create_symbolic_token_map() {
+    srcref_map_t map;
+    srcref_map_init(&map, 50);
+
+    srcref_map_insert(&map, srcref_const("->"), TT_ARROW);
+    srcref_map_insert(&map, srcref_const("=="), TT_CMP_EQ);
+    srcref_map_insert(&map, srcref_const("<="), TT_CMP_LT_EQ);
+    srcref_map_insert(&map, srcref_const(">="), TT_CMP_GT_EQ);
+    srcref_map_insert(&map, srcref_const("<"),  TT_LT_OR_OPEN_ABRACKET);
+    srcref_map_insert(&map, srcref_const(">"),  TT_GT_OR_CLOSE_ABRACKET);
+    srcref_map_insert(&map, srcref_const("("),  TT_OPEN_PAREN);
+    srcref_map_insert(&map, srcref_const(")"),  TT_CLOSE_PAREN);
+    srcref_map_insert(&map, srcref_const("{"),  TT_OPEN_CURLY);
+    srcref_map_insert(&map, srcref_const("}"),  TT_CLOSE_CURLY);
+    srcref_map_insert(&map, srcref_const("["),  TT_OPEN_SBRACKET);
+    srcref_map_insert(&map, srcref_const("]"),  TT_CLOSE_SBRACKET);
+    srcref_map_insert(&map, srcref_const("="),  TT_ASSIGN);
+    srcref_map_insert(&map, srcref_const(","),  TT_SEPARATOR);
+    srcref_map_insert(&map, srcref_const(";"),  TT_STATEMENT_END);
+
+    return map;
+}
+
+size_t get_symbolic_token_len(tokenizer_state_t* state) {
+    if( match_cursor_and_next(state,
+            lp_is(LCAT_MINUS),
+            lp_is(LCAT_GREATER_THAN)))
+    {
+        return 2; // arrow
+    }
+    else if (match_cursor_and_next(state, 
+            lp_is(LCAT_EQUAL|LCAT_LESS_THAN|LCAT_GREATER_THAN),
+            lp_is(LCAT_GREATER_THAN)))
+    {
+        return 2; // cmps
+    }
+    else 
+    {
+        return 1; // other
+    }
+}
+
+token_t lookup_symbolic_token(tokenizer_state_t* state) {
+    size_t start = state->cursor;
+    size_t len = get_symbolic_token_len(state);
+    state->cursor = start + len;
+    srcref_t ref = srcref(state->buffer, start, len, state->filepath);
+    uint32_t* tt = srcref_map_lookup(&state->kw_map_symbolic, ref);
+    return (token_t) {
+        .ref = ref,
+        .type = tt != NULL ? *tt : TT_SYMBOL
+    };
 }
 
 void destroy_token_map(srcref_map_t* map) {
     srcref_map_destroy(map);
 }
 
-bool tokenizer_analyze(token_collection_t* collection, char* text, size_t text_length, char* filepath) {
+bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
 
     tokenizer_state_t state = (tokenizer_state_t) {
-        .buffer = text,
-        .buffer_size = text_length,
-        .filepath = filepath,
-        .cursor = 0
+        .buffer = args->text,
+        .buffer_size = args->text_length,
+        .filepath = args->filepath,
+        .cursor = 0,
+        .kw_map_alpha = create_keyword_token_map(),
+        .kw_map_symbolic = create_symbolic_token_map()
     };
-
-    srcref_map_t map = create_token_map();
-
-    // TODO
-    // [ ] 'true' / 'false'     => TT_BOOLEAN
-    // [ ] '->'                 => TT_ARROW
-    // [ ] '==', '<=', '>='     => TT_COMPARISON
-    // [ ] ';'                  => TT_END_STATEMENT
-    // [ ] ','                  => TT_SEPARATOR
-    // [ ] 'if', 'for' ...      => TT_KEYWORD
 
     while ( state.cursor < state.buffer_size ) {
         
         size_t last_cursor_pos = state.cursor;
 
-        if(  match_cursor(&state, lp_is(LCAT_SPACE)) ) {
-            size_t start = state.cursor;
-            size_t len = sweep_while(&state, 0, lp_is(LCAT_SPACE));
-            assert(len > 0 && "unexpected sweep_while progress");
-            len = len;
-            state.cursor = start + len;
-            tokens_append(collection, (token_t) {
-                .ref = srcref(state.buffer, start, len, state.filepath),
-                .type = TT_SPACE
-            });
-        } else if( match_cursor_and_next(&state, lp_is(LCAT_SLASH), lp_is(LCAT_SLASH)) ) {
-            size_t start = state.cursor;
-            size_t len = sweep_while(&state, 2, lp_is_not(LCAT_NEWLINE));
-            assert(len > 0 && "unexpected sweep_while progress");
-            len = len + 2; // plus the two slashes
-            state.cursor = start + len;
-            tokens_append(collection, (token_t) {
-                .ref = srcref(state.buffer, start, len, state.filepath),
-                .type = TT_COMMENT
-            });
-        } else if ( match_cursor(&state, lp_is(LCAT_QUOTE)) ) {
-            size_t start = state.cursor;
-            size_t len = sweep_while(&state, 1, lp_is_not(LCAT_QUOTE));
-            assert(len > 0 && "unexpected sweep_while progress");
-            len = len + 2; // + beginning and end quotes
-            state.cursor = start + len;
-            tokens_append(collection, (token_t) {
-                .ref = srcref(state.buffer, start, len, state.filepath),
-                .type = TT_STRING
-            });
-        } else if ( match_cursor(&state, lp_is(LCAT_NUMBER)) ) {
-            size_t start = state.cursor;
-            size_t len = sweep_while(&state, 0, lp_is(LCAT_NUMBER|LCAT_DOT));
-            assert(len > 0 && "unexpected sweep_while progress");
-            state.cursor = start + len;
-            tokens_append(collection, (token_t) {
-                .ref = srcref(state.buffer, start, len, state.filepath),
-                .type = TT_NUMBER
-            });
-        } else if ( match_cursor(&state, lp_is(LCAT_LETTER|LCAT_UNDERSCORE)) ) {
-            size_t start = state.cursor;
-            size_t len = sweep_while(&state, 0, lp_is(LCAT_NUMBER|LCAT_LETTER|LCAT_UNDERSCORE));
-            assert(len > 0 && "unexpected sweep_while progress");
-            state.cursor = start + len;
-            srcref_t ref = srcref(state.buffer, start, len, state.filepath);
-            uint32_t* tt = srcref_map_lookup(&map, ref);
-            tokens_append(collection, (token_t) {
-                .ref = ref,
-                .type = tt != NULL ? *tt : TT_SYMBOL
-            });
-        } else if ( match_cursor_and_next(&state,
-                        lp_is(LCAT_MINUS),
-                        lp_is(LCAT_GREATER_THAN)) )
-        {
-            size_t start = state.cursor;
-            size_t len = 2;
-            state.cursor = start + len;
-            tokens_append(collection, (token_t) {
-                .ref = srcref(state.buffer, start, len, state.filepath),
-                .type = TT_ARROW
-            });
-        } else if ( match_cursor_and_next(&state,
-                        lp_is(LCAT_GREATER_THAN|LCAT_LESS_THAN|LCAT_EQUAL),
-                        lp_is(LCAT_EQUAL)) ) 
-        {
-            
-            token_type_t tt = TT_CMP_EQ;
-            if( match_cursor(&state, lp_is(LCAT_GREATER_THAN)) ){
-                tt = TT_CMP_GT_EQ;
-            } else if ( match_cursor(&state, lp_is(LCAT_LESS_THAN)) ) {
-                tt = TT_CMP_LT_EQ;
+        if(  match_cursor(&state, lp_is(LCAT_SPACE)) ) {                                           // SPACE
+            if( args->include_spaces ) {
+                tokens_append(collection,
+                    sweep_make_token(&state, 0, 0, lp_is(LCAT_SPACE), TT_SPACE));
+            } else {
+                sweep_discard_token(&state, 0, 0, lp_is(LCAT_SPACE));
             }
-
-            size_t start = state.cursor;
-            size_t len = 2;
-            state.cursor = start + len;
-            
-            tokens_append(collection, (token_t) {
-                .ref = srcref(state.buffer, start, len, state.filepath),
-                .type = tt
-            });
-
-        } else if ( match_cursor(&state, lp_is(LCAT_COMMA)) ) {
-            size_t start = state.cursor;
-            size_t len = 1;
-            state.cursor = start + len;
-            tokens_append(collection, (token_t) {
-                .ref = srcref(state.buffer, start, len, state.filepath),
-                .type = TT_SEPARATOR
-            });
-        } else if ( match_cursor(&state, lp_is(LCAT_SEMI_COLON)) ) {
-            size_t start = state.cursor;
-            size_t len = 1;
-            state.cursor = start + len;
-            tokens_append(collection, (token_t) {
-                .ref = srcref(state.buffer, start, len, state.filepath),
-                .type = TT_STATEMENT_END
-            });
-        } else if ( match_cursor(&state, lp_is(LCAT_LESS_THAN)) ) {
-            size_t start = state.cursor;
-            size_t len = 1;
-            state.cursor = start + len;
-            tokens_append(collection, (token_t) {
-                .ref = srcref(state.buffer, start, len, state.filepath),
-                .type = TT_CMP_LT
-            });
-        } else if ( match_cursor(&state, lp_is(LCAT_EQUAL)) ) {
-            size_t start = state.cursor;
-            size_t len = 1;
-            state.cursor = start + len;
-            tokens_append(collection, (token_t) {
-                .ref = srcref(state.buffer, start, len, state.filepath),
-                .type = TT_ASSIGN
-            });
-        } else if ( match_cursor(&state, lp_is(LCAT_GREATER_THAN)) ) {
-            size_t start = state.cursor;
-            size_t len = 1;
-            state.cursor = start + len;
-            tokens_append(collection, (token_t) {
-                .ref = srcref(state.buffer, start, len, state.filepath),
-                .type = TT_CMP_GT
-            });
-        } else if ( match_cursor(&state, lp_is(LCAT_SCOPE_START)) ) {
-            size_t start = state.cursor;
-            size_t len = 1;
-            state.cursor = start + len;
-            tokens_append(collection, (token_t) {
-                .ref = srcref(state.buffer, start, len, state.filepath),
-                .type = TT_GROUP_START
-            });
-        } else if ( match_cursor(&state, lp_is(LCAT_SCOPE_END)) ) {
-            size_t start = state.cursor;
-            size_t len = 1;
-            state.cursor = start + len;
-            tokens_append(collection, (token_t) {
-                .ref = srcref(state.buffer, start, len, state.filepath),
-                .type = TT_GROUP_END
-            });
-        } else if ( match_cursor(&state, lp_is(LCAT_SYMBOL)) ) {
-            size_t start = state.cursor;
-            size_t len = 1;
-            state.cursor = start + len;
-            tokens_append(collection, (token_t) {
-                .ref = srcref(state.buffer, start, len, state.filepath),
-                .type = TT_SYMBOL
-            });
+        } else if( match_cursor_and_next(&state, lp_is(LCAT_SLASH), lp_is(LCAT_SLASH)) ) {         // COMMENT
+            if( args->include_comments ) {
+                tokens_append(collection,
+                    sweep_make_token(&state, 2, 1, lp_is_not(LCAT_NEWLINE), TT_COMMENT));
+            } else {
+                sweep_discard_token(&state, 2, 1, lp_is_not(LCAT_NEWLINE));
+            }
+        } else if ( match_cursor(&state, lp_is(LCAT_QUOTE)) ) {                                     // STRING
+            tokens_append(collection,
+                sweep_make_token(&state, 1, 1, lp_is_not(LCAT_QUOTE), TT_STRING));
+        } else if ( match_cursor(&state, lp_is(LCAT_NUMBER)) ) {                                    // NUMBER
+            tokens_append(collection,
+                sweep_make_token(&state, 0, 0, lp_is(LCAT_NUMBER|LCAT_DOT), TT_NUMBER));
+        } else if ( match_cursor(&state, lp_is(LCAT_LETTER|LCAT_UNDERSCORE)) ) {
+            tokens_append(collection, lookup_alpha_token(&state));                                  // IDENTIFIER
+        } else if ( match_cursor(&state, lp_is(LCAT_SYMBOLIC)) ) {
+            tokens_append(collection, lookup_symbolic_token(&state));                               // SYMBOLIC
         }
 
         if( last_cursor_pos == state.cursor ) {
@@ -289,7 +249,8 @@ bool tokenizer_analyze(token_collection_t* collection, char* text, size_t text_l
         }
     }
 
-    destroy_token_map(&map);
+    destroy_token_map(&state.kw_map_alpha);
+    destroy_token_map(&state.kw_map_symbolic);
 
     return true;
 }
