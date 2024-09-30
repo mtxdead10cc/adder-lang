@@ -424,3 +424,29 @@ bool srcref_equals_string(srcref_t a, const char* b_str) {
     char* a_str = srcref_ptr(a);
     return strncmp(a_str, b_str, len) == 0;
 }
+
+srcref_location_t srcref_location_of(srcref_t ref) {
+    srcref_location_t loc = (srcref_location_t) {
+        .column = 0,
+        .line = 0,
+        .filepath = ref.filepath
+    };
+    if( ref.source == NULL ) {
+        return loc;
+    }
+    if(ref.idx_start > ref.idx_end) {
+        size_t tmp = ref.idx_end;
+        ref.idx_end = ref.idx_start;
+        ref.idx_start = tmp;
+    }
+    for (size_t i = 0; i < ref.idx_start; i++) {
+        if(ref.source[i] == '\n') {
+            loc.line ++;
+            loc.column = 0;
+        } else {
+            loc.column ++;
+        }
+    }
+    loc.line += 1;
+    return loc;
+}

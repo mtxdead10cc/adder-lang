@@ -458,6 +458,19 @@ void test_tokenizer(test_case_t* this) {
     }
 }
 
+void test_parser(test_case_t* this) {
+    parser_t parser;
+    char* text = "hej,hej,1,2";
+    parser_init(&parser, text, strlen(text), "test/test.txt");
+
+    parser_consume(&parser, TT_INITIAL);
+    parser_consume(&parser, TT_SYMBOL);
+    parser_consume(&parser, TT_SEPARATOR);
+    parser_consume(&parser, TT_BOOLEAN);
+
+    res_report_error(stdout, parser.result);
+}
+
 test_results_t run_testcases() {
 
     test_case_t test_cases[] = {
@@ -479,6 +492,11 @@ test_results_t run_testcases() {
         {
             .name = "gvm tokenizer",
             .test = test_tokenizer,
+            .nfailed = 0
+        },
+        {
+            .name = "gvm parser",
+            .test = test_parser,
             .nfailed = 0
         }
     };

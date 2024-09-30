@@ -12,6 +12,12 @@ typedef struct srcref_t {
     size_t  idx_end;
 } srcref_t;
 
+typedef struct srcref_location_t {
+    size_t line;
+    size_t column;
+    char* filepath;
+} srcref_location_t;
+
 typedef struct srcref_map_t {
     size_t          count;
     size_t          capacity;
@@ -73,5 +79,6 @@ char*    srcref_ptr(srcref_t ref);
 void     srcref_print(srcref_t ref);
 bool     srcref_equals(srcref_t a, srcref_t b);
 bool     srcref_equals_string(srcref_t a, const char* b_str);
+srcref_location_t srcref_location_of(srcref_t ref);
 
 #endif // GVM_UTILS_H_

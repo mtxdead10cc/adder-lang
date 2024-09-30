@@ -7,51 +7,7 @@
 #include "gvm_utils.h"
 #include "gvm_lexer.h"
 
-typedef enum token_type_t {
-    TT_INITIAL,
-    TT_SPACE,
-    TT_COMMENT,
-    TT_SYMBOL,
-    TT_NUMBER,
-    TT_BOOLEAN,
-    TT_SEPARATOR,
-    TT_STATEMENT_END,
-    TT_STRING,
-    TT_ARROW,
-    TT_ASSIGN,
-    TT_KW_IF,
-    TT_KW_ELSE,
-    TT_KW_FOR,
-    TT_KW_RETURN,
-    TT_KW_FUN_DEF,
-    TT_KW_AND,
-    TT_KW_OR,
-    TT_KW_NOT,
-    TT_CMP_EQ,
-    TT_CMP_GT_EQ,
-    TT_CMP_LT_EQ,
-    TT_LT_OR_OPEN_ABRACKET,
-    TT_GT_OR_CLOSE_ABRACKET,
-    TT_OPEN_PAREN,
-    TT_CLOSE_PAREN,
-    TT_OPEN_CURLY,
-    TT_CLOSE_CURLY,
-    TT_OPEN_SBRACKET,
-    TT_CLOSE_SBRACKET,
-    TT_FINAL,
-    TT_TOKEN_TYPE_COUNT
-} token_type_t;
 
-typedef struct token_t {
-    token_type_t type;
-    srcref_t ref;
-} token_t;
-
-typedef struct token_collection_t {
-    token_t*    tokens;
-    size_t      capacity;
-    size_t      count;
-} token_collection_t;
 
 inline static token_t token_const(const char* content, token_type_t type) {
     return (token_t) {
