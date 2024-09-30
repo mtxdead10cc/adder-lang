@@ -426,7 +426,8 @@ srcref_location_t srcref_location_of(srcref_t ref, char* filepath) {
     srcref_location_t loc = (srcref_location_t) {
         .column = 0,
         .line = 0,
-        .filepath = filepath
+        .filepath = filepath,
+        .ref = ref
     };
     if( ref.source == NULL ) {
         return loc;

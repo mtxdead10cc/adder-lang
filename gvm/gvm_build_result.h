@@ -51,14 +51,14 @@ inline static build_result_t res_err_unexpected_token(srcref_location_t location
 inline static char* get_readable_token_type(token_type_t type) {
     switch (type) {
         case TT_INITIAL: return "initial data (anything)";
-        case TT_SPACE: return "space (space, tab or newline)";
+        case TT_SPACE: return "space";
         case TT_COMMENT: return "comment";
         case TT_SYMBOL: return "symbol";
         case TT_NUMBER: return "number";
-        case TT_BOOLEAN: return "bool (true or false)";
+        case TT_BOOLEAN: return "bool";
+        case TT_STRING: return "string";
         case TT_SEPARATOR: return "separator (,)";
         case TT_STATEMENT_END: return "end of statement (;)";
-        case TT_STRING: return "string (\"some text\")";
         case TT_ARROW: return "type arrow (->)";
         case TT_ASSIGN: return "assignment (=)";
         case TT_KW_IF: return "keyword (if)";
@@ -92,6 +92,14 @@ inline static void res_report_location(FILE* stream, srcref_location_t location)
             (int) location.line,
             (int) location.column);
     }
+}
+
+inline static bool _print_full_token(token_type_t type) {
+    return type == TT_BOOLEAN
+        || type == TT_STRING
+        || type == TT_SYMBOL
+        || type == TT_NUMBER
+        || type == TT_COMMENT;
 }
 
 inline static void res_report_error(FILE* stream, build_result_t res) {
@@ -137,8 +145,14 @@ inline static void res_report_error(FILE* stream, build_result_t res) {
                 }
                 mask = (mask << 1);
             }
-            fprintf(stream, " but found '%s'.\n",
+            fprintf(stream, " but found '%s",
                 get_readable_token_type(res.info.unexp_token.token_actual));
+            if( _print_full_token(res.info.unexp_token.token_actual) ) {
+                fprintf(stream, " (%.*s)",
+                    (int) srcref_len(res.location.ref),
+                    srcref_ptr(res.location.ref));
+            }
+            fprintf(stream, "'.\n");
         } break;
     }
 }

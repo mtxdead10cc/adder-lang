@@ -460,13 +460,14 @@ void test_tokenizer(test_case_t* this) {
 
 void test_parser(test_case_t* this) {
     parser_t parser;
-    char* text = "hej,hej,1,2,,6";
+    char* text = "hej,hej\"hallåååå\"1,2,,6";
     parser_init(&parser, text, strlen(text), "test/test.txt");
 
     parser_consume(&parser, TT_INITIAL);
     parser_consume(&parser, TT_SYMBOL);
     parser_consume(&parser, TT_SEPARATOR);
-    parser_consume(&parser, TT_BOOLEAN);
+    parser_consume(&parser, TT_SYMBOL);
+    parser_consume(&parser, TT_KW_ELSE);
 
     res_report_error(stdout, parser.result);
 }

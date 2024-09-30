@@ -15,6 +15,7 @@ typedef struct srcref_location_t {
     size_t line;
     size_t column;
     char* filepath;
+    srcref_t ref;
 } srcref_location_t;
 
 typedef struct srcref_map_t {
