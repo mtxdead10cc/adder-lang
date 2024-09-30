@@ -12,10 +12,10 @@
 #include "gvm_build_result.h"
 #include "gvm_compiler_types.h"
 
-bool parser_init(parser_t* parser, char* text, size_t text_length, char* filepath);
+build_result_t parser_init(parser_t* parser, char* text, size_t text_length, char* filepath);
 void parser_destroy(parser_t* parser);
 bool parser_is_at_end(parser_t* parser);
-void parser_advance(parser_t* parser);
+bool parser_advance(parser_t* parser);
 token_type_t parser_current_token_type(parser_t* parser);
 srcref_t parser_current_src_location(parser_t* parser);
 bool parser_consume(parser_t* parser, token_type_t expected);

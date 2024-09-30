@@ -257,28 +257,28 @@ void test_ast(test_case_t* this) {
 
     ast_block_add(decl_args,
         ast_vardecl(
-            srcref(buf, 4, 1, NULL),
+            srcref(buf, 4, 1),
             AST_VALUE_TYPE_NUMBER));
 
     ast_block_add(decl_args,
         ast_vardecl(
-            srcref(buf, 5, 1, NULL),
+            srcref(buf, 5, 1),
             AST_VALUE_TYPE_NUMBER));
 
     ast_node_t* body = ast_block();
 
     ast_block_add(body, 
         ast_assign(
-            ast_vardecl(srcref(buf, 6, 3, NULL), AST_VALUE_TYPE_NUMBER),
+            ast_vardecl(srcref(buf, 6, 3), AST_VALUE_TYPE_NUMBER),
             ast_binop(AST_BIN_ADD,
-                ast_varref(srcref(buf, 5, 1, NULL)),
-                ast_varref(srcref(buf, 4, 1, NULL))
+                ast_varref(srcref(buf, 5, 1)),
+                ast_varref(srcref(buf, 4, 1))
             )));
 
     ast_block_add(body,
         ast_if(
             ast_binop(AST_BIN_LT,
-                ast_varref(srcref(buf, 6, 3, NULL)),
+                ast_varref(srcref(buf, 6, 3)),
                 ast_number(0.0f)),
             ast_return(ast_number(0.0f))));
 
@@ -291,21 +291,21 @@ void test_ast(test_case_t* this) {
     ast_block_add(body,
         ast_foreach(
             ast_vardecl(
-                srcref(buf, 9, 1, NULL),
+                srcref(buf, 9, 1),
                 AST_VALUE_TYPE_NUMBER),
             array,
             ast_assign(
-                ast_varref(srcref(buf, 6, 3, NULL)),
+                ast_varref(srcref(buf, 6, 3)),
                 ast_binop(AST_BIN_ADD,
-                    ast_varref(srcref(buf, 6, 3, NULL)),
-                    ast_varref(srcref(buf, 9, 1, NULL))))
+                    ast_varref(srcref(buf, 6, 3)),
+                    ast_varref(srcref(buf, 9, 1))))
         ));
     
     ast_block_add(body,
-        ast_return(ast_varref(srcref(buf, 6, 3, NULL))));
+        ast_return(ast_varref(srcref(buf, 6, 3))));
 
     ast_node_t* fun = ast_fundecl(
-        srcref(buf, 0, 4, NULL),
+        srcref(buf, 0, 4),
         AST_VALUE_TYPE_NUMBER,
         decl_args, body);
 
@@ -460,7 +460,7 @@ void test_tokenizer(test_case_t* this) {
 
 void test_parser(test_case_t* this) {
     parser_t parser;
-    char* text = "hej,hej,1,2";
+    char* text = "hej,hej,1,2,,6";
     parser_init(&parser, text, strlen(text), "test/test.txt");
 
     parser_consume(&parser, TT_INITIAL);

@@ -362,12 +362,11 @@ uint32_t valbuffer_add_symbol_as_string(valbuffer_t* consts, char* text, int len
         : (consts->size);
 }
 
-srcref_t srcref(char* text, size_t start, size_t len, char* filepath) {
+srcref_t srcref(char* text, size_t start, size_t len) {
     return (srcref_t) {
         .idx_start = start,
         .idx_end = start + len,
-        .source = text,
-        .filepath = filepath
+        .source = text
     };
 }
 
@@ -375,15 +374,13 @@ srcref_t srcref_const(const char* text) {
     return (srcref_t) {
         .idx_start = 0,
         .idx_end = strlen(text),
-        .source = (char*) text,
-        .filepath = NULL
+        .source = (char*) text
     };
 }
 
 srcref_t srcref_combine(srcref_t a, srcref_t b) {
     assert(a.source == b.source && "can't combine srcres from different sources");
     return (srcref_t) {
-        .filepath   = (a.filepath != NULL)          ? a.filepath    : b.filepath,
         .idx_end    = (a.idx_end > b.idx_end)       ? a.idx_end     : b.idx_end,
         .idx_start  = (a.idx_start < b.idx_start)   ? a.idx_start   : b.idx_start,
         .source     = a.source
@@ -425,11 +422,11 @@ bool srcref_equals_string(srcref_t a, const char* b_str) {
     return strncmp(a_str, b_str, len) == 0;
 }
 
-srcref_location_t srcref_location_of(srcref_t ref) {
+srcref_location_t srcref_location_of(srcref_t ref, char* filepath) {
     srcref_location_t loc = (srcref_location_t) {
         .column = 0,
         .line = 0,
-        .filepath = ref.filepath
+        .filepath = filepath
     };
     if( ref.source == NULL ) {
         return loc;

@@ -6,7 +6,6 @@
 #include "gvm_value.h"
 
 typedef struct srcref_t {
-    char*   filepath;
     char*   source;
     size_t  idx_start;
     size_t  idx_end;
@@ -71,7 +70,7 @@ uint32_t valbuffer_add_string(valbuffer_t* consts, char* text);
 uint32_t valbuffer_add_ivec2(valbuffer_t* consts, char* text);
 uint32_t valbuffer_add_symbol_as_string(valbuffer_t* consts, char* text, int length);
 
-srcref_t srcref(char* text, size_t start, size_t len, char* filepath);
+srcref_t srcref(char* text, size_t start, size_t len);
 srcref_t srcref_const(const char* text);
 srcref_t srcref_combine(srcref_t a, srcref_t b);
 size_t   srcref_len(srcref_t ref);
@@ -79,6 +78,6 @@ char*    srcref_ptr(srcref_t ref);
 void     srcref_print(srcref_t ref);
 bool     srcref_equals(srcref_t a, srcref_t b);
 bool     srcref_equals_string(srcref_t a, const char* b_str);
-srcref_location_t srcref_location_of(srcref_t ref);
+srcref_location_t srcref_location_of(srcref_t ref, char* filepath);
 
 #endif // GVM_UTILS_H_

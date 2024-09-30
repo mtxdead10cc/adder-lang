@@ -113,15 +113,16 @@ typedef enum ast_unop_type_t {
 
 typedef enum build_rescode_t {
     R_OK,
+    R_ER_UNRECOGNIZED_CHAR,
     R_ER_UNEXPECTED_TOKEN,
-    R_ER_HOST_OUT_OF_MEMORY,
+    R_ER_OUT_OF_MEMORY,
     R_ER_INVALID_STATE,
 } build_rescode_t;
 
 
 typedef struct build_result_t {
     build_rescode_t code;
-    srcref_t ref;
+    srcref_location_t location;
     union {
         struct {
             char ignore;
@@ -130,6 +131,9 @@ typedef struct build_result_t {
             token_type_t token_expected_mask;
             token_type_t token_actual;
         } unexp_token;
+        struct {
+            char character;
+        } unrec_char;
     } info;
 } build_result_t;
 
@@ -158,6 +162,7 @@ typedef struct token_collection_t {
 
 
 typedef struct parser_t {
+    char*               filepath;
     token_collection_t  collection;
     size_t              cursor;
     build_result_t      result;

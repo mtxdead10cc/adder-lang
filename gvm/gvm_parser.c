@@ -11,19 +11,19 @@
 #include "gvm_tokenizer.h"
 #include "gvm_build_result.h"
 
-
-bool parser_init(parser_t* parser, char* text, size_t text_length, char* filepath) {
+build_result_t parser_init(parser_t* parser, char* text, size_t text_length, char* filepath) {
 
     parser->result = (build_result_t) {0};
+    parser->filepath = filepath;
     
     if( tokens_init(&parser->collection, 16) == false ) {
-        parser->result.code = R_ER_HOST_OUT_OF_MEMORY;
-        return false;
+        parser->result.code = R_ER_OUT_OF_MEMORY;
+        return parser->result;
     }
 
     if( text == NULL ) {
         parser->result.code = R_ER_INVALID_STATE;
-        return false;
+        return parser->result;
     }
 
     tokenizer_args_t args = (tokenizer_args_t) {
@@ -34,15 +34,16 @@ bool parser_init(parser_t* parser, char* text, size_t text_length, char* filepat
         .include_spaces = false
     };
 
-    if( tokenizer_analyze(&parser->collection, &args) == false ) {
+    parser->result = tokenizer_analyze(&parser->collection, &args);
+    if( res_is_error(parser->result) ) {
         tokens_destroy(&parser->collection);
-        return false;
+        parser->collection.count = 0;
+        return parser->result;
     }
 
     parser->cursor = 0;
     parser->result.code = R_OK;
-
-    return true;
+    return parser->result;
 }
 
 void parser_destroy(parser_t* parser) {
@@ -53,13 +54,18 @@ void parser_destroy(parser_t* parser) {
 }
 
 bool parser_is_at_end(parser_t* parser) {
+    if( res_is_error(parser->result) ) {
+        return true;
+    }
     return parser->cursor >= (parser->collection.count - 1);
 }
 
-void parser_advance(parser_t* parser) {
+bool parser_advance(parser_t* parser) {
     if( parser_is_at_end(parser) == false ) {
         parser->cursor ++;
+        return true;
     }
+    return false;
 }
 
 token_type_t parser_current_token_type(parser_t* parser) {
@@ -70,14 +76,22 @@ srcref_t parser_current_srcref(parser_t* parser) {
     return parser->collection.tokens[parser->cursor].ref;
 }
 
+srcref_location_t parser_current_location(parser_t* parser) {
+    srcref_t ref = parser->collection.tokens[parser->cursor].ref;
+    char* filepath = parser->filepath;
+    return srcref_location_of(ref, filepath);
+}
+
 bool parser_consume(parser_t* parser, token_type_t expected) {
+    if( parser_is_at_end(parser) ) {
+        return false;
+    }
     token_type_t actual = parser_current_token_type(parser);
     if( ((uint32_t) expected & (uint32_t) actual) == 0 ) {
         parser->result = res_err_unexpected_token(
-            parser_current_srcref(parser),
+            parser_current_location(parser),
             expected, actual);
         return false;
     }
-    parser_advance(parser);
-    return true;
+    return parser_advance(parser);
 }

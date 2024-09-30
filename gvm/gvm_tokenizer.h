@@ -6,8 +6,7 @@
 #include <stdlib.h>
 #include "gvm_utils.h"
 #include "gvm_lexer.h"
-
-
+#include "gvm_compiler_types.h"
 
 inline static token_t token_const(const char* content, token_type_t type) {
     return (token_t) {
@@ -71,6 +70,6 @@ typedef struct tokenizer_args_t {
     char* filepath;
 } tokenizer_args_t;
 
-bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args);
+build_result_t tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args);
 
 #endif // GVM_TOKENIZER_H_

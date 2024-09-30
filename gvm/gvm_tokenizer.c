@@ -1,5 +1,6 @@
 #include "gvm_tokenizer.h"
 #include "gvm_srcmap.h"
+#include "gvm_build_result.h"
 #include <stdio.h>
 
 bool tokens_init(token_collection_t* collection, size_t capacity) {
@@ -58,6 +59,7 @@ typedef struct tokenizer_state_t {
     size_t          cursor;
     srcmap_t        kw_map_alpha;
     srcmap_t        kw_map_symbolic;
+    build_result_t  result;
 } tokenizer_state_t;
 
 size_t sweep_while(tokenizer_state_t* state, size_t start_offset, lex_predicate_t lex) {
@@ -97,7 +99,7 @@ token_t sweep_make_token(
     len = len + offset + trailing;
     state->cursor = start + len;
     return (token_t) {
-        .ref = srcref(state->buffer, start, len, state->filepath),
+        .ref = srcref(state->buffer, start, len),
         .type = token_type
     };
 }
@@ -138,7 +140,7 @@ token_t lookup_alpha_token(tokenizer_state_t* state) {
         lp_is(LCAT_LETTER|LCAT_UNDERSCORE|LCAT_NUMBER));
     assert(len > 0 && "unexpected sweep_while progress");
     state->cursor = start + len;
-    srcref_t ref = srcref(state->buffer, start, len, state->filepath);
+    srcref_t ref = srcref(state->buffer, start, len);
     srcmap_value_t* lookup_result = srcmap_lookup(&state->kw_map_alpha, ref);
     return (token_t) {
         .ref = ref,
@@ -192,7 +194,7 @@ token_t lookup_symbolic_token(tokenizer_state_t* state) {
     size_t start = state->cursor;
     size_t len = get_symbolic_token_len(state);
     state->cursor = start + len;
-    srcref_t ref = srcref(state->buffer, start, len, state->filepath);
+    srcref_t ref = srcref(state->buffer, start, len);
     srcmap_value_t* lookup_result = srcmap_lookup(&state->kw_map_symbolic, ref);
     return (token_t) {
         .ref = ref,
@@ -204,7 +206,14 @@ void destroy_token_map(srcmap_t* map) {
     srcmap_destroy(map);
 }
 
-bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
+srcref_t get_current_srcref(tokenizer_state_t* state) {
+    size_t last_buffer_index = state->buffer_size > 0
+        ? state->buffer_size - 1
+        : 0;
+    return srcref(state->buffer, state->cursor, last_buffer_index);
+}
+
+build_result_t tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
 
     tokenizer_state_t state = (tokenizer_state_t) {
         .buffer = args->text,
@@ -212,59 +221,61 @@ bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
         .filepath = args->filepath,
         .cursor = 0,
         .kw_map_alpha = create_keyword_token_map(),
-        .kw_map_symbolic = create_symbolic_token_map()
+        .kw_map_symbolic = create_symbolic_token_map(),
+        .result = res_ok()
     };
 
-    tokens_append(collection, (token_t) {
-        .ref = srcref(args->text, 0, 0, args->filepath),
-        .type = TT_INITIAL
-    });
+    if( tokens_append(collection, (token_t){TT_INITIAL, srcref(args->text, 0, 0)}) == false ) {
+        state.result = res_err_out_of_memory();
+    }
 
-    while ( state.cursor < state.buffer_size ) {
+    while ( state.cursor < state.buffer_size && state.result.code == R_OK ) {
         
         size_t last_cursor_pos = state.cursor;
-
+        bool alloc_ok = true;
+        
         if(  match_cursor(&state, lp_is(LCAT_SPACE)) ) {                                           // SPACE
             if( args->include_spaces ) {
-                tokens_append(collection,
+                alloc_ok = tokens_append(collection,
                     sweep_make_token(&state, 0, 0, lp_is(LCAT_SPACE), TT_SPACE));
             } else {
                 sweep_discard_token(&state, 0, 0, lp_is(LCAT_SPACE));
             }
         } else if( match_cursor_and_next(&state, lp_is(LCAT_SLASH), lp_is(LCAT_SLASH)) ) {         // COMMENT
             if( args->include_comments ) {
-                tokens_append(collection,
+                alloc_ok = tokens_append(collection,
                     sweep_make_token(&state, 2, 1, lp_is_not(LCAT_NEWLINE), TT_COMMENT));
             } else {
                 sweep_discard_token(&state, 2, 1, lp_is_not(LCAT_NEWLINE));
             }
         } else if ( match_cursor(&state, lp_is(LCAT_QUOTE)) ) {                                     // STRING
-            tokens_append(collection,
+            alloc_ok = tokens_append(collection,
                 sweep_make_token(&state, 1, 1, lp_is_not(LCAT_QUOTE), TT_STRING));
         } else if ( match_cursor(&state, lp_is(LCAT_NUMBER)) ) {                                    // NUMBER
-            tokens_append(collection,
+            alloc_ok = tokens_append(collection,
                 sweep_make_token(&state, 0, 0, lp_is(LCAT_NUMBER|LCAT_DOT), TT_NUMBER));
         } else if ( match_cursor(&state, lp_is(LCAT_LETTER|LCAT_UNDERSCORE)) ) {
-            tokens_append(collection, lookup_alpha_token(&state));                                  // IDENTIFIER
+            alloc_ok = tokens_append(collection, lookup_alpha_token(&state));                       // IDENTIFIER
         } else if ( match_cursor(&state, lp_is(LCAT_SYMBOLIC)) ) {
-            tokens_append(collection, lookup_symbolic_token(&state));                               // SYMBOLIC
+            alloc_ok = tokens_append(collection, lookup_symbolic_token(&state));                    // SYMBOLIC
         }
 
-        if( last_cursor_pos == state.cursor ) {
-            printf("error: tokenizer stalled.\n");
-            break;
+        if( alloc_ok == false ) {
+            state.result = res_err_out_of_memory();
+        } else if( last_cursor_pos == state.cursor ) {
+            srcref_t ref = get_current_srcref(&state);
+            state.result = res_err_unrecognized_char(
+                srcref_location_of(ref, state.filepath),
+                state.buffer[state.cursor]);
         }
     }
 
     destroy_token_map(&state.kw_map_alpha);
     destroy_token_map(&state.kw_map_symbolic);
 
-    tokens_append(collection, (token_t) {
-        .ref = srcref(args->text,
-            args->text_length > 0 ? args->text_length - 1 : 0, 
-            0, args->filepath),
-        .type = TT_FINAL
-    });
+    if( tokens_append(collection, (token_t) {TT_FINAL, get_current_srcref(&state)}) == false ) {
+        state.result = res_err_out_of_memory();
+    }
 
-    return state.cursor == state.buffer_size;
+    return state.result;
 }
