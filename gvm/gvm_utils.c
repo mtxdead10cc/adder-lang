@@ -422,7 +422,7 @@ bool srcref_equals_string(srcref_t a, const char* b_str) {
     return strncmp(a_str, b_str, len) == 0;
 }
 
-srcref_location_t srcref_location_of(srcref_t ref, char* filepath) {
+srcref_location_t srcref_location(srcref_t ref, char* filepath) {
     srcref_location_t loc = (srcref_location_t) {
         .column = 0,
         .line = 0,
@@ -447,4 +447,26 @@ srcref_location_t srcref_location_of(srcref_t ref, char* filepath) {
     }
     loc.line += 1;
     return loc;
+}
+
+bool srcref_as_float(srcref_t ref, float* value) {
+    size_t len = srcref_len(ref);
+    char buf[len+1];
+    strncpy(buf, ref.source + ref.idx_start, len);
+    buf[len] = '\0';
+    if( sscanf(buf, "%f", value) > 0 ) {
+        return true;
+    }
+    return false;
+}
+
+bool srcref_as_bool(srcref_t ref, bool* value) {
+    if(srcref_equals_string(ref, "true")) {
+        *value = true;
+        return true;
+    } else if(srcref_equals_string(ref, "false")) {
+        *value = false;
+        return true;
+    }
+    return false;
 }

@@ -115,6 +115,7 @@ typedef enum build_rescode_t {
     R_OK,
     R_ER_UNRECOGNIZED_CHAR,
     R_ER_UNEXPECTED_TOKEN,
+    R_ER_INVALID_TOKEN_FORMAT,
     R_ER_OUT_OF_MEMORY,
     R_ER_INVALID_STATE,
 } build_rescode_t;

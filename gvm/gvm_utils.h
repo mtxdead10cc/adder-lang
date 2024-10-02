@@ -79,6 +79,8 @@ char*    srcref_ptr(srcref_t ref);
 void     srcref_print(srcref_t ref);
 bool     srcref_equals(srcref_t a, srcref_t b);
 bool     srcref_equals_string(srcref_t a, const char* b_str);
-srcref_location_t srcref_location_of(srcref_t ref, char* filepath);
+srcref_location_t srcref_location(srcref_t ref, char* filepath);
+bool    srcref_as_float(srcref_t ref, float* value);
+bool    srcref_as_bool(srcref_t ref, bool* value);
 
 #endif // GVM_UTILS_H_

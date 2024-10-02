@@ -48,6 +48,14 @@ inline static build_result_t res_err_unexpected_token(srcref_location_t location
     };
 }
 
+inline static build_result_t res_err_invalid_token_format(srcref_location_t location) {
+    return (build_result_t) {
+        .code = R_ER_UNEXPECTED_TOKEN,
+        .info.nothing.ignore = 0,
+        .location = location
+    };
+}
+
 inline static char* get_readable_token_type(token_type_t type) {
     switch (type) {
         case TT_INITIAL: return "initial data (anything)";
@@ -124,6 +132,14 @@ inline static void res_report_error(FILE* stream, build_result_t res) {
             res_report_location(stream, res.location);
             fprintf(stream, "unrecognized character '%c'.\n",
                 res.info.unrec_char.character);
+        } break;
+        case R_ER_INVALID_TOKEN_FORMAT: {
+            fprintf(stream, "[ERROR] ");
+            res_report_location(stream, res.location);
+            fprintf(stream, "unexpected token format");
+            fprintf(stream, " '%.*s'.",
+                    (int) srcref_len(res.location.ref),
+                    srcref_ptr(res.location.ref));
         } break;
         case R_ER_UNEXPECTED_TOKEN: {
             fprintf(stream, "[ERROR] ");

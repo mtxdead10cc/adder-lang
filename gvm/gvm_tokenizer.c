@@ -265,7 +265,7 @@ build_result_t tokenizer_analyze(token_collection_t* collection, tokenizer_args_
         } else if( last_cursor_pos == state.cursor ) {
             srcref_t ref = get_current_srcref(&state);
             state.result = res_err_unrecognized_char(
-                srcref_location_of(ref, state.filepath),
+                srcref_location(ref, state.filepath),
                 state.buffer[state.cursor]);
         }
     }

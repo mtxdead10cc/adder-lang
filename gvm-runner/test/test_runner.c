@@ -412,6 +412,27 @@ void test_tokenizer(test_case_t* this) {
             },
             .incl_comments = false,
             .incl_space = false
+        },
+        {
+            .text = "func_name(1,2,3,\"hej\",false)",
+            .tokens_types = (token_type_t[]){
+                TT_INITIAL,
+                TT_SYMBOL,
+                TT_OPEN_PAREN,
+                TT_NUMBER,
+                TT_SEPARATOR,
+                TT_NUMBER,
+                TT_SEPARATOR,
+                TT_NUMBER,
+                TT_SEPARATOR,
+                TT_STRING,
+                TT_SEPARATOR,
+                TT_BOOLEAN,
+                TT_CLOSE_PAREN,
+                TT_FINAL
+            },
+            .incl_comments = false,
+            .incl_space = false
         }
     };
 
@@ -460,16 +481,18 @@ void test_tokenizer(test_case_t* this) {
 
 void test_parser(test_case_t* this) {
     parser_t parser;
-    char* text = "hej,hej\"hallåååå\"1,2,,6";
+    char* text = "func_name(1,2,3,\"hej\",false)";
     parser_init(&parser, text, strlen(text), "test/test.txt");
-
     parser_consume(&parser, TT_INITIAL);
-    parser_consume(&parser, TT_SYMBOL);
-    parser_consume(&parser, TT_SEPARATOR);
-    parser_consume(&parser, TT_SYMBOL);
-    parser_consume(&parser, TT_KW_ELSE);
-
-    res_report_error(stdout, parser.result);
+    ast_node_t* node = parse_expression(&parser);
+    parser_consume(&parser, TT_FINAL);
+    if( node == NULL ) {
+        printf("node=NULL\n");
+    } else if(parser.result.code != R_OK ) {
+        res_report_error(stdout, parser.result);
+    } else {
+        ast_dump(node);
+    }
 }
 
 test_results_t run_testcases() {
