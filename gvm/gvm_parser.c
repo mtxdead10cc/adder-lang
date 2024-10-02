@@ -12,7 +12,7 @@
 #include "gvm_build_result.h"
 #include "gvm_ast.h"
 
-build_result_t parser_init(parser_t* parser, char* text, size_t text_length, char* filepath) {
+build_result_t pa_init(parser_t* parser, char* text, size_t text_length, char* filepath) {
 
     parser->result = (build_result_t) {0};
     parser->filepath = filepath;
@@ -36,7 +36,7 @@ build_result_t parser_init(parser_t* parser, char* text, size_t text_length, cha
     };
 
     parser->result = tokenizer_analyze(&parser->collection, &args);
-    if( res_is_error(parser->result) ) {
+    if( r_is_error(parser->result) ) {
         tokens_destroy(&parser->collection);
         parser->collection.count = 0;
         return parser->result;
@@ -47,47 +47,44 @@ build_result_t parser_init(parser_t* parser, char* text, size_t text_length, cha
     return parser->result;
 }
 
-void parser_destroy(parser_t* parser) {
+void pa_destroy(parser_t* parser) {
     if( parser == NULL ) {
         return;
     }
     tokens_destroy(&parser->collection);
 }
 
-bool parser_is_at_end(parser_t* parser) {
-    if( res_is_error(parser->result) ) {
-        return true;
-    }
+bool pa_is_at_end(parser_t* parser) {
     return parser->cursor >= (parser->collection.count - 1);
 }
 
-bool parser_advance(parser_t* parser) {
-    if( parser_is_at_end(parser) == false ) {
+bool pa_advance(parser_t* parser) {
+    if( pa_is_at_end(parser) == false ) {
         parser->cursor ++;
         return true;
     }
     return false;
 }
 
-bool parser_advance_if(parser_t* parser, token_type_t mask) {
-    if( (parser_current_token(parser).type & mask) > 0 ) {
-        return parser_advance(parser);
+bool pa_advance_if(parser_t* parser, token_type_t mask) {
+    if( (pa_current_token(parser).type & mask) > 0 ) {
+        return pa_advance(parser);
     }
     return false;
 }
 
-bool parser_advance_if_not(parser_t* parser, token_type_t mask) {
-    if( (parser_current_token(parser).type & mask) == 0 ) {
-        return parser_advance(parser);
+bool pa_advance_if_not(parser_t* parser, token_type_t mask) {
+    if( (pa_current_token(parser).type & mask) == 0 ) {
+        return pa_advance(parser);
     }
     return false;
 }
 
-token_t parser_current_token(parser_t* parser) {
+token_t pa_current_token(parser_t* parser) {
     return parser->collection.tokens[parser->cursor];
 }
 
-token_t parser_peek_token(parser_t* parser, int lookahead) {
+token_t pa_peek_token(parser_t* parser, int lookahead) {
     int diff = parser->collection.count - parser->cursor;
     if( diff < lookahead  ) {
         lookahead = diff;
@@ -95,121 +92,155 @@ token_t parser_peek_token(parser_t* parser, int lookahead) {
     return parser->collection.tokens[parser->cursor + lookahead];
 }
 
-srcref_location_t parser_current_location(parser_t* parser) {
-    srcref_t ref = parser->collection.tokens[parser->cursor].ref;
+srcref_location_t pa_get_location(parser_t* parser, int cursor_offset) {
+    srcref_t ref = parser->collection.tokens[parser->cursor + cursor_offset].ref;
     char* filepath = parser->filepath;
     return srcref_location(ref, filepath);
 }
 
-bool parser_consume(parser_t* parser, token_type_t expected) {
-    if( parser_is_at_end(parser) ) {
-        return false;
+pa_result_t pa_set_build_error(parser_t* parser, build_result_t result) {
+    if( r_is_error(parser->result) ) { // return pre-existing
+        return par_error(&parser->result);
     }
-    token_type_t actual = parser_current_token(parser).type;
-    if( ((uint32_t) expected & (uint32_t) actual) == 0 ) {
-        parser->result = res_err_unexpected_token(
-            parser_current_location(parser),
-            expected, actual);
-        return false;
-    }
-    return parser_advance(parser);
+    parser->result = result;
+    return par_error(&parser->result);
 }
 
-ast_node_t* parse_expression(parser_t* parser);
+pa_result_t pa_consume(parser_t* parser, token_type_t expected) {
+    if( pa_is_at_end(parser) ) {
+        return par_out_of_tokens();
+    }
+    token_type_t actual = pa_current_token(parser).type;
+    if( ((uint32_t) expected & (uint32_t) actual) == 0 ) {
+        return pa_set_build_error(parser,
+                                    r_unexpected_token(
+                                        pa_get_location(parser, 0),
+                                        expected, actual));
+    }
+    if( pa_advance(parser) == false ) {
+        return par_out_of_tokens();
+    }
+    return par_nothing();
+}
 
-ast_node_t* parse_number(parser_t* parser) {
-    token_t token = parser_current_token(parser);
-    if( parser_consume(parser, TT_NUMBER) == false ) {
-        return NULL;
+pa_result_t pa_parse_expression(parser_t* parser);
+
+pa_result_t pa_parse_number(parser_t* parser) {
+    token_t token = pa_current_token(parser);
+    pa_result_t result = pa_consume(parser, TT_NUMBER);
+    if( par_is_nothing(result) == false ) {
+        return result;
     }
     float value = 0.0f;
     if( srcref_as_float(token.ref, &value) ) {
-        return ast_number(value);
+        return par_node(ast_number(value));
     }
-    parser->result = res_err_invalid_token_format(
-        srcref_location(token.ref, parser->filepath));
-    return NULL;
+    return pa_set_build_error(parser,
+                    r_invalid_format(
+                        srcref_location(token.ref,
+                            parser->filepath)));
 }
 
-ast_node_t* parse_boolean(parser_t* parser) {
-    token_t token = parser_current_token(parser);
-    if( parser_consume(parser, TT_BOOLEAN) == false ) {
-        return NULL;
+pa_result_t pa_parse_boolean(parser_t* parser) {
+    token_t token = pa_current_token(parser);
+    pa_result_t result = pa_consume(parser, TT_BOOLEAN);
+    if( par_is_nothing(result) == false ) {
+        return result;
     }
     bool value = false;
     if( srcref_as_bool(token.ref, &value) ) {
-        return ast_bool(value);
+        return par_node(ast_bool(value));
     }
-    parser->result = res_err_invalid_token_format(
-        srcref_location(token.ref, parser->filepath));
-    return NULL;
+    return pa_set_build_error(parser,
+                    r_invalid_format(
+                        srcref_location(token.ref,
+                            parser->filepath)));
 }
 
-ast_node_t* parse_string(parser_t* parser) {
-    token_t token = parser_current_token(parser);
-    if( parser_consume(parser, TT_STRING) ) {
-        return ast_string(token.ref);
+pa_result_t pa_parse_string(parser_t* parser) {
+    token_t token = pa_current_token(parser);
+    pa_result_t result = pa_consume(parser, TT_STRING);
+    if( par_is_nothing(result) == false ) {
+        return result;
     }
-    return NULL;
+    return par_node(ast_string(token.ref));
 }
 
-ast_node_t* try_parse_value(parser_t* parser) {
-    token_t token = parser_current_token(parser);
+pa_result_t pa_try_parse_value(parser_t* parser) {
+    token_t token = pa_current_token(parser);
     if( token.type == TT_BOOLEAN ) {
-        return parse_boolean(parser);
+        return pa_parse_boolean(parser);
     } else if ( token.type == TT_NUMBER ) {
-        return parse_number(parser);
+        return pa_parse_number(parser);
     } else if ( token.type == TT_STRING ) {
-        return parse_string(parser);
+        return pa_parse_string(parser);
     }
-    return NULL;
+    return par_nothing();
 }
 
-ast_node_t* try_parse_var_name(parser_t* parser) {
-    token_t token = parser_current_token(parser);
+pa_result_t pa_try_parse_var_name(parser_t* parser) {
+    token_t token = pa_current_token(parser);
     if( token.type == TT_SYMBOL ) {
-        return ast_varref(token.ref);
+        return par_node(ast_varref(token.ref));
     }
-    return NULL;
+    return par_nothing();
 }
 
-ast_node_t* try_parse_func_call(parser_t* parser) {
+pa_result_t pa_try_parse_func_call(parser_t* parser) {
 
-    token_t func_name = parser_current_token(parser);
-    token_t open_paren = parser_peek_token(parser, 1);
+    token_t func_name = pa_current_token(parser);
+    token_t open_paren = pa_peek_token(parser, 1);
     
     if( func_name.type != TT_SYMBOL || open_paren.type != TT_OPEN_PAREN ) {
-        return NULL;
+        return par_nothing();
     }
 
-    parser_advance(parser);
-    parser_advance(parser);
+    if( pa_advance(parser) == false ) {
+        return par_out_of_tokens();
+    }
+
+    if( pa_advance(parser) == false ) {
+        return par_out_of_tokens();
+    }
     
     ast_node_t* args = ast_block();
     do {
-        ast_block_add(args, parse_expression(parser));
-    } while( parser_advance_if(parser, TT_SEPARATOR) );
+        pa_result_t expr_res = pa_parse_expression(parser);
+        if( par_is_node(expr_res) == false ) {
+            ast_free(args);
+            return expr_res;
+        }
+        ast_block_add(args, par_extract_node(expr_res));
+    } while( pa_advance_if(parser, TT_SEPARATOR) );
 
-    parser_consume(parser, TT_CLOSE_PAREN);
+    pa_consume(parser, TT_CLOSE_PAREN);
 
-    return ast_funcall(func_name.ref, args);
+    return par_node(ast_funcall(func_name.ref, args));
 }
 
 // TODO: need to support grouping (a + b) * z inside the ast and the VM
 
-ast_node_t* parse_expression(parser_t* parser) {
-    ast_node_t* result = try_parse_func_call(parser);
-    if( result != NULL ) {
+pa_result_t pa_parse_expression(parser_t* parser) {
+
+    pa_result_t result = pa_try_parse_func_call(parser);
+
+    if( par_is_node(result) ) {
         return result;
     }
-    result = try_parse_value(parser);
-    if( result != NULL ) {
+
+    result = pa_try_parse_value(parser);
+    if( par_is_node(result) ) {
         return result;
     }
-    result = try_parse_var_name(parser);
-    if( result != NULL ) {
+
+    result = pa_try_parse_var_name(parser);
+    if( par_is_node(result) ) {
         return result;
     }
-    // todo: if null maybe its an error?
-    return NULL;
+    // TODO: INTRODUCE INVALID EXPRESSION ERROR
+    return pa_set_build_error(parser,
+                    r_unexpected_token(
+                        pa_get_location(parser, 0),
+                        TT_SYMBOL|TT_BOOLEAN|TT_STRING, // etc.
+                        pa_current_token(parser).type));
 }

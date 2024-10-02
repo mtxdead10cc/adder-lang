@@ -481,17 +481,17 @@ void test_tokenizer(test_case_t* this) {
 
 void test_parser(test_case_t* this) {
     parser_t parser;
-    char* text = "func_name(1,2,3,\"hej\",false)";
-    parser_init(&parser, text, strlen(text), "test/test.txt");
-    parser_consume(&parser, TT_INITIAL);
-    ast_node_t* node = parse_expression(&parser);
-    parser_consume(&parser, TT_FINAL);
-    if( node == NULL ) {
-        printf("node=NULL\n");
-    } else if(parser.result.code != R_OK ) {
-        res_report_error(stdout, parser.result);
+    char* text = "func_name(1,2,and,\"hej\",false)";
+    pa_init(&parser, text, strlen(text), "test/test.txt");
+    pa_consume(&parser, TT_INITIAL);
+    pa_result_t result = pa_parse_expression(&parser);
+    pa_consume(&parser, TT_FINAL);
+    if( par_is_node(result) ) {
+        ast_dump(par_extract_node(result));
+    } else if(par_is_error(result)) {
+        r_report_error(stdout, *(build_result_t*) result.data);
     } else {
-        ast_dump(node);
+        printf("other error\n");
     }
 }
 

@@ -222,11 +222,11 @@ build_result_t tokenizer_analyze(token_collection_t* collection, tokenizer_args_
         .cursor = 0,
         .kw_map_alpha = create_keyword_token_map(),
         .kw_map_symbolic = create_symbolic_token_map(),
-        .result = res_ok()
+        .result = r_ok()
     };
 
     if( tokens_append(collection, (token_t){TT_INITIAL, srcref(args->text, 0, 0)}) == false ) {
-        state.result = res_err_out_of_memory();
+        state.result = r_out_of_memory();
     }
 
     while ( state.cursor < state.buffer_size && state.result.code == R_OK ) {
@@ -261,10 +261,10 @@ build_result_t tokenizer_analyze(token_collection_t* collection, tokenizer_args_
         }
 
         if( alloc_ok == false ) {
-            state.result = res_err_out_of_memory();
+            state.result = r_out_of_memory();
         } else if( last_cursor_pos == state.cursor ) {
             srcref_t ref = get_current_srcref(&state);
-            state.result = res_err_unrecognized_char(
+            state.result = r_unrecognized_char(
                 srcref_location(ref, state.filepath),
                 state.buffer[state.cursor]);
         }
@@ -274,7 +274,7 @@ build_result_t tokenizer_analyze(token_collection_t* collection, tokenizer_args_
     destroy_token_map(&state.kw_map_symbolic);
 
     if( tokens_append(collection, (token_t) {TT_FINAL, get_current_srcref(&state)}) == false ) {
-        state.result = res_err_out_of_memory();
+        state.result = r_out_of_memory();
     }
 
     return state.result;

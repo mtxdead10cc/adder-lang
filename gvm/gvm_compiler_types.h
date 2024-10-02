@@ -124,18 +124,7 @@ typedef enum build_rescode_t {
 typedef struct build_result_t {
     build_rescode_t code;
     srcref_location_t location;
-    union {
-        struct {
-            char ignore;
-        } nothing;
-        struct {
-            token_type_t token_expected_mask;
-            token_type_t token_actual;
-        } unexp_token;
-        struct {
-            char character;
-        } unrec_char;
-    } info;
+    uint32_t args[2];
 } build_result_t;
 
 
