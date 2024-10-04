@@ -378,8 +378,10 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
             _ast_dump(node->u.n_assign.right_value, indent);
         } break;
         case AST_ARRAY: {
-            _ast_nl(indent + 1);
             size_t count = node->u.n_array.count;
+            if(count == 0)
+                break;
+            _ast_nl(indent + 1);
             for(size_t i = 0; i < count; i++) {
                 _ast_dump(node->u.n_array.content[i], indent + 1);
                 if( i < (count - 1) ) {

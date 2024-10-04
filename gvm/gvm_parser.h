@@ -80,6 +80,7 @@ inline static ast_node_t* par_extract_node(pa_result_t res) {
 }
 
 pa_result_t pa_parse_expression(parser_t* parser);
+pa_result_t pa_parse_statement(parser_t* parser);
 
 
 #endif // GVM_PARSER_H_

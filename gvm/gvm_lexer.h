@@ -16,17 +16,9 @@
     || ((C) == '\t')        \
     || ((C) == '\r') )
 
-#define IS_SCOPE_START(C) (((C) == '{') \
-                        || ((C) == '[') \
-                        || ((C) == '(') \
-                        || ((C) == '<') )
-
-#define IS_SCOPE_END(C) (((C) == '}')\
-                      || ((C) == ']')\
-                      || ((C) == ')')\
-                      || ((C) == '>'))
-
 #define IS_SEPARATOR(C)  ( ((C) == ',') || ((C) == ';') )
+
+#define IS_SYMBOLIC(C) (((C) > 32) && ((C) < 127))
 
 inline static lexeme_t lexer_scan_char_type(char character) {
     switch (character) {
@@ -61,7 +53,7 @@ inline static lexeme_t lexer_scan(char character) {
         lexeme |= LCAT_NUMBER;
     } else if( IS_WHITESPACE(character) ) {
         lexeme |= LCAT_SPACE;
-    } else if( lexeme != LCAT_NONE ) {
+    } else if( IS_SYMBOLIC(character) ) {
         lexeme |= LCAT_SYMBOLIC;
     }
 

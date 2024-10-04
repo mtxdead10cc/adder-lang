@@ -44,6 +44,7 @@ typedef enum token_type_t {
     TT_KW_IF,
     TT_KW_ELSE,
     TT_KW_FOR,
+    TT_KW_IN,
     TT_KW_RETURN,
     TT_KW_FUN_DEF,
     TT_CMP_EQ,
@@ -120,6 +121,7 @@ typedef enum cres_code_t {
     R_OK,
     R_ERR_TOKEN,
     R_ERR_EXPR,
+    R_ERR_STATEMENT,
     R_ERR_OUT_OF_MEMORY,
     R_ERR_INTERNAL
 } cres_code_t;

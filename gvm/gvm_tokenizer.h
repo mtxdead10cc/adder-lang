@@ -34,6 +34,7 @@ inline static char* token_get_type_name(token_type_t type) {
         case TT_KW_IF: return "TT_KW_IF";
         case TT_KW_ELSE: return "TT_KW_ELSE";
         case TT_KW_FOR: return "TT_KW_FOR";
+        case TT_KW_IN: return "TT_KW_IN";
         case TT_KW_RETURN: return "TT_KW_RETURN";
         case TT_KW_FUN_DEF: return "TT_KW_FUN_DEF";
         case TT_CMP_EQ: return "TT_CMP_EQ";
@@ -59,6 +60,19 @@ inline static char* token_get_type_name(token_type_t type) {
         case TT_STATEMENT_END: return "TT_STATEMENT_END";
         case TT_FINAL: return "TT_FINAL";
         default: return "<UNKNOWN-TT>";
+    }
+}
+
+inline static bool token_is_binary_operation(token_type_t type) {
+    switch (type) {
+        case TT_BINOP_AND:
+        case TT_BINOP_OR:
+        case TT_BINOP_MUL:
+        case TT_BINOP_DIV:
+        case TT_BINOP_MOD:
+        case TT_BINOP_PLUS:
+        case TT_BINOP_MINUS: return true;
+        default: return false;
     }
 }
 

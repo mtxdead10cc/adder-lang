@@ -433,6 +433,39 @@ void test_tokenizer(test_case_t* this) {
             },
             .incl_comments = false,
             .incl_space = false
+        },
+        {
+            .text = "(1+2*3-4%5)",
+            .tokens_types = (token_type_t[]){
+                TT_INITIAL,
+                TT_OPEN_PAREN,
+                TT_NUMBER,
+                TT_BINOP_PLUS,
+                TT_NUMBER,
+                TT_BINOP_MUL,
+                TT_NUMBER,
+                TT_BINOP_MINUS,
+                TT_NUMBER,
+                TT_BINOP_MOD,
+                TT_NUMBER,
+                TT_CLOSE_PAREN,
+                TT_FINAL
+            },
+            .incl_comments = false,
+            .incl_space = false
+        },
+        {
+            .text = "a = b;",
+            .tokens_types = (token_type_t[]){
+                TT_INITIAL,
+                TT_SYMBOL,
+                TT_ASSIGN,
+                TT_SYMBOL,
+                TT_STATEMENT_END,
+                TT_FINAL
+            },
+            .incl_comments = false,
+            .incl_space = false
         }
     };
 
@@ -484,13 +517,13 @@ void test_tokenizer(test_case_t* this) {
 
 void test_parser(test_case_t* this) {
     parser_t parser;
-    char* text = "func_name(1,2,and,\"hej\",false)";
+    //char* text = "num x = func_name(1,2,(1*2)+3,\"hej\",false);";
+    char* text = "if( x == 10 ) { for(num y in [1,2,3,4]) { print(x + y); } }";
     if( pa_init(&parser, text, strlen(text), "test/test.txt") == false ) {
         cres_fprint(stdout, &parser.result);
     } else {
         pa_consume(&parser, TT_INITIAL);
-        pa_result_t result = pa_parse_expression(&parser);
-        pa_consume(&parser, TT_FINAL);
+        pa_result_t result = pa_parse_statement(&parser);
         if( par_is_node(result) ) {
             ast_dump(par_extract_node(result));
         } else if(par_is_error(result)) {

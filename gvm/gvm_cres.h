@@ -116,6 +116,7 @@ inline static int cres_fprint_prefix(FILE* stream, cres_t* res) {
         case R_OK:                  return 0;
         case R_ERR_OUT_OF_MEMORY:   return fprintf(stream, "[ERROR]: OUT OF SYSTEM MEMORY ");
         case R_ERR_INTERNAL:        return fprintf(stream, "[ERROR]: INTERNAL PANIC ");
+        case R_ERR_STATEMENT:       return fprintf(stream, "[ERROR]: INVALID STATEMENT ");
         default:                    return fprintf(stream, "[ERROR] ");
     }
 }

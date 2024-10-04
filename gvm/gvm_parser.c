@@ -55,26 +55,30 @@ void pa_destroy(parser_t* parser) {
 }
 
 bool pa_is_at_end(parser_t* parser) {
-    return parser->cursor >= (parser->collection.count - 1);
+    return parser->cursor >= parser->collection.count;
 }
 
 bool pa_advance(parser_t* parser) {
     if( pa_is_at_end(parser) == false ) {
         parser->cursor ++;
+        //printf(">> advancing to %s ", token_get_type_name(pa_current_token(parser).type));
+        //srcref_print(pa_current_token(parser).ref);
+        //printf("\n");
         return true;
     }
+    //printf(">> parser is at end\n");
     return false;
 }
 
-bool pa_advance_if(parser_t* parser, token_type_t mask) {
-    if( (pa_current_token(parser).type & mask) > 0 ) {
+bool pa_advance_if(parser_t* parser, token_type_t type) {
+    if( pa_current_token(parser).type == type ) {
         return pa_advance(parser);
     }
     return false;
 }
 
-bool pa_advance_if_not(parser_t* parser, token_type_t mask) {
-    if( (pa_current_token(parser).type & mask) == 0 ) {
+bool pa_advance_if_not(parser_t* parser, token_type_t type) {
+    if( pa_current_token(parser).type != type) {
         return pa_advance(parser);
     }
     return false;
@@ -118,8 +122,9 @@ pa_result_t pa_consume(parser_t* parser, token_type_t expected) {
     if( pa_is_at_end(parser) ) {
         return par_out_of_tokens();
     }
-    token_type_t actual = pa_current_token(parser).type;
-    if( ((uint32_t) expected & (uint32_t) actual) == 0 ) {
+    token_t actual = pa_current_token(parser);
+    if( expected != actual.type ) {
+        pa_set_error_unexpected_token_type(parser, expected, actual);
         return par_error(&parser->result);
     }
     if( pa_advance(parser) == false ) {
@@ -129,6 +134,7 @@ pa_result_t pa_consume(parser_t* parser, token_type_t expected) {
 }
 
 pa_result_t pa_parse_expression(parser_t* parser);
+pa_result_t pa_parse_statement(parser_t* parser);
 
 pa_result_t pa_parse_number(parser_t* parser) {
     token_t token = pa_current_token(parser);
@@ -181,10 +187,28 @@ pa_result_t pa_try_parse_value(parser_t* parser) {
 
 pa_result_t pa_try_parse_var_name(parser_t* parser) {
     token_t token = pa_current_token(parser);
-    if( token.type == TT_SYMBOL ) {
+    if( pa_advance_if(parser, TT_SYMBOL) ) {
         return par_node(ast_varref(token.ref));
     }
     return par_nothing();
+}
+
+pa_result_t pa_try_parse_group(parser_t* parser) {
+    token_t token = pa_current_token(parser);
+    if( token.type != TT_OPEN_PAREN )
+        return par_nothing();
+    if( pa_advance(parser) == false )
+        return par_out_of_tokens();
+    // todo: error message if empty paren
+    pa_result_t result_inner = pa_parse_expression(parser);
+    if( par_is_error(result_inner) ) {
+        return result_inner;
+    }
+    pa_result_t result_consume = pa_consume(parser, TT_CLOSE_PAREN);
+    if( par_is_error(result_consume) ) {
+        return result_consume;
+    }
+    return result_inner;
 }
 
 pa_result_t pa_try_parse_func_call(parser_t* parser) {
@@ -203,8 +227,13 @@ pa_result_t pa_try_parse_func_call(parser_t* parser) {
     if( pa_advance(parser) == false ) {
         return par_out_of_tokens();
     }
-    
+
     ast_node_t* args = ast_block();
+
+    if( pa_advance_if(parser, TT_CLOSE_PAREN) ) {
+        return par_node(ast_funcall(func_name.ref, args));
+    }
+    
     do {
         pa_result_t expr_res = pa_parse_expression(parser);
         if( par_is_node(expr_res) == false ) {
@@ -235,13 +264,17 @@ pa_result_t pa_try_parse_array_def(parser_t* parser) {
 
     ast_node_t* array = ast_array();
 
+    if( pa_advance_if(parser, TT_CLOSE_SBRACKET) ) {
+        return par_node(array);
+    }
+
     do {
         pa_result_t expr_res = pa_parse_expression(parser);
         if( par_is_node(expr_res) == false ) {
             ast_free(array);
             return expr_res;
         }
-        ast_block_add(array, par_extract_node(expr_res));
+        ast_array_add(array, par_extract_node(expr_res));
     } while( pa_advance_if(parser, TT_SEPARATOR) );
 
     pa_result_t result = pa_consume(parser, TT_CLOSE_SBRACKET);
@@ -254,39 +287,316 @@ pa_result_t pa_try_parse_array_def(parser_t* parser) {
     }
 }
 
-// https://www.reddit.com/r/ProgrammingLanguages/comments/1c9cjjg/best_way_to_parse_binary_operations/
+pa_result_t pa_try_parse_unary_operation(parser_t* parser, token_type_t tt, ast_unop_type_t op) {
+    if( pa_advance_if(parser, tt) ) {
+        pa_result_t inner = pa_parse_expression(parser);
+        if( par_is_error(inner) )
+            return inner;
+        assert( par_is_nothing(inner) == false );
+        return par_node(ast_unnop(op, par_extract_node(inner)));
+    }
+    return par_nothing();
+}
 
 
-// TODO: need to support grouping (a + b) * z inside the ast and the VM
+pa_result_t pa_try_parse_binary_operation(pa_result_t lhs, parser_t* parser, token_type_t tt, ast_binop_type_t op) {
+    if( pa_advance_if(parser, tt) ) {
+        pa_result_t rhs = pa_parse_expression(parser);
+        if( par_is_error(rhs) )
+            return rhs;
+        assert( par_is_nothing(rhs) == false );
+        return par_node(ast_binop(op, 
+            par_extract_node(lhs),
+            par_extract_node(rhs)));
+    }
+    return par_nothing();
+}
+
 
 pa_result_t pa_parse_expression(parser_t* parser) {
 
-    pa_result_t result = pa_try_parse_func_call(parser);
+    // parsing standard expressions
 
-    if( par_is_node(result) ) {
+    pa_result_t result = pa_try_parse_group(parser);
+
+    if( par_is_nothing(result) ) 
+        result = pa_try_parse_func_call(parser);
+
+    if( par_is_nothing(result) ) 
+        result = pa_try_parse_value(parser);
+
+    if( par_is_nothing(result) )  
+        result = pa_try_parse_var_name(parser);
+
+    if( par_is_nothing(result) )  
+        result = pa_try_parse_array_def(parser);
+
+    // parsing unary operator expressions
+
+    if( par_is_nothing(result) ) 
+        result = pa_try_parse_unary_operation(parser, TT_BINOP_MINUS, AST_UN_NEG);
+
+    if( par_is_nothing(result) ) 
+        result = pa_try_parse_unary_operation(parser, TT_UNOP_NOT, AST_UN_NOT);
+
+    if( par_is_error(result) ) {
         return result;
     }
 
-    result = pa_try_parse_value(parser);
-    if( par_is_node(result) ) {
+    if( par_is_node(result) == false ) {
+        if( cres_set_error(&parser->result, R_ERR_EXPR) ) {
+            token_t token = pa_current_token(parser);
+            cres_set_src_location(&parser->result, token.ref);
+            cres_msg_add_token(&parser->result, token);
+            cres_msg_add_costr(&parser->result, " could not be made into an expression.");
+        }
+        return par_error(&parser->result);
+    }
+
+    // parsing binary operation expressions
+
+    // todo: handle operator precedence
+
+    pa_result_t bin_op_result = pa_try_parse_binary_operation(result, parser, TT_BINOP_AND, AST_BIN_AND);
+
+    if( par_is_nothing(bin_op_result) )
+        bin_op_result = pa_try_parse_binary_operation(result, parser, TT_BINOP_OR, AST_BIN_OR);
+
+    if( par_is_nothing(bin_op_result) )
+        bin_op_result = pa_try_parse_binary_operation(result, parser, TT_BINOP_MUL, AST_BIN_MUL);
+
+    if( par_is_nothing(bin_op_result) )
+        bin_op_result = pa_try_parse_binary_operation(result, parser, TT_BINOP_DIV, AST_BIN_DIV);
+
+    if( par_is_nothing(bin_op_result) )
+        bin_op_result = pa_try_parse_binary_operation(result, parser, TT_BINOP_MINUS, AST_BIN_SUB);
+
+    if( par_is_nothing(bin_op_result) )
+        bin_op_result = pa_try_parse_binary_operation(result, parser, TT_BINOP_PLUS, AST_BIN_ADD);
+
+    // TODO: THESE SHOULD NOT CONTINUE RECURSIVELY!!! ---------------------------
+
+    if( par_is_nothing(bin_op_result) )
+        bin_op_result = pa_try_parse_binary_operation(result, parser, TT_CMP_EQ, AST_BIN_EQ);
+
+    if( par_is_nothing(bin_op_result) )
+        bin_op_result = pa_try_parse_binary_operation(result, parser, TT_CMP_LT, AST_BIN_LT);
+
+    if( par_is_nothing(bin_op_result) )
+        bin_op_result = pa_try_parse_binary_operation(result, parser, TT_CMP_GT, AST_BIN_GT);
+    
+    if( par_is_nothing(bin_op_result) )
+        bin_op_result = pa_try_parse_binary_operation(result, parser, TT_CMP_GT_EQ, AST_BIN_GT_EQ);
+
+    if( par_is_nothing(bin_op_result) )
+        bin_op_result = pa_try_parse_binary_operation(result, parser, TT_CMP_LT_EQ, AST_BIN_LT_EQ);
+
+    // -------------------------------------------------------------------------
+
+    if( par_is_error(bin_op_result) ) {
+        return bin_op_result;
+    }
+
+    if( par_is_node(bin_op_result) ) {
+        return bin_op_result;
+    } else {
+        return result;
+    }
+}
+
+pa_result_t pa_parse_vardecl(parser_t* parser) {
+    token_t typename = pa_current_token(parser);
+    token_t varname = pa_peek_token(parser, 1);
+
+    pa_result_t result = pa_consume(parser, TT_SYMBOL);
+
+    if( par_is_nothing(result) )
+        result = pa_consume(parser, TT_SYMBOL);
+
+    if( par_is_error(result) )
+        return result;
+
+    assert( par_is_nothing(result) );
+
+    // todo: types should perhaps not be encoded
+    // in the ast this way since it makes it hard
+    // to handle user defined types.
+
+    ast_value_type_t vtype = AST_VALUE_TYPE_NONE;
+    if( srcref_equals_string(typename.ref, "num") )
+        vtype = AST_VALUE_TYPE_NUMBER;
+    else if( srcref_equals_string(typename.ref, "bol") )
+        vtype = AST_VALUE_TYPE_BOOL;
+    else if( srcref_equals_string(typename.ref, "str") )
+        vtype = AST_VALUE_TYPE_STRING;
+
+    return par_node(ast_vardecl(varname.ref, vtype));
+}
+
+pa_result_t pa_try_parse_assignment(parser_t* parser) {
+    if( pa_peek_token(parser, 1).type == TT_ASSIGN ) {
+        token_t varname = pa_current_token(parser);
+        pa_result_t result = pa_consume(parser, TT_SYMBOL);
+        if( par_is_error(result) )
+            return result;
+        if( pa_advance(parser) == false ) // skip over '='
+            return par_out_of_tokens(); 
+        pa_result_t rhs = pa_parse_expression(parser); // rhs expr
+        if( par_is_error(rhs) )
+            return rhs;
+        assert( par_is_nothing(rhs) == false );
+        return par_node(ast_assign(
+                ast_varref(varname.ref),
+                par_extract_node(rhs)));
+    } else if( pa_peek_token(parser, 2).type == TT_ASSIGN ) {
+        pa_result_t decl = pa_parse_vardecl(parser);
+        if( par_is_error(decl) )
+            return decl;
+        assert(par_is_nothing(decl) == false);
+        pa_result_t assign = pa_consume(parser, TT_ASSIGN); // skip over '='
+        if( par_is_error(assign) )
+            return assign;
+        pa_result_t rhs = pa_parse_expression(parser); // rhs expr
+        if( par_is_error(rhs) )
+            return rhs;
+        assert(par_is_nothing(rhs) == false);
+        return par_node(ast_assign(
+                par_extract_node(decl),
+                par_extract_node(rhs)));
+    } else {
+        return par_nothing();
+    }
+}
+
+pa_result_t pa_parse_body(parser_t* parser) {
+
+    pa_result_t result = pa_consume(parser, TT_OPEN_CURLY);
+    if( par_is_error(result) )
+        return result;
+
+    ast_node_t* body_block = ast_block();
+
+    do {
+        if( pa_current_token(parser).type == TT_CLOSE_CURLY )
+            break;
+
+        pa_result_t stmt_res = pa_parse_statement(parser);
+        if( par_is_node(stmt_res) == false ) {
+            ast_free(body_block);
+            return stmt_res;
+        }
+
+        ast_block_add(body_block, par_extract_node(stmt_res));
+        
+    } while( pa_advance_if(parser, TT_STATEMENT_END) );
+
+    result = pa_consume(parser, TT_CLOSE_CURLY);
+    if( par_is_error(result) )
+        return result;
+    
+    return par_node(body_block);
+}
+
+pa_result_t pa_try_parse_if_stmt(parser_t* parser) {
+    if( pa_advance_if(parser, TT_KW_IF) == false )
+        return par_nothing();
+
+    pa_result_t result = pa_consume(parser, TT_OPEN_PAREN);
+    if( par_is_error(result) )
+        return result;
+    assert( par_is_nothing(result) );
+
+    result = pa_parse_expression(parser);
+    if( par_is_error(result) )
+        return result;
+    assert( par_is_nothing(result) == false );
+    ast_node_t* condition = par_extract_node(result);
+
+    result = pa_consume(parser, TT_CLOSE_PAREN);
+    if( par_is_error(result) )
+        return result;
+    assert( par_is_nothing(result) );
+
+    result = pa_parse_body(parser);
+    if( par_is_error(result) )
+        return result;
+    assert( par_is_node(result) );
+
+    return par_node(ast_if(condition, par_extract_node(result)));
+}
+
+
+pa_result_t pa_try_parse_for_stmt(parser_t* parser) {
+    if( pa_advance_if(parser, TT_KW_FOR) == false )
+        return par_nothing();
+
+    pa_result_t result = pa_consume(parser, TT_OPEN_PAREN);
+    if( par_is_error(result) )
+        return result;
+    assert( par_is_nothing(result) );
+
+    result = pa_parse_vardecl(parser);
+    if( par_is_error(result) )
+        return result;
+    assert( par_is_nothing(result) == false );
+    ast_node_t* vardecl = par_extract_node(result);
+
+    result = pa_consume(parser, TT_KW_IN);
+    if( par_is_error(result) )
+        return result;
+    assert( par_is_nothing(result) );
+
+    result = pa_parse_expression(parser);
+    if( par_is_error(result) )
+        return result;
+    assert( par_is_node(result) );
+    ast_node_t* collection = par_extract_node(result);
+
+    result = pa_consume(parser, TT_CLOSE_PAREN);
+    if( par_is_error(result) )
+        return result;
+    assert( par_is_nothing(result) );
+
+    // todo: verify collection
+
+    result = pa_parse_body(parser);
+    if( par_is_error(result) )
+        return result;
+    assert( par_is_node(result) );
+
+    ast_node_t* body = par_extract_node(result);
+
+    return par_node(ast_foreach(vardecl, collection, body));
+}
+
+pa_result_t pa_parse_statement(parser_t* parser) {
+
+    pa_result_t result = pa_try_parse_assignment(parser);
+
+    // todo: if-else? elifs?
+
+    if( par_is_nothing(result) )
+        result = pa_try_parse_if_stmt(parser);
+
+    if( par_is_nothing(result) )
+        result = pa_try_parse_for_stmt(parser);
+
+    if( par_is_nothing(result) )
+        result = pa_try_parse_func_call(parser);
+
+    if( par_is_error(result) ) {
         return result;
     }
 
-    result = pa_try_parse_var_name(parser);
-    if( par_is_node(result) ) {
-        return result;
+    if( par_is_node(result) == false ) {
+        if( cres_set_error(&parser->result, R_ERR_STATEMENT) ) {
+            token_t token = pa_current_token(parser);
+            cres_set_src_location(&parser->result, token.ref);
+            cres_msg_add_token(&parser->result, token);
+            cres_msg_add_costr(&parser->result, " is not a valid statement.");
+        }
+        return par_error(&parser->result);
     }
 
-    result = pa_try_parse_array_def(parser);
-    if( par_is_node(result) ) {
-        return result;
-    }
-
-    if( cres_set_error(&parser->result, R_ERR_EXPR) ) {
-        token_t token = pa_current_token(parser);
-        cres_set_src_location(&parser->result, token.ref);
-        cres_msg_add_token(&parser->result, token);
-        cres_msg_add_costr(&parser->result, " could not be made into an expression.");
-    }
-    return par_error(&parser->result);
+    return result;
 }

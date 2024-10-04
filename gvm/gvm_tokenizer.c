@@ -123,6 +123,7 @@ srcmap_t create_keyword_token_map() {
     srcmap_insert(&map, srcref_const("if"),     sm_val(TT_KW_IF));
     srcmap_insert(&map, srcref_const("else"),   sm_val(TT_KW_ELSE));
     srcmap_insert(&map, srcref_const("for"),    sm_val(TT_KW_FOR));
+    srcmap_insert(&map, srcref_const("in"),    sm_val(TT_KW_IN));
     srcmap_insert(&map, srcref_const("fun"),    sm_val(TT_KW_FUN_DEF));
     srcmap_insert(&map, srcref_const("true"),   sm_val(TT_BOOLEAN));
     srcmap_insert(&map, srcref_const("false"),  sm_val(TT_BOOLEAN));
@@ -168,7 +169,7 @@ srcmap_t create_symbolic_token_map() {
     srcmap_insert(&map, srcref_const(";"),  sm_val(TT_STATEMENT_END));
     srcmap_insert(&map, srcref_const("*"),  sm_val(TT_BINOP_MUL));
     srcmap_insert(&map, srcref_const("/"),  sm_val(TT_BINOP_DIV));
-    srcmap_insert(&map, srcref_const("%%"),  sm_val(TT_BINOP_MOD));
+    srcmap_insert(&map, srcref_const("%"),  sm_val(TT_BINOP_MOD));
     srcmap_insert(&map, srcref_const("+"),  sm_val(TT_BINOP_PLUS));
     srcmap_insert(&map, srcref_const("-"),  sm_val(TT_BINOP_MINUS));
 
@@ -184,7 +185,7 @@ size_t get_symbolic_token_len(tokenizer_state_t* state) {
     }
     else if (match_cursor_and_next(state, 
             lp_is(LCAT_EQUAL|LCAT_LESS_THAN|LCAT_GREATER_THAN),
-            lp_is(LCAT_GREATER_THAN)))
+            lp_is(LCAT_EQUAL)))
     {
         return 2; // cmps
     }
