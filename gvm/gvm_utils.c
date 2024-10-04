@@ -422,33 +422,6 @@ bool srcref_equals_string(srcref_t a, const char* b_str) {
     return strncmp(a_str, b_str, len) == 0;
 }
 
-srcref_location_t srcref_location(srcref_t ref, char* filepath) {
-    srcref_location_t loc = (srcref_location_t) {
-        .column = 0,
-        .line = 0,
-        .filepath = filepath,
-        .ref = ref
-    };
-    if( ref.source == NULL ) {
-        return loc;
-    }
-    if(ref.idx_start > ref.idx_end) {
-        size_t tmp = ref.idx_end;
-        ref.idx_end = ref.idx_start;
-        ref.idx_start = tmp;
-    }
-    for (size_t i = 0; i < ref.idx_start; i++) {
-        if(ref.source[i] == '\n') {
-            loc.line ++;
-            loc.column = 0;
-        } else {
-            loc.column ++;
-        }
-    }
-    loc.line += 1;
-    return loc;
-}
-
 bool srcref_as_float(srcref_t ref, float* value) {
     size_t len = srcref_len(ref);
     char buf[len+1];
@@ -469,4 +442,20 @@ bool srcref_as_bool(srcref_t ref, bool* value) {
         return true;
     }
     return false;
+}
+
+int srcref_snprint(char* str, size_t slen, srcref_t ref) {
+    return snprintf(str, slen, "%.*s", srcref_len(ref), srcref_ptr(ref));
+}
+
+int srcref_fprint(FILE* stream, srcref_t ref) {
+    return fprintf(stream, "%.*s", srcref_len(ref), srcref_ptr(ref));
+}
+
+char* srcref_tmpstr(srcref_t ref) {
+    static char tmp_buffer[256] = { 0 };
+    size_t len = srcref_len(ref);
+    assert(len < 256 && "ref points to string that is lager than the tmp buffer.");
+    snprintf(tmp_buffer, 255, "%.*s", srcref_len(ref), srcref_ptr(ref));
+    return tmp_buffer;
 }

@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include "gvm_utils.h"
 #include "gvm_lexer.h"
-#include "gvm_compiler_types.h"
+#include "gvm_ctypes.h"
 
 inline static token_t token_const(const char* content, token_type_t type) {
     return (token_t) {
@@ -21,14 +21,13 @@ inline static bool token_equals(token_t a, token_t b) {
 
 inline static char* token_get_type_name(token_type_t type) {
     switch (type) {
+        case TT_NOTHING: return "TT_NOTHING";
         case TT_INITIAL: return "TT_INITIAL";
         case TT_SPACE: return "TT_SPACE";
         case TT_COMMENT: return "TT_COMMENT";
         case TT_SYMBOL: return "TT_SYMBOL";
         case TT_NUMBER: return "TT_NUMBER";
         case TT_BOOLEAN: return "TT_BOOLEAN";
-        case TT_SEPARATOR: return "TT_SEPARATOR";
-        case TT_STATEMENT_END: return "TT_STATEMENT_END";
         case TT_STRING: return "TT_STRING";
         case TT_ARROW: return "TT_ARROW";
         case TT_ASSIGN: return "TT_ASSIGN";
@@ -37,20 +36,27 @@ inline static char* token_get_type_name(token_type_t type) {
         case TT_KW_FOR: return "TT_KW_FOR";
         case TT_KW_RETURN: return "TT_KW_RETURN";
         case TT_KW_FUN_DEF: return "TT_KW_FUN_DEF";
-        case TT_KW_AND: return "TT_KW_AND";
-        case TT_KW_OR: return "TT_KW_OR";
-        case TT_KW_NOT: return "TT_KW_NOT";
         case TT_CMP_EQ: return "TT_CMP_EQ";
         case TT_CMP_GT_EQ: return "TT_CMP_GT_EQ";
         case TT_CMP_LT_EQ: return "TT_CMP_LT_EQ";
-        case TT_LT_OR_OPEN_ABRACKET: return "TT_LT_OR_OPEN_ABRACKET";
-        case TT_GT_OR_CLOSE_ABRACKET: return "TT_GT_OR_CLOSE_ABRACKET";
+        case TT_CMP_GT: return "TT_CMP_GT";
+        case TT_CMP_LT: return "TT_CMP_LT";
         case TT_OPEN_PAREN: return "TT_OPEN_PAREN";
         case TT_CLOSE_PAREN: return "TT_CLOSE_PAREN";
         case TT_OPEN_CURLY: return "TT_OPEN_CURLY";
         case TT_CLOSE_CURLY: return "TT_CLOSE_CURLY";
         case TT_OPEN_SBRACKET: return "TT_OPEN_SBRACKET";
         case TT_CLOSE_SBRACKET: return "TT_CLOSE_SBRACKET";
+        case TT_UNOP_NOT: return "TT_UNOP_NOT";
+        case TT_BINOP_AND: return "TT_BINOP_AND";
+        case TT_BINOP_OR: return "TT_BINOP_OR";
+        case TT_BINOP_MUL: return "TT_BINOP_MUL";
+        case TT_BINOP_DIV: return "TT_BINOP_DIV";
+        case TT_BINOP_MOD: return "TT_BINOP_MOD";
+        case TT_BINOP_PLUS: return "TT_BINOP_PLUS";
+        case TT_BINOP_MINUS: return "TT_BINOP_MINUS";
+        case TT_SEPARATOR: return "TT_SEPARATOR";
+        case TT_STATEMENT_END: return "TT_STATEMENT_END";
         case TT_FINAL: return "TT_FINAL";
         default: return "<UNKNOWN-TT>";
     }
@@ -68,8 +74,9 @@ typedef struct tokenizer_args_t {
     char* text;
     size_t text_length;
     char* filepath;
+    cres_t* resultptr;
 } tokenizer_args_t;
 
-build_result_t tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args);
+bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args);
 
 #endif // GVM_TOKENIZER_H_

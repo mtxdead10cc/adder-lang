@@ -9,22 +9,23 @@
 #include "gvm_types.h"
 #include "gvm_utils.h"
 #include "gvm_tokenizer.h"
-#include "gvm_build_result.h"
+#include "gvm_cres.h"
 #include "gvm_ast.h"
 
-build_result_t pa_init(parser_t* parser, char* text, size_t text_length, char* filepath) {
+bool pa_init(parser_t* parser, char* text, size_t text_length, char* filepath) {
 
-    parser->result = (build_result_t) {0};
-    parser->filepath = filepath;
+    parser->result = (cres_t) {0};
+
+    cres_set_src_filepath(&parser->result, filepath);
     
     if( tokens_init(&parser->collection, 16) == false ) {
-        parser->result.code = R_ER_OUT_OF_MEMORY;
-        return parser->result;
+        cres_set_error(&parser->result, R_ERR_OUT_OF_MEMORY);
+        return false;
     }
 
     if( text == NULL ) {
-        parser->result.code = R_ER_INVALID_STATE;
-        return parser->result;
+        cres_set_error(&parser->result, R_ERR_INTERNAL);
+        return false;
     }
 
     tokenizer_args_t args = (tokenizer_args_t) {
@@ -32,19 +33,18 @@ build_result_t pa_init(parser_t* parser, char* text, size_t text_length, char* f
         .text = text,
         .text_length = text_length,
         .include_comments = false,
-        .include_spaces = false
+        .include_spaces = false,
+        .resultptr = &parser->result
     };
 
-    parser->result = tokenizer_analyze(&parser->collection, &args);
-    if( r_is_error(parser->result) ) {
+    if( tokenizer_analyze(&parser->collection, &args) == false ) {
         tokens_destroy(&parser->collection);
         parser->collection.count = 0;
-        return parser->result;
+        return false;
     }
 
     parser->cursor = 0;
-    parser->result.code = R_OK;
-    return parser->result;
+    return cres_is_ok(&parser->result);
 }
 
 void pa_destroy(parser_t* parser) {
@@ -92,30 +92,35 @@ token_t pa_peek_token(parser_t* parser, int lookahead) {
     return parser->collection.tokens[parser->cursor + lookahead];
 }
 
-srcref_location_t pa_get_location(parser_t* parser, int cursor_offset) {
-    srcref_t ref = parser->collection.tokens[parser->cursor + cursor_offset].ref;
-    char* filepath = parser->filepath;
-    return srcref_location(ref, filepath);
+
+void pa_set_error_unexpected_token_type(parser_t* parser, token_type_t expected, token_t actual) {
+    if( cres_set_error(&parser->result, R_ERR_TOKEN) ) {
+        cres_set_src_location(&parser->result, actual.ref);
+        cres_msg_add_costr(&parser->result, "unexpected token, expected ");
+        cres_msg_add_token_type_name(&parser->result, expected);
+        cres_msg_add_costr(&parser->result, " but found ");
+        cres_msg_add_token(&parser->result, actual);
+    }
 }
 
-pa_result_t pa_set_build_error(parser_t* parser, build_result_t result) {
-    if( r_is_error(parser->result) ) { // return pre-existing
-        return par_error(&parser->result);
+void pa_set_error_invalid_token_format(parser_t* parser, token_t token) {
+    if( cres_set_error(&parser->result, R_ERR_TOKEN) ) {
+        cres_set_src_location(&parser->result, token.ref);
+        cres_msg_add_costr(&parser->result, "unexpected token format: ");
+        cres_msg_add_token(&parser->result, token);
     }
-    parser->result = result;
-    return par_error(&parser->result);
 }
 
 pa_result_t pa_consume(parser_t* parser, token_type_t expected) {
+    if( cres_has_error(&parser->result) ) {
+        return par_error(&parser->result);
+    }
     if( pa_is_at_end(parser) ) {
         return par_out_of_tokens();
     }
     token_type_t actual = pa_current_token(parser).type;
     if( ((uint32_t) expected & (uint32_t) actual) == 0 ) {
-        return pa_set_build_error(parser,
-                                    r_unexpected_token(
-                                        pa_get_location(parser, 0),
-                                        expected, actual));
+        return par_error(&parser->result);
     }
     if( pa_advance(parser) == false ) {
         return par_out_of_tokens();
@@ -135,10 +140,8 @@ pa_result_t pa_parse_number(parser_t* parser) {
     if( srcref_as_float(token.ref, &value) ) {
         return par_node(ast_number(value));
     }
-    return pa_set_build_error(parser,
-                    r_invalid_format(
-                        srcref_location(token.ref,
-                            parser->filepath)));
+    pa_set_error_invalid_token_format(parser, token);
+    return par_error(&parser->result);
 }
 
 pa_result_t pa_parse_boolean(parser_t* parser) {
@@ -151,10 +154,8 @@ pa_result_t pa_parse_boolean(parser_t* parser) {
     if( srcref_as_bool(token.ref, &value) ) {
         return par_node(ast_bool(value));
     }
-    return pa_set_build_error(parser,
-                    r_invalid_format(
-                        srcref_location(token.ref,
-                            parser->filepath)));
+    pa_set_error_invalid_token_format(parser, token);
+    return par_error(&parser->result);
 }
 
 pa_result_t pa_parse_string(parser_t* parser) {
@@ -213,10 +214,48 @@ pa_result_t pa_try_parse_func_call(parser_t* parser) {
         ast_block_add(args, par_extract_node(expr_res));
     } while( pa_advance_if(parser, TT_SEPARATOR) );
 
-    pa_consume(parser, TT_CLOSE_PAREN);
-
-    return par_node(ast_funcall(func_name.ref, args));
+    pa_result_t result = pa_consume(parser, TT_CLOSE_PAREN);
+    if( par_is_nothing(result) == false ) {
+        ast_free(args);
+        return result;
+    } else {
+        return par_node(ast_funcall(func_name.ref, args));
+    }
 }
+
+pa_result_t pa_try_parse_array_def(parser_t* parser) {
+
+    if( pa_current_token(parser).type != TT_OPEN_SBRACKET ) {
+        return par_nothing();
+    }
+
+    if( pa_advance(parser) == false ) {
+        return par_out_of_tokens();
+    }
+
+    ast_node_t* array = ast_array();
+
+    do {
+        pa_result_t expr_res = pa_parse_expression(parser);
+        if( par_is_node(expr_res) == false ) {
+            ast_free(array);
+            return expr_res;
+        }
+        ast_block_add(array, par_extract_node(expr_res));
+    } while( pa_advance_if(parser, TT_SEPARATOR) );
+
+    pa_result_t result = pa_consume(parser, TT_CLOSE_SBRACKET);
+
+    if( par_is_nothing(result) == false ) {
+        ast_free(array);
+        return result;
+    } else {
+        return par_node(array);
+    }
+}
+
+// https://www.reddit.com/r/ProgrammingLanguages/comments/1c9cjjg/best_way_to_parse_binary_operations/
+
 
 // TODO: need to support grouping (a + b) * z inside the ast and the VM
 
@@ -237,10 +276,17 @@ pa_result_t pa_parse_expression(parser_t* parser) {
     if( par_is_node(result) ) {
         return result;
     }
-    // TODO: INTRODUCE INVALID EXPRESSION ERROR
-    return pa_set_build_error(parser,
-                    r_unexpected_token(
-                        pa_get_location(parser, 0),
-                        TT_SYMBOL|TT_BOOLEAN|TT_STRING, // etc.
-                        pa_current_token(parser).type));
+
+    result = pa_try_parse_array_def(parser);
+    if( par_is_node(result) ) {
+        return result;
+    }
+
+    if( cres_set_error(&parser->result, R_ERR_EXPR) ) {
+        token_t token = pa_current_token(parser);
+        cres_set_src_location(&parser->result, token.ref);
+        cres_msg_add_token(&parser->result, token);
+        cres_msg_add_costr(&parser->result, " could not be made into an expression.");
+    }
+    return par_error(&parser->result);
 }

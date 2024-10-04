@@ -1,6 +1,6 @@
 #include "gvm_tokenizer.h"
 #include "gvm_srcmap.h"
-#include "gvm_build_result.h"
+#include "gvm_cres.h"
 #include <stdio.h>
 
 bool tokens_init(token_collection_t* collection, size_t capacity) {
@@ -59,7 +59,6 @@ typedef struct tokenizer_state_t {
     size_t          cursor;
     srcmap_t        kw_map_alpha;
     srcmap_t        kw_map_symbolic;
-    build_result_t  result;
 } tokenizer_state_t;
 
 size_t sweep_while(tokenizer_state_t* state, size_t start_offset, lex_predicate_t lex) {
@@ -127,9 +126,9 @@ srcmap_t create_keyword_token_map() {
     srcmap_insert(&map, srcref_const("fun"),    sm_val(TT_KW_FUN_DEF));
     srcmap_insert(&map, srcref_const("true"),   sm_val(TT_BOOLEAN));
     srcmap_insert(&map, srcref_const("false"),  sm_val(TT_BOOLEAN));
-    srcmap_insert(&map, srcref_const("not"),    sm_val(TT_KW_NOT));
-    srcmap_insert(&map, srcref_const("and"),    sm_val(TT_KW_AND));
-    srcmap_insert(&map, srcref_const("or"),     sm_val(TT_KW_OR));
+    srcmap_insert(&map, srcref_const("not"),    sm_val(TT_UNOP_NOT));
+    srcmap_insert(&map, srcref_const("and"),    sm_val(TT_BINOP_AND));
+    srcmap_insert(&map, srcref_const("or"),     sm_val(TT_BINOP_OR));
 
     return map;
 }
@@ -156,8 +155,8 @@ srcmap_t create_symbolic_token_map() {
     srcmap_insert(&map, srcref_const("=="), sm_val(TT_CMP_EQ));
     srcmap_insert(&map, srcref_const("<="), sm_val(TT_CMP_LT_EQ));
     srcmap_insert(&map, srcref_const(">="), sm_val(TT_CMP_GT_EQ));
-    srcmap_insert(&map, srcref_const("<"),  sm_val(TT_LT_OR_OPEN_ABRACKET));
-    srcmap_insert(&map, srcref_const(">"),  sm_val(TT_GT_OR_CLOSE_ABRACKET));
+    srcmap_insert(&map, srcref_const("<"),  sm_val(TT_CMP_LT));
+    srcmap_insert(&map, srcref_const(">"),  sm_val(TT_CMP_GT));
     srcmap_insert(&map, srcref_const("("),  sm_val(TT_OPEN_PAREN));
     srcmap_insert(&map, srcref_const(")"),  sm_val(TT_CLOSE_PAREN));
     srcmap_insert(&map, srcref_const("{"),  sm_val(TT_OPEN_CURLY));
@@ -167,6 +166,11 @@ srcmap_t create_symbolic_token_map() {
     srcmap_insert(&map, srcref_const("="),  sm_val(TT_ASSIGN));
     srcmap_insert(&map, srcref_const(","),  sm_val(TT_SEPARATOR));
     srcmap_insert(&map, srcref_const(";"),  sm_val(TT_STATEMENT_END));
+    srcmap_insert(&map, srcref_const("*"),  sm_val(TT_BINOP_MUL));
+    srcmap_insert(&map, srcref_const("/"),  sm_val(TT_BINOP_DIV));
+    srcmap_insert(&map, srcref_const("%%"),  sm_val(TT_BINOP_MOD));
+    srcmap_insert(&map, srcref_const("+"),  sm_val(TT_BINOP_PLUS));
+    srcmap_insert(&map, srcref_const("-"),  sm_val(TT_BINOP_MINUS));
 
     return map;
 }
@@ -213,23 +217,22 @@ srcref_t get_current_srcref(tokenizer_state_t* state) {
     return srcref(state->buffer, state->cursor, last_buffer_index);
 }
 
-build_result_t tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
+bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
 
     tokenizer_state_t state = (tokenizer_state_t) {
         .buffer = args->text,
         .buffer_size = args->text_length,
-        .filepath = args->filepath,
         .cursor = 0,
         .kw_map_alpha = create_keyword_token_map(),
-        .kw_map_symbolic = create_symbolic_token_map(),
-        .result = r_ok()
+        .kw_map_symbolic = create_symbolic_token_map()
     };
 
     if( tokens_append(collection, (token_t){TT_INITIAL, srcref(args->text, 0, 0)}) == false ) {
-        state.result = r_out_of_memory();
+        cres_set_error(args->resultptr, R_ERR_OUT_OF_MEMORY);
+        return false;
     }
 
-    while ( state.cursor < state.buffer_size && state.result.code == R_OK ) {
+    while ( state.cursor < state.buffer_size && cres_is_ok(args->resultptr) ) {
         
         size_t last_cursor_pos = state.cursor;
         bool alloc_ok = true;
@@ -261,12 +264,17 @@ build_result_t tokenizer_analyze(token_collection_t* collection, tokenizer_args_
         }
 
         if( alloc_ok == false ) {
-            state.result = r_out_of_memory();
+            cres_set_error(args->resultptr, R_ERR_OUT_OF_MEMORY);
         } else if( last_cursor_pos == state.cursor ) {
-            srcref_t ref = get_current_srcref(&state);
-            state.result = r_unrecognized_char(
-                srcref_location(ref, state.filepath),
-                state.buffer[state.cursor]);
+            if( cres_set_error(args->resultptr, R_ERR_TOKEN) ) {
+                srcref_t ref = get_current_srcref(&state);
+                cres_set_src_location(args->resultptr, ref);
+                cres_msg_add_costr(args->resultptr, "unable to make anything useful out of ");
+                cres_msg_add_costr(args->resultptr, "'");
+                cres_msg_add(args->resultptr,
+                    srcref_ptr(ref),
+                    srcref_len(ref));
+            }
         }
     }
 
@@ -274,8 +282,8 @@ build_result_t tokenizer_analyze(token_collection_t* collection, tokenizer_args_
     destroy_token_map(&state.kw_map_symbolic);
 
     if( tokens_append(collection, (token_t) {TT_FINAL, get_current_srcref(&state)}) == false ) {
-        state.result = r_out_of_memory();
+        cres_set_error(args->resultptr, R_ERR_OUT_OF_MEMORY);
     }
 
-    return state.result;
+    return cres_is_ok(args->resultptr);
 }

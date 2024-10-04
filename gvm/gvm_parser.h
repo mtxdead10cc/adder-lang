@@ -9,8 +9,8 @@
 #include "gvm_types.h"
 #include "gvm_utils.h"
 #include "gvm_tokenizer.h"
-#include "gvm_build_result.h"
-#include "gvm_compiler_types.h"
+#include "gvm_cres.h"
+#include "gvm_ctypes.h"
 
 typedef enum pa_result_type_t {
     PAR_NOTHING,
@@ -24,7 +24,7 @@ typedef struct pa_result_t {
     void*               data;
 } pa_result_t;
 
-build_result_t pa_init(parser_t* parser, char* text, size_t text_length, char* filepath);
+bool     pa_init(parser_t* parser, char* text, size_t text_length, char* filepath);
 void     pa_destroy(parser_t* parser);
 bool     pa_is_at_end(parser_t* parser);
 bool     pa_advance(parser_t* parser);
@@ -54,7 +54,7 @@ inline static pa_result_t par_out_of_tokens(void) {
     };
 }
 
-inline static pa_result_t par_error(build_result_t* err) {
+inline static pa_result_t par_error(cres_t* err) {
     return (pa_result_t) {
         .type = PAR_BUILD_ERROR,
         .data = err

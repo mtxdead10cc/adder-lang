@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "gvm_utils.h"
-#include "gvm_compiler_types.h"
+#include "gvm_ctypes.h"
 
 inline static ast_node_t* ast_number(float val) {
     ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));

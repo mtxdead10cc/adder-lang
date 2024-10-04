@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <assert.h>
-#include "gvm_compiler_types.h"
+#include "gvm_ctypes.h"
 
 #define IS_LETTER(C) (((C) >= 'a' && (C) <= 'z') || ((C) >= 'A' && (C) <= 'Z'))
 #define IS_NUMBER(C)  ((C) >= '0' && (C) <= '9')

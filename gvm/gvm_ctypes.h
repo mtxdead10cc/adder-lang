@@ -1,5 +1,5 @@
-#ifndef GVM_COMPILER_TYPE_H_
-#define GVM_COMPILER_TYPE_H_
+#ifndef GVM_CTYPES_H_
+#define GVM_CTYPES_H_
 
 typedef enum lexeme_t {
     LCAT_NONE           = 0x00000000,
@@ -31,38 +31,43 @@ typedef enum lexeme_t {
 } lexeme_t;
 
 typedef enum token_type_t {
-    TT_NOTHING              = 0x00000000,
-    TT_SPACE                = 0x00000001,
-    TT_COMMENT              = 0x00000002,
-    TT_SYMBOL               = 0x00000004,
-    TT_NUMBER               = 0x00000008,
-    TT_BOOLEAN              = 0x00000010,
-    TT_SEPARATOR            = 0x00000020,
-    TT_STATEMENT_END        = 0x00000040,
-    TT_STRING               = 0x00000080,
-    TT_ARROW                = 0x00000100,
-    TT_ASSIGN               = 0x00000200,
-    TT_KW_IF                = 0x00000400,
-    TT_KW_ELSE              = 0x00000800,
-    TT_KW_FOR               = 0x00001000,
-    TT_KW_RETURN            = 0x00002000,
-    TT_KW_FUN_DEF           = 0x00004000,
-    TT_KW_AND               = 0x00008000,
-    TT_KW_OR                = 0x00010000,
-    TT_KW_NOT               = 0x00020000,
-    TT_CMP_EQ               = 0x00040000,
-    TT_CMP_GT_EQ            = 0x00080000,
-    TT_CMP_LT_EQ            = 0x00100000,
-    TT_LT_OR_OPEN_ABRACKET  = 0x00200000,
-    TT_GT_OR_CLOSE_ABRACKET = 0x00400000,
-    TT_OPEN_PAREN           = 0x00800000,
-    TT_CLOSE_PAREN          = 0x01000000,
-    TT_OPEN_CURLY           = 0x02000000,
-    TT_CLOSE_CURLY          = 0x04000000,
-    TT_OPEN_SBRACKET        = 0x08000000,
-    TT_CLOSE_SBRACKET       = 0x10000000,
-    TT_INITIAL              = 0x20000000,
-    TT_FINAL                = 0x40000000
+    TT_NOTHING,
+    TT_INITIAL,
+    TT_SPACE,
+    TT_COMMENT,
+    TT_SYMBOL,
+    TT_NUMBER,
+    TT_BOOLEAN,
+    TT_STRING,
+    TT_ARROW,
+    TT_ASSIGN,
+    TT_KW_IF,
+    TT_KW_ELSE,
+    TT_KW_FOR,
+    TT_KW_RETURN,
+    TT_KW_FUN_DEF,
+    TT_CMP_EQ,
+    TT_CMP_GT_EQ,
+    TT_CMP_LT_EQ,
+    TT_CMP_GT,
+    TT_CMP_LT,
+    TT_OPEN_PAREN,
+    TT_CLOSE_PAREN,
+    TT_OPEN_CURLY,
+    TT_CLOSE_CURLY,
+    TT_OPEN_SBRACKET,
+    TT_CLOSE_SBRACKET,
+    TT_UNOP_NOT,
+    TT_BINOP_AND,
+    TT_BINOP_OR,
+    TT_BINOP_MUL,
+    TT_BINOP_DIV,
+    TT_BINOP_MOD,
+    TT_BINOP_PLUS,
+    TT_BINOP_MINUS,
+    TT_SEPARATOR,
+    TT_STATEMENT_END,
+    TT_FINAL
 } token_type_t;
 
 
@@ -111,22 +116,23 @@ typedef enum ast_unop_type_t {
     AST_UN_NEG
 } ast_unop_type_t;
 
-typedef enum build_rescode_t {
+typedef enum cres_code_t {
     R_OK,
-    R_ER_UNRECOGNIZED_CHAR,
-    R_ER_UNEXPECTED_TOKEN,
-    R_ER_INVALID_TOKEN_FORMAT,
-    R_ER_OUT_OF_MEMORY,
-    R_ER_INVALID_STATE,
-} build_rescode_t;
+    R_ERR_TOKEN,
+    R_ERR_EXPR,
+    R_ERR_OUT_OF_MEMORY,
+    R_ERR_INTERNAL
+} cres_code_t;
 
+#define CRES_MAX_MSG_LEN 512
 
-typedef struct build_result_t {
-    build_rescode_t code;
-    srcref_location_t location;
-    uint32_t args[2];
-} build_result_t;
-
+typedef struct cres_t {
+    cres_code_t code;
+    char*       filepath;
+    srcref_t    ref;
+    char        msg[CRES_MAX_MSG_LEN];
+    size_t      msg_len;
+} cres_t;
 
 typedef enum lex_ptype_t {
     LP_IS,
@@ -152,10 +158,9 @@ typedef struct token_collection_t {
 
 
 typedef struct parser_t {
-    char*               filepath;
     token_collection_t  collection;
     size_t              cursor;
-    build_result_t      result;
+    cres_t              result;
 } parser_t;
 
 
@@ -259,4 +264,4 @@ typedef struct ast_node_t {
     } u;
 } ast_node_t;
 
-#endif // GVM_COMPILER_TYPE_H_
+#endif // GVM_CTYPES_H_

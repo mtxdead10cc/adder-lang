@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include "gvm_value.h"
 
 typedef struct srcref_t {
@@ -10,13 +11,6 @@ typedef struct srcref_t {
     size_t  idx_start;
     size_t  idx_end;
 } srcref_t;
-
-typedef struct srcref_location_t {
-    size_t line;
-    size_t column;
-    char* filepath;
-    srcref_t ref;
-} srcref_location_t;
 
 typedef struct srcref_map_t {
     size_t          count;
@@ -76,11 +70,18 @@ srcref_t srcref_const(const char* text);
 srcref_t srcref_combine(srcref_t a, srcref_t b);
 size_t   srcref_len(srcref_t ref);
 char*    srcref_ptr(srcref_t ref);
-void     srcref_print(srcref_t ref);
 bool     srcref_equals(srcref_t a, srcref_t b);
 bool     srcref_equals_string(srcref_t a, const char* b_str);
-srcref_location_t srcref_location(srcref_t ref, char* filepath);
-bool    srcref_as_float(srcref_t ref, float* value);
-bool    srcref_as_bool(srcref_t ref, bool* value);
+bool     srcref_as_float(srcref_t ref, float* value);
+bool     srcref_as_bool(srcref_t ref, bool* value);
+
+void     srcref_print(srcref_t ref);
+int      srcref_snprint(char* str, size_t slen, srcref_t ref);
+int      srcref_fprint(FILE* stream, srcref_t ref);
+char*    srcref_tmpstr(srcref_t ref);
+
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#define clamp(v, a, b) (max(min((v), b), a))
 
 #endif // GVM_UTILS_H_

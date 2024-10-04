@@ -406,7 +406,7 @@ void test_tokenizer(test_case_t* this) {
                 TT_NUMBER,
                 TT_CLOSE_PAREN,
                 TT_BOOLEAN,
-                TT_SYMBOL,
+                TT_BINOP_DIV,
                 TT_STRING,
                 TT_FINAL
             },
@@ -438,6 +438,8 @@ void test_tokenizer(test_case_t* this) {
 
     size_t nsubcases = sizeof(subtests) / sizeof(subtests[0]);
 
+    cres_t result = (cres_t) { 0 };
+
     for(size_t i = 0; i < nsubcases; i++) {
         
         tokenizer_args_t args = (tokenizer_args_t) {
@@ -445,7 +447,8 @@ void test_tokenizer(test_case_t* this) {
             .include_comments = subtests[i].incl_comments,
             .include_spaces = subtests[i].incl_space,
             .text = subtests[i].text,
-            .text_length = strlen(subtests[i].text)
+            .text_length = strlen(subtests[i].text),
+            .resultptr = &result
         };
 
         tokens_clear(&coll);
@@ -482,16 +485,19 @@ void test_tokenizer(test_case_t* this) {
 void test_parser(test_case_t* this) {
     parser_t parser;
     char* text = "func_name(1,2,and,\"hej\",false)";
-    pa_init(&parser, text, strlen(text), "test/test.txt");
-    pa_consume(&parser, TT_INITIAL);
-    pa_result_t result = pa_parse_expression(&parser);
-    pa_consume(&parser, TT_FINAL);
-    if( par_is_node(result) ) {
-        ast_dump(par_extract_node(result));
-    } else if(par_is_error(result)) {
-        r_report_error(stdout, *(build_result_t*) result.data);
+    if( pa_init(&parser, text, strlen(text), "test/test.txt") == false ) {
+        cres_fprint(stdout, &parser.result);
     } else {
-        printf("other error\n");
+        pa_consume(&parser, TT_INITIAL);
+        pa_result_t result = pa_parse_expression(&parser);
+        pa_consume(&parser, TT_FINAL);
+        if( par_is_node(result) ) {
+            ast_dump(par_extract_node(result));
+        } else if(par_is_error(result)) {
+            cres_fprint(stdout, (cres_t*) result.data);
+        } else {
+            printf("other error\n");
+        }
     }
 }
 

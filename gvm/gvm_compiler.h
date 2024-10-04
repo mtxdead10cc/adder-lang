@@ -3,7 +3,7 @@
 
 #include "gvm_ast.h"
 #include "gvm_types.h"
-#include "gvm_compiler_types.h"
+#include "gvm_ctypes.h"
 
 gvm_program_t gvm_compile(ast_node_t* node);
 
