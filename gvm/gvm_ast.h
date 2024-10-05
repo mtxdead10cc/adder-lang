@@ -110,6 +110,12 @@ inline static ast_node_t* ast_return(ast_node_t* ret) {
     return node;
 }
 
+inline static ast_node_t* ast_break() {
+    ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
+    node->type = AST_BREAK;
+    return node;
+}
+
 inline static ast_node_t* ast_fundecl( srcref_t name,
                                        ast_value_type_t return_type,
                                        ast_node_t* args,

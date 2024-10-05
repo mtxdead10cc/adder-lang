@@ -36,6 +36,7 @@ inline static char* token_get_type_name(token_type_t type) {
         case TT_KW_FOR: return "TT_KW_FOR";
         case TT_KW_IN: return "TT_KW_IN";
         case TT_KW_RETURN: return "TT_KW_RETURN";
+        case TT_KW_BREAK: return "TT_KW_BREAK";
         case TT_KW_FUN_DEF: return "TT_KW_FUN_DEF";
         case TT_CMP_EQ: return "TT_CMP_EQ";
         case TT_CMP_GT_EQ: return "TT_CMP_GT_EQ";

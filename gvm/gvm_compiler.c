@@ -277,15 +277,16 @@ void codegen_funcall(ast_funcall_t node, compiler_state_t* state) {
 
 void codegen_assignment(ast_assign_t node, compiler_state_t* state) {
     codegen(node.right_value, state);
-    assert(state->localvars.count > 0 && "local vars was empty");
     srcref_t varname = { 0 };
     // depending on declared variable or just
     // a reference to already existing
     // we do slightly differen things.
     if( node.left_var->type == AST_VAR_DECL ) {
         codegen(node.left_var, state); // add var to known locals
+        assert(state->localvars.count > 0 && "local vars was empty");
         varname = node.left_var->u.n_vardecl.name;
     } else if ( node.left_var->type == AST_VAR_REF ) {
+        assert(state->localvars.count > 0 && "local vars was empty");
         varname = node.left_var->u.n_varref.name;
     } else {
         assert(false && "expected variable node as LSH in assignment");
@@ -509,13 +510,17 @@ gvm_program_t gvm_compile(ast_node_t* node) {
 
     codegen(node, &state);
 
+    gvm_program_t program = { 0 };
+
     ir_index_t index = state_get_funcaddr(&state, srcref_const("main"));
-    assert(index.tag == IRID_INS && "main entrypoint not found");
-    irl_get(&state.instrs, entrypoint)->args[0] = index.idx;
-
-    // irl_dump(&state.instrs);
-
-    gvm_program_t program = write_program(&state.instrs, &state.consts);
+    if(index.tag == IRID_INS) {
+        //assert(index.tag == IRID_INS && "main entrypoint not found");
+        irl_get(&state.instrs, entrypoint)->args[0] = index.idx;
+        // irl_dump(&state.instrs);
+        program = write_program(&state.instrs, &state.consts);
+    } else {
+        printf("error: no main() function found in program");
+    }
     
     valbuffer_destroy(&state.consts);
     irl_destroy(&state.instrs);

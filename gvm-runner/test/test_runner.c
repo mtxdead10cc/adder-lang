@@ -518,14 +518,36 @@ void test_tokenizer(test_case_t* this) {
 void test_parser(test_case_t* this) {
     parser_t parser;
     //char* text = "num x = func_name(1,2,(1*2)+3,\"hej\",false);";
-    char* text = "if( x == 10 ) { for(num y in [1,2,3,4]) { print(x + y); } }";
+    char* text = "fun main() -> num {\n"
+                 "  num q = 0;\n"
+                 "  for(num y in [1,2,3,4,5]) {\n"
+                 "      q = q + (y * 5);\n"
+                 "  }\n"
+                 "  return q;\n"
+                 "}\n";
     if( pa_init(&parser, text, strlen(text), "test/test.txt") == false ) {
         cres_fprint(stdout, &parser.result);
     } else {
         pa_consume(&parser, TT_INITIAL);
-        pa_result_t result = pa_parse_statement(&parser);
+        pa_result_t result = pa_try_parse_fundecl(&parser);
+        pa_consume(&parser, TT_FINAL);
         if( par_is_node(result) ) {
-            ast_dump(par_extract_node(result));
+            ast_node_t* node = par_extract_node(result);
+            ast_dump(node);
+            gvm_program_t p = gvm_compile(node);
+            if( p.inst.size > 0 ) {
+                printf("Compile [OK]\n");
+                gvm_t vm;
+                gvm_create(&vm, 50, 50);
+                gvm_exec_args_t args = {
+                    .args = { 0 },
+                    .cycle_limit = 100
+                };
+                val_t res = gvm_execute(&vm, &p, &args);
+                val_print(res);
+            } else {
+                printf("Compile [ERR]\n");
+            }
         } else if(par_is_error(result)) {
             cres_fprint(stdout, (cres_t*) result.data);
         } else {

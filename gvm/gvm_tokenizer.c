@@ -123,14 +123,16 @@ srcmap_t create_keyword_token_map() {
     srcmap_insert(&map, srcref_const("if"),     sm_val(TT_KW_IF));
     srcmap_insert(&map, srcref_const("else"),   sm_val(TT_KW_ELSE));
     srcmap_insert(&map, srcref_const("for"),    sm_val(TT_KW_FOR));
-    srcmap_insert(&map, srcref_const("in"),    sm_val(TT_KW_IN));
+    srcmap_insert(&map, srcref_const("in"),     sm_val(TT_KW_IN));
     srcmap_insert(&map, srcref_const("fun"),    sm_val(TT_KW_FUN_DEF));
+    srcmap_insert(&map, srcref_const("return"), sm_val(TT_KW_RETURN));
+    srcmap_insert(&map, srcref_const("break"),  sm_val(TT_KW_BREAK));
     srcmap_insert(&map, srcref_const("true"),   sm_val(TT_BOOLEAN));
     srcmap_insert(&map, srcref_const("false"),  sm_val(TT_BOOLEAN));
     srcmap_insert(&map, srcref_const("not"),    sm_val(TT_UNOP_NOT));
     srcmap_insert(&map, srcref_const("and"),    sm_val(TT_BINOP_AND));
     srcmap_insert(&map, srcref_const("or"),     sm_val(TT_BINOP_OR));
-
+    
     return map;
 }
 

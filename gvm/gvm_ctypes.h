@@ -46,6 +46,7 @@ typedef enum token_type_t {
     TT_KW_FOR,
     TT_KW_IN,
     TT_KW_RETURN,
+    TT_KW_BREAK,
     TT_KW_FUN_DEF,
     TT_CMP_EQ,
     TT_CMP_GT_EQ,

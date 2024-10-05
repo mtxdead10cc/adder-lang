@@ -60,13 +60,22 @@ bool pa_is_at_end(parser_t* parser) {
 
 bool pa_advance(parser_t* parser) {
     if( pa_is_at_end(parser) == false ) {
+
         parser->cursor ++;
-        //printf(">> advancing to %s ", token_get_type_name(pa_current_token(parser).type));
-        //srcref_print(pa_current_token(parser).ref);
-        //printf("\n");
+
+#if PA_DEBUG > 1
+        printf(">> advancing to %s ", token_get_type_name(pa_current_token(parser).type));
+        srcref_print(pa_current_token(parser).ref);
+        printf("\n");
+#endif
+
         return true;
     }
-    //printf(">> parser is at end\n");
+
+#if PA_DEBUG > 1
+    printf(">> parser is at end\n");
+#endif
+
     return false;
 }
 
@@ -404,6 +413,21 @@ pa_result_t pa_parse_expression(parser_t* parser) {
     }
 }
 
+// todo: types should perhaps not be encoded
+// in the ast this way since it makes it hard
+// to handle user defined types.
+
+ast_value_type_t pa_value_type(srcref_t ref) {
+    ast_value_type_t vtype = AST_VALUE_TYPE_NONE;
+    if( srcref_equals_string(ref, "num") )
+        vtype = AST_VALUE_TYPE_NUMBER;
+    else if( srcref_equals_string(ref, "bol") )
+        vtype = AST_VALUE_TYPE_BOOL;
+    else if( srcref_equals_string(ref, "str") )
+        vtype = AST_VALUE_TYPE_STRING;
+    return vtype;
+}
+
 pa_result_t pa_parse_vardecl(parser_t* parser) {
     token_t typename = pa_current_token(parser);
     token_t varname = pa_peek_token(parser, 1);
@@ -418,19 +442,8 @@ pa_result_t pa_parse_vardecl(parser_t* parser) {
 
     assert( par_is_nothing(result) );
 
-    // todo: types should perhaps not be encoded
-    // in the ast this way since it makes it hard
-    // to handle user defined types.
-
-    ast_value_type_t vtype = AST_VALUE_TYPE_NONE;
-    if( srcref_equals_string(typename.ref, "num") )
-        vtype = AST_VALUE_TYPE_NUMBER;
-    else if( srcref_equals_string(typename.ref, "bol") )
-        vtype = AST_VALUE_TYPE_BOOL;
-    else if( srcref_equals_string(typename.ref, "str") )
-        vtype = AST_VALUE_TYPE_STRING;
-
-    return par_node(ast_vardecl(varname.ref, vtype));
+    return par_node(ast_vardecl(varname.ref,
+                        pa_value_type(typename.ref)));
 }
 
 pa_result_t pa_try_parse_assignment(parser_t* parser) {
@@ -448,6 +461,7 @@ pa_result_t pa_try_parse_assignment(parser_t* parser) {
         return par_node(ast_assign(
                 ast_varref(varname.ref),
                 par_extract_node(rhs)));
+
     } else if( pa_peek_token(parser, 2).type == TT_ASSIGN ) {
         pa_result_t decl = pa_parse_vardecl(parser);
         if( par_is_error(decl) )
@@ -488,9 +502,10 @@ pa_result_t pa_parse_body(parser_t* parser) {
 
         ast_block_add(body_block, par_extract_node(stmt_res));
         
-    } while( pa_advance_if(parser, TT_STATEMENT_END) );
+    } while( pa_is_at_end(parser) == false );
 
     result = pa_consume(parser, TT_CLOSE_CURLY);
+
     if( par_is_error(result) )
         return result;
     
@@ -524,7 +539,6 @@ pa_result_t pa_try_parse_if_stmt(parser_t* parser) {
 
     return par_node(ast_if(condition, par_extract_node(result)));
 }
-
 
 pa_result_t pa_try_parse_for_stmt(parser_t* parser) {
     if( pa_advance_if(parser, TT_KW_FOR) == false )
@@ -569,6 +583,25 @@ pa_result_t pa_try_parse_for_stmt(parser_t* parser) {
     return par_node(ast_foreach(vardecl, collection, body));
 }
 
+pa_result_t pa_try_parse_body_break(parser_t* parser) {
+    if( pa_advance_if(parser, TT_KW_BREAK) )
+        return par_node(ast_break());
+    return par_nothing();
+}
+
+pa_result_t pa_try_parse_body_return(parser_t* parser) {
+    if( pa_advance_if(parser, TT_KW_RETURN) ) {
+        pa_result_t result = pa_parse_expression(parser);
+        if( par_is_error(result) )
+            return result;
+        if( par_is_nothing(result) )
+            return par_node(ast_return(ast_block())); // empty block for "nothing"
+        else
+            return par_node(ast_return(par_extract_node(result)));
+    }
+    return par_nothing();
+}
+
 pa_result_t pa_parse_statement(parser_t* parser) {
 
     pa_result_t result = pa_try_parse_assignment(parser);
@@ -584,9 +617,14 @@ pa_result_t pa_parse_statement(parser_t* parser) {
     if( par_is_nothing(result) )
         result = pa_try_parse_func_call(parser);
 
-    if( par_is_error(result) ) {
+    if( par_is_nothing(result) )
+        result = pa_try_parse_body_return(parser);
+
+    if( par_is_nothing(result) )
+        result = pa_try_parse_body_break(parser);
+
+    if( par_is_error(result) )
         return result;
-    }
 
     if( par_is_node(result) == false ) {
         if( cres_set_error(&parser->result, R_ERR_STATEMENT) ) {
@@ -598,5 +636,68 @@ pa_result_t pa_parse_statement(parser_t* parser) {
         return par_error(&parser->result);
     }
 
+    // optional end-of-statement (for now)
+    pa_advance_if(parser, TT_STATEMENT_END);
+
     return result;
+}
+
+pa_result_t pa_try_parse_fundecl(parser_t* parser) {
+
+    // todo: maybe break out function signature
+    // (first row eg. "fun lol(num a, num b) -> num")
+    // into a separate ast node. Might be useful
+    // when implementing "#extern" for registering
+    // native functions 
+
+    if( pa_advance_if(parser, TT_KW_FUN_DEF) == false )
+        return par_nothing();
+
+    token_t funname = pa_current_token(parser);
+    
+    pa_result_t result = pa_consume(parser, TT_SYMBOL);
+    if( par_is_error(result) )
+        return result;
+    
+    result = pa_consume(parser, TT_OPEN_PAREN);
+    if( par_is_error(result) )
+        return result;
+
+    ast_node_t* argspec = ast_block();
+
+    do {
+        if( pa_current_token(parser).type == TT_CLOSE_PAREN )
+            break;
+
+        pa_result_t vardecl = pa_parse_vardecl(parser);
+        if( par_is_node(vardecl) == false ) {
+            ast_free(argspec);
+            return vardecl;
+        }
+
+        ast_block_add(argspec, par_extract_node(vardecl));
+        
+    } while( pa_advance_if(parser, TT_SEPARATOR) );
+
+    result = pa_consume(parser, TT_CLOSE_PAREN);
+    if( par_is_error(result) )
+        return result;
+
+    result = pa_consume(parser, TT_ARROW);
+    if( par_is_error(result) )
+        return result;
+
+    token_t returntype = pa_current_token(parser);
+    result = pa_consume(parser, TT_SYMBOL);
+    if( par_is_error(result) )
+        return result;
+
+    result = pa_parse_body(parser);
+    if( par_is_error(result) )
+        return result;
+
+    return par_node(ast_fundecl( funname.ref,
+                                 pa_value_type(returntype.ref),
+                                 argspec,
+                                 par_extract_node(result) ));
 }
