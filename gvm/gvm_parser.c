@@ -701,3 +701,36 @@ pa_result_t pa_try_parse_fundecl(parser_t* parser) {
                                  argspec,
                                  par_extract_node(result) ));
 }
+
+pa_result_t pa_parse_program(parser_t* parser) {
+
+    pa_result_t consume_result = pa_consume(parser, TT_INITIAL);
+    if( par_is_error(consume_result) )
+        return consume_result;
+
+    pa_result_t program_result;
+    ast_node_t* program = ast_block();
+    do {
+        program_result = pa_try_parse_fundecl(parser);
+        if( par_is_node(program_result) ) {
+            ast_block_add(program,
+                par_extract_node(program_result));
+        } else {
+            break;
+        }
+    } while( pa_is_at_end(parser) == false );
+
+    consume_result = pa_consume(parser, TT_FINAL);
+
+    if( par_is_error(program_result) ) {
+        ast_free(program);
+        return program_result;
+    }
+
+    if( par_is_error(consume_result) ) {
+        ast_free(program);
+        return consume_result;
+    }
+
+    return par_node(program);
+}
