@@ -4,7 +4,7 @@
 #include "gvm_types.h"
 
 gvm_program_t gvm_program_read_and_compile(char* path);
-gvm_program_t gvm_program_compile_source(char* program_code);
+gvm_program_t gvm_program_compile_source(char* source, size_t source_len, char* filepath);
 void gvm_program_destroy(gvm_program_t* prog);
 void gvm_program_disassemble(gvm_program_t* prog);
 

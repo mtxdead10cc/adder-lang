@@ -445,17 +445,17 @@ bool srcref_as_bool(srcref_t ref, bool* value) {
 }
 
 int srcref_snprint(char* str, size_t slen, srcref_t ref) {
-    return snprintf(str, slen, "%.*s", srcref_len(ref), srcref_ptr(ref));
+    return snprintf(str, slen, "%.*s", (int) srcref_len(ref), srcref_ptr(ref));
 }
 
 int srcref_fprint(FILE* stream, srcref_t ref) {
-    return fprintf(stream, "%.*s", srcref_len(ref), srcref_ptr(ref));
+    return fprintf(stream, "%.*s", (int) srcref_len(ref), srcref_ptr(ref));
 }
 
 char* srcref_tmpstr(srcref_t ref) {
     static char tmp_buffer[256] = { 0 };
     size_t len = srcref_len(ref);
     assert(len < 256 && "ref points to string that is lager than the tmp buffer.");
-    snprintf(tmp_buffer, 255, "%.*s", srcref_len(ref), srcref_ptr(ref));
+    snprintf(tmp_buffer, 255, "%.*s", (int) srcref_len(ref), srcref_ptr(ref));
     return tmp_buffer;
 }

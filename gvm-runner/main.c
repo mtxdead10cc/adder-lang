@@ -53,7 +53,7 @@ bool run(char* path, bool verbose, bool keep_alive) {
         last_creation_time = creation_time;
         gvm_program_t program = gvm_program_read_and_compile(path);
         compile_ok = program.inst.size > 0;
-        printf("%s [%s]\n\n", path, compile_ok ? "OK" : "FAILED");
+        printf("%s [%s]\n", path, compile_ok ? "OK" : "FAILED");
         
         if( compile_ok ) {
 
@@ -72,7 +72,7 @@ bool run(char* path, bool verbose, bool keep_alive) {
             args.cycle_limit = 500;
             val_t result = gvm_execute(&vm, &program, &args);
 
-            printf("\n> ");
+            printf("> ");
             gvm_print_val(&vm, result);
             printf("\n");
 
@@ -87,11 +87,11 @@ bool run(char* path, bool verbose, bool keep_alive) {
 
 int main(int argv, char** argc) {
 
-    char* path = DEFAULT_PATH;
+    char* path = NULL;
     bool verbose = false;
     bool print_help = false;
     bool keep_alive = false;
-    bool run_tests = true;
+    bool run_tests = false;
     int path_arg = -1;
     
     for(int i = 0; i < argv; i++) {
@@ -104,25 +104,25 @@ int main(int argv, char** argc) {
             continue;
         } else if( ext_pos <= 0 ) {
             continue;
-        } else if( strncmp(((argc[i]) + ext_pos), ".gvm", 4) == 0 ) {
+        } else if( strncmp(((argc[i]) + ext_pos), ".adr", 4) == 0 ) {
             path_arg = i;
         }
     }
 
-    if( path_arg < 0 ) {
-        path = DEFAULT_PATH;
-    } else {
+    if( path_arg >= 0 ) {
         path = argc[path_arg];
     }
 
-    if( run_tests ) {
+    if( path != NULL ) {
+        bool compile_ok = run(path, verbose, keep_alive);
+        print_help = print_help || (compile_ok == false && keep_alive == false);
+    }
+
+    if( run_tests || path == NULL ) {
         printf("RUNNING TESTS\n");
         test_results_t result = run_testcases();
         int total = result.nfailed + result.npassed;
         printf("[%i / %i TESTS PASSED]\n", result.npassed, total);
-    } else {
-        bool compile_ok = run(path, verbose, keep_alive);
-        print_help = print_help || (compile_ok == false && keep_alive == false);
     }
 
     if( print_help ) {

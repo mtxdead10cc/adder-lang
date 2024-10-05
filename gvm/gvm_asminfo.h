@@ -33,6 +33,8 @@ static op_info_t opinfo[OP_OPCODE_COUNT] = {
     { "CMP_EQUAL",        0, { OP_ARG_NONE, OP_ARG_NONE }          },
     { "CMP_LESS_THAN",    0, { OP_ARG_NONE, OP_ARG_NONE }          },
     { "CMP_MORE_THAN",    0, { OP_ARG_NONE, OP_ARG_NONE }          },
+    { "CMP_LESS_THAN_OR_EQUAL",    0, { OP_ARG_NONE, OP_ARG_NONE }          },
+    { "CMP_MORE_THAN_OR_EQUAL",    0, { OP_ARG_NONE, OP_ARG_NONE }          },
     { "PUSH_VALUE",       1, { OP_ARG_CONSTANT, OP_ARG_NONE  }     },
     { "POP_1",            0, { OP_ARG_NONE, OP_ARG_NONE }          },
     { "POP_2",            0, { OP_ARG_NONE, OP_ARG_NONE }          },

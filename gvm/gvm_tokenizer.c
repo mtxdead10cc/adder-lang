@@ -94,7 +94,7 @@ token_t sweep_make_token(
 {
     size_t start = state->cursor;
     size_t len = sweep_while(state, offset, while_true);
-    assert(len > 0 && "unexpected sweep_while progress");
+    // assert(len >= 0 && "unexpected sweep_while progress"); empty strings
     len = len + offset + trailing;
     state->cursor = start + len;
     return (token_t) {

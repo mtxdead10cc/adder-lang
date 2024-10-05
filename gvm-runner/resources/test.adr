@@ -1,6 +1,21 @@
-// ----------------
-fun main() -> num {
-    return 2;
+fun main() -> str {
+    
+    num a = 10;
+    if(a <= 10) {
+        return "smööl";
+    }
+    
+    num val = 10;
+
+    for(num n in [100, 101]) {
+        if( n == 101 ) {
+            val = n;
+        }
+    }
+
+    if( val == 101 ) {
+        return "läärge";
+    }
+
+    return "whut?";
 }
-
-

@@ -7,6 +7,8 @@
 #include "gvm_memory.h"
 #include "gvm_heap.h"
 #include "gvm_validate.h"
+#include "gvm_parser.h"
+#include "gvm_compiler.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -163,7 +165,7 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
 
         VALIDATE_PRE(vm, opcode);
 
-        assert(OP_OPCODE_COUNT == 32 && "Opcode count changed.");
+        assert(OP_OPCODE_COUNT == 34 && "Opcode count changed.");
 
         switch (opcode) {
             case OP_PUSH_VALUE: {
@@ -202,12 +204,23 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
                 float b = val_into_number(stack[vm_mem->stack.top--]);
                 stack[++vm_mem->stack.top] = val_bool( a < b );
             } break;
+            case OP_CMP_LESS_THAN_OR_EQUAL: {
+                float a = val_into_number(stack[vm_mem->stack.top--]);
+                float b = val_into_number(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = val_bool( a <= b );
+            } break;
             case OP_CMP_MORE_THAN: {
                 float a = val_into_number(stack[vm_mem->stack.top--]);
                 float b = val_into_number(stack[vm_mem->stack.top--]);
                 stack[++vm_mem->stack.top] = val_bool( a > b );
             } break;
+            case OP_CMP_MORE_THAN_OR_EQUAL: {
+                float a = val_into_number(stack[vm_mem->stack.top--]);
+                float b = val_into_number(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = val_bool( a >= b );
+            } break;
             case OP_CMP_EQUAL: {
+                // todo: other types than numbers
                 const float epsilon = 0.0001f;
                 float a = val_into_number(stack[vm_mem->stack.top--]);
                 float b = val_into_number(stack[vm_mem->stack.top--]);
@@ -453,9 +466,32 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
     return val_number(-1004);
 }
 
-gvm_program_t gvm_program_compile_source(char* program_code) {
-    (void)(program_code);
-    return (gvm_program_t) { 0 };
+gvm_program_t gvm_program_compile_source(char* source, size_t source_len, char* filepath) {
+
+    parser_t parser = { 0 };
+    if(pa_init(&parser, source, source_len, filepath) == false) {
+        printf("error: failed to initialize parser\n");
+        pa_destroy(&parser);
+        return (gvm_program_t) { 0 };
+    }
+
+    pa_result_t result = pa_parse_program(&parser);
+    if( par_is_error(result) ) {
+        cres_fprint(stdout, (cres_t*) par_extract_error(result));
+        pa_destroy(&parser);
+        return (gvm_program_t) { 0 };
+    }
+    if( par_is_nothing(result) ) {
+        printf("error: empty program.\n");
+        pa_destroy(&parser);
+        return (gvm_program_t) { 0 };
+    }
+
+    ast_node_t* program_node = par_extract_node(result);
+    gvm_program_t program = gvm_compile(program_node);
+    ast_free(program_node);
+    pa_destroy(&parser);
+    return program;
 }
 
 void gvm_program_disassemble(gvm_program_t* program) {
@@ -516,16 +552,16 @@ gvm_program_t gvm_program_read_and_compile(char* path) {
         return (gvm_program_t) { 0 };
     }
 
-    char *asm_code = malloc(1);
+    char *source_text = malloc(1);
     int retry_counter = 100; 
     while( retry_counter > 0 ) {
         fseek(f, 0, SEEK_END);
         long fsize = ftell(f);
         fseek(f, 0, SEEK_SET);
-        asm_code = realloc(asm_code, fsize + 1);
-        if( fread(asm_code, fsize, 1, f) > 0 ) {
+        source_text = realloc(source_text, fsize + 1);
+        if( fread(source_text, fsize, 1, f) > 0 ) {
             retry_counter = -10;
-            asm_code[fsize] = '\0';
+            source_text[fsize] = '\0';
         } else {
             usleep(100000);
             retry_counter --;
@@ -538,8 +574,12 @@ gvm_program_t gvm_program_read_and_compile(char* path) {
         printf("error: failed to read file: %s\n", path);
     }
 
-    gvm_program_t obj = gvm_program_compile_source(asm_code);
-    free(asm_code);
+    gvm_program_t program = gvm_program_compile_source(
+        source_text,
+        strlen(source_text),
+        path);
 
-    return obj;
+    free(source_text);
+
+    return program;
 }

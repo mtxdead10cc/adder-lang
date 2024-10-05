@@ -79,6 +79,11 @@ inline static ast_node_t* par_extract_node(pa_result_t res) {
     return (ast_node_t*) res.data;
 }
 
+inline static cres_t* par_extract_error(pa_result_t res) {
+    assert(res.type == PAR_BUILD_ERROR);
+    return (cres_t*) res.data;
+}
+
 pa_result_t pa_parse_program(parser_t* parser);
 
 #endif // GVM_PARSER_H_

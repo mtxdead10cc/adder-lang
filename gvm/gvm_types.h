@@ -67,6 +67,8 @@ typedef enum gvm_op_t {
     OP_CMP_EQUAL,
     OP_CMP_LESS_THAN,
     OP_CMP_MORE_THAN,
+    OP_CMP_LESS_THAN_OR_EQUAL,
+    OP_CMP_MORE_THAN_OR_EQUAL,
     OP_PUSH_VALUE,
     OP_POP_1,
     OP_POP_2,

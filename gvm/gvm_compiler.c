@@ -190,6 +190,18 @@ void codegen_binop(ast_binop_t node, compiler_state_t* state) {
                 .args = { 0 }
             });
         } break;
+         case AST_BIN_LT_EQ: {
+            irl_add(&state->instrs, (ir_inst_t){
+                .opcode = OP_CMP_LESS_THAN_OR_EQUAL,
+                .args = { 0 }
+            });
+        } break;
+        case AST_BIN_GT_EQ: {
+            irl_add(&state->instrs, (ir_inst_t){
+                .opcode = OP_CMP_MORE_THAN_OR_EQUAL,
+                .args = { 0 }
+            });
+        } break;
         default: {
             printf("Unhandled binary operation: %s\n",
                 ast_binop_type_as_string(node.type));
