@@ -225,6 +225,21 @@ void codegen_unop(ast_unop_t node, compiler_state_t* state) {
     }
 }
 
+/* How I think it should be ...
+    type  ::= int
+            | float
+            | bool 
+            | char 
+            | string 
+            | array<type> 
+            | user-type 
+            | none
+    int, float, bool, char are all just <number>
+    string is actually array<char>
+    any array is actually <reference(startaddress, length)>
+    user-type is some sort of reference
+*/
+
 void codegen_value(ast_value_t node, compiler_state_t* state) {
     uint32_t const_index;
     switch(node.type) {
