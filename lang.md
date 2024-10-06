@@ -3,8 +3,8 @@
 ## Syntax
 
 ```
-fun hello(num arg1, num arg2) -> none {
-    num a = add(arg1, arg2);
+fun hello(arg1:num, arg2:num) -> none {
+    a:num = add(arg1, arg2);
     if( a <= 10 ) {
         print("a:", a, "\n");
     } else {

@@ -84,6 +84,7 @@ typedef enum ast_node_type_t {
     AST_ASSIGN,
     AST_VAR_DECL,
     AST_VAR_REF,
+    AST_FUN_SIGN,
     AST_FUN_DECL,
     AST_FUN_CALL,
     AST_RETURN,
@@ -226,9 +227,13 @@ typedef struct ast_unop_t {
     ast_node_t*      inner;
 } ast_unop_t;
 
-typedef struct ast_fundecl_t {
+typedef struct ast_funsign_t {
     ast_value_type_t rettype;
-    srcref_t    name;    
+    srcref_t         name; 
+} ast_funsign_t;
+
+typedef struct ast_fundecl_t {
+    ast_node_t* funsign;    // function signature  
     ast_node_t* args;       // block, single instruction or null
     ast_node_t* body;       // block, single instruction or null
 } ast_fundecl_t;
@@ -258,6 +263,7 @@ typedef struct ast_node_t {
         ast_if_t        n_if;
         ast_ifelse_t    n_ifelse;
         ast_fundecl_t   n_fundecl;
+        ast_funsign_t   n_funsign;
         ast_binop_t     n_binop;
         ast_unop_t      n_unop;
         ast_assign_t    n_assign;

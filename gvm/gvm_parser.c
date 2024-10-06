@@ -642,22 +642,33 @@ pa_result_t pa_parse_statement(parser_t* parser) {
     return result;
 }
 
-pa_result_t pa_try_parse_fundecl(parser_t* parser) {
-
-    // todo: maybe break out function signature
-    // (first row eg. "fun lol(num a, num b) -> num")
-    // into a separate ast node. Might be useful
-    // when implementing "#extern" for registering
-    // native functions 
-
-    if( pa_advance_if(parser, TT_KW_FUN_DEF) == false )
-        return par_nothing();
-
-    token_t funname = pa_current_token(parser);
-    
+pa_result_t pa_parse_funsign(parser_t* parser) {
+    token_t rettype = pa_current_token(parser);
     pa_result_t result = pa_consume(parser, TT_SYMBOL);
     if( par_is_error(result) )
         return result;
+
+    token_t funname = pa_current_token(parser);
+    result = pa_consume(parser, TT_SYMBOL);
+    if( par_is_error(result) )
+        return result;
+    
+    return par_node(ast_funsign(funname.ref,
+        pa_value_type(rettype.ref)));
+}
+
+pa_result_t pa_try_parse_fundecl(parser_t* parser) {
+
+    if( pa_peek_token(parser, 0).type != TT_SYMBOL
+     || pa_peek_token(parser, 1).type != TT_SYMBOL
+     || pa_peek_token(parser, 2).type != TT_OPEN_PAREN )
+        return par_nothing();
+
+    pa_result_t result = pa_parse_funsign(parser);
+    if( par_is_error(result) )
+        return result;
+
+    ast_node_t* funsign = par_extract_node(result);
     
     result = pa_consume(parser, TT_OPEN_PAREN);
     if( par_is_error(result) )
@@ -683,21 +694,11 @@ pa_result_t pa_try_parse_fundecl(parser_t* parser) {
     if( par_is_error(result) )
         return result;
 
-    result = pa_consume(parser, TT_ARROW);
-    if( par_is_error(result) )
-        return result;
-
-    token_t returntype = pa_current_token(parser);
-    result = pa_consume(parser, TT_SYMBOL);
-    if( par_is_error(result) )
-        return result;
-
     result = pa_parse_body(parser);
     if( par_is_error(result) )
         return result;
 
-    return par_node(ast_fundecl( funname.ref,
-                                 pa_value_type(returntype.ref),
+    return par_node(ast_fundecl( funsign,
                                  argspec,
                                  par_extract_node(result) ));
 }

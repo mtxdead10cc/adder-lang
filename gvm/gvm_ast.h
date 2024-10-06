@@ -10,6 +10,8 @@
 #include "gvm_utils.h"
 #include "gvm_ctypes.h"
 
+// TODO: replace malloc / free ast node with areana allocator
+
 inline static ast_node_t* ast_number(float val) {
     ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
     node->type = AST_VALUE,
@@ -116,16 +118,29 @@ inline static ast_node_t* ast_break() {
     return node;
 }
 
-inline static ast_node_t* ast_fundecl( srcref_t name,
-                                       ast_value_type_t return_type,
+inline static ast_node_t* ast_funsign( srcref_t name,
+                                       ast_value_type_t return_type ) 
+{
+    ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
+    node->type = AST_FUN_SIGN,
+    node->u.n_funsign = (ast_funsign_t) {
+        .name = name,
+        .rettype = return_type
+    };
+    return node;
+}
+
+inline static ast_node_t* ast_fundecl( ast_node_t* funsign,
                                        ast_node_t* args,
                                        ast_node_t* body ) 
 {
+    assert(funsign->type == AST_FUN_SIGN);
+    assert(args->type == AST_BLOCK);
+    assert(body->type == AST_BLOCK);
     ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
     node->type = AST_FUN_DECL,
     node->u.n_fundecl = (ast_fundecl_t) {
-        .name = name,
-        .rettype = return_type,
+        .funsign = funsign,
         .args = args,
         .body = body
     };
@@ -269,12 +284,14 @@ inline static void ast_free(ast_node_t* node) {
             ast_free(node->u.n_foreach.during);
         } break;
         case AST_FUN_DECL: {
+            ast_free(node->u.n_fundecl.funsign);
             ast_free(node->u.n_fundecl.args);
             ast_free(node->u.n_fundecl.body);
         } break;
         case AST_FUN_CALL: {
             ast_free(node->u.n_funcall.args);
         } break;
+        case AST_FUN_SIGN:
         case AST_VAR_REF:
         case AST_VALUE:
         case AST_VAR_DECL:
@@ -434,10 +451,14 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
             _ast_nl(indent + 1);
             _ast_dump(node->u.n_foreach.during, indent);
         } break;
+        case AST_FUN_SIGN: {
+            srcref_print(node->u.n_funsign.name);
+            printf(" ");
+            printf("%s", ast_value_type_as_string(node->u.n_funsign.rettype)); 
+        } break;
         case AST_FUN_DECL: {
             _ast_nl(indent + 1);
-            printf(" name: "); srcref_print(node->u.n_fundecl.name);                                _ast_nl(indent + 1);
-            printf(" type: "); printf("%s", ast_value_type_as_string(node->u.n_fundecl.rettype));   _ast_nl(indent + 1);
+            printf(" name: "); _ast_dump(node->u.n_fundecl.funsign, indent + 2);                    _ast_nl(indent + 1);
             printf(" args: "); _ast_dump(node->u.n_fundecl.args, indent + 2);                       _ast_nl(indent + 1);
             printf(" body: "); _ast_dump(node->u.n_fundecl.body, indent + 2);                       _ast_nl(indent);
         } break;

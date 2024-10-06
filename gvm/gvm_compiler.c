@@ -257,6 +257,7 @@ void codegen_value(ast_value_t node, compiler_state_t* state) {
     });
 }
 
+
 void codegen_fundecl(ast_fundecl_t node, compiler_state_t* state) {
     assert(node.args->type == AST_BLOCK);
     assert(state->localvars.count == 0 && "Function declared inside function?");
@@ -264,7 +265,14 @@ void codegen_fundecl(ast_fundecl_t node, compiler_state_t* state) {
         .opcode = OP_MAKE_FRAME,
         .args = { 0 }
     });
-    bool ok = state_add_funcaddr(state, node.name, frame_index);
+
+    // extract name from funsign.
+    // the reason for funsign being separate is that
+    // it might be used for other things such as 
+    // #extern requirements in the future.
+    srcref_t funcname = node.funsign->u.n_funsign.name;
+
+    bool ok = state_add_funcaddr(state, funcname, frame_index);
     assert(ok == true);
     srcmap_clear(&state->localvars);
     codegen(node.args, state); // in order to "add" arg names
@@ -427,6 +435,10 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
         } break;
         case AST_BREAK: {
             assert(false && "break op is not implemented yet");
+        } break;
+        case AST_FUN_SIGN: {
+            assert(false && "function signature is not implemented");
+            // noth sure if this will ever have an implementation
         } break;
     }
 }

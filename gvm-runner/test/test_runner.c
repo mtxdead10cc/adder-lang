@@ -304,10 +304,10 @@ void test_ast(test_case_t* this) {
     ast_block_add(body,
         ast_return(ast_varref(srcref(buf, 6, 3))));
 
-    ast_node_t* fun = ast_fundecl(
-        srcref(buf, 0, 4),
-        AST_VALUE_TYPE_NUMBER,
-        decl_args, body);
+    ast_node_t* funsign = ast_funsign(srcref(buf, 0, 4),
+        AST_VALUE_TYPE_NUMBER);
+
+    ast_node_t* fun = ast_fundecl(funsign, decl_args, body);
 
     //ast_dump(fun);
 
@@ -517,7 +517,7 @@ void test_parser(test_case_t* this) {
     parser_t parser;
 
     char* text = 
-    "fun main() -> num {\n"
+    "num main() {\n"
     "  num q = 0;\n"
     "  for(num y in [1,2,3,4,5]) {\n"
     "      q = q + (y * 5);\n"
