@@ -3,8 +3,8 @@
 ## Syntax
 
 ```
-fun hello(arg1:num, arg2:num) -> none {
-    a:num = add(arg1, arg2);
+void hello(float arg1, float arg2) {
+    float a = add(arg1, arg2);
     if( a <= 10 ) {
         print("a:", a, "\n");
     } else {
@@ -12,26 +12,44 @@ fun hello(arg1:num, arg2:num) -> none {
     }
 }
 
-fun main() -> none {
-    arr<num> list = [1,2,3,4,5];
+void main() {
+    arr<int> list = [1,2,3,4,5];
     for(num item in list) {
-        hello(item, 5);
+        hello(float(item), float(5));
     }
 }
 ```
+
+## Types
+How I think it should be ...  
+```
+    type  ::= int
+            | float
+            | bool 
+            | char 
+            | string 
+            | array<type> 
+            | user-type 
+            | none
+```
+In the VM the following should be true:
+* int, float, bool, char are all just ```<number>```
+* string is actually ```array<char>```
+* any array is actually ```<reference(startaddress, length)>```
+* user-type is some sort of reference
 
 ## Grammar
 
 ```
 <program>           = <function-decl> { <function-decl> }
 
-<function-decl>     = "fun", <symbol>, <function-body>
+<function-decl>     = <type-name>, <symbol>, <function-body>
 
 <function-body>     = "(", [ <exp-list> ], ")" <block>
 
 <exp-list>          = <expression {"," <expression> }
 
-<block>             = "{" { <statement>, `;´ } [ <blockstop>, `;´ ] "}"
+<block>             = "{" { [ <statement>, `;´ ] } "}"
 
 <blockstop>         = "return" [<expression>] | "break"
 
@@ -40,6 +58,7 @@ fun main() -> none {
                     | "if", "(", <expression>, ")", <block> { "else", "if", <block> } ["else" <block>]
                     | "for", "(", <symbol>, "in", <symbol>, ")", <block>
                     | <func-call>
+					| <blockstop>
 
 <var-name>			= <symbol>
 
