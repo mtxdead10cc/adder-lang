@@ -124,6 +124,7 @@ typedef enum cres_code_t {
     R_ERR_TOKEN,
     R_ERR_EXPR,
     R_ERR_STATEMENT,
+    R_ERR_COMPILATION,
     R_ERR_OUT_OF_MEMORY,
     R_ERR_INTERNAL
 } cres_code_t;
@@ -132,7 +133,6 @@ typedef enum cres_code_t {
 
 typedef struct cres_t {
     cres_code_t code;
-    char*       filepath;
     srcref_t    ref;
     char        msg[CRES_MAX_MSG_LEN];
     size_t      msg_len;

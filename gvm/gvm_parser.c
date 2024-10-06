@@ -15,8 +15,6 @@
 bool pa_init(parser_t* parser, char* text, size_t text_length, char* filepath) {
 
     parser->result = (cres_t) {0};
-
-    cres_set_src_filepath(&parser->result, filepath);
     
     if( tokens_init(&parser->collection, 16) == false ) {
         cres_set_error(&parser->result, R_ERR_OUT_OF_MEMORY);

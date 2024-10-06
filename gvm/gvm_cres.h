@@ -72,6 +72,12 @@ inline static int cres_msg_add_token(cres_t* res, token_t token) {
     return cres_msg_add_costr(res, "')");
 }
 
+inline static int cres_msg_add_srcref(cres_t* res, srcref_t ref) {
+    return cres_msg_add(res,
+        srcref_ptr(ref),
+        srcref_len(ref));
+}
+
 inline static int cres_fprint_location(FILE* stream, srcref_t ref, char* filepath) {
 
     if( ref.source == NULL ) {
@@ -114,22 +120,24 @@ inline static int cres_fprint_location(FILE* stream, srcref_t ref, char* filepat
 inline static int cres_fprint_prefix(FILE* stream, cres_t* res) {
     switch(res->code) {
         case R_OK:                  return 0;
-        case R_ERR_OUT_OF_MEMORY:   return fprintf(stream, "[ERROR]: OUT OF SYSTEM MEMORY ");
-        case R_ERR_INTERNAL:        return fprintf(stream, "[ERROR]: INTERNAL PANIC ");
-        case R_ERR_STATEMENT:       return fprintf(stream, "[ERROR]: INVALID STATEMENT ");
+        case R_ERR_OUT_OF_MEMORY:   return fprintf(stream, "[ERROR]: OUT OF SYSTEM MEMORY");
+        case R_ERR_INTERNAL:        return fprintf(stream, "[ERROR]: INTERNAL PANIC");
+        case R_ERR_STATEMENT:       return fprintf(stream, "[ERROR]: INVALID STATEMENT");
         default:                    return fprintf(stream, "[ERROR] ");
     }
 }
 
-inline static int cres_fprint(FILE* stream, cres_t* res) {
+inline static int cres_fprint(FILE* stream, cres_t* res, char* filepath_field) {
 
     int pres = cres_fprint_prefix(stream, res);
     if( pres < 0 )
         return pres;
 
-    pres = cres_fprint_location(stream, res->ref, res->filepath);
-    if( pres < 0 )
-        return pres;
+    if( filepath_field != NULL ) {
+        pres = cres_fprint_location(stream, res->ref, filepath_field);
+        if( pres < 0 )
+            return pres;
+    }
 
     if( res->msg_len >= CRES_MAX_MSG_LEN ) {
         return fprintf(stream, "%.*s\n", CRES_MAX_MSG_LEN, res->msg);
@@ -163,10 +171,6 @@ inline static bool cres_set_error(cres_t* res, cres_code_t code) {
 
 inline static void cres_set_src_location(cres_t* res, srcref_t ref) {
     res->ref = ref;
-}
-
-inline static void cres_set_src_filepath(cres_t* res, char* filepath) {
-    res->filepath = filepath;
 }
 
 #endif // GVM_CRES_H_

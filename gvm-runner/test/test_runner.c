@@ -13,6 +13,7 @@
 #include "termhax.h"
 #include <gvm_compiler.h>
 #include <stdarg.h>
+#include <gvm_compiler.h>
 
 typedef struct test_case_t test_case_t;
 
@@ -159,14 +160,17 @@ void test_vm(test_case_t* this) {
     // PROGRAM -- BEGIN
 
     TEST_ASSERT_MSG(this,
-        0 == valbuffer_add_number(&const_buf, 100),
+        0 == valbuffer_insert_int(&const_buf, 100).index,
         "2.1 unexpected index.");
 
     TEST_ASSERT_MSG(this,
-        1 == valbuffer_add_number(&const_buf, 3),
+        1 == valbuffer_insert_int(&const_buf, 3).index,
         "2.2 unexpected index.");
 
-    
+    TEST_ASSERT_MSG(this,
+        0 == valbuffer_insert_int(&const_buf, 100).index,
+        "2.3 unexpected index.");
+
     uint32_t value;
 
     value = 1;
@@ -211,7 +215,7 @@ void test_vm(test_case_t* this) {
     // PROGRAM -- BEGIN
 
     TEST_ASSERT_MSG(this,
-        0 == valbuffer_add_number(&const_buf, 100),
+        0 == valbuffer_insert_int(&const_buf, 100).index,
         "2.1 unexpected index.");
 
     value = 0;
@@ -311,7 +315,12 @@ void test_ast(test_case_t* this) {
 
     //ast_dump(fun);
 
-    gvm_program_t program = gvm_compile(fun);
+
+    cres_t status = { 0 };
+    gvm_program_t program = gvm_compile(fun, &status);
+    if( cres_has_error(&status) ) {
+        cres_fprint(stdout, &status, NULL);
+    }
 
     ast_free(fun);
 
@@ -525,8 +534,10 @@ void test_parser(test_case_t* this) {
     "  return q;\n"
     "}\n";
 
+    char* filepath = "test/test.txt";
+
     TEST_ASSERT_MSG(this,
-        pa_init(&parser, text, strlen(text), "test/test.txt"),
+        pa_init(&parser, text, strlen(text), filepath),
         "failed to initialize parser.");
 
     pa_result_t result = pa_parse_program(&parser);
@@ -545,8 +556,12 @@ void test_parser(test_case_t* this) {
     ast_node_t* node = par_extract_node(result);
 
     //ast_dump(node);
-    
-    gvm_program_t p = gvm_compile(node);
+
+    cres_t status = { 0 };
+    gvm_program_t p = gvm_compile(node, &status);
+    if( cres_has_error(&status) ) {
+        cres_fprint(stdout, &status, filepath);
+    }
     TEST_ASSERT_MSG(this,
         p.inst.size > 0,
         "failed to compile program.");

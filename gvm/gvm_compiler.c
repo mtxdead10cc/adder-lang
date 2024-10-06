@@ -2,6 +2,7 @@
 #include <assert.h>
 #include "gvm_asminfo.h"
 #include "gvm_srcmap.h"
+#include "gvm_cres.h"
 
 typedef struct ir_inst_t {
     gvm_op_t opcode;
@@ -89,7 +90,18 @@ typedef struct compiler_state_t {
     srcmap_t        functions;
     ir_list_t       instrs;
     valbuffer_t     consts;
+    cres_t*         status;
 } compiler_state_t;
+
+#define ABORT_ON_ERROR(STATE) do { if(cres_has_error((STATE)->status)) return; } while(false)
+
+void state_set_error_out_of_memory(compiler_state_t* state) {
+    cres_set_error(state->status, R_ERR_OUT_OF_MEMORY);
+}
+
+bool state_set_error_compilation(compiler_state_t* state) {
+    return cres_set_error(state->status, R_ERR_COMPILATION);
+}
 
 
 bool state_add_localvar(compiler_state_t* state, srcref_t name) {
@@ -139,6 +151,9 @@ ir_index_t state_get_funcaddr(compiler_state_t* state, srcref_t name) {
 void codegen(ast_node_t* node, compiler_state_t* state);
 
 void codegen_binop(ast_binop_t node, compiler_state_t* state) {
+    
+    ABORT_ON_ERROR(state);
+
     codegen(node.right, state);
     codegen(node.left, state);
     switch(node.type) {
@@ -210,6 +225,9 @@ void codegen_binop(ast_binop_t node, compiler_state_t* state) {
 }
 
 void codegen_unop(ast_unop_t node, compiler_state_t* state) {
+    
+    ABORT_ON_ERROR(state);
+
     codegen(node.inner, state);
     switch(node.type) {
         case AST_UN_NEG: {
@@ -225,55 +243,59 @@ void codegen_unop(ast_unop_t node, compiler_state_t* state) {
     }
 }
 
-/* How I think it should be ...
-    type  ::= int
-            | float
-            | bool 
-            | char 
-            | string 
-            | array<type> 
-            | user-type 
-            | none
-    int, float, bool, char are all just <number>
-    string is actually array<char>
-    any array is actually <reference(startaddress, length)>
-    user-type is some sort of reference
-*/
-
 void codegen_value(ast_value_t node, compiler_state_t* state) {
-    uint32_t const_index;
+
+    ABORT_ON_ERROR(state);
+
+    vb_result_t append_result = (vb_result_t) { 0 };
     switch(node.type) {
         case AST_VALUE_TYPE_BOOL: {
-            const_index = valbuffer_add_bool(&state->consts,
+            append_result = valbuffer_insert_bool(&state->consts,
                 node.u._bool);
         } break;
         case AST_VALUE_TYPE_NUMBER: {
-            const_index = valbuffer_add_number(&state->consts,
+            append_result = valbuffer_insert_float(&state->consts,
                 node.u._number);
         } break;
         case AST_VALUE_TYPE_STRING: {
             // Note: needs to start with a '"'
             srcref_t ref = node.u._string;
             char* ptr = srcref_ptr(ref);
-            assert(ptr[0] == '\"' && "current impl requres quoted strings.");
-            const_index = valbuffer_add_string(&state->consts, ptr);
+            if( ptr[0] != '\"' ) {
+                if( state_set_error_compilation(state) ) {
+                    cres_msg_add_srcref(state->status, ref);
+                    cres_msg_add_costr(state->status, "received unquoted string");
+                }
+                return;
+            }
+            size_t len = string_count_until(ptr, '\"');
+            val_t seq[len];
+            append_result = valbuffer_append_array(&state->consts, seq, len);
         } break;
         default: {
-            /* ignore */
-            printf("error: cant push constant reference, unsupported value type %d\n",
-                node.type);
-            assert(false && "unsupported constant value");
+            if( state_set_error_compilation(state) ) {
+                cres_msg_add_costr(state->status, "unsupported value type");
+            }
+            return;
         } break;
+    }
+
+    if( append_result.out_of_memory ) {
+        state_set_error_out_of_memory(state);
+        return;
     }
     
     irl_add(&state->instrs, (ir_inst_t){
         .opcode = OP_PUSH_VALUE,
-        .args = { const_index, 0 }
+        .args = { append_result.index, 0 }
     });
 }
 
 
 void codegen_fundecl(ast_fundecl_t node, compiler_state_t* state) {
+
+    ABORT_ON_ERROR(state);
+
     assert(node.args->type == AST_BLOCK);
     assert(state->localvars.count == 0 && "Function declared inside function?");
     ir_index_t frame_index = irl_add(&state->instrs, (ir_inst_t){
@@ -300,6 +322,9 @@ void codegen_fundecl(ast_fundecl_t node, compiler_state_t* state) {
 }
 
 void codegen_funcall(ast_funcall_t node, compiler_state_t* state) {
+
+    ABORT_ON_ERROR(state);
+
     codegen(node.args, state);
     ir_index_t ir_index = state_get_funcaddr(state, node.name);
     assert(ir_index.tag == IRID_INS && "Function not found (not declared)");
@@ -311,6 +336,9 @@ void codegen_funcall(ast_funcall_t node, compiler_state_t* state) {
 }
 
 void codegen_assignment(ast_assign_t node, compiler_state_t* state) {
+
+    ABORT_ON_ERROR(state);
+
     codegen(node.right_value, state);
     srcref_t varname = { 0 };
     // depending on declared variable or just
@@ -335,6 +363,9 @@ void codegen_assignment(ast_assign_t node, compiler_state_t* state) {
 }
 
 void codegen_foreach(ast_foreach_t node, compiler_state_t* state) {
+    
+    ABORT_ON_ERROR(state);
+
     codegen(node.collection, state);
     irl_add(&state->instrs, (ir_inst_t){
         .opcode = OP_MAKE_ITER,
@@ -361,6 +392,9 @@ void codegen_foreach(ast_foreach_t node, compiler_state_t* state) {
 }
 
 void codegen(ast_node_t* node, compiler_state_t* state) {
+
+    ABORT_ON_ERROR(state);
+
     switch(node->type) {
         case AST_BINOP: {
             codegen_binop(node->u.n_binop, state);
@@ -376,7 +410,12 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
             for(size_t i = 0; i < count; i++) {
                 codegen(node->u.n_array.content[i], state);
             }
-            uint32_t const_index = valbuffer_add_number(&state->consts, (float)count);
+            vb_result_t app_res = valbuffer_insert_int(&state->consts, (int)count);
+            if( app_res.out_of_memory ) {
+                state_set_error_out_of_memory(state);
+                return;
+            }
+            uint32_t const_index = app_res.index;
             irl_add(&state->instrs, (ir_inst_t){
                 .opcode = OP_PUSH_VALUE,
                 .args = { (uint32_t) const_index, 0 }
@@ -522,24 +561,38 @@ gvm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts) {
 }
 
 
-gvm_program_t gvm_compile(ast_node_t* node) {
+gvm_program_t gvm_compile(ast_node_t* node, cres_t* status) {
 
-    compiler_state_t state = (compiler_state_t) { 0 };
+    gvm_program_t program = { 0 };
+
+    compiler_state_t state = (compiler_state_t) {
+        .status = status
+    };
 
     if( srcmap_init(&state.functions, 16) == false ) {
-        return (gvm_program_t) {0};
+        state_set_error_out_of_memory(&state);
+        return program;
     }
     
     if( srcmap_init(&state.localvars, 16) == false ) {
-        return (gvm_program_t) {0};
+        state_set_error_out_of_memory(&state);
+        srcmap_destroy(&state.functions);
+        return program;
     }
 
     if( irl_init(&state.instrs, 16) == false ) {
-        return (gvm_program_t) {0};
+        state_set_error_out_of_memory(&state);
+        srcmap_destroy(&state.functions);
+        srcmap_destroy(&state.localvars);
+        return program;
     }
 
     if( valbuffer_create(&state.consts, 16) == false ) {
-        return (gvm_program_t) {0};
+        state_set_error_out_of_memory(&state);
+        srcmap_destroy(&state.functions);
+        srcmap_destroy(&state.localvars);
+        irl_destroy(&state.instrs);
+        return program;
     }
 
     ir_index_t entrypoint = irl_add(&state.instrs, (ir_inst_t) {
@@ -549,16 +602,17 @@ gvm_program_t gvm_compile(ast_node_t* node) {
 
     codegen(node, &state);
 
-    gvm_program_t program = { 0 };
-
-    ir_index_t index = state_get_funcaddr(&state, srcref_const("main"));
-    if(index.tag == IRID_INS) {
-        //assert(index.tag == IRID_INS && "main entrypoint not found");
-        irl_get(&state.instrs, entrypoint)->args[0] = index.idx;
-        // irl_dump(&state.instrs);
-        program = write_program(&state.instrs, &state.consts);
-    } else {
-        printf("error: no main() function found in program");
+    if( cres_has_error(state.status) == false ) {
+        ir_index_t index = state_get_funcaddr(&state, srcref_const("main"));
+        if(index.tag == IRID_INS) {
+            //assert(index.tag == IRID_INS && "main entrypoint not found");
+            irl_get(&state.instrs, entrypoint)->args[0] = index.idx;
+            // irl_dump(&state.instrs);
+            program = write_program(&state.instrs, &state.consts);
+        } else {
+            state_set_error_compilation(&state);
+            cres_msg_add_costr(state.status, "no main() function found in program");
+        }
     }
     
     valbuffer_destroy(&state.consts);

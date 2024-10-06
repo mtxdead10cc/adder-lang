@@ -32,6 +32,11 @@ typedef struct valbuffer_t {
     val_t* values;
 } valbuffer_t;
 
+typedef struct vb_result_t {
+    bool out_of_memory;
+    size_t index;
+} vb_result_t;
+
 
 bool u8buffer_create(u8buffer_t* ub, uint32_t capacity);
 void u8buffer_clear(u8buffer_t* ub);
@@ -41,29 +46,23 @@ void u8buffer_destroy(u8buffer_t* ub);
 
 bool valbuffer_create(valbuffer_t* buffer, uint32_t capacity);
 void valbuffer_clear(valbuffer_t* buffer);
-bool valbuffer_add(valbuffer_t* buffer, val_t value);
+bool valbuffer_append(valbuffer_t* buffer, val_t value);
 void valbuffer_destroy(valbuffer_t* buffer);
-
-bool valbuffer_find_float(valbuffer_t* buffer, float value, uint32_t* index);
-bool valbuffer_find_ivec2(valbuffer_t* buffer, ivec2_t value, uint32_t* index);
-bool valbuffer_find_bool(valbuffer_t* buffer, bool value, uint32_t* index);
-bool valbuffer_find_char(valbuffer_t* buffer, char value, uint32_t* index);
-bool valbuffer_find_string(valbuffer_t* buffer, char* chars, int len, uint32_t* index);
-
-int string_count_until(char* text, char stopchar);
-int string_parse_int(char* text, int string_length);
 
 #define READ_U32(D, AT) ((uint32_t)((D)[(AT) + 1] << (8*3)) |\
                          (uint32_t)((D)[(AT) + 1] << (8*2)) |\
                          (uint32_t)((D)[(AT) + 1] << (8*1)) |\
                          (uint32_t)((D)[(AT)]))
 
-uint32_t valbuffer_add_number(valbuffer_t* consts, float value);
-uint32_t valbuffer_add_bool(valbuffer_t* consts, bool value);
-uint32_t valbuffer_add_char(valbuffer_t* consts, char value, bool force_contiguous);
-uint32_t valbuffer_add_string(valbuffer_t* consts, char* text);
-uint32_t valbuffer_add_ivec2(valbuffer_t* consts, char* text);
-uint32_t valbuffer_add_symbol_as_string(valbuffer_t* consts, char* text, int length);
+vb_result_t valbuffer_insert_int(valbuffer_t* buffer, int value);
+vb_result_t valbuffer_insert_float(valbuffer_t* buffer, float value);
+vb_result_t valbuffer_insert_char(valbuffer_t* buffer, char value);
+vb_result_t valbuffer_insert_bool(valbuffer_t* buffer, bool value);
+vb_result_t valbuffer_append_array(valbuffer_t* buffer, val_t* values, size_t count);
+
+size_t string_count_until(char* text, char stopchar);
+size_t valbuffer_sequence_from_qouted_string(char* text, val_t* result, size_t result_capacity);
+void valbuffer_sequence_from_string(char* text, val_t* result, size_t length);
 
 srcref_t srcref(char* text, size_t start, size_t len);
 srcref_t srcref_const(const char* text);

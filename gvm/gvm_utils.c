@@ -84,7 +84,7 @@ void valbuffer_clear(valbuffer_t* buffer) {
     buffer->size = 0;
 }
 
-bool valbuffer_add(valbuffer_t* buffer, val_t value) {
+bool valbuffer_append(valbuffer_t* buffer, val_t value) {
     if( buffer->size >= buffer->capacity ) {
         int new_capacity = buffer->size * 2;
         val_t* new_vals = (val_t*) realloc(buffer->values, new_capacity * sizeof(val_t));
@@ -99,88 +99,6 @@ bool valbuffer_add(valbuffer_t* buffer, val_t value) {
     return true;
 }
 
-bool valbuffer_find_float(valbuffer_t* buffer, float value, uint32_t* index) {
-    for (uint32_t i = 0; i < buffer->size; i++) {
-        if(VAL_GET_TYPE(buffer->values[i]) != VAL_NUMBER) {
-            continue;
-        }
-        if(val_into_number(buffer->values[i]) == value) {
-            *index = i;
-            return true;
-        }
-    }
-    return false;
-}
-
-bool valbuffer_find_ivec2(valbuffer_t* buffer, ivec2_t value, uint32_t* index) {
-    for (uint32_t i = 0; i < buffer->size; i++) {
-        if(VAL_GET_TYPE(buffer->values[i]) != VAL_IVEC2) {
-            continue;
-        }
-        ivec2_t in_buffer = val_into_ivec2(buffer->values[i]);
-        if( in_buffer.x == value.x && in_buffer.y == value.y ) {
-            *index = i;
-            return true;
-        }
-    }
-    return false;
-}
-
-bool valbuffer_find_bool(valbuffer_t* buffer, bool value, uint32_t* index) {
-    for (uint32_t i = 0; i < buffer->size; i++) {
-        if(VAL_GET_TYPE(buffer->values[i]) != VAL_BOOL) {
-            continue;
-        }
-        if( val_into_bool(buffer->values[i]) == value) {
-            *index = i;
-            return true;
-        }
-    }
-    return false;
-}
-
-bool valbuffer_find_char(valbuffer_t* buffer, char value, uint32_t* index) {
-    for (uint32_t i = 0; i < buffer->size; i++) {
-        if(VAL_GET_TYPE(buffer->values[i]) != VAL_CHAR) {
-            continue;
-        }
-        if( val_into_char( buffer->values[i] ) == value) {
-            *index = i;
-            return true;
-        }
-    }
-    return false;
-}
-
-bool valbuffer_find_string(valbuffer_t* buffer, char* chars, int len, uint32_t* index) {
-    for (uint32_t i = 0; i < buffer->size; i++) {
-        if(VAL_GET_TYPE(buffer->values[i]) != VAL_ARRAY ) {
-            continue;
-        }
-        array_t array = val_into_array(buffer->values[i]);
-        int buffer_offset = MEM_ADDR_TO_INDEX(array.address);
-        if( array.length != len ) {
-            continue;
-        }
-        bool match = true;
-        val_t* values = buffer->values + buffer_offset;
-        for(int j = 0; j < array.length; j++) {
-            val_t entry = values[j];
-            if( chars[j] != val_into_char(entry) ||
-                VAL_GET_TYPE(entry) != VAL_CHAR    ) 
-            {
-                match = false;
-                break;
-            }
-        }
-        if( match ) {
-            *index = i;
-            return true;
-        }
-    }
-    return false;
-}
-
 void valbuffer_destroy(valbuffer_t* buffer) {
     if( buffer == NULL ) {
         return;
@@ -193,9 +111,84 @@ void valbuffer_destroy(valbuffer_t* buffer) {
     buffer->size = 0;
 }
 
-int string_count_until(char* text, char stopchar) {
-    int len = strlen(text);
-    for(int i = 0; i < len; i++) {
+bool valbuffer_linear_search(valbuffer_t* buffer, val_t match, uint32_t* index) {
+    for(uint32_t i = 0; i < buffer->size; i++) {
+        if( match == buffer->values[i] ) {
+            *index = i;
+            return true;
+        }
+    }
+    return false;
+}
+
+vb_result_t valbuffer_insert(valbuffer_t* buffer, val_t value) {
+    uint32_t index = 0;
+    if(valbuffer_linear_search(buffer, value, &index)) {
+        return (vb_result_t) {
+            .out_of_memory = false,
+            .index = index
+        };
+    }
+    if( valbuffer_append(buffer, value) == false ) {
+        return (vb_result_t) {
+            .out_of_memory = true,
+            .index = 0
+        };
+    }
+    return (vb_result_t) {
+        .out_of_memory = false,
+        .index = buffer->size - 1
+    };
+}
+
+vb_result_t valbuffer_insert_int(valbuffer_t* buffer, int value) {
+    return valbuffer_insert(buffer, val_number(value));
+}
+
+vb_result_t valbuffer_insert_float(valbuffer_t* buffer, float value) {
+    return valbuffer_insert(buffer, val_number(value));
+}
+
+vb_result_t valbuffer_insert_char(valbuffer_t* buffer, char value) {
+    return valbuffer_insert(buffer, val_char(value));
+}
+
+vb_result_t valbuffer_insert_bool(valbuffer_t* buffer, bool value) {
+    return valbuffer_insert(buffer, val_bool(value));
+}
+
+vb_result_t valbuffer_append_array(valbuffer_t* buffer, val_t* sequence, size_t sequence_length) {
+
+    uint32_t start_index = buffer->size;
+    for(size_t i = 0; i < sequence_length; i++) {
+        if(valbuffer_append(buffer, sequence[i]) == false) {
+            return (vb_result_t) {
+                .out_of_memory = true,
+                .index = 0
+            };
+        }
+    }
+
+    val_t array_ref = val_array_from_args(
+        MEM_MK_CONST_ADDR(start_index),
+        (int) sequence_length );
+
+    if( valbuffer_append(buffer, array_ref) == false ) {
+        return (vb_result_t) {
+            .out_of_memory = true,
+            .index = 0
+        };
+    }
+
+    return (vb_result_t) {
+        .out_of_memory = false,
+        .index = buffer->size - 1
+    };
+}
+
+size_t string_count_until(char* text, char stopchar) {
+    size_t len = strlen(text);
+    for(size_t i = 0; i < len; i++) {
         if( text[i] == stopchar ) {
             return i;
         }
@@ -203,55 +196,7 @@ int string_count_until(char* text, char stopchar) {
     return len;
 }
 
-int string_parse_int(char* text, int string_length) {
-    char buf[string_length+1];
-    for(int i = 0; i < string_length; i++) {
-        buf[i] = text[i];
-    }
-    buf[string_length] = '\0';
-    return atoi(buf);
-}
-
-uint32_t valbuffer_add_number(valbuffer_t* consts, float value) {
-    uint32_t existing = 0;
-    if( valbuffer_find_float(consts, value, &existing) ) {
-        return existing;
-    }
-
-    if( valbuffer_add(consts, val_number(value)) == false ) {
-        printf("error: consts_add_number\n");
-        return consts->size;
-    }
-    return consts->size - 1;
-}
-
-uint32_t valbuffer_add_bool(valbuffer_t* consts, bool value) {
-    uint32_t existing = 0;
-    if( valbuffer_find_bool(consts, value, &existing) ) {
-        return existing;
-    }
-    if(valbuffer_add(consts, val_bool(value)) == false) {
-        printf("error: consts_add_bool\n");
-        return consts->size;
-    }
-    return consts->size - 1;
-}
-
-uint32_t valbuffer_add_char(valbuffer_t* consts, char value, bool force_contiguous) {
-    if( force_contiguous == false ) {
-        uint32_t existing = 0;
-        if( valbuffer_find_char(consts, value, &existing) ) {
-            return existing;
-        }
-    }
-    if(valbuffer_add(consts, val_char(value)) == false) {
-        printf("error: consts_add_char\n");
-        return consts->size;
-    }
-    return consts->size - 1;
-}
-
-uint32_t valbuffer_add_string(valbuffer_t* consts, char* text) {
+size_t valbuffer_sequence_from_qouted_string(char* text, val_t* result, size_t result_capacity) {
 
     if( text[0] != '"' ) {
         printf("error: expected \" at start of string.\n");
@@ -259,15 +204,16 @@ uint32_t valbuffer_add_string(valbuffer_t* consts, char* text) {
 
     text = text + 1;
 
-    int in_len = string_count_until(text, '\"');
+    size_t in_len = string_count_until(text, '\"');
+    size_t str_len = min(in_len, result_capacity);
     
     // UN-ESCAPE input string
     // need this step (with malloc) to unescape '\n' etc.
-    char* tmp_buffer = malloc((in_len + 1) * sizeof(char));
-    int r_count = 0;
-    int w_count = 0;
-    while( r_count < in_len ) {
-        if( text[r_count] == '\\' && (r_count + 1) < in_len ) {
+    char* tmp_buffer = malloc((str_len + 1) * sizeof(char));
+    size_t r_count = 0;
+    size_t w_count = 0;
+    while( r_count < str_len ) {
+        if( text[r_count] == '\\' && (r_count + 1) < str_len ) {
             char next = text[r_count + 1];
             switch (next) {
                 case 'n':
@@ -290,76 +236,19 @@ uint32_t valbuffer_add_string(valbuffer_t* consts, char* text) {
         tmp_buffer[w_count++] = text[r_count++];
     }
     tmp_buffer[w_count] = '\0';
-    
-    uint32_t existing = 0;
-    if( valbuffer_find_string(consts, tmp_buffer, w_count, &existing) ) {
-        return existing;
-    }
 
-    int string_start = consts->size;
-    for(int i = 0; i < w_count; i++) {
-        valbuffer_add_char(consts, tmp_buffer[i], true);
+    for(size_t i = 0; i < w_count; i++) {
+        result[i] = val_char(tmp_buffer[i]);
     }
 
     free(tmp_buffer); // free the UN-ESCAPE buffer
-
-    bool ok = valbuffer_add(consts,
-        val_array_from_args( MEM_MK_CONST_ADDR(string_start),
-                  w_count));
-    return ok
-        ? (consts->size - 1)
-        : (consts->size);
+    return str_len;
 }
 
-uint32_t valbuffer_add_ivec2(valbuffer_t* consts, char* text) {
-
-    if( text[0] != '(' ) {
-        printf("error: expected ( at start of ivec2.\n");
+void valbuffer_sequence_from_string(char* text, val_t* result, size_t length) {
+    for(size_t i = 0; i < length; i++) {
+        result[i] = val_char(text[i]);
     }
-
-    text = text + 1; // skip open paren
-
-    ivec2_t value = { 0 };
-
-    // read x
-    int to_comma = string_count_until(text, ',');
-    value.x = string_parse_int(text, to_comma);
-
-    text += to_comma + 1;
-    
-    // read y
-    int to_rparen = string_count_until(text, ')');
-    value.y = string_parse_int(text, to_rparen);
-
-    uint32_t existing = 0;
-    if( valbuffer_find_ivec2(consts, value, &existing) ) {
-        return existing;
-    }
-
-    bool ok = valbuffer_add(consts, val_ivec2(value));
-    return ok
-        ? (consts->size - 1)
-        : (consts->size);
-}
-
-uint32_t valbuffer_add_symbol_as_string(valbuffer_t* consts, char* text, int length) {
-
-    uint32_t existing = 0;
-    if( valbuffer_find_string(consts, text, length, &existing)) {
-        return existing;
-    }
-
-    int string_start = consts->size;
-    for(int i = 0; i < length; i++) {
-        valbuffer_add_char(consts, text[i], true);
-    }
-
-    bool ok = valbuffer_add(consts,
-        val_array_from_args( MEM_MK_CONST_ADDR(string_start),
-                  length));
-    return ok
-        ? (consts->size - 1)
-        : (consts->size);
 }
 
 srcref_t srcref(char* text, size_t start, size_t len) {

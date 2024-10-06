@@ -477,7 +477,7 @@ gvm_program_t gvm_program_compile_source(char* source, size_t source_len, char* 
 
     pa_result_t result = pa_parse_program(&parser);
     if( par_is_error(result) ) {
-        cres_fprint(stdout, (cres_t*) par_extract_error(result));
+        cres_fprint(stdout, (cres_t*) par_extract_error(result), filepath);
         pa_destroy(&parser);
         return (gvm_program_t) { 0 };
     }
@@ -488,7 +488,11 @@ gvm_program_t gvm_program_compile_source(char* source, size_t source_len, char* 
     }
 
     ast_node_t* program_node = par_extract_node(result);
-    gvm_program_t program = gvm_compile(program_node);
+    cres_t status = {0};
+    gvm_program_t program = gvm_compile(program_node, &status);
+    if( cres_has_error(&status) ) {
+        cres_fprint(stdout, &status, filepath);
+    }
     ast_free(program_node);
     pa_destroy(&parser);
     return program;
