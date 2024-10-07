@@ -268,8 +268,9 @@ void codegen_value(ast_value_t node, compiler_state_t* state) {
                 }
                 return;
             }
-            size_t len = string_count_until(ptr, '\"');
+            size_t len = srcref_len(ref);
             val_t seq[len];
+            len = valbuffer_sequence_from_qouted_string(ptr, seq, len);
             append_result = valbuffer_append_array(&state->consts, seq, len);
         } break;
         default: {
@@ -391,6 +392,90 @@ void codegen_foreach(ast_foreach_t node, compiler_state_t* state) {
     irl_get(&state->instrs, loop_start_index)->args[0] = state->instrs.count;
 }
 
+int get_if_chain_length(ast_node_t* current) {
+    int count = 0;
+    while(current != NULL) {
+        if( current->type == AST_IF_CHAIN ) {
+            count ++;
+            current = current->u.n_if.next;
+        } else {
+            break;
+        }
+    }
+    return count;
+}
+
+bool is_valid_else_block(ast_node_t* node) {
+    if( node == NULL )
+        return false;
+    return node->type == AST_BLOCK
+        && node->u.n_block.count > 0;
+}
+
+void codegen_if_chain(ast_node_t* node, compiler_state_t* state) {
+    
+    ABORT_ON_ERROR(state);
+
+    int chain_len = get_if_chain_length(node);
+    ir_index_t exit_indices[chain_len];
+
+    ast_node_t* current = node;
+    int count = 0;
+    ir_index_t if_next_index;
+
+    while( current->type == AST_IF_CHAIN ) {
+
+        // 1. if not cond <jump: next>      (or jump to end if no else or else if)
+        // 2. body                          (always generate)
+        // 3. <jump: end>                   (skip if no trailing else or else if)
+        // 4. next ...                      (go to next if or exit to else or nothing)
+        // N. [else] ... 
+        // N+1. end
+
+        // 1)
+        codegen(current->u.n_if.cond, state);
+
+        if_next_index = irl_add(
+            &state->instrs,
+            (ir_inst_t){
+                .opcode = OP_JUMP_IF_FALSE,
+                .args = { 0 }
+            });
+
+        // 2)
+        codegen(current->u.n_if.iftrue, state);
+
+        current = current->u.n_if.next;
+
+        // 3)
+        if( current->type == AST_IF_CHAIN || is_valid_else_block(current) ) {
+            // if we're at the last block 
+            // we make sure to not jump 
+            // since we get a corrupt jump 
+            // index (same position).  
+            exit_indices[count++] = irl_add(
+                &state->instrs,
+                (ir_inst_t){
+                    .opcode = OP_JUMP,
+                    .args = { 0 }
+                });
+        }
+
+        // 4)
+        ir_inst_t* instr = irl_get(&state->instrs, if_next_index);
+        instr->args[0] = state->instrs.count;
+    }
+
+    // N)
+    if( is_valid_else_block(current) )
+        codegen(current, state);
+    
+    // N+1) set the exit jump points
+    for(int i = 0; i < count; i++) {
+        irl_get(&state->instrs, exit_indices[i])->args[0] = state->instrs.count;
+    }
+}
+
 void codegen(ast_node_t* node, compiler_state_t* state) {
 
     ABORT_ON_ERROR(state);
@@ -438,30 +523,8 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
                 codegen(node->u.n_block.content[i], state);
             }
         } break;
-        case AST_IF: {
-            codegen(node->u.n_if.cond, state);
-            ir_index_t if_index = irl_add(&state->instrs, (ir_inst_t){
-                .opcode = OP_JUMP_IF_FALSE,
-                .args = { 0 }
-            });
-            codegen(node->u.n_if.iftrue, state);
-            irl_get(&state->instrs, if_index)->args[0] = state->instrs.count;
-        } break;
-        case AST_IF_ELSE: {
-            codegen(node->u.n_ifelse.cond, state);
-            ir_index_t if_false_index = irl_add(&state->instrs, (ir_inst_t){
-                .opcode = OP_JUMP_IF_FALSE,
-                .args = { 0 }
-            });
-            codegen(node->u.n_ifelse.iftrue, state);
-            ir_index_t jump_end_index = irl_add(&state->instrs, (ir_inst_t){
-                .opcode = OP_JUMP,
-                .args = { 0 }
-            });
-            // set jump loc for if false
-            irl_get(&state->instrs, if_false_index)->args[0] = state->instrs.count;
-            codegen(node->u.n_ifelse.iffalse, state);
-            irl_get(&state->instrs, jump_end_index)->args[0] = state->instrs.count;
+        case AST_IF_CHAIN: {
+            codegen_if_chain(node, state);
         } break;
         case AST_FOREACH: {
             codegen_foreach(node->u.n_foreach, state);
@@ -517,6 +580,7 @@ void recalc_index_to_bytecode_adress(ir_list_t* instrs) {
             case OP_JUMP:
             case OP_JUMP_IF_FALSE: {
                 uint32_t index = instrs->irs[i].args[0];
+                assert(idx2addr[index] <= addr);
                 instrs->irs[i].args[0] = idx2addr[index];
             } break;
             default: break;
@@ -536,7 +600,7 @@ gvm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts) {
         uint32_t argcount = get_op_arg_count(instrs->irs[i].opcode);
         for (uint32_t j = 0; j < argcount; j++) {
             uint32_t value = instrs->irs[i].args[j];
-            u8buffer_write(&bytecode, (uint8_t) (value & 0xFF));
+            u8buffer_write(&bytecode, (uint8_t) ((value >> (8*0)) & 0xFF));
             u8buffer_write(&bytecode, (uint8_t) ((value >> (8*1)) & 0xFF));
             u8buffer_write(&bytecode, (uint8_t) ((value >> (8*2)) & 0xFF));
             u8buffer_write(&bytecode, (uint8_t) ((value >> (8*3)) & 0xFF));

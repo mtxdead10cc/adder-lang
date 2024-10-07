@@ -49,10 +49,10 @@ void valbuffer_clear(valbuffer_t* buffer);
 bool valbuffer_append(valbuffer_t* buffer, val_t value);
 void valbuffer_destroy(valbuffer_t* buffer);
 
-#define READ_U32(D, AT) ((uint32_t)((D)[(AT) + 1] << (8*3)) |\
-                         (uint32_t)((D)[(AT) + 1] << (8*2)) |\
-                         (uint32_t)((D)[(AT) + 1] << (8*1)) |\
-                         (uint32_t)((D)[(AT)]))
+#define READ_U32(D, AT) ((uint32_t)((0xFF & (D)[(AT) + 3]) << (8*3)) |\
+                         (uint32_t)((0xFF & (D)[(AT) + 2]) << (8*2)) |\
+                         (uint32_t)((0xFF & (D)[(AT) + 1]) << (8*1)) |\
+                         (uint32_t)((0xFF & (D)[(AT) + 0]) << (8*0)))
 
 vb_result_t valbuffer_insert_int(valbuffer_t* buffer, int value);
 vb_result_t valbuffer_insert_float(valbuffer_t* buffer, float value);

@@ -284,7 +284,8 @@ void test_ast(test_case_t* this) {
             ast_binop(AST_BIN_LT,
                 ast_varref(srcref(buf, 6, 3)),
                 ast_number(0.0f)),
-            ast_return(ast_number(0.0f))));
+            ast_return(ast_number(0.0f)),
+            ast_block()));
 
     ast_node_t* array = ast_array();
     ast_array_add(array, ast_number(1));

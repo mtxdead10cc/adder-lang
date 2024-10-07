@@ -76,8 +76,7 @@ typedef enum token_type_t {
 typedef enum ast_node_type_t {
     AST_VALUE,
     AST_ARRAY,
-    AST_IF,
-    AST_IF_ELSE,
+    AST_IF_CHAIN,
     AST_FOREACH,
     AST_BINOP,
     AST_UNOP,
@@ -202,13 +201,8 @@ typedef struct ast_varref_t {
 typedef struct ast_if_t {
     ast_node_t* cond;
     ast_node_t* iftrue;
+    ast_node_t* next; // else if or else
 } ast_if_t;
-
-typedef struct ast_ifelse_t {
-    ast_node_t* cond;
-    ast_node_t* iftrue;
-    ast_node_t* iffalse;
-} ast_ifelse_t;
 
 typedef struct ast_foreach_t {
     ast_node_t* vardecl;    // this should be an ast_vardecl_t
@@ -261,7 +255,6 @@ typedef struct ast_node_t {
         ast_vardecl_t   n_vardecl;
         ast_block_t     n_block;
         ast_if_t        n_if;
-        ast_ifelse_t    n_ifelse;
         ast_fundecl_t   n_fundecl;
         ast_funsign_t   n_funsign;
         ast_binop_t     n_binop;

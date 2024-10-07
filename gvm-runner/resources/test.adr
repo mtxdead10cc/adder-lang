@@ -1,21 +1,27 @@
-fun main() -> str {
-    
-    num a = 10;
-    if(a <= 10) {
+str main() {
+    num a = 12;
+    if( a <= 10 ) {
         return "smööl";
-    }
-    
-    num val = 10;
+    } else {
+        num c1 = 0;
+        num c2 = 0;
+        num cq = 0;
 
-    for(num n in [100, 101]) {
-        if( n == 101 ) {
-            val = n;
+        for(num n in [1, 2, 3, 4]) {
+            if( n == 1 ) {
+                c1 = c1 + 1;
+            } else if ( n == 2 ) {
+                c2 = c2 + 1;
+            } else {
+                cq = cq + 1;
+            }
+        }
+
+        if( (c1 == 1) and (c2 == 1) and (cq == 2) ) {
+            return "CORRECT";
+        } else {
+            return "INCORRECT";
         }
     }
-
-    if( val == 101 ) {
-        return "läärge";
-    }
-
-    return "whut?";
+    return "LOLEXTRA";
 }

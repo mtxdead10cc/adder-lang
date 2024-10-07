@@ -510,7 +510,7 @@ pa_result_t pa_parse_body(parser_t* parser) {
     return par_node(body_block);
 }
 
-pa_result_t pa_try_parse_if_stmt(parser_t* parser) {
+pa_result_t pa_try_parse_if_chain(parser_t* parser) {
     if( pa_advance_if(parser, TT_KW_IF) == false )
         return par_nothing();
 
@@ -535,7 +535,23 @@ pa_result_t pa_try_parse_if_stmt(parser_t* parser) {
         return result;
     assert( par_is_node(result) );
 
-    return par_node(ast_if(condition, par_extract_node(result)));
+    ast_node_t* if_true = par_extract_node(result);
+
+    ast_node_t* next = NULL;
+
+    if( pa_advance_if(parser, TT_KW_ELSE) ) {
+        result = pa_try_parse_if_chain(parser); // else if   
+        if( par_is_nothing(result) ) {            
+            result = pa_parse_body(parser);     // or last else
+        }
+        if( par_is_error(result) )
+            return result;
+        next = par_extract_node(result);
+    } else {
+        next = ast_block();                     // empty / nothing
+    }
+
+    return par_node(ast_if(condition, if_true, next));
 }
 
 pa_result_t pa_try_parse_for_stmt(parser_t* parser) {
@@ -607,7 +623,7 @@ pa_result_t pa_parse_statement(parser_t* parser) {
     // todo: if-else? elifs?
 
     if( par_is_nothing(result) )
-        result = pa_try_parse_if_stmt(parser);
+        result = pa_try_parse_if_chain(parser);
 
     if( par_is_nothing(result) )
         result = pa_try_parse_for_stmt(parser);

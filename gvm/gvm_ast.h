@@ -160,30 +160,19 @@ inline static ast_node_t* ast_funcall( srcref_t name,
 }
 
 inline static ast_node_t* ast_if( ast_node_t* cond,
-                                  ast_node_t* if_true ) 
+                                  ast_node_t* if_true,
+                                  ast_node_t* next ) 
 {
     ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
-    node->type = AST_IF,
+    node->type = AST_IF_CHAIN,
     node->u.n_if = (ast_if_t) {
         .cond = cond,
-        .iftrue = if_true
+        .iftrue = if_true,
+        .next = next
     };
     return node;
 }
 
-inline static ast_node_t* ast_if_else( ast_node_t* cond,
-                                       ast_node_t* if_true,
-                                       ast_node_t* if_false ) 
-{
-    ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
-    node->type = AST_IF_ELSE,
-    node->u.n_ifelse = (ast_ifelse_t) {
-        .cond = cond,
-        .iftrue = if_true,
-        .iffalse = if_false
-    };
-    return node;
-}
 
 inline static ast_node_t* ast_foreach( ast_node_t* vardecl,
                                        ast_node_t* collection,
@@ -232,6 +221,10 @@ inline static ast_node_t* ast_assign(ast_node_t* left, ast_node_t* right) {
 
 
 inline static void ast_free(ast_node_t* node) {
+
+    if( node == NULL )
+        return;
+
     switch(node->type) {
         case AST_BINOP: {
             ast_free(node->u.n_binop.left);
@@ -269,14 +262,10 @@ inline static void ast_free(ast_node_t* node) {
             node->u.n_block.content = NULL;
             node->u.n_block.count = 0;
         } break;
-        case AST_IF: {
+        case AST_IF_CHAIN: {
             ast_free(node->u.n_if.cond);
             ast_free(node->u.n_if.iftrue);
-        } break;
-        case AST_IF_ELSE: {
-            ast_free(node->u.n_ifelse.cond);
-            ast_free(node->u.n_ifelse.iftrue);
-            ast_free(node->u.n_ifelse.iffalse);
+            ast_free(node->u.n_if.next);
         } break;
         case AST_FOREACH: {
             ast_free(node->u.n_foreach.collection);
@@ -299,6 +288,7 @@ inline static void ast_free(ast_node_t* node) {
             /* nothing to free */
         } break;
     }
+    
     // free the node itself
     free(node);
 }
@@ -308,8 +298,7 @@ inline static char* ast_node_type_as_string(ast_node_type_t type) {
         case AST_VALUE:     return "VALUE";
         case AST_VAR_REF:   return "VAR_REF";
         case AST_ARRAY:     return "ARRAY";
-        case AST_IF:        return "IF";
-        case AST_IF_ELSE:   return "IF_ELSE";
+        case AST_IF_CHAIN:        return "IF";
         case AST_FOREACH:   return "FOREACH";
         case AST_BINOP:     return "BINOP";
         case AST_UNOP:      return "UNOP";
@@ -432,17 +421,10 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
                 }
             }
         } break;
-        case AST_IF: {
+        case AST_IF_CHAIN: {
             _ast_dump(node->u.n_if.cond, indent);
             printf(" ");
             _ast_dump(node->u.n_if.iftrue, indent);
-        } break;
-        case AST_IF_ELSE: {
-            _ast_dump(node->u.n_ifelse.cond, indent);
-            printf(" ");
-            _ast_dump(node->u.n_ifelse.iftrue, indent);
-            printf(" ");
-            _ast_dump(node->u.n_ifelse.iffalse, indent);
         } break;
         case AST_FOREACH: {
             _ast_dump(node->u.n_foreach.vardecl, indent);

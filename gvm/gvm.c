@@ -261,7 +261,7 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
                 TRACE_INT_ARG(vm_run->pc);
             } break;
             case OP_JUMP_IF_FALSE: {
-                TRACE_INT_ARG(READ_I16(instructions, vm_run->pc));
+                TRACE_INT_ARG(READ_U32(instructions, vm_run->pc));
                 if( val_into_bool(stack[vm_mem->stack.top--]) == false ) {
                     vm_run->pc = READ_U32(instructions, vm_run->pc);
                 } else {
