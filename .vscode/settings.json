@@ -40,7 +40,13 @@
         "*.tcc": "cpp",
         "gvm_build_result.h": "c",
         "gvm_srcmap.h": "c",
-        "gvm_compiler.h": "c"
+        "gvm_compiler.h": "c",
+        "vm_validate.h": "c",
+        "co_compiler.h": "c",
+        "sh_asminfo.h": "c",
+        "sh_utils.h": "c",
+        "sh_types.h": "c",
+        "langtest.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

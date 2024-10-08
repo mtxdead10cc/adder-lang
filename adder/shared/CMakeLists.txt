@@ -2,11 +2,11 @@ add_library(adrsha)
 
 target_include_directories(adrsha
 PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/inc)
+        ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_sources(adrsha PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/gvm_utils.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/gvm_asminfo.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/sh_utils.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/sh_asminfo.c
 )
 
 target_link_libraries(adrsha PUBLIC m)

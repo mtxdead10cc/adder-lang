@@ -1,17 +1,17 @@
 #include "test_runner.h"
-#include <vm/gvm.h>
-#include <vm/gvm_heap.h>
-#include <shared/gvm_value.h>
-#include <compiler/gvm_ast.h>
-#include <compiler/gvm_parser.h>
-#include <compiler/gvm_compiler.h>
-#include <compiler/gvm_program.h>
+#include <vm.h>
+#include <vm_heap.h>
+#include <sh_value.h>
+#include <co_ast.h>
+#include <co_parser.h>
+#include <co_compiler.h>
+#include <co_program.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
-#include "termhax.h"
 #include <stdarg.h>
+#include "termhax.h"
 #include "langtest.h"
 
 typedef struct test_case_t test_case_t;

@@ -1,10 +1,10 @@
 #include <stdio.h>
-#include <vm/gvm.h>
-#include <shared/gvm_value.h>
-#include <vm/gvm_env.h>
-#include <vm/gvm_value_tools.h>
-#include <vm/gvm_heap.h>
-#include <compiler/gvm_program.h>
+#include <vm.h>
+#include <sh_value.h>
+#include <vm_env.h>
+#include <vm_value_tools.h>
+#include <vm_heap.h>
+#include <co_program.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
