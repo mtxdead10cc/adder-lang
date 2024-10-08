@@ -61,44 +61,43 @@ void fprint_value(FILE* stream, val_t* memory, val_t val) {
                 fprint_value(stream, memory, buffer[i]);
             }
         }
-        return;
-    }
-
-    switch (VAL_GET_TYPE(val))
-    {
-    case VAL_NUMBER:
-        fprintf(stream, "%f", val_into_number(val));
-        break;
-    case VAL_CHAR:
-        fprintf(stream, "%c", val_into_char(val));
-        break;
-    case VAL_BOOL:
-        fprintf(stream, "%s", val_into_bool(val) ? "TRUE" : "FALSE");
-        break;
-    case VAL_IVEC2: {
-        ivec2_t v = val_into_ivec2(val);
-        fprintf(stream, "(%i, %i)", v.x, v.y);
-    } break;
-    case VAL_ITER: {
-        iter_t v = val_into_iter(val);
-        fprintf(stream, "{curr:0x%08X, rem:%i}", v.current, v.remaining);
-    } break;
-    case VAL_FRAME: {
-        frame_t frame = val_into_frame(val);
-        fprintf(stream, "<pc: %i, nargs: %i, nlocals: %i>",
-            frame.return_pc,
-            frame.num_args,
-            frame.num_locals);
-    } break;
-    case VAL_ARRAY: {
-        array_t a = val_into_array(val);
-        fprintf(stream, "[addr: 0x%08X, len: %d]",
-            a.address, a.length);
-        break;
-    } break;
-    default:
-        fprintf(stream, "<unk>");
-        break;
+    } else {
+        switch (VAL_GET_TYPE(val))
+        {
+        case VAL_NUMBER:
+            fprintf(stream, "%f", val_into_number(val));
+            break;
+        case VAL_CHAR:
+            fprintf(stream, "%c", val_into_char(val));
+            break;
+        case VAL_BOOL:
+            fprintf(stream, "%s", val_into_bool(val) ? "TRUE" : "FALSE");
+            break;
+        case VAL_IVEC2: {
+            ivec2_t v = val_into_ivec2(val);
+            fprintf(stream, "(%i, %i)", v.x, v.y);
+        } break;
+        case VAL_ITER: {
+            iter_t v = val_into_iter(val);
+            fprintf(stream, "{curr:0x%08X, rem:%i}", v.current, v.remaining);
+        } break;
+        case VAL_FRAME: {
+            frame_t frame = val_into_frame(val);
+            fprintf(stream, "<pc: %i, nargs: %i, nlocals: %i>",
+                frame.return_pc,
+                frame.num_args,
+                frame.num_locals);
+        } break;
+        case VAL_ARRAY: {
+            array_t a = val_into_array(val);
+            fprintf(stream, "[addr: 0x%08X, len: %d]",
+                a.address, a.length);
+            break;
+        } break;
+        default:
+            fprintf(stream, "<unk>");
+            break;
+        }
     }
 }
 
@@ -118,15 +117,15 @@ void gvm_program_disassemble(FILE* stream, gvm_program_t* program) {
         }
         char* name = get_op_name(opcode);
         op_argtype_t* argtypes = get_op_arg_types(opcode);
-        fprintf(stream, "#%3i > %s", current_byte, name);
+        fprintf(stream, "#%5i| %-16s", current_byte, name);
         current_byte ++;
         for (int i = 0; i < arg_count; i++) {
             int val = (int) READ_U32(instructions, current_byte);
-            fprintf(stream, " %i", val);
+            fprintf(stream, " %-9i", val);
             current_byte += 4;
             if( argtypes[i] == OP_ARG_CONSTANT ) {
                 fprintf(stream, " (");
-                fprint_value(stream, consts, val);
+                fprint_value(stream, consts, consts[val]);
                 fprintf(stream, ")");
             }
         }
