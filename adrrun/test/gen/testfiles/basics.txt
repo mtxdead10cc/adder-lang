@@ -14,7 +14,7 @@ str main() {
 }
 $STOP("hello123")
 
-$START("boolops")
+$START("and-or")
 bol main() {
     num a = 1;
     return (a >= 6) and (6 <= a) or true;
@@ -33,7 +33,8 @@ $STOP("7")
 
 $START("foreach")
 num loop(num a) {
-    for(num i in [0, 1, 10]) {
+    var array = [0, 1, 10]; 
+    for(num i in array) {
         a = a + i;
     }
     return a;
@@ -64,3 +65,51 @@ num main() {
     return loop();
 }
 $STOP("4")
+
+$START("negate")
+bol main() {
+    num a = 100.4;
+    return -a;
+}
+$STOP("-100.4")
+
+$START("divide")
+bol main() {
+    num a = 1;
+    return a / 2;
+}
+$STOP("0.5")
+
+$START("modulus")
+bol main() {
+    num a = 1;
+    return a % 2;
+}
+$STOP("1")
+
+$START("not")
+bol main() {
+    num a = 1;
+    return not (a == 2);
+}
+$STOP("true")
+
+$START("native-extern")
+#extern none print(str arg);
+num main() {
+    print("hello\n");
+    return 0;
+}
+$STOP("0")
+
+$START("operator-preceedence")
+num main() {
+    if( (1 + 2 * 3) != 7 ) {
+        return false;
+    }
+    if( (1 - 2 / 2) != 0 ) {
+        return false;
+    }
+    return true;
+}
+$STOP("true")

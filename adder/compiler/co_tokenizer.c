@@ -156,6 +156,7 @@ srcmap_t create_symbolic_token_map() {
 
     srcmap_insert(&map, srcref_const("->"), sm_val(TT_ARROW));
     srcmap_insert(&map, srcref_const("=="), sm_val(TT_CMP_EQ));
+    srcmap_insert(&map, srcref_const("!="), sm_val(TT_CMP_NEQ));
     srcmap_insert(&map, srcref_const("<="), sm_val(TT_CMP_LT_EQ));
     srcmap_insert(&map, srcref_const(">="), sm_val(TT_CMP_GT_EQ));
     srcmap_insert(&map, srcref_const("<"),  sm_val(TT_CMP_LT));
@@ -186,7 +187,7 @@ size_t get_symbolic_token_len(tokenizer_state_t* state) {
         return 2; // arrow
     }
     else if (match_cursor_and_next(state, 
-            lp_is(LCAT_EQUAL|LCAT_LESS_THAN|LCAT_GREATER_THAN),
+            lp_is(LCAT_EQUAL|LCAT_LESS_THAN|LCAT_GREATER_THAN|LCAT_BANG),
             lp_is(LCAT_EQUAL)))
     {
         return 2; // cmps

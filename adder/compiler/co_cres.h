@@ -57,6 +57,7 @@ inline static int cres_msg_add_token_type_name(cres_t* res, token_type_t type) {
         case TT_KW_RETURN:
         case TT_KW_FUN_DEF:     return cres_msg_add_costr(res, "keyword");
         case TT_CMP_EQ:
+        case TT_CMP_NEQ:
         case TT_CMP_GT_EQ:
         case TT_CMP_LT_EQ:      return cres_msg_add_costr(res, "comparison operator");
         default:                return cres_msg_add_costr(res, "unknown");

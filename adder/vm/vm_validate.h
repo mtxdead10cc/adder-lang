@@ -131,10 +131,13 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
             case OP_ADD:
             case OP_SUB:
             case OP_MUL:
+            case OP_DIV:
+            case OP_MOD:
             case OP_CMP_LESS_THAN:
             case OP_CMP_MORE_THAN:
             case OP_CMP_LESS_THAN_OR_EQUAL:
             case OP_CMP_MORE_THAN_OR_EQUAL:
+            case OP_CMP_NOT_EQUAL:
             case OP_CMP_EQUAL: {
                 no_error = validation_check_stack_args(vm, op_name, 2, VAL_NUMBER, VAL_NUMBER);
             } break;
@@ -210,7 +213,7 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
 }
 
 inline static bool validation_post_exec(gvm_t* vm, gvm_op_t opcode) {
-    assert(OP_OPCODE_COUNT == 34 && "Opcode count changed.");
+    assert(OP_OPCODE_COUNT == 37 && "Opcode count changed.");
     char* op_name = get_op_name(opcode);
     validation_t* validation = ((validation_t*)vm->validation);
     bool no_error = true;
@@ -221,12 +224,15 @@ inline static bool validation_post_exec(gvm_t* vm, gvm_op_t opcode) {
             case OP_ADD:
             case OP_SUB:
             case OP_MUL:
+            case OP_DIV:
+            case OP_MOD:
             case OP_NEG:
             case OP_CMP_LESS_THAN_OR_EQUAL:
             case OP_CMP_MORE_THAN_OR_EQUAL:
             case OP_CMP_LESS_THAN:
             case OP_CMP_MORE_THAN:
             case OP_CMP_EQUAL:
+            case OP_CMP_NOT_EQUAL:
             case OP_AND:
             case OP_OR:
             case OP_NOT:

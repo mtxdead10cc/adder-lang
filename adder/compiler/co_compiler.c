@@ -175,6 +175,18 @@ void codegen_binop(ast_binop_t node, compiler_state_t* state) {
                 .args = { 0 }
             });
         } break;
+        case AST_BIN_DIV: {
+            irl_add(&state->instrs, (ir_inst_t){
+                .opcode = OP_DIV,
+                .args = { 0 }
+            });
+        } break;
+        case AST_BIN_MOD: {
+            irl_add(&state->instrs, (ir_inst_t){
+                .opcode = OP_MOD,
+                .args = { 0 }
+            });
+        } break;
         case AST_BIN_AND: {
             irl_add(&state->instrs, (ir_inst_t){
                 .opcode = OP_AND,
@@ -190,6 +202,12 @@ void codegen_binop(ast_binop_t node, compiler_state_t* state) {
         case AST_BIN_EQ: {
             irl_add(&state->instrs, (ir_inst_t){
                 .opcode = OP_CMP_EQUAL,
+                .args = { 0 }
+            });
+        } break;
+        case AST_BIN_NEQ: {
+            irl_add(&state->instrs, (ir_inst_t){
+                .opcode = OP_CMP_NOT_EQUAL,
                 .args = { 0 }
             });
         } break;
@@ -218,8 +236,13 @@ void codegen_binop(ast_binop_t node, compiler_state_t* state) {
             });
         } break;
         default: {
-            printf("Unhandled binary operation: %s\n",
-                ast_binop_type_as_string(node.type));
+            //printf("Unhandled binary operation: %s\n",
+            //    ast_binop_type_as_string(node.type));
+            if(state_set_error_compilation(state)) {
+                cres_msg_add_costr(state->status, "unhandled binary operation: ");
+                char* m = ast_binop_type_as_string(node.type);
+                cres_msg_add(state->status, m, strlen(m));
+            }
         } break;
     }
 }
@@ -236,9 +259,20 @@ void codegen_unop(ast_unop_t node, compiler_state_t* state) {
                 .args = { 0 }
             });
         } break;
+        case AST_UN_NOT: {
+            irl_add(&state->instrs, (ir_inst_t){
+                .opcode = OP_NOT,
+                .args = { 0 }
+            });
+        } break;
         default: {
-            printf("Unhandled unary operation: %s\n",
-                ast_unop_type_as_string(node.type));
+            if(state_set_error_compilation(state)) {
+                cres_msg_add_costr(state->status, "unhandled unary operation: ");
+                char* m = ast_unop_type_as_string(node.type);
+                cres_msg_add(state->status, m, strlen(m));
+            }
+            //printf("Unhandled unary operation: %s\n",
+            //    ast_unop_type_as_string(node.type));
         } break;
     }
 }

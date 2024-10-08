@@ -377,6 +377,9 @@ pa_result_t pa_parse_expression(parser_t* parser) {
         bin_op_result = pa_try_parse_binary_operation(result, parser, TT_BINOP_DIV, AST_BIN_DIV);
 
     if( par_is_nothing(bin_op_result) )
+        bin_op_result = pa_try_parse_binary_operation(result, parser, TT_BINOP_MOD, AST_BIN_MOD);
+
+    if( par_is_nothing(bin_op_result) )
         bin_op_result = pa_try_parse_binary_operation(result, parser, TT_BINOP_MINUS, AST_BIN_SUB);
 
     if( par_is_nothing(bin_op_result) )
@@ -386,6 +389,9 @@ pa_result_t pa_parse_expression(parser_t* parser) {
 
     if( par_is_nothing(bin_op_result) )
         bin_op_result = pa_try_parse_binary_operation(result, parser, TT_CMP_EQ, AST_BIN_EQ);
+
+    if( par_is_nothing(bin_op_result) )
+        bin_op_result = pa_try_parse_binary_operation(result, parser, TT_CMP_NEQ, AST_BIN_NEQ);
 
     if( par_is_nothing(bin_op_result) )
         bin_op_result = pa_try_parse_binary_operation(result, parser, TT_CMP_LT, AST_BIN_LT);

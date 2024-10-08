@@ -39,6 +39,7 @@ inline static lexeme_t lexer_scan_char_type(char character) {
         case ')':   return LCAT_CLOSE_PAREN;
         case '}':   return LCAT_CLOSE_CURLY;
         case ']':   return LCAT_CLOSE_SBRACKET;
+        case '!':   return LCAT_BANG;
         default:    return LCAT_NONE;
     }
 }

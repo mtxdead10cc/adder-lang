@@ -33,7 +33,7 @@ ltc_t langtest_testcases[] = {
         .filepath = "basics.txt"
     },
     {
-        .name = "boolops",
+        .name = "and-or",
         .code = 
         "bol main() {\n"
         "    num a = 1;\n"
@@ -59,7 +59,8 @@ ltc_t langtest_testcases[] = {
         .name = "foreach",
         .code = 
         "num loop(num a) {\n"
-        "    for(num i in [0, 1, 10]) {\n"
+        "    var array = [0, 1, 10]; \n"
+        "    for(num i in array) {\n"
         "        a = a + i;\n"
         "    }\n"
         "    return a;\n"
@@ -93,6 +94,72 @@ ltc_t langtest_testcases[] = {
         "    return loop();\n"
         "}\n",
         .expect = "4",
+        .filepath = "basics.txt"
+    },
+    {
+        .name = "negate",
+        .code = 
+        "bol main() {\n"
+        "    num a = 100.4;\n"
+        "    return -a;\n"
+        "}\n",
+        .expect = "-100.4",
+        .filepath = "basics.txt"
+    },
+    {
+        .name = "divide",
+        .code = 
+        "bol main() {\n"
+        "    num a = 1;\n"
+        "    return a / 2;\n"
+        "}\n",
+        .expect = "0.5",
+        .filepath = "basics.txt"
+    },
+    {
+        .name = "modulus",
+        .code = 
+        "bol main() {\n"
+        "    num a = 1;\n"
+        "    return a % 2;\n"
+        "}\n",
+        .expect = "1",
+        .filepath = "basics.txt"
+    },
+    {
+        .name = "not",
+        .code = 
+        "bol main() {\n"
+        "    num a = 1;\n"
+        "    return not (a == 2);\n"
+        "}\n",
+        .expect = "true",
+        .filepath = "basics.txt"
+    },
+    {
+        .name = "native-extern",
+        .code = 
+        "#extern none print(str arg);\n"
+        "num main() {\n"
+        "    print(\"hello\n\");\n"
+        "    return 0;\n"
+        "}\n",
+        .expect = "0",
+        .filepath = "basics.txt"
+    },
+    {
+        .name = "operator-preceedence",
+        .code = 
+        "num main() {\n"
+        "    if( (1 + 2 * 3) != 7 ) {\n"
+        "        return false;\n"
+        "    }\n"
+        "    if( (1 - 2 / 2) != 0 ) {\n"
+        "        return false;\n"
+        "    }\n"
+        "    return true;\n"
+        "}\n",
+        .expect = "true",
         .filepath = "basics.txt"
     }
 };

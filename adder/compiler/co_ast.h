@@ -334,6 +334,7 @@ inline static char* ast_binop_type_as_string(ast_binop_type_t type) {
         case AST_BIN_OR:    return "OR";
         case AST_BIN_XOR:   return "XOR";
         case AST_BIN_EQ:    return "EQ";
+        case AST_BIN_NEQ:    return "NEQ";
         case AST_BIN_LT_EQ: return "LT_EQ";
         case AST_BIN_GT_EQ: return "GT_EQ";
         case AST_BIN_LT:    return "LT";

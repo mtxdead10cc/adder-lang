@@ -164,7 +164,7 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
 
         VALIDATE_PRE(vm, opcode);
 
-        assert(OP_OPCODE_COUNT == 34 && "Opcode count changed.");
+        assert(OP_OPCODE_COUNT == 37 && "Opcode count changed.");
 
         switch (opcode) {
             case OP_PUSH_VALUE: {
@@ -193,6 +193,16 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
                 float a = val_into_number(stack[vm_mem->stack.top--]);
                 float b = val_into_number(stack[vm_mem->stack.top--]);
                 stack[++vm_mem->stack.top] = val_number(a * b);
+            } break;
+            case OP_DIV: {
+                float a = val_into_number(stack[vm_mem->stack.top--]);
+                float b = val_into_number(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = val_number(a / b);
+            } break;
+            case OP_MOD: {
+                float a = val_into_number(stack[vm_mem->stack.top--]);
+                float b = val_into_number(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = val_number((int) a % (int) b);
             } break;
             case OP_NEG: {
                 float a = val_into_number(stack[vm_mem->stack.top--]);
@@ -224,6 +234,13 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
                 float a = val_into_number(stack[vm_mem->stack.top--]);
                 float b = val_into_number(stack[vm_mem->stack.top--]);
                 stack[++vm_mem->stack.top] = val_bool( fabs(a - b) < epsilon );
+            } break;
+            case OP_CMP_NOT_EQUAL: {
+                // todo: other types than numbers
+                const float epsilon = 0.0001f;
+                float a = val_into_number(stack[vm_mem->stack.top--]);
+                float b = val_into_number(stack[vm_mem->stack.top--]);
+                stack[++vm_mem->stack.top] = val_bool( fabs(a - b) > epsilon );
             } break;
             case OP_AND: {
                 bool a = val_into_bool(stack[vm_mem->stack.top--]);
