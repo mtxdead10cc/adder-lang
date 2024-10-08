@@ -4,7 +4,7 @@ add_executable(test-app
     ${CMAKE_CURRENT_SOURCE_DIR}/termgfx.c
     ${CMAKE_CURRENT_SOURCE_DIR}/board/board.c)
 
-target_link_libraries(test-app PUBLIC m gvm)
+target_link_libraries(test-app PUBLIC m adder)
 target_compile_options(test-app PRIVATE -Wall -Wpedantic -Wextra) #  -Werror
 
 # -mavx2 -msse2 -mfma

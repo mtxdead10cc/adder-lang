@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project("gvm" LANGUAGES C)
+project("adder" LANGUAGES C)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -12,6 +12,6 @@ set(CMAKE_CXX_FLAGS "-Wall -Wextra") # -pg
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -march=native -funroll-loops -ftree-vectorize")
 
-add_subdirectory(gvm)
-add_subdirectory(gvm-runner)
+add_subdirectory(adder)
+add_subdirectory(adder-runner)
 add_subdirectory(test-app)
