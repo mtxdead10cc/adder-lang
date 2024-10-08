@@ -14,9 +14,19 @@ str main() {
 }
 $STOP("hello123")
 
-$START("bool ops")
+$START("boolops")
 bol main() {
     num a = 1;
-    return (a <= 6) and (6 >= a) or true;
+    return (a >= 6) and (6 <= a) or true;
 }
-$STOP("true")
+$STOP("false")
+
+$START("funcall")
+num add(num a, num b) {
+    return a + b;
+}
+num main() {
+    //num a = 3;
+    return add(3, 4);
+}
+$STOP("7")

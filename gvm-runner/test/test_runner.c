@@ -552,18 +552,18 @@ void test_compile_and_run(test_case_t* this, char* source_code, char* expected_r
     ast_node_t* node = par_extract_node(result);
 
     cres_t status = { 0 };
-    gvm_program_t p = gvm_compile(node, &status);
+    gvm_program_t program = gvm_compile(node, &status);
     if( cres_has_error(&status) ) {
         cres_fprint(stdout, &status, tc_filepath);
         ast_dump(node);
     }
 
     TEST_ASSERT_MSG(this,
-        p.inst.size > 0,
+        program.inst.size > 0,
         "'%s': failed to compile program.",
         tc_name);
 
-    if( p.inst.size == 0 ) {
+    if( program.inst.size == 0 ) {
         ast_free(node);
         pa_destroy(&parser);
         return;
@@ -576,7 +576,7 @@ void test_compile_and_run(test_case_t* this, char* source_code, char* expected_r
         .cycle_limit = 100
     };
 
-    val_t res = gvm_execute(&vm, &p, &args);
+    val_t res = gvm_execute(&vm, &program, &args);
 
     // TODO: FIX VALUE PRINTING AT SOME POINT!
 
@@ -605,12 +605,21 @@ void test_compile_and_run(test_case_t* this, char* source_code, char* expected_r
         default: break;
     }
 
+    bool match_ok = strncmp(result_as_text,
+        expected_result,
+        strlen(expected_result)) == 0;
+
     TEST_ASSERT_MSG(this,
-        strncmp(result_as_text, expected_result, strlen(expected_result)) == 0,
+        match_ok,
         "'%s': unexpected result, expected '%s', got '%s'.",
         tc_name, expected_result, result_as_text);
+    
+    if( match_ok == false ) {
+        ast_dump(node);
+        gvm_program_disassemble(&program);
+    }
 
-    gvm_program_destroy(&p);
+    gvm_program_destroy(&program);
     ast_free(node);
     pa_destroy(&parser);
     gvm_destroy(&vm);

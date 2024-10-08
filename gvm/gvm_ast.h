@@ -298,13 +298,14 @@ inline static char* ast_node_type_as_string(ast_node_type_t type) {
         case AST_VALUE:     return "VALUE";
         case AST_VAR_REF:   return "VAR_REF";
         case AST_ARRAY:     return "ARRAY";
-        case AST_IF_CHAIN:        return "IF";
+        case AST_IF_CHAIN:  return "IF";
         case AST_FOREACH:   return "FOREACH";
         case AST_BINOP:     return "BINOP";
         case AST_UNOP:      return "UNOP";
         case AST_ASSIGN:    return "ASSIGN";
         case AST_VAR_DECL:  return "VAR_DECL";
         case AST_FUN_DECL:  return "FUN_DECL";
+        case AST_FUN_SIGN:  return "FUN_SIGN";
         case AST_FUN_CALL:  return "FUN_CALL";
         case AST_RETURN:    return "RETURN";
         case AST_BREAK:     return "BREAK";
@@ -412,8 +413,9 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
             /* nothing */
         } break;
         case AST_BLOCK: {
-            _ast_nl(indent + 1);
             size_t count = node->u.n_block.count;
+            if( count > 0 )
+                _ast_nl(indent + 1);
             for(size_t i = 0; i < count; i++) {
                 _ast_dump(node->u.n_block.content[i], indent+1);
                 if( i < (count - 1) ) {
@@ -439,8 +441,7 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
             printf("%s", ast_value_type_as_string(node->u.n_funsign.rettype)); 
         } break;
         case AST_FUN_DECL: {
-            _ast_nl(indent + 1);
-            printf(" name: "); _ast_dump(node->u.n_fundecl.funsign, indent + 2);                    _ast_nl(indent + 1);
+            _ast_dump(node->u.n_fundecl.funsign, indent + 1);                                       _ast_nl(indent + 1);              
             printf(" args: "); _ast_dump(node->u.n_fundecl.args, indent + 2);                       _ast_nl(indent + 1);
             printf(" body: "); _ast_dump(node->u.n_fundecl.body, indent + 2);                       _ast_nl(indent);
         } break;

@@ -33,13 +33,26 @@ ltc_t langtest_testcases[] = {
         .filepath = "basics.txt"
     },
     {
-        .name = "bool ops",
+        .name = "boolops",
         .code = 
         "bol main() {\n"
         "    num a = 1;\n"
-        "    return (a <= 6) and (6 >= a) or true;\n"
+        "    return (a >= 6) and (6 <= a) or true;\n"
         "}\n",
-        .expect = "true",
+        .expect = "false",
+        .filepath = "basics.txt"
+    },
+    {
+        .name = "funcall",
+        .code = 
+        "num add(num a, num b) {\n"
+        "    return a + b;\n"
+        "}\n"
+        "num main() {\n"
+        "    //num a = 3;\n"
+        "    return add(3, 4);\n"
+        "}\n",
+        .expect = "7",
         .filepath = "basics.txt"
     }
 };

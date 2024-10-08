@@ -1,7 +1,7 @@
 
 add_custom_target(gen-test-header
     COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/test/gen/generate.py
-    COMMENT "Generate Headers"
+    COMMENT "Generate langtest.h"
 )
 
 # add the executable

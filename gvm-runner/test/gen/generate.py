@@ -89,7 +89,7 @@ def gen_testcase(name, code_lines, expected, filepath):
 if __name__ == "__main__":
 
     dir_path    = dirname(abspath(__file__))
-    source_dir  = dir_path + "/source"
+    source_dir  = dir_path + "/testfiles"
     test_source = [join(source_dir, f) for f in listdir(source_dir) if is_test_file(source_dir, f)]
     outpath = join(dir_path, "../")
     outpath = join(outpath, "langtest.h")

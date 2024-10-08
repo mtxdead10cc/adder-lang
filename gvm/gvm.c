@@ -280,7 +280,7 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
             } break;
             case OP_CALL: {
                 // push the return address
-                stack[++vm_mem->stack.top] = val_number(vm_run->pc + 2);
+                stack[++vm_mem->stack.top] = val_number(vm_run->pc + 4);
                 // jump to label / function
                 vm_run->pc = READ_U32(instructions, vm_run->pc);
                 TRACE_INT_ARG(vm_run->pc);
