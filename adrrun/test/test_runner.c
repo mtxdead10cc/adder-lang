@@ -543,6 +543,7 @@ void test_compile_and_run(test_case_t* this, char* source_code, char* expected_r
         parser.result.msg );
 
     if( parsing_ok == false ) {
+        tokens_print(&parser.collection);
         pa_destroy(&parser);
         return;
     }

@@ -169,6 +169,7 @@ srcmap_t create_symbolic_token_map() {
     srcmap_insert(&map, srcref_const("]"),  sm_val(TT_CLOSE_SBRACKET));
     srcmap_insert(&map, srcref_const("="),  sm_val(TT_ASSIGN));
     srcmap_insert(&map, srcref_const(","),  sm_val(TT_SEPARATOR));
+    srcmap_insert(&map, srcref_const("#"),  sm_val(TT_PREPROC));
     srcmap_insert(&map, srcref_const(";"),  sm_val(TT_STATEMENT_END));
     srcmap_insert(&map, srcref_const("*"),  sm_val(TT_BINOP_MUL));
     srcmap_insert(&map, srcref_const("/"),  sm_val(TT_BINOP_DIV));
@@ -275,9 +276,13 @@ bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
                 cres_set_src_location(args->resultptr, ref);
                 cres_msg_add_costr(args->resultptr, "unable to make anything useful out of ");
                 cres_msg_add_costr(args->resultptr, "'");
+                size_t len = srcref_len(ref);
+                if( len > 2 )
+                    len = 2;
                 cres_msg_add(args->resultptr,
                     srcref_ptr(ref),
-                    srcref_len(ref));
+                    len);
+                cres_msg_add_costr(args->resultptr, "...'");
             }
         }
     }

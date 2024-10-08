@@ -22,12 +22,13 @@ typedef enum lexeme_t {
     LCAT_CLOSE_CURLY    = 0x00008000,
     LCAT_CLOSE_SBRACKET = 0x00010000,
     LCAT_BANG           = 0x00020000,
+    LCAT_POUND          = 0x00040000,
     
-    LCAT_NUMBER         = 0x01000000,
-    LCAT_LETTER         = 0x02000000,
-    LCAT_SPACE          = 0x04000000,
-    LCAT_SEPARATOR      = 0x08000000,
-    LCAT_SYMBOLIC       = 0x10000000
+    LCAT_NUMBER         = 0x04000000,
+    LCAT_LETTER         = 0x08000000,
+    LCAT_SPACE          = 0x10000000,
+    LCAT_SEPARATOR      = 0x20000000,
+    LCAT_SYMBOLIC       = 0x40000000
 
 } lexeme_t;
 
@@ -69,6 +70,7 @@ typedef enum token_type_t {
     TT_BINOP_MOD,
     TT_BINOP_PLUS,
     TT_BINOP_MINUS,
+    TT_PREPROC,
     TT_SEPARATOR,
     TT_STATEMENT_END,
     TT_FINAL

@@ -60,6 +60,7 @@ inline static int cres_msg_add_token_type_name(cres_t* res, token_type_t type) {
         case TT_CMP_NEQ:
         case TT_CMP_GT_EQ:
         case TT_CMP_LT_EQ:      return cres_msg_add_costr(res, "comparison operator");
+        case TT_PREPROC:        return cres_msg_add_costr(res, "preprocessor symbol");
         default:                return cres_msg_add_costr(res, "unknown");
     }
 }
