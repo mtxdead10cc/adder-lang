@@ -38,7 +38,9 @@
         "dlfcn.h": "c",
         "random": "cpp",
         "*.tcc": "cpp",
-        "gvm_build_result.h": "c"
+        "gvm_build_result.h": "c",
+        "gvm_srcmap.h": "c",
+        "gvm_compiler.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

@@ -13,5 +13,5 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -march=native -funroll-loops -ftree-vectorize")
 
 add_subdirectory(adder)
-add_subdirectory(adder-runner)
+add_subdirectory(adrrun)
 add_subdirectory(test-app)
