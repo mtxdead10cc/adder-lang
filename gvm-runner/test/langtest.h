@@ -49,10 +49,50 @@ ltc_t langtest_testcases[] = {
         "    return a + b;\n"
         "}\n"
         "num main() {\n"
-        "    //num a = 3;\n"
-        "    return add(3, 4);\n"
+        "    num a = 3;\n"
+        "    return add(a, 4);\n"
         "}\n",
         .expect = "7",
+        .filepath = "basics.txt"
+    },
+    {
+        .name = "foreach",
+        .code = 
+        "num loop(num a) {\n"
+        "    for(num i in [0, 1, 10]) {\n"
+        "        a = a + i;\n"
+        "    }\n"
+        "    return a;\n"
+        "}\n"
+        "num main() {\n"
+        "    num a = 0;\n"
+        "    return loop(a);\n"
+        "}\n",
+        .expect = "11",
+        .filepath = "basics.txt"
+    },
+    {
+        .name = "ifelse",
+        .code = 
+        "num loop() {\n"
+        "    num a = 0;\n"
+        "    for(num i in [1, 2, 3, 4]) {\n"
+        "        if( i >= 4 ) {\n"
+        "            return i + a;\n"
+        "        } else if ( i == 1 ) {\n"
+        "            a = a + 2;\n"
+        "        } else if ( i == 2 ) {\n"
+        "            a = a - 1;\n"
+        "        } else {\n"
+        "            a = a - 1;\n"
+        "        }\n"
+        "    }\n"
+        "    return 0;\n"
+        "}\n"
+        "num main() {\n"
+        "    return loop();\n"
+        "}\n",
+        .expect = "4",
         .filepath = "basics.txt"
     }
 };
