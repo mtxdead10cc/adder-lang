@@ -14,6 +14,7 @@
 #include <gvm_compiler.h>
 #include <stdarg.h>
 #include <gvm_compiler.h>
+#include "langtest.h"
 
 typedef struct test_case_t test_case_t;
 
@@ -523,29 +524,23 @@ void test_tokenizer(test_case_t* this) {
     }
 }
 
-void test_parser(test_case_t* this) {
+void test_compile_and_run(test_case_t* this, char* source_code, char* expected_result, char* tc_name, char* tc_filepath) {
+
+    static char result_as_text[512] = {0};
     parser_t parser;
 
-    char* text = 
-    "num main() {\n"
-    "  num q = 0;\n"
-    "  for(num y in [1,2,3,4,5]) {\n"
-    "      q = q + (y * 5);\n"
-    "  }\n"
-    "  return q;\n"
-    "}\n";
-
-    char* filepath = "test/test.txt";
-
     TEST_ASSERT_MSG(this,
-        pa_init(&parser, text, strlen(text), filepath),
-        "failed to initialize parser.");
+        pa_init(&parser, source_code, strlen(source_code), tc_filepath),
+        "'%s': failed to initialize parser.", tc_name);
 
     pa_result_t result = pa_parse_program(&parser);
+
     bool parsing_ok = par_is_node(result);
+
     TEST_ASSERT_MSG(this,
         parsing_ok,
-        "failed to parse program: %.*s",
+        "'%s': failed to parse program: %.*s",
+        tc_name,
         (int) parser.result.msg_len,
         parser.result.msg );
 
@@ -556,16 +551,17 @@ void test_parser(test_case_t* this) {
 
     ast_node_t* node = par_extract_node(result);
 
-    //ast_dump(node);
-
     cres_t status = { 0 };
     gvm_program_t p = gvm_compile(node, &status);
     if( cres_has_error(&status) ) {
-        cres_fprint(stdout, &status, filepath);
+        cres_fprint(stdout, &status, tc_filepath);
+        ast_dump(node);
     }
+
     TEST_ASSERT_MSG(this,
         p.inst.size > 0,
-        "failed to compile program.");
+        "'%s': failed to compile program.",
+        tc_name);
 
     if( p.inst.size == 0 ) {
         ast_free(node);
@@ -581,15 +577,74 @@ void test_parser(test_case_t* this) {
     };
 
     val_t res = gvm_execute(&vm, &p, &args);
+
+    // TODO: FIX VALUE PRINTING AT SOME POINT!
+
+    switch(VAL_GET_TYPE(res)) {
+        case VAL_ARRAY: {
+            int wlen = gvm_get_string(&vm, res, result_as_text, sizeof(result_as_text));
+            result_as_text[wlen] = '\0';
+        } break;
+        case VAL_BOOL: {
+            if( val_into_bool(res) ) {
+                sprintf(result_as_text, "true");
+            } else {
+                sprintf(result_as_text, "false");
+            }
+        } break;
+        case VAL_NUMBER: {
+            sprintf(result_as_text, "%f", val_into_number(res));
+        } break;
+        case VAL_CHAR: {
+            sprintf(result_as_text, "%c", val_into_char(res));
+        } break;
+        case VAL_IVEC2: {
+            ivec2_t v = val_into_ivec2(res);
+            sprintf(result_as_text, "(%i, %i)", v.x, v.y);
+        } break;
+        default: break;
+    }
+
     TEST_ASSERT_MSG(this,
-        val_into_number(res) == 75,
-        "invalid code execution result.");
+        strncmp(result_as_text, expected_result, strlen(expected_result)) == 0,
+        "'%s': unexpected result, expected '%s', got '%s'.",
+        tc_name, expected_result, result_as_text);
 
     gvm_program_destroy(&p);
     ast_free(node);
     pa_destroy(&parser);
     gvm_destroy(&vm);
 }
+
+
+void test_parser(test_case_t* this) {
+    
+    char* text = 
+    "num main() {\n"
+    "  num q = 0;\n"
+    "  for(num y in [1,2,3,4,5]) {\n"
+    "      q = q + (y * 5);\n"
+    "  }\n"
+    "  return q;\n"
+    "}\n";
+
+    test_compile_and_run(this, 
+        text, "75.0",
+        "simple-main",
+        "builtin"); 
+
+    size_t tc_count = sizeof(langtest_testcases) / sizeof(langtest_testcases[0]);
+    for (size_t i = 0; i < tc_count; i++) {
+        ltc_t tc = langtest_testcases[i];
+        test_compile_and_run(this,
+            tc.code,
+            tc.expect,
+            tc.name,
+            tc.filepath);
+    }
+}
+
+
 
 test_results_t run_testcases() {
 

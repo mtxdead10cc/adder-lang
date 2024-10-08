@@ -1,0 +1,22 @@
+$START("1+1")
+num main() {
+    return 1 + 1;
+}
+$STOP(2)
+
+$START("hellostr")
+str main() {
+    num a = 1;
+    if( a <= 2 ) {
+        return "hello123";
+    }
+    return "%HELLO";
+}
+$STOP("hello123")
+
+$START("bool ops")
+bol main() {
+    num a = 1;
+    return (a <= 6) and (6 >= a) or true;
+}
+$STOP("true")
