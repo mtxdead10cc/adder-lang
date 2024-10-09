@@ -13,18 +13,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-bool pa_init(parser_t* parser, char* text, size_t text_length, char* filepath) {
+pa_result_t pa_init(parser_t* parser, char* text, size_t text_length, char* filepath) {
 
-    parser->result = (cres_t) {0};
+    parser->result = (cres_t) { 0 };
     
     if( tokens_init(&parser->collection, 16) == false ) {
         cres_set_error(&parser->result, R_ERR_OUT_OF_MEMORY);
-        return false;
+        return par_error(parser);
     }
 
     if( text == NULL ) {
         cres_set_error(&parser->result, R_ERR_INTERNAL);
-        return false;
+        return par_error(parser);
     }
 
     tokenizer_args_t args = (tokenizer_args_t) {
@@ -39,11 +39,11 @@ bool pa_init(parser_t* parser, char* text, size_t text_length, char* filepath) {
     if( tokenizer_analyze(&parser->collection, &args) == false ) {
         tokens_destroy(&parser->collection);
         parser->collection.count = 0;
-        return false;
+        return par_error(parser);
     }
 
     parser->cursor = 0;
-    return cres_is_ok(&parser->result);
+    return par_nothing();
 }
 
 void pa_destroy(parser_t* parser) {
@@ -104,40 +104,81 @@ token_t pa_peek_token(parser_t* parser, int lookahead) {
     return parser->collection.tokens[parser->cursor + lookahead];
 }
 
+pa_result_t pa_error_out_of_tokens(parser_t* parser) {
+    if( cres_set_error(&parser->result, R_ERR_TOKEN) ) {
+        cres_msg_add_costr(&parser->result, "unexpected end of token stream.");
+    }
+    return par_error(parser);
+}
 
-void pa_set_error_unexpected_token_type(parser_t* parser, token_type_t expected, token_t actual) {
+pa_result_t pa_error_unexpected_token_type(parser_t* parser, token_type_t expected, token_t actual) {
     if( cres_set_error(&parser->result, R_ERR_TOKEN) ) {
         cres_set_src_location(&parser->result, actual.ref);
         cres_msg_add_costr(&parser->result, "unexpected token, expected ");
         cres_msg_add_token_type_name(&parser->result, expected);
         cres_msg_add_costr(&parser->result, " but found ");
-        cres_msg_add_token(&parser->result, actual);
+        cres_msg_add_token_type_name(&parser->result, actual.type);
+        cres_msg_add_costr(&parser->result, " ('");
+        cres_msg_add(&parser->result,
+            srcref_ptr(actual.ref),
+            srcref_len(actual.ref));
+        cres_msg_add_costr(&parser->result, "')");
     }
+    return par_error(parser);
 }
 
-void pa_set_error_invalid_token_format(parser_t* parser, token_t token) {
+pa_result_t pa_error_invalid_token_format(parser_t* parser, token_t token) {
     if( cres_set_error(&parser->result, R_ERR_TOKEN) ) {
         cres_set_src_location(&parser->result, token.ref);
         cres_msg_add_costr(&parser->result, "unexpected token format: ");
-        cres_msg_add_token(&parser->result, token);
+        cres_msg_add_token_type_name(&parser->result, token.type);
+        cres_msg_add_costr(&parser->result, " ('");
+        cres_msg_add(&parser->result,
+            srcref_ptr(token.ref),
+            srcref_len(token.ref));
+        cres_msg_add_costr(&parser->result, "')");
     }
+    return par_error(parser);
 }
+
+pa_result_t _pa_set_error(parser_t* parser, cres_code_t rescode, token_t token, char* expected_str) {
+    if( cres_set_error(&parser->result, rescode) ) {
+        cres_set_src_location(&parser->result, token.ref);
+        cres_msg_add_costr(&parser->result, "unexpected statement: ");
+        cres_msg_add_token_type_name(&parser->result, token.type);
+        cres_msg_add_costr(&parser->result, " ('");
+        cres_msg_add(&parser->result,
+            srcref_ptr(token.ref),
+            srcref_len(token.ref));
+        cres_msg_add_costr(&parser->result, "') ");
+        if( expected_str != NULL ) {
+            cres_msg_add(&parser->result, expected_str, strlen(expected_str));
+        }
+    }
+    return par_error(parser);
+}
+
+pa_result_t pa_error_invalid_expression(parser_t* parser, token_t token, char* expected_str) {
+    return _pa_set_error(parser, R_ERR_EXPR, token, expected_str);
+}
+
+pa_result_t pa_error_invalid_statement(parser_t* parser, token_t token, char* expected_str) {
+    return _pa_set_error(parser, R_ERR_STATEMENT, token, expected_str);
+}
+
 
 pa_result_t pa_consume(parser_t* parser, token_type_t expected) {
     if( cres_has_error(&parser->result) ) {
-        return par_error(&parser->result);
+        return par_error(parser);
     }
     if( pa_is_at_end(parser) ) {
-        return par_out_of_tokens();
+        return pa_error_out_of_tokens(parser);
     }
     token_t actual = pa_current_token(parser);
     if( expected != actual.type ) {
-        pa_set_error_unexpected_token_type(parser, expected, actual);
-        return par_error(&parser->result);
+        return pa_error_unexpected_token_type(parser, expected, actual);
     }
-    if( pa_advance(parser) == false ) {
-        return par_out_of_tokens();
-    }
+    pa_advance(parser); // do not check eof here
     return par_nothing();
 }
 
@@ -154,8 +195,7 @@ pa_result_t pa_parse_number(parser_t* parser) {
     if( srcref_as_float(token.ref, &value) ) {
         return par_node(ast_number(value));
     }
-    pa_set_error_invalid_token_format(parser, token);
-    return par_error(&parser->result);
+    return pa_error_invalid_token_format(parser, token);
 }
 
 pa_result_t pa_parse_boolean(parser_t* parser) {
@@ -168,8 +208,7 @@ pa_result_t pa_parse_boolean(parser_t* parser) {
     if( srcref_as_bool(token.ref, &value) ) {
         return par_node(ast_bool(value));
     }
-    pa_set_error_invalid_token_format(parser, token);
-    return par_error(&parser->result);
+    return pa_error_invalid_token_format(parser, token);
 }
 
 pa_result_t pa_parse_string(parser_t* parser) {
@@ -206,7 +245,7 @@ pa_result_t pa_try_parse_group(parser_t* parser) {
     if( token.type != TT_OPEN_PAREN )
         return par_nothing();
     if( pa_advance(parser) == false )
-        return par_out_of_tokens();
+        return pa_error_out_of_tokens(parser);
     // todo: error message if empty paren
     pa_result_t result_inner = pa_parse_expression(parser);
     if( par_is_error(result_inner) ) {
@@ -228,13 +267,8 @@ pa_result_t pa_try_parse_func_call(parser_t* parser) {
         return par_nothing();
     }
 
-    if( pa_advance(parser) == false ) {
-        return par_out_of_tokens();
-    }
-
-    if( pa_advance(parser) == false ) {
-        return par_out_of_tokens();
-    }
+    pa_advance(parser);
+    pa_advance(parser);
 
     ast_node_t* args = ast_block();
 
@@ -266,9 +300,7 @@ pa_result_t pa_try_parse_array_def(parser_t* parser) {
         return par_nothing();
     }
 
-    if( pa_advance(parser) == false ) {
-        return par_out_of_tokens();
-    }
+    pa_advance(parser);
 
     ast_node_t* array = ast_array();
 
@@ -352,13 +384,7 @@ pa_result_t pa_parse_expression(parser_t* parser) {
     }
 
     if( par_is_node(result) == false ) {
-        if( cres_set_error(&parser->result, R_ERR_EXPR) ) {
-            token_t token = pa_current_token(parser);
-            cres_set_src_location(&parser->result, token.ref);
-            cres_msg_add_token(&parser->result, token);
-            cres_msg_add_costr(&parser->result, " could not be made into an expression.");
-        }
-        return par_error(&parser->result);
+        return pa_error_invalid_expression(parser, pa_current_token(parser), NULL);
     }
 
     // parsing binary operation expressions
@@ -458,7 +484,7 @@ pa_result_t pa_try_parse_assignment(parser_t* parser) {
         if( par_is_error(result) )
             return result;
         if( pa_advance(parser) == false ) // skip over '='
-            return par_out_of_tokens(); 
+            return pa_error_out_of_tokens(parser);
         pa_result_t rhs = pa_parse_expression(parser); // rhs expr
         if( par_is_error(rhs) )
             return rhs;
@@ -648,13 +674,7 @@ pa_result_t pa_parse_statement(parser_t* parser) {
         return result;
 
     if( par_is_node(result) == false ) {
-        if( cres_set_error(&parser->result, R_ERR_STATEMENT) ) {
-            token_t token = pa_current_token(parser);
-            cres_set_src_location(&parser->result, token.ref);
-            cres_msg_add_token(&parser->result, token);
-            cres_msg_add_costr(&parser->result, " is not a valid statement.");
-        }
-        return par_error(&parser->result);
+        return pa_error_invalid_statement(parser, pa_current_token(parser), NULL);
     }
 
     // optional end-of-statement (for now)
@@ -663,7 +683,7 @@ pa_result_t pa_parse_statement(parser_t* parser) {
     return result;
 }
 
-pa_result_t pa_parse_funsign(parser_t* parser) {
+pa_result_t pa_parse_funsign(parser_t* parser, ast_funsign_type_t decltype) {
     token_t rettype = pa_current_token(parser);
     pa_result_t result = pa_consume(parser, TT_SYMBOL);
     if( par_is_error(result) )
@@ -673,24 +693,7 @@ pa_result_t pa_parse_funsign(parser_t* parser) {
     result = pa_consume(parser, TT_SYMBOL);
     if( par_is_error(result) )
         return result;
-    
-    return par_node(ast_funsign(funname.ref,
-        pa_value_type(rettype.ref)));
-}
 
-pa_result_t pa_try_parse_fundecl(parser_t* parser) {
-
-    if( pa_peek_token(parser, 0).type != TT_SYMBOL
-     || pa_peek_token(parser, 1).type != TT_SYMBOL
-     || pa_peek_token(parser, 2).type != TT_OPEN_PAREN )
-        return par_nothing();
-
-    pa_result_t result = pa_parse_funsign(parser);
-    if( par_is_error(result) )
-        return result;
-
-    ast_node_t* funsign = par_extract_node(result);
-    
     result = pa_consume(parser, TT_OPEN_PAREN);
     if( par_is_error(result) )
         return result;
@@ -714,14 +717,60 @@ pa_result_t pa_try_parse_fundecl(parser_t* parser) {
     result = pa_consume(parser, TT_CLOSE_PAREN);
     if( par_is_error(result) )
         return result;
+    
+    return par_node(ast_funsign(funname.ref,
+        argspec, decltype,
+        pa_value_type(rettype.ref)));
+}
 
+pa_result_t pa_try_parse_fundecl(parser_t* parser) {
+
+    if( pa_peek_token(parser, 0).type != TT_SYMBOL
+     || pa_peek_token(parser, 1).type != TT_SYMBOL
+     || pa_peek_token(parser, 2).type != TT_OPEN_PAREN )
+        return par_nothing();
+
+    pa_result_t result = pa_parse_funsign(parser, AST_FUNSIGN_INTERN);
+    if( par_is_error(result) )
+        return result;
+
+    ast_node_t* funsign = par_extract_node(result);
+    
     result = pa_parse_body(parser);
     if( par_is_error(result) )
         return result;
 
     return par_node(ast_fundecl( funsign,
-                                 argspec,
                                  par_extract_node(result) ));
+}
+
+pa_result_t pa_try_parse_preproc_directive(parser_t* parser) {
+    if( pa_advance_if(parser, TT_PREPROC) == false )
+        return par_nothing();
+    token_t directive = pa_current_token(parser);
+    pa_result_t result = pa_consume(parser, TT_SYMBOL);
+    if( par_is_error(result) )
+        return result;
+    if( srcref_equals_string(directive.ref, "extern") == false ) {
+        return pa_error_invalid_statement(parser, directive, " expected 'extern'.");
+    }
+    result = pa_parse_funsign(parser, AST_FUNSIGN_EXTERN);
+    if( par_is_error(result) )
+        return result;
+    pa_advance_if(parser, TT_STATEMENT_END); // optional end of statement
+    return result;
+}
+
+pa_result_t pa_parse_toplevel_statement(parser_t* parser) {
+    pa_result_t result = pa_try_parse_fundecl(parser);
+    if( par_is_nothing(result) )
+        result = pa_try_parse_preproc_directive(parser);
+    if( par_is_error(result) || par_is_node(result) )
+        return result;
+    return pa_error_invalid_statement(parser,
+        pa_current_token(parser),
+        " expected top-level statement (function "
+        "declaration or preprocessor directive).");
 }
 
 pa_result_t pa_parse_program(parser_t* parser) {
@@ -730,28 +779,28 @@ pa_result_t pa_parse_program(parser_t* parser) {
     if( par_is_error(consume_result) )
         return consume_result;
 
-    pa_result_t program_result;
+    pa_result_t result;
     ast_node_t* program = ast_block();
+
     do {
-        program_result = pa_try_parse_fundecl(parser);
-        if( par_is_node(program_result) ) {
+        result = pa_parse_toplevel_statement(parser);
+        if( par_is_node(result) ) {
             ast_block_add(program,
-                par_extract_node(program_result));
+                par_extract_node(result));
         } else {
             break;
         }
-    } while( pa_is_at_end(parser) == false );
+    } while(    !pa_is_at_end(parser)
+             && !pa_advance_if(parser, TT_FINAL) );
 
-    consume_result = pa_consume(parser, TT_FINAL);
-
-    if( par_is_error(program_result) ) {
+    if( par_is_error(result) ) {
         ast_free(program);
-        return program_result;
+        return result;
     }
 
     if( par_is_error(consume_result) ) {
         ast_free(program);
-        return consume_result;
+        return result;
     }
 
     return par_node(program);

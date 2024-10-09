@@ -119,29 +119,30 @@ inline static ast_node_t* ast_break() {
 }
 
 inline static ast_node_t* ast_funsign( srcref_t name,
+                                       ast_node_t* argspec,
+                                       ast_funsign_type_t decltype,
                                        ast_value_type_t return_type ) 
 {
     ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
     node->type = AST_FUN_SIGN,
     node->u.n_funsign = (ast_funsign_t) {
         .name = name,
+        .argspec = argspec,
+        .decltype = decltype,
         .rettype = return_type
     };
     return node;
 }
 
 inline static ast_node_t* ast_fundecl( ast_node_t* funsign,
-                                       ast_node_t* args,
                                        ast_node_t* body ) 
 {
     assert(funsign->type == AST_FUN_SIGN);
-    assert(args->type == AST_BLOCK);
     assert(body->type == AST_BLOCK);
     ast_node_t* node = (ast_node_t*) malloc(sizeof(ast_node_t));
     node->type = AST_FUN_DECL,
     node->u.n_fundecl = (ast_fundecl_t) {
         .funsign = funsign,
-        .args = args,
         .body = body
     };
     return node;
@@ -274,13 +275,14 @@ inline static void ast_free(ast_node_t* node) {
         } break;
         case AST_FUN_DECL: {
             ast_free(node->u.n_fundecl.funsign);
-            ast_free(node->u.n_fundecl.args);
             ast_free(node->u.n_fundecl.body);
         } break;
         case AST_FUN_CALL: {
             ast_free(node->u.n_funcall.args);
         } break;
-        case AST_FUN_SIGN:
+        case AST_FUN_SIGN: {
+            ast_free(node->u.n_funsign.argspec);
+        } break;
         case AST_VAR_REF:
         case AST_VALUE:
         case AST_VAR_DECL:
@@ -350,6 +352,15 @@ inline static char* ast_unop_type_as_string(ast_unop_type_t type) {
         default: return "<UNKNOWN-UNOP-TYPE>";
     }
 }
+
+inline static char* ast_funsign_type_string(ast_funsign_type_t type) {
+    switch(type) {
+        case AST_FUNSIGN_EXTERN: return "EXTERN";
+        case AST_FUNSIGN_INTERN: return "INTERN";
+        default: return "<UNKNOWN-FUNSIGN-TYPE>";
+    }
+}
+
 
 inline static void ast_dump_value(ast_value_t val) {
     switch(val.type) {
@@ -437,13 +448,14 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
             _ast_dump(node->u.n_foreach.during, indent);
         } break;
         case AST_FUN_SIGN: {
+            printf("%s ", ast_funsign_type_string(node->u.n_funsign.decltype));
             srcref_print(node->u.n_funsign.name);
-            printf(" ");
+            _ast_dump(node->u.n_funsign.argspec, indent + 1);
+            printf(" -> ");
             printf("%s", ast_value_type_as_string(node->u.n_funsign.rettype)); 
         } break;
         case AST_FUN_DECL: {
-            _ast_dump(node->u.n_fundecl.funsign, indent + 1);                                       _ast_nl(indent + 1);              
-            printf(" args: "); _ast_dump(node->u.n_fundecl.args, indent + 2);                       _ast_nl(indent + 1);
+            _ast_dump(node->u.n_fundecl.funsign, indent + 1);                                       _ast_nl(indent + 1);
             printf(" body: "); _ast_dump(node->u.n_fundecl.body, indent + 2);                       _ast_nl(indent);
         } break;
         case AST_FUN_CALL: {

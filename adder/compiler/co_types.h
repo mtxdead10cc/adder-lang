@@ -76,7 +76,6 @@ typedef enum token_type_t {
     TT_FINAL
 } token_type_t;
 
-
 typedef enum ast_node_type_t {
     AST_VALUE,
     AST_ARRAY,
@@ -227,15 +226,21 @@ typedef struct ast_unop_t {
     ast_node_t*      inner;
 } ast_unop_t;
 
+typedef enum ast_funsign_type_t {
+    AST_FUNSIGN_INTERN,
+    AST_FUNSIGN_EXTERN
+} ast_funsign_type_t;
+
 typedef struct ast_funsign_t {
+    ast_funsign_type_t decltype;
     ast_value_type_t rettype;
-    srcref_t         name; 
+    srcref_t         name;
+    ast_node_t*      argspec;
 } ast_funsign_t;
 
 typedef struct ast_fundecl_t {
     ast_node_t* funsign;    // function signature  
-    ast_node_t* args;       // block, single instruction or null
-    ast_node_t* body;       // block, single instruction or null
+    ast_node_t* body; 
 } ast_fundecl_t;
 
 typedef struct ast_funcall_t {

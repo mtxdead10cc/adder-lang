@@ -309,12 +309,10 @@ void test_ast(test_case_t* this) {
         ast_return(ast_varref(srcref(buf, 6, 3))));
 
     ast_node_t* funsign = ast_funsign(srcref(buf, 0, 4),
+        decl_args, AST_FUNSIGN_INTERN,
         AST_VALUE_TYPE_NUMBER);
 
-    ast_node_t* fun = ast_fundecl(funsign, decl_args, body);
-
-    //ast_dump(fun);
-
+    ast_node_t* fun = ast_fundecl(funsign, body);
 
     cres_t status = { 0 };
     gvm_program_t program = gvm_compile(fun, &status);
@@ -527,22 +525,22 @@ void test_compile_and_run(test_case_t* this, char* source_code, char* expected_r
     static char result_as_text[512] = {0};
     parser_t parser;
 
+    pa_result_t result = pa_init(&parser, source_code, strlen(source_code), tc_filepath);
     TEST_ASSERT_MSG(this,
-        pa_init(&parser, source_code, strlen(source_code), tc_filepath),
+        par_is_error(result) == false,
         "'%s': failed to initialize parser.", tc_name);
 
-    pa_result_t result = pa_parse_program(&parser);
+    result = pa_parse_program(&parser);
 
     bool parsing_ok = par_is_node(result);
 
     TEST_ASSERT_MSG(this,
         parsing_ok,
-        "'%s': failed to parse program: %.*s",
-        tc_name,
-        (int) parser.result.msg_len,
-        parser.result.msg );
+        "failed to parse test-program '%s:%s'.",
+        tc_filepath, tc_name);
 
     if( parsing_ok == false ) {
+        cres_fprint(stdout, &parser.result, tc_filepath);
         tokens_print(&parser.collection);
         pa_destroy(&parser);
         return;

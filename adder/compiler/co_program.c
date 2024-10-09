@@ -9,13 +9,13 @@
 gvm_program_t gvm_program_compile_source(char* source, size_t source_len, char* filepath) {
 
     parser_t parser = { 0 };
-    if(pa_init(&parser, source, source_len, filepath) == false) {
-        printf("error: failed to initialize parser\n");
+    pa_result_t result = pa_init(&parser, source, source_len, filepath);
+    if( par_is_error(result) ) {
+        cres_fprint(stdout, (cres_t*) par_extract_error(result), filepath);
         pa_destroy(&parser);
         return (gvm_program_t) { 0 };
     }
-
-    pa_result_t result = pa_parse_program(&parser);
+    result = pa_parse_program(&parser);
     if( par_is_error(result) ) {
         cres_fprint(stdout, (cres_t*) par_extract_error(result), filepath);
         pa_destroy(&parser);
