@@ -18,7 +18,8 @@ typedef struct ir_list_t {
 typedef enum ir_index_tag_t {
     IRID_INVALID = 0,
     IRID_VAR,
-    IRID_INS
+    IRID_INS,
+    IRID_EXT
 } ir_index_tag_t;
 
 typedef struct ir_index_t {
@@ -88,6 +89,7 @@ void irl_dump(ir_list_t* list) {
 typedef struct compiler_state_t {
     srcmap_t        localvars;
     srcmap_t        functions;
+    srcmap_t        externfunctions;
     ir_list_t       instrs;
     valbuffer_t     consts;
     cres_t*         status;
@@ -139,6 +141,28 @@ ir_index_t state_get_funcaddr(compiler_state_t* state, srcref_t name) {
         return (ir_index_t) {
             .idx = val->data,
             .tag = IRID_INS
+        };
+    }
+    return (ir_index_t) {
+        .idx = 0,
+        .tag = IRID_INVALID
+    };
+}
+
+bool state_add_extfuncaddr(compiler_state_t* state, srcref_t name, ir_index_t index) {
+    assert(index.tag == IRID_EXT && "received incorrect index type");
+    srcmap_value_t value = (srcmap_value_t) {
+        .data = (uint32_t) index.idx
+    };
+    return srcmap_insert(&state->externfunctions, name, value);
+}
+
+ir_index_t state_get_extfuncaddr(compiler_state_t* state, srcref_t name) {
+    srcmap_value_t* val = srcmap_lookup(&state->externfunctions, name);
+    if( val != NULL ) {
+        return (ir_index_t) {
+            .idx = val->data,
+            .tag = IRID_EXT
         };
     }
     return (ir_index_t) {
@@ -236,8 +260,6 @@ void codegen_binop(ast_binop_t node, compiler_state_t* state) {
             });
         } break;
         default: {
-            //printf("Unhandled binary operation: %s\n",
-            //    ast_binop_type_as_string(node.type));
             if(state_set_error_compilation(state)) {
                 cres_msg_add_costr(state->status, "unhandled binary operation: ");
                 char* m = ast_binop_type_as_string(node.type);
@@ -271,8 +293,6 @@ void codegen_unop(ast_unop_t node, compiler_state_t* state) {
                 char* m = ast_unop_type_as_string(node.type);
                 cres_msg_add(state->status, m, strlen(m));
             }
-            //printf("Unhandled unary operation: %s\n",
-            //    ast_unop_type_as_string(node.type));
         } break;
     }
 }
@@ -326,28 +346,49 @@ void codegen_value(ast_value_t node, compiler_state_t* state) {
     });
 }
 
+ast_funsign_type_t funsign_get_decltype(ast_node_t* node) {
+    return node->u.n_funsign.decltype;
+}
+
+srcref_t funsign_get_name(ast_node_t* node) {
+    return node->u.n_funsign.name; 
+}
+
+ast_node_t* funsign_get_argspec(ast_node_t* node) {
+    return node->u.n_funsign.argspec; 
+}
 
 void codegen_fundecl(ast_fundecl_t node, compiler_state_t* state) {
 
     ABORT_ON_ERROR(state);
 
-    assert(node.args->type == AST_BLOCK);
-    assert(state->localvars.count == 0 && "Function declared inside function?");
+    srcref_t funcname = funsign_get_name(node.funsign);
+
+    assert( funsign_get_decltype(node.funsign) == AST_FUNSIGN_INTERN );
+
+    if ( state->localvars.count > 0 ) {
+        if ( state_set_error_compilation(state) ) {
+            cres_set_src_location(state->status, funcname);
+            cres_msg_add_costr(state->status,
+                "functions may not be declared "
+                "inside other functions.");
+        }
+        return;
+    }
+
     ir_index_t frame_index = irl_add(&state->instrs, (ir_inst_t){
         .opcode = OP_MAKE_FRAME,
         .args = { 0 }
     });
 
-    // extract name from funsign.
-    // the reason for funsign being separate is that
-    // it might be used for other things such as 
-    // #extern requirements in the future.
-    srcref_t funcname = node.funsign->u.n_funsign.name;
-
     bool ok = state_add_funcaddr(state, funcname, frame_index);
+
     assert(ok == true);
+    
     srcmap_clear(&state->localvars);
-    codegen(node.args, state); // in order to "add" arg names
+
+    codegen(funsign_get_argspec(node.funsign), state); // in order to "add" arg names
+
     uint32_t arg_count = (uint32_t) state->localvars.count;
     codegen(node.body, state); // adds locals to frame
     uint32_t locals_count = ((uint32_t) state->localvars.count) - arg_count;
@@ -588,8 +629,13 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
             assert(false && "break op is not implemented yet");
         } break;
         case AST_FUN_SIGN: {
-            assert(false && "function signature is not implemented");
-            // noth sure if this will ever have an implementation
+            assert(node->u.n_funsign.decltype == AST_FUNSIGN_EXTERN && "can't process this function signature");
+            assert(false && "TODO: fortsätt här");
+            // lägg till extern namn till gvm_program_t 
+            // lägg till så att native-call körs när sådana indexar anropas
+            // native-call ska ta ett index och inte en string
+            // uppdatera env och vm
+            // vm kollar om extern-krav kan uppfyllas vid exekveringen
         } break;
     }
 }
@@ -671,16 +717,23 @@ gvm_program_t gvm_compile(ast_node_t* node, cres_t* status) {
         state_set_error_out_of_memory(&state);
         return program;
     }
+
+    if( srcmap_init(&state.externfunctions, 16) == false ) {
+        state_set_error_out_of_memory(&state);
+        return program;
+    }
     
     if( srcmap_init(&state.localvars, 16) == false ) {
         state_set_error_out_of_memory(&state);
         srcmap_destroy(&state.functions);
+        srcmap_destroy(&state.externfunctions);
         return program;
     }
 
     if( irl_init(&state.instrs, 16) == false ) {
         state_set_error_out_of_memory(&state);
         srcmap_destroy(&state.functions);
+        srcmap_destroy(&state.externfunctions);
         srcmap_destroy(&state.localvars);
         return program;
     }
@@ -688,6 +741,7 @@ gvm_program_t gvm_compile(ast_node_t* node, cres_t* status) {
     if( valbuffer_create(&state.consts, 16) == false ) {
         state_set_error_out_of_memory(&state);
         srcmap_destroy(&state.functions);
+        srcmap_destroy(&state.externfunctions);
         srcmap_destroy(&state.localvars);
         irl_destroy(&state.instrs);
         return program;
@@ -717,6 +771,7 @@ gvm_program_t gvm_compile(ast_node_t* node, cres_t* status) {
     irl_destroy(&state.instrs);
     srcmap_destroy(&state.localvars);
     srcmap_destroy(&state.functions);
+    srcmap_destroy(&state.externfunctions);
 
     return program;
 }
