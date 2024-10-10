@@ -1,4 +1,5 @@
 #include "sh_asminfo.h"
+#include "co_utils.h"
 #include "co_compiler.h"
 #include "co_srcmap.h"
 #include "co_cres.h"
@@ -86,13 +87,88 @@ void irl_dump(ir_list_t* list) {
     }
 }
 
+size_t get_node_content_length(ast_node_t* args) {
+    switch (args->type) {
+        case AST_ARRAY:     return args->u.n_array.count;
+        case AST_BLOCK:     return args->u.n_block.count;
+        case AST_FUN_CALL:
+        case AST_UNOP:
+        case AST_BINOP:
+        case AST_VALUE:     return 1;
+        default:            return 0;
+    }
+}
+
+typedef struct funsign_set_t {
+    size_t              capacity;
+    size_t              count;
+    native_funsign_t*   entries;
+} funsign_set_t;
+
+bool funsign_set_init(funsign_set_t* decls, size_t capacity) {
+    decls->entries = (native_funsign_t*) malloc( capacity * sizeof(native_funsign_t) );
+    if( decls->entries == NULL )
+        return false;
+    decls->count = 0;
+    decls->capacity = capacity;
+    return true;
+}
+
+native_funsign_t mk_native_funsign(srcref_t name, ast_node_t* args, srcref_t type) {
+    return (native_funsign_t) {
+        .arg_count = get_node_content_length(args),
+        .name = srcref_as_sstr(name),
+        .return_type = srcref_as_sstr(type)
+    };
+}
+
+bool funsign_equal(native_funsign_t* a, native_funsign_t* b) {
+    if( a->arg_count != b->arg_count )
+        return false;
+    if( sstr_equal(&a->name, &b->name) == false )
+        return false;
+    //return sstr_equal(&a->returntype, &b->returntype); // todo: when types are fixed
+    return true;
+}
+
+int funsign_set_find_index(funsign_set_t* decls, native_funsign_t* extdecl) {
+    for(size_t i = 0; i < decls->count; i++) {
+        if( funsign_equal(&decls->entries[i], extdecl) )
+            return (int) i;
+    }
+    return -1;
+}
+
+bool funsign_set_add(funsign_set_t* decls, native_funsign_t extdecl) {
+    if( funsign_set_find_index(decls, &extdecl) >= 0 )
+        return false;
+    if( decls->count == decls->capacity ) {
+        size_t new_capacity = decls->capacity * 2;
+        native_funsign_t* entries = (native_funsign_t*) realloc(decls->entries, new_capacity * sizeof(native_funsign_t));
+        if( entries == NULL )
+            return false;
+        decls->entries = entries;
+        decls->capacity = new_capacity;
+    }
+    decls->entries[decls->count++] = extdecl;
+    return true;
+}
+
+void funsign_set_destroy(funsign_set_t* decls) {
+    if( decls->entries != NULL )
+        free(decls->entries);
+    decls->entries = NULL;
+    decls->count = 0;
+    decls->capacity = 0;
+}
+
 typedef struct compiler_state_t {
-    srcmap_t        localvars;
-    srcmap_t        functions;
-    srcmap_t        externfunctions;
-    ir_list_t       instrs;
-    valbuffer_t     consts;
-    cres_t*         status;
+    srcmap_t                localvars;
+    srcmap_t                functions;
+    funsign_set_t           extdecls;
+    ir_list_t               instrs;
+    valbuffer_t             consts;
+    cres_t*                 status;
 } compiler_state_t;
 
 #define ABORT_ON_ERROR(STATE) do { if(cres_has_error((STATE)->status)) return; } while(false)
@@ -148,29 +224,6 @@ ir_index_t state_get_funcaddr(compiler_state_t* state, srcref_t name) {
         .tag = IRID_INVALID
     };
 }
-
-bool state_add_extfuncaddr(compiler_state_t* state, srcref_t name, ir_index_t index) {
-    assert(index.tag == IRID_EXT && "received incorrect index type");
-    srcmap_value_t value = (srcmap_value_t) {
-        .data = (uint32_t) index.idx
-    };
-    return srcmap_insert(&state->externfunctions, name, value);
-}
-
-ir_index_t state_get_extfuncaddr(compiler_state_t* state, srcref_t name) {
-    srcmap_value_t* val = srcmap_lookup(&state->externfunctions, name);
-    if( val != NULL ) {
-        return (ir_index_t) {
-            .idx = val->data,
-            .tag = IRID_EXT
-        };
-    }
-    return (ir_index_t) {
-        .idx = 0,
-        .tag = IRID_INVALID
-    };
-}
-
 
 void codegen(ast_node_t* node, compiler_state_t* state);
 
@@ -402,13 +455,35 @@ void codegen_funcall(ast_funcall_t node, compiler_state_t* state) {
     ABORT_ON_ERROR(state);
 
     codegen(node.args, state);
+
     ir_index_t ir_index = state_get_funcaddr(state, node.name);
-    assert(ir_index.tag == IRID_INS && "Function not found (not declared)");
-    // if tag invalid: could not find index of function name (not defined)
-    irl_add(&state->instrs, (ir_inst_t){
-        .opcode = OP_CALL,
-        .args = { ir_index.idx, 0 }
-    });
+
+    if( ir_index.tag == IRID_INS ) {
+        // if tag invalid: could not find index
+        // of function name (not defined)
+        irl_add(&state->instrs, (ir_inst_t){
+            .opcode = OP_CALL,
+            .args = { ir_index.idx, 0 }
+        });
+        return;
+    }
+
+    native_funsign_t edecl = mk_native_funsign(node.name, node.args, srcref_const("type"));
+    int ext_index = funsign_set_find_index(&state->extdecls, &edecl);
+    if ( ext_index >= 0 ) {
+        irl_add(&state->instrs, (ir_inst_t){
+            .opcode = OP_CALL_NATIVE,
+            .args = { ext_index, 0 }
+        });
+        return;
+    }
+
+    if( state_set_error_compilation(state) ) {
+        cres_set_src_location(state->status, node.name);
+        cres_msg_add_costr(state->status, "function '");
+        cres_msg_add_srcref(state->status, node.name);
+        cres_msg_add_costr(state->status, "' is not declared.");
+    }
 }
 
 void codegen_assignment(ast_assign_t node, compiler_state_t* state) {
@@ -630,12 +705,10 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
         } break;
         case AST_FUN_SIGN: {
             assert(node->u.n_funsign.decltype == AST_FUNSIGN_EXTERN && "can't process this function signature");
-            assert(false && "TODO: fortsätt här");
-            // lägg till extern namn till gvm_program_t 
-            // lägg till så att native-call körs när sådana indexar anropas
-            // native-call ska ta ett index och inte en string
-            // uppdatera env och vm
-            // vm kollar om extern-krav kan uppfyllas vid exekveringen
+            funsign_set_add(&state->extdecls,
+                mk_native_funsign(node->u.n_funsign.name,
+                           node->u.n_funsign.argspec,
+                           srcref_const("type")));
         } break;
     }
 }
@@ -668,7 +741,7 @@ void recalc_index_to_bytecode_adress(ir_list_t* instrs) {
     }
 }
 
-gvm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts) {
+gvm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts, funsign_set_t* imports) {
 
     recalc_index_to_bytecode_adress(instrs);
 
@@ -693,11 +766,16 @@ gvm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts) {
     uint8_t* code_buf = (uint8_t*) malloc( sizeof(uint8_t) * bytecode.size );
     memcpy(code_buf, bytecode.data, sizeof(uint8_t) * bytecode.size );
 
+    native_funsign_t* decls = (native_funsign_t*) malloc( sizeof(native_funsign_t) * imports->count ); 
+    memcpy(decls, imports->entries, sizeof(native_funsign_t) * imports->count );
+
     gvm_program_t result = (gvm_program_t) {
         .cons.buffer = const_buf,
         .cons.count = consts->size,
         .inst.buffer = code_buf,
-        .inst.size = bytecode.size
+        .inst.size = bytecode.size,
+        .required.signatures = decls,
+        .required.count = imports->count
     };
 
     u8buffer_destroy(&bytecode);
@@ -718,7 +796,7 @@ gvm_program_t gvm_compile(ast_node_t* node, cres_t* status) {
         return program;
     }
 
-    if( srcmap_init(&state.externfunctions, 16) == false ) {
+    if( funsign_set_init(&state.extdecls, 16) == false ) {
         state_set_error_out_of_memory(&state);
         return program;
     }
@@ -726,14 +804,14 @@ gvm_program_t gvm_compile(ast_node_t* node, cres_t* status) {
     if( srcmap_init(&state.localvars, 16) == false ) {
         state_set_error_out_of_memory(&state);
         srcmap_destroy(&state.functions);
-        srcmap_destroy(&state.externfunctions);
+        funsign_set_destroy(&state.extdecls);
         return program;
     }
 
     if( irl_init(&state.instrs, 16) == false ) {
         state_set_error_out_of_memory(&state);
         srcmap_destroy(&state.functions);
-        srcmap_destroy(&state.externfunctions);
+        funsign_set_destroy(&state.extdecls);
         srcmap_destroy(&state.localvars);
         return program;
     }
@@ -741,7 +819,7 @@ gvm_program_t gvm_compile(ast_node_t* node, cres_t* status) {
     if( valbuffer_create(&state.consts, 16) == false ) {
         state_set_error_out_of_memory(&state);
         srcmap_destroy(&state.functions);
-        srcmap_destroy(&state.externfunctions);
+        funsign_set_destroy(&state.extdecls);
         srcmap_destroy(&state.localvars);
         irl_destroy(&state.instrs);
         return program;
@@ -760,7 +838,7 @@ gvm_program_t gvm_compile(ast_node_t* node, cres_t* status) {
             //assert(index.tag == IRID_INS && "main entrypoint not found");
             irl_get(&state.instrs, entrypoint)->args[0] = index.idx;
             // irl_dump(&state.instrs);
-            program = write_program(&state.instrs, &state.consts);
+            program = write_program(&state.instrs, &state.consts, &state.extdecls);
         } else {
             state_set_error_compilation(&state);
             cres_msg_add_costr(state.status, "no main() function found in program");
@@ -771,7 +849,7 @@ gvm_program_t gvm_compile(ast_node_t* node, cres_t* status) {
     irl_destroy(&state.instrs);
     srcmap_destroy(&state.localvars);
     srcmap_destroy(&state.functions);
-    srcmap_destroy(&state.externfunctions);
+    funsign_set_destroy(&state.extdecls);
 
     return program;
 }

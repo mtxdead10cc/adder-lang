@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <string.h>
 #include <assert.h>
+#include <sh_program.h>
 #include "test/test_runner.h"
 
 time_t get_creation_time(char *path) {
@@ -25,7 +26,7 @@ time_t get_creation_time(char *path) {
 
 #define DEFAULT_PATH "resources/test.gvm"
 
-val_t test(gvm_t* vm, val_t* args) {
+val_t test(gvm_t* vm, size_t argcount, val_t* args) {
     int a = val_into_number(args[0]);
     int b = val_into_number(args[1]);
     int len = b - a + 1;
@@ -66,7 +67,7 @@ bool run(char* path, bool verbose, bool keep_alive) {
             gvm_create(&vm, 128, 128);
 
             // register native functions
-            gvm_native_func(&vm, "test", 2, &test);
+            gvm_native_func(&vm, "test", "arr", 2, &test);
 
             // execute script
             gvm_exec_args_t args = { 0 };
@@ -86,6 +87,34 @@ bool run(char* path, bool verbose, bool keep_alive) {
     return compile_ok;
 }
 
+typedef struct todo_item_t {
+    bool is_done;
+    char* descr;
+} todo_item_t;
+
+void print_todo_list(todo_item_t* items, size_t count) {
+    printf("TODO LIST\n");
+    printf("--------------------------------------\n");
+    for(size_t i = 0; i < count; i++) {
+        printf(" [%s] %s\n",
+            items[i].is_done ? "X" : " ",
+            items[i].descr);
+    }
+    printf("--------------------------------------\n");
+}
+
+void todo_list() {
+    todo_item_t items[] = {
+        { true, "VM supports calling native functions by index." },
+        { false, "Proper srcref type references in the ast" },
+        { false, "VM execute must verify that all required " 
+                 "native_funsign_t requirenment are fulfilled." },
+        { false, "Compiler checks return type on funcall. " }
+    };
+    size_t count = sizeof(items) / sizeof(items[0]);
+    print_todo_list(items, count);
+}
+
 int main(int argv, char** argc) {
 
     char* path = NULL;
@@ -94,6 +123,8 @@ int main(int argv, char** argc) {
     bool keep_alive = false;
     bool run_tests = false;
     int path_arg = -1;
+
+    todo_list();
     
     for(int i = 0; i < argv; i++) {
         verbose     |= strncmp(argc[i], "-v", 2) == 0;

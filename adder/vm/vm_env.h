@@ -1,12 +1,21 @@
-#ifndef GVM_ENV_H_
-#define GVM_ENV_H_
+#ifndef VM_ENV_H_
+#define VM_ENV_H_
 
-#include "sh_types.h"
 #include "vm_types.h"
+#include "sh_types.h"
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
 
-void env_init(env_t* env, gvm_t* gvm);
-bool env_add_native_func(env_t* env, char* name, int num_args, func_t func);
-void env_table_print(env_t* env);
-func_result_t env_native_func_call(env_t* env, val_t func_name, val_t* stack_top);
+static inline env_fundecl_t env_mk_func(char* name, char* return_type) {
+    env_fundecl_t envfunc = (env_fundecl_t) { 0 };
+    strncpy(envfunc.name, name, GVM_DEFAULT_STRLEN);
+    strncpy(envfunc.rettype, return_type, GVM_DEFAULT_STRLEN);
+    return envfunc;
+}
 
-#endif // GVM_ENVIRONMENT_H_
+bool env_init(env_t* env, size_t capacity);
+bool env_register_function(env_t* env, env_fundecl_t decl, size_t arg_count, func_ptr_t handler);
+void env_destroy(env_t* env);
+
+#endif // VM_ENV_H_

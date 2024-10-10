@@ -1,10 +1,10 @@
 #include "vm.h"
-#include "vm_env.h"
 #include "sh_types.h"
 #include "sh_asminfo.h"
 #include "sh_value.h"
 #include "sh_utils.h"
 #include "sh_config.h"
+#include "vm_env.h"
 #include "vm_heap.h"
 #include "vm_validate.h"
 
@@ -92,6 +92,13 @@ bool gvm_create(gvm_t* vm, int stack_size, int dyn_size) {
     }
     memset(gc_marks, 0, CALC_GC_MARK_U64_COUNT(dyn_size) * sizeof(uint64_t));
 
+    if( env_init(&vm->env, 8) == false ) {
+        printf("error: could'nt allocate environment.\n");
+        free(mem);
+        free(gc_marks);
+        return false;
+    }
+
     vm->mem.membase = mem;
     vm->mem.memsize = total_addressable;
     
@@ -104,8 +111,6 @@ bool gvm_create(gvm_t* vm, int stack_size, int dyn_size) {
     vm->mem.heap.size = (int) dyn_size;
     vm->mem.heap.gc_marks = gc_marks;
 
-    env_init(&vm->env, vm);
-
     // assigend on execution
     vm->run = (gvm_runtime_t) { 0 };
 
@@ -114,14 +119,15 @@ bool gvm_create(gvm_t* vm, int stack_size, int dyn_size) {
     return true;
 }
 
-bool gvm_native_func(gvm_t* vm, char* name, int num_args, func_t func) {
-    return env_add_native_func(&vm->env, name, num_args, func);
+bool gvm_native_func(gvm_t* vm, char* name, char* return_type, size_t arg_count, func_ptr_t func) {
+    return env_register_function(&vm->env, env_mk_func(name, return_type), arg_count, func);
 }
 
 void gvm_destroy(gvm_t* vm) {
     if( vm == NULL || vm->mem.membase == 0 ) {
         return;
     }
+    env_destroy(&vm->env);
     VALIDATION_DESTROY(vm);
     free(vm->mem.membase);
     free(vm->mem.heap.gc_marks);
@@ -140,6 +146,8 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
     vm_run->constants = consts;
     vm_run->instructions = instructions;
     vm_run->pc = 0;
+    vm_run->nfuncptrs = vm->env.handlers;
+    vm_run->nfuncargc = vm->env.argcounts;
     
     gvm_mem_t* vm_mem = &vm->mem;
     memset(vm_mem->stack.values, 0, sizeof(val_t) * vm_mem->stack.size);
@@ -458,13 +466,14 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
                 }
             } break;
             case OP_CALL_NATIVE: {
-                uint32_t native_op_name = READ_U32(instructions, vm_run->pc);
-                TRACE_INT_ARG(native_op_name);
-                func_result_t res = env_native_func_call(&vm->env,
-                    consts[native_op_name],
-                    &stack[vm_mem->stack.top]);
-                vm_mem->stack.top -= res.arg_count;
-                stack[++vm_mem->stack.top] = res.value;
+                uint32_t findex = READ_U32(instructions, vm_run->pc);
+                TRACE_INT_ARG(findex);
+                size_t argcount = vm_run->nfuncargc[findex];
+                func_ptr_t funcptr = vm_run->nfuncptrs[findex];
+                vm_mem->stack.top -= argcount;
+                val_t retval = funcptr(vm, argcount, stack + vm_mem->stack.top + 1);
+                if( VAL_GET_TYPE(retval) != VAL_NONE )
+                    stack[++vm_mem->stack.top] = retval;
                 vm_run->pc += 4;
             } break;
             default: {

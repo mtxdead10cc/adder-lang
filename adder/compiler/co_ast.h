@@ -9,6 +9,7 @@
 #include <assert.h>
 #include "sh_utils.h"
 #include "co_types.h"
+#include "co_utils.h"
 
 // TODO: replace malloc / free ast node with areana allocator
 

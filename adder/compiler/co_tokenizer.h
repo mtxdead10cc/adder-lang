@@ -7,6 +7,7 @@
 #include "sh_utils.h"
 #include "co_lexer.h"
 #include "co_types.h"
+#include "co_utils.h"
 
 inline static token_t token_const(const char* content, token_type_t type) {
     return (token_t) {

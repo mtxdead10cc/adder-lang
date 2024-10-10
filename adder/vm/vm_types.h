@@ -9,14 +9,6 @@ typedef struct grid_t {
     type_id_t* data;
 } grid_t;
 
-typedef struct gvm_exec_args_t {
-    struct {
-        uint32_t    count; 
-        val_t*      buffer;
-    } args;
-    uint32_t  cycle_limit;
-} gvm_exec_args_t;
-
 typedef struct gvm_stack_t {
     val_t* values;  // pointer to the stack
     int top;        // the index of the top element on the stack
@@ -37,36 +29,40 @@ typedef struct gvm_mem_t {
     gvm_heap_t  heap;
 } gvm_mem_t;
 
-typedef struct gvm_t gvm_t;
-
-typedef struct func_result_t {
-    int arg_count;
-    val_t value;
-} func_result_t;
 
 typedef val_t* (*addr_lookup_fn)(void* user, val_addr_t addr);
-typedef val_t (*func_t)(gvm_t* gvm, val_t* args);
 
-typedef struct tabval_t {
-    int     argc;
-    func_t  func;
-} tabval_t;
+typedef struct gvm_t gvm_t;
 
-typedef struct func_table_t {
-    char      key[GVM_ENV_NFUNC_NAME_MAX_LEN][GVM_ENV_NFUNC_TABLE_SIZE];
-    bool      is_in_use[GVM_ENV_NFUNC_TABLE_SIZE];
-    tabval_t  value[GVM_ENV_NFUNC_TABLE_SIZE];
-} func_table_t;
+typedef val_t (*func_ptr_t)(gvm_t* vm, size_t argcount, val_t* args);
+
+typedef struct env_fundecl_t {
+    char        name[GVM_DEFAULT_STRLEN];
+    char        rettype[GVM_DEFAULT_STRLEN];
+} env_fundecl_t;
 
 typedef struct env_t {
-    gvm_t*       vm;
-    func_table_t table;
+    size_t           count;
+    size_t           capacity;
+    env_fundecl_t*   fundecls;
+    func_ptr_t*      handlers;
+    size_t*          argcounts;
 } env_t;
 
+typedef struct gvm_exec_args_t {
+    struct {
+        uint32_t    count; 
+        val_t*      buffer;
+    } args;
+    uint32_t  cycle_limit;
+} gvm_exec_args_t;
+
 typedef struct gvm_runtime_t {
-    val_t*   constants;
-    uint8_t* instructions;
-    uint32_t pc;
+    val_t*      constants;
+    uint8_t*    instructions;
+    func_ptr_t* nfuncptrs;
+    size_t*     nfuncargc;
+    uint32_t    pc;
 } gvm_runtime_t;
 
 typedef struct gvm_t {

@@ -7,6 +7,7 @@ PUBLIC
 target_sources(adrsha PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/sh_utils.c
     ${CMAKE_CURRENT_SOURCE_DIR}/sh_asminfo.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/sh_program.c
 )
 
 target_link_libraries(adrsha PUBLIC m)

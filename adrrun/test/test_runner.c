@@ -6,6 +6,7 @@
 #include <co_parser.h>
 #include <co_compiler.h>
 #include <co_program.h>
+#include <sh_program.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>

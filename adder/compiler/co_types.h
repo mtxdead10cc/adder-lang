@@ -1,6 +1,11 @@
 #ifndef GVM_COMPILER_TYPES_H_
 #define GVM_COMPILER_TYPES_H_
 
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include "sh_types.h"
+
 typedef enum lexeme_t {
     LCAT_NONE           = 0x00000000,
 
@@ -133,6 +138,12 @@ typedef enum cres_code_t {
     R_ERR_INTERNAL
 } cres_code_t;
 
+typedef struct srcref_t {
+    char*   source;
+    size_t  idx_start;
+    size_t  idx_end;
+} srcref_t;
+
 #define CRES_MAX_MSG_LEN 512
 
 typedef struct cres_t {
@@ -164,13 +175,11 @@ typedef struct token_collection_t {
     size_t      count;
 } token_collection_t;
 
-
 typedef struct parser_t {
     token_collection_t  collection;
     size_t              cursor;
     cres_t              result;
 } parser_t;
-
 
 typedef struct ast_node_t ast_node_t;
 
