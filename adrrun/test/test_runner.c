@@ -269,18 +269,18 @@ void test_ast(test_case_t* this) {
     ast_block_add(decl_args,
         ast_vardecl(
             srcref(buf, 4, 1),
-            AST_VALUE_TYPE_NUMBER));
+            sstr(LANG_TYPENAME_FLOAT)));
 
     ast_block_add(decl_args,
         ast_vardecl(
             srcref(buf, 5, 1),
-            AST_VALUE_TYPE_NUMBER));
+            sstr(LANG_TYPENAME_FLOAT)));
 
     ast_node_t* body = ast_block();
 
     ast_block_add(body, 
         ast_assign(
-            ast_vardecl(srcref(buf, 6, 3), AST_VALUE_TYPE_NUMBER),
+            ast_vardecl(srcref(buf, 6, 3), sstr(LANG_TYPENAME_FLOAT)),
             ast_binop(AST_BIN_ADD,
                 ast_varref(srcref(buf, 5, 1)),
                 ast_varref(srcref(buf, 4, 1))
@@ -290,21 +290,21 @@ void test_ast(test_case_t* this) {
         ast_if(
             ast_binop(AST_BIN_LT,
                 ast_varref(srcref(buf, 6, 3)),
-                ast_number(0.0f)),
-            ast_return(ast_number(0.0f)),
+                ast_float(0.0f)),
+            ast_return(ast_float(0.0f)),
             ast_block()));
 
     ast_node_t* array = ast_array();
-    ast_array_add(array, ast_number(1));
-    ast_array_add(array, ast_number(1));
-    ast_array_add(array, ast_number(1));
-    ast_array_add(array, ast_number(1));
+    ast_array_add(array, ast_float(1));
+    ast_array_add(array, ast_float(1));
+    ast_array_add(array, ast_float(1));
+    ast_array_add(array, ast_float(1));
 
     ast_block_add(body,
         ast_foreach(
             ast_vardecl(
                 srcref(buf, 9, 1),
-                AST_VALUE_TYPE_NUMBER),
+                sstr(LANG_TYPENAME_FLOAT)),
             array,
             ast_assign(
                 ast_varref(srcref(buf, 6, 3)),
@@ -318,7 +318,7 @@ void test_ast(test_case_t* this) {
 
     ast_node_t* funsign = ast_funsign(srcref(buf, 0, 4),
         decl_args, AST_FUNSIGN_INTERN,
-        AST_VALUE_TYPE_NUMBER);
+        sstr(LANG_TYPENAME_FLOAT));
 
     ast_node_t* fun = ast_fundecl(funsign, body);
 

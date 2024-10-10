@@ -193,7 +193,7 @@ pa_result_t pa_parse_number(parser_t* parser) {
     }
     float value = 0.0f;
     if( srcref_as_float(token.ref, &value) ) {
-        return par_node(ast_number(value));
+        return par_node(ast_float(value));
     }
     return pa_error_invalid_token_format(parser, token);
 }
@@ -444,21 +444,6 @@ pa_result_t pa_parse_expression(parser_t* parser) {
     }
 }
 
-// todo: types should perhaps not be encoded
-// in the ast this way since it makes it hard
-// to handle user defined types.
-
-ast_value_type_t pa_value_type(srcref_t ref) {
-    ast_value_type_t vtype = AST_VALUE_TYPE_NONE;
-    if( srcref_equals_string(ref, "num") )
-        vtype = AST_VALUE_TYPE_NUMBER;
-    else if( srcref_equals_string(ref, "bol") )
-        vtype = AST_VALUE_TYPE_BOOL;
-    else if( srcref_equals_string(ref, "str") )
-        vtype = AST_VALUE_TYPE_STRING;
-    return vtype;
-}
-
 pa_result_t pa_parse_vardecl(parser_t* parser) {
     token_t typename = pa_current_token(parser);
     token_t varname = pa_peek_token(parser, 1);
@@ -474,7 +459,7 @@ pa_result_t pa_parse_vardecl(parser_t* parser) {
     assert( par_is_nothing(result) );
 
     return par_node(ast_vardecl(varname.ref,
-                        pa_value_type(typename.ref)));
+                        srcref_as_sstr(typename.ref)));
 }
 
 pa_result_t pa_try_parse_assignment(parser_t* parser) {
@@ -720,7 +705,7 @@ pa_result_t pa_parse_funsign(parser_t* parser, ast_funsign_type_t decltype) {
     
     return par_node(ast_funsign(funname.ref,
         argspec, decltype,
-        pa_value_type(rettype.ref)));
+        srcref_as_sstr(rettype.ref)));
 }
 
 pa_result_t pa_try_parse_fundecl(parser_t* parser) {

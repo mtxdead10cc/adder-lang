@@ -71,6 +71,12 @@ inline static int cres_msg_add_srcref(cres_t* res, srcref_t ref) {
         srcref_len(ref));
 }
 
+inline static int cres_msg_add_sstr(cres_t* res, sstr_t* sstr) {
+    return cres_msg_add(res,
+        sstr_ptr(sstr),
+        sstr_len(sstr));
+}
+
 inline static int cres_fprint_location(FILE* stream, srcref_t ref, char* filepath) {
 
     if( ref.source == NULL ) {

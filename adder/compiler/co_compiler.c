@@ -327,6 +327,7 @@ void codegen_unop(ast_unop_t node, compiler_state_t* state) {
     ABORT_ON_ERROR(state);
 
     codegen(node.inner, state);
+    
     switch(node.type) {
         case AST_UN_NEG: {
             irl_add(&state->instrs, (ir_inst_t){
@@ -355,37 +356,40 @@ void codegen_value(ast_value_t node, compiler_state_t* state) {
     ABORT_ON_ERROR(state);
 
     vb_result_t append_result = (vb_result_t) { 0 };
-    switch(node.type) {
-        case AST_VALUE_TYPE_BOOL: {
-            append_result = valbuffer_insert_bool(&state->consts,
-                node.u._bool);
-        } break;
-        case AST_VALUE_TYPE_NUMBER: {
-            append_result = valbuffer_insert_float(&state->consts,
-                node.u._number);
-        } break;
-        case AST_VALUE_TYPE_STRING: {
-            // Note: needs to start with a '"'
-            srcref_t ref = node.u._string;
-            char* ptr = srcref_ptr(ref);
-            if( ptr[0] != '\"' ) {
-                if( state_set_error_compilation(state) ) {
-                    cres_msg_add_srcref(state->status, ref);
-                    cres_msg_add_costr(state->status, "received unquoted string");
-                }
-                return;
-            }
-            size_t len = srcref_len(ref);
-            val_t seq[len];
-            len = valbuffer_sequence_from_qouted_string(ptr, seq, len);
-            append_result = valbuffer_append_array(&state->consts, seq, len);
-        } break;
-        default: {
+
+    if( sstr_equal_str(&node.type, LANG_TYPENAME_FLOAT) ) {
+        append_result = valbuffer_insert_float(&state->consts, node.u._number);
+    } else if ( sstr_equal_str(&node.type, LANG_TYPENAME_INT) ) {
+        append_result = valbuffer_insert_float(&state->consts, node.u._number);
+    } else if ( sstr_equal_str(&node.type, LANG_TYPENAME_BOOL) ) {
+        append_result = valbuffer_insert_bool(&state->consts, node.u._bool);
+    } else if ( sstr_equal_str(&node.type, LANG_TYPENAME_STRING) ) {
+        // Note: needs to start with a '"'
+        srcref_t ref = node.u._string;
+        char* ptr = srcref_ptr(ref);
+        if( ptr[0] != '\"' ) {
             if( state_set_error_compilation(state) ) {
-                cres_msg_add_costr(state->status, "unsupported value type");
+                cres_msg_add_srcref(state->status, ref);
+                cres_msg_add_costr(state->status, "received unquoted string");
             }
             return;
-        } break;
+        }
+        size_t len = srcref_len(ref);
+        val_t seq[len];
+        len = valbuffer_sequence_from_qouted_string(ptr, seq, len);
+        append_result = valbuffer_append_array(&state->consts, seq, len);
+    } /* else if ( sstr_equal_str(&node.type, LANG_TYPENAME_NONE) ) {
+
+    } else if ( sstr_equal_str(&node.type, LANG_TYPENAME_ARRAY) ) {
+
+    } */ else {
+        if( state_set_error_compilation(state) ) {
+            cres_msg_add_costr(state->status, "unsupported value type: ");
+            cres_msg_add(state->status,
+                sstr_ptr(&node.type),
+                sstr_len(&node.type));
+        }
+        return;
     }
 
     if( append_result.out_of_memory ) {

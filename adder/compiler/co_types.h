@@ -99,13 +99,6 @@ typedef enum ast_node_type_t {
     AST_BLOCK
 } ast_node_type_t;
 
-typedef enum ast_value_type_t {
-    AST_VALUE_TYPE_NONE,
-    AST_VALUE_TYPE_NUMBER,
-    AST_VALUE_TYPE_BOOL,
-    AST_VALUE_TYPE_STRING
-} ast_value_type_t;
-
 typedef enum ast_binop_type_t {
     AST_BIN_ADD,
     AST_BIN_SUB,
@@ -184,7 +177,7 @@ typedef struct parser_t {
 typedef struct ast_node_t ast_node_t;
 
 typedef struct ast_value_t {
-    ast_value_type_t type;
+    sstr_t type;
     union {
         float       _number;
         bool        _bool;
@@ -193,7 +186,7 @@ typedef struct ast_value_t {
 } ast_value_t;
 
 typedef struct ast_array_t {
-    ast_value_type_t type;
+    sstr_t type;
     size_t           count;
     ast_node_t**     content;
 } ast_array_t;
@@ -205,7 +198,7 @@ typedef struct ast_block_t {
 
 typedef struct ast_vardecl_t {
     srcref_t         name;
-    ast_value_type_t type;
+    sstr_t type;
 } ast_vardecl_t;
 
 typedef struct ast_varref_t {
@@ -242,7 +235,7 @@ typedef enum ast_funsign_type_t {
 
 typedef struct ast_funsign_t {
     ast_funsign_type_t decltype;
-    ast_value_type_t rettype;
+    sstr_t          rettype;
     srcref_t         name;
     ast_node_t*      argspec;
 } ast_funsign_t;

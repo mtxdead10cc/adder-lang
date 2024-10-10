@@ -28,3 +28,15 @@ bool sstr_equal(sstr_t* a, sstr_t* b) {
         return false;
     return strncmp(a->str, b->str, GVM_DEFAULT_STRLEN) == 0;
 }
+
+size_t sstr_len(sstr_t* sstr) {
+    return strnlen(sstr->str, GVM_DEFAULT_STRLEN);
+}
+
+char* sstr_ptr(sstr_t* sstr) {
+    return sstr->str;
+}
+
+void sstr_printf(sstr_t* sstr) {
+    printf("%.*s", sstr_len(sstr), sstr->str);
+}
