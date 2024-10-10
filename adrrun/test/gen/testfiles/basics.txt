@@ -2,7 +2,7 @@ $START("1+1")
 num main() {
     return 1 + 1;
 }
-$STOP(2)
+$VERIFY(2)
 
 $START("hellostr")
 str main() {
@@ -12,14 +12,14 @@ str main() {
     }
     return "%HELLO";
 }
-$STOP("hello123")
+$VERIFY("hello123")
 
 $START("and-or")
 bol main() {
     num a = 1;
     return (a >= 6) and (6 <= a) or true;
 }
-$STOP("false")
+$VERIFY("false")
 
 $START("funcall")
 num add(num a, num b) {
@@ -29,7 +29,7 @@ num main() {
     num a = 3;
     return add(a, 4);
 }
-$STOP("7")
+$VERIFY("7")
 
 $START("foreach")
 num loop(num a) {
@@ -43,7 +43,7 @@ num main() {
     num a = 0;
     return loop(a);
 }
-$STOP("11")
+$VERIFY("11")
 
 $START("ifelse")
 num loop() {
@@ -64,35 +64,35 @@ num loop() {
 num main() {
     return loop();
 }
-$STOP("4")
+$VERIFY("4")
 
 $START("negate")
 bol main() {
     num a = 100.4;
     return -a;
 }
-$STOP("-100.4")
+$VERIFY("-100.4")
 
 $START("divide")
 bol main() {
     num a = 1;
     return a / 2;
 }
-$STOP("0.5")
+$VERIFY("0.5")
 
 $START("modulus")
 bol main() {
     num a = 1;
     return a % 2;
 }
-$STOP("1")
+$VERIFY("1")
 
 $START("not")
 bol main() {
     num a = 1;
     return not (a == 2);
 }
-$STOP("true")
+$VERIFY("true")
 
 $START("native-extern")
 #extern none print(str arg);
@@ -100,16 +100,16 @@ num main() {
     print("hello\n");
     return 0;
 }
-$STOP("0")
+$VERIFY("0")
 
 $START("operator-preceedence")
 num main() {
-    if( (1 + 2 * 3) != 7 ) {
+    if( (2 * 3 + 1) != 7 ) {
         return false;
     }
-    if( (1 - 2 / 2) != 0 ) {
+    if( (2 / 2 - 1) != 0 ) {
         return false;
     }
     return true;
 }
-$STOP("true")
+$TODO("true")

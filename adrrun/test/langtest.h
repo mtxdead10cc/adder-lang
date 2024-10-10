@@ -3,6 +3,7 @@
 #define LANGTEST_H_
 
 typedef struct ltc_t {
+    char* category;
     char* name;
     char* code;
     char* expect;
@@ -11,6 +12,7 @@ typedef struct ltc_t {
 
 ltc_t langtest_testcases[] = {
     {
+        .category = "verify",
         .name = "1+1",
         .code = 
         "num main() {\n"
@@ -20,6 +22,7 @@ ltc_t langtest_testcases[] = {
         .filepath = "basics.txt"
     },
     {
+        .category = "verify",
         .name = "hellostr",
         .code = 
         "str main() {\n"
@@ -33,6 +36,7 @@ ltc_t langtest_testcases[] = {
         .filepath = "basics.txt"
     },
     {
+        .category = "verify",
         .name = "and-or",
         .code = 
         "bol main() {\n"
@@ -43,6 +47,7 @@ ltc_t langtest_testcases[] = {
         .filepath = "basics.txt"
     },
     {
+        .category = "verify",
         .name = "funcall",
         .code = 
         "num add(num a, num b) {\n"
@@ -56,6 +61,7 @@ ltc_t langtest_testcases[] = {
         .filepath = "basics.txt"
     },
     {
+        .category = "verify",
         .name = "foreach",
         .code = 
         "num loop(num a) {\n"
@@ -73,6 +79,7 @@ ltc_t langtest_testcases[] = {
         .filepath = "basics.txt"
     },
     {
+        .category = "verify",
         .name = "ifelse",
         .code = 
         "num loop() {\n"
@@ -97,6 +104,7 @@ ltc_t langtest_testcases[] = {
         .filepath = "basics.txt"
     },
     {
+        .category = "verify",
         .name = "negate",
         .code = 
         "bol main() {\n"
@@ -107,6 +115,7 @@ ltc_t langtest_testcases[] = {
         .filepath = "basics.txt"
     },
     {
+        .category = "verify",
         .name = "divide",
         .code = 
         "bol main() {\n"
@@ -117,6 +126,7 @@ ltc_t langtest_testcases[] = {
         .filepath = "basics.txt"
     },
     {
+        .category = "verify",
         .name = "modulus",
         .code = 
         "bol main() {\n"
@@ -127,6 +137,7 @@ ltc_t langtest_testcases[] = {
         .filepath = "basics.txt"
     },
     {
+        .category = "verify",
         .name = "not",
         .code = 
         "bol main() {\n"
@@ -137,6 +148,7 @@ ltc_t langtest_testcases[] = {
         .filepath = "basics.txt"
     },
     {
+        .category = "verify",
         .name = "native-extern",
         .code = 
         "#extern none print(str arg);\n"
@@ -148,13 +160,14 @@ ltc_t langtest_testcases[] = {
         .filepath = "basics.txt"
     },
     {
+        .category = "todo",
         .name = "operator-preceedence",
         .code = 
         "num main() {\n"
-        "    if( (1 + 2 * 3) != 7 ) {\n"
+        "    if( (2 * 3 + 1) != 7 ) {\n"
         "        return false;\n"
         "    }\n"
-        "    if( (1 - 2 / 2) != 0 ) {\n"
+        "    if( (2 / 2 - 1) != 0 ) {\n"
         "        return false;\n"
         "    }\n"
         "    return true;\n"

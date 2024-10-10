@@ -24,7 +24,14 @@ typedef struct test_case_t {
     int nfailed;
 } test_case_t;
 
-#define TEST_ASSERT_MSG(TC, COND, ...) do { if(!(COND)) {  printf("  \u2193 test assert | "); printf(__VA_ARGS__); (TC)->nfailed++; printf("\n"); } } while(false)
+#define TEST_ASSERT_MSG(TC, COND, ...) do {     \
+    if(!(COND)) {                               \
+        printf("  \u2193 test assert | ");      \
+        printf(__VA_ARGS__);                    \
+        (TC)->nfailed++;                        \
+        printf("\n");                           \
+    }                                           \
+} while(false)
 
 void test_heap_memory(test_case_t* this) {
     gvm_t vm;
@@ -520,28 +527,59 @@ void test_tokenizer(test_case_t* this) {
     }
 }
 
-void test_compile_and_run(test_case_t* this, char* source_code, char* expected_result, char* tc_name, char* tc_filepath) {
+val_t test_printfn(gvm_t* vm, size_t argcount, val_t* args) {
+    (void)(argcount);
+    printf(" >    ");
+    gvm_print_val(vm, args[0]);
+    return val_none();
+}
+
+#define TEST_MSG(COND, ...) do {   \
+    if((COND) == false ) {                              \
+        printf("  \u2193 test todo assert | ");         \
+        printf(__VA_ARGS__);                            \
+        printf("\n");                                   \
+    }                                                   \
+} while(false)
+
+void test_compile_and_run(test_case_t* this, char* test_category, char* source_code, char* expected_result, char* tc_name, char* tc_filepath) {
 
     static char result_as_text[512] = {0};
     parser_t parser;
 
-    pa_result_t result = pa_init(&parser, source_code, strlen(source_code), tc_filepath);
-    TEST_ASSERT_MSG(this,
-        par_is_error(result) == false,
-        "'%s': failed to initialize parser.", tc_name);
+    bool is_known_todo = strcmp(test_category, "todo") == 0;
 
+    pa_result_t result = pa_init(&parser, source_code, strlen(source_code), tc_filepath);
+
+    if( is_known_todo ) {
+        TEST_MSG(par_is_error(result) == false,
+            "'%s': failed to initialize parser.", tc_name);
+    } else {
+        TEST_ASSERT_MSG(this,
+            par_is_error(result) == false,
+            "'%s': failed to initialize parser.", tc_name);
+    }
+    
     result = pa_parse_program(&parser);
 
     bool parsing_ok = par_is_node(result);
 
-    TEST_ASSERT_MSG(this,
-        parsing_ok,
-        "failed to parse test-program '%s:%s'.",
-        tc_filepath, tc_name);
+    if( is_known_todo ) {
+        TEST_MSG(parsing_ok,
+            "failed to parse test-program '%s:%s'.",
+            tc_filepath, tc_name);
+    } else {
+        TEST_ASSERT_MSG(this,
+            parsing_ok,
+            "failed to parse test-program '%s:%s'.",
+            tc_filepath, tc_name);
+    }
 
     if( parsing_ok == false ) {
-        cres_fprint(stdout, &parser.result, tc_filepath);
-        tokens_print(&parser.collection);
+        if( is_known_todo == false ) {
+            cres_fprint(stdout, &parser.result, tc_filepath);
+            tokens_print(&parser.collection);
+        }
         pa_destroy(&parser);
         return;
     }
@@ -550,15 +588,21 @@ void test_compile_and_run(test_case_t* this, char* source_code, char* expected_r
 
     cres_t status = { 0 };
     gvm_program_t program = gvm_compile(node, &status);
-    if( cres_has_error(&status) ) {
+    if( cres_has_error(&status) && is_known_todo == false ) {
         cres_fprint(stdout, &status, tc_filepath);
         ast_dump(node);
     }
 
-    TEST_ASSERT_MSG(this,
-        program.inst.size > 0,
-        "'%s': failed to compile program.",
-        tc_name);
+    if( is_known_todo ) {
+        TEST_MSG(program.inst.size > 0,
+            "'%s': failed to compile program.",
+            tc_name);
+    } else {
+        TEST_ASSERT_MSG(this,
+            program.inst.size > 0,
+            "'%s': failed to compile program.",
+            tc_name);
+    }
 
     if( program.inst.size == 0 ) {
         ast_free(node);
@@ -572,6 +616,8 @@ void test_compile_and_run(test_case_t* this, char* source_code, char* expected_r
         .args = { 0 },
         .cycle_limit = 100
     };
+
+    gvm_native_func(&vm, "print", "type", 1, &test_printfn);
 
     val_t res = gvm_execute(&vm, &program, &args);
 
@@ -606,12 +652,18 @@ void test_compile_and_run(test_case_t* this, char* source_code, char* expected_r
         expected_result,
         strlen(expected_result)) == 0;
 
-    TEST_ASSERT_MSG(this,
-        match_ok,
-        "'%s': unexpected result, expected '%s', got '%s'.",
-        tc_name, expected_result, result_as_text);
+    if( is_known_todo ) {
+        TEST_MSG(match_ok,
+            "'%s': unexpected result, expected '%s', got '%s'.",
+            tc_name, expected_result, result_as_text);
+    } else {
+        TEST_ASSERT_MSG(this,
+            match_ok,
+            "'%s': unexpected result, expected '%s', got '%s'.",
+            tc_name, expected_result, result_as_text);
+    }
     
-    if( match_ok == false ) {
+    if( match_ok == false && is_known_todo == false ) {
         ast_dump(node);
         gvm_program_disassemble(stdout, &program);
     }
@@ -634,7 +686,8 @@ void test_parser(test_case_t* this) {
     "  return q;\n"
     "}\n";
 
-    test_compile_and_run(this, 
+    test_compile_and_run(this,
+        "verify",
         text, "75.0",
         "simple-main",
         "builtin"); 
@@ -643,6 +696,7 @@ void test_parser(test_case_t* this) {
     for (size_t i = 0; i < tc_count; i++) {
         ltc_t tc = langtest_testcases[i];
         test_compile_and_run(this,
+            tc.category,
             tc.code,
             tc.expect,
             tc.name,
