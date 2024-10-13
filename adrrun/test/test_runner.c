@@ -2,6 +2,7 @@
 #include <vm.h>
 #include <vm_heap.h>
 #include <sh_value.h>
+#include <sh_arena.h>
 #include <co_ast.h>
 #include <co_parser.h>
 #include <co_compiler.h>
@@ -676,7 +677,7 @@ void test_compile_and_run(test_case_t* this, char* test_category, char* source_c
 }
 
 
-void test_parser(test_case_t* this) {
+void test_langtest(test_case_t* this) {
     
     char* text = 
     "num main() {\n"
@@ -705,34 +706,121 @@ void test_parser(test_case_t* this) {
     }
 }
 
+void test_arena_alloc(test_case_t* this) {
+
+    arena_t* a = arena_create(sizeof(int));
+    int* nums = anew(a, int, 10);
+    for(int i = 0; i < 10; i++) {
+        nums[i] = i + 1;
+    }
+
+    bool all_match = true;
+    for(int i = 0; i < 10; i++) {
+        all_match = all_match && (nums[i] == i + 1);
+    }
+
+    TEST_ASSERT_MSG(this,
+        all_match,
+        "#1.1 arena int array");
+
+    nums = arealloc(a, nums, sizeof(int)*20);
+    for(int i = 9; i < 20; i++) {
+        nums[i] = i + 1;
+    }
+
+    all_match = true;
+    for(int i = 0; i < 20; i++) {
+        all_match = all_match && (nums[i] == i + 1);
+    }
+
+    TEST_ASSERT_MSG(this,
+            all_match,
+            "#1.2 arena int array after realloc");
+
+    nums = arealloc(a, nums, sizeof(int)*20);
+
+    all_match = true;
+    for(int i = 0; i < 20; i++) {
+        all_match = all_match && (nums[i] == i + 1);
+    }
+
+    TEST_ASSERT_MSG(this,
+        all_match,
+        "#1.3 arena int array after realloc");
+
+    nums = arealloc(a, nums, sizeof(int)*20);
+
+    all_match = true;
+    for(int i = 0; i < 20; i++) {
+        all_match = all_match && (nums[i] == i + 1);
+    }
+
+    TEST_ASSERT_MSG(this,
+        all_match,
+        "#1.3 arena int array after realloc");
+
+    nums = arealloc(a, nums, sizeof(int)*5);
+
+    all_match = true;
+    for(int i = 0; i < 5; i++) {
+        all_match = all_match && (nums[i] == i + 1);
+    }
+
+    TEST_ASSERT_MSG(this,
+        all_match,
+        "#1.4 arena int array after realloc");
+
+    nums = arealloc(a, nums, sizeof(int)*500);
+
+    int acc = 0;
+    for(int i = 0; i < 500; i++) {
+       acc += nums[i];
+    }
+
+    TEST_ASSERT_MSG(this,
+        (acc == 15),
+        "#1.5 arena int array after realloc");
+
+    aalloc(a, 100);
+
+    arena_dump(a);
+
+    arena_destroy(a);
+}
+
 
 
 test_results_t run_testcases() {
 
     test_case_t test_cases[] = {
         {
-            .name = "gvm heap",
+            .name = "sh alloc",
+            .test = test_arena_alloc,
+            .nfailed = 0
+        },
+        {
+            .name = "vm heap",
             .test = test_heap_memory,
             .nfailed = 0
         },
         {
-            .name = "gvm virtual machine",
+            .name = "virtual machine",
             .test = test_vm,
             .nfailed = 0
         },
         {
-            .name = "gvm ast",
+            .name = "co ast",
             .test = test_ast,
             .nfailed = 0
         },
         {
-            .name = "gvm tokenizer",
+            .name = "co tokenizer",
             .test = test_tokenizer,
             .nfailed = 0
         },
         {
-            .name = "gvm parser",
-            .test = test_parser,
+            .name = "language test",
+            .test = test_langtest,
             .nfailed = 0
         }
     };

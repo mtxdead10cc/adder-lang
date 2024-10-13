@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <sh_program.h>
 #include "test/test_runner.h"
+#include <sh_arena.h>
 
 time_t get_creation_time(char *path) {
     struct stat attr;
@@ -105,12 +106,14 @@ void print_todo_list(todo_item_t* items, size_t count) {
 
 void todo_list() {
     todo_item_t items[] = {
-        { true, "VM supports calling native functions by index." },
-        { true, "Proper sstr type references in the ast" },
+        { true,  "VM supports calling native functions by index." },
+        { true,  "Proper sstr type references in the ast" },
         { false, "VM execute must verify that all required " 
                  "native_funsign_t requirenment are fulfilled." },
         { false, "Compiler checks return type on funcall. " },
-        { false, "Type checking." }
+        { false, "Type checking." },
+        { false, "Foreach break." },
+        { true, "Compiler arena allocator." }
     };
     size_t count = sizeof(items) / sizeof(items[0]);
     print_todo_list(items, count);

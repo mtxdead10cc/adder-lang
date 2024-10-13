@@ -9,7 +9,6 @@
 
 typedef uint8_t type_id_t;
 
-typedef struct valbuffer_t valbuffer_t;
 typedef uint64_t val_t;
 typedef uint32_t val_addr_t;
 
