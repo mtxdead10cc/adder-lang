@@ -11,6 +11,7 @@
 #include "co_types.h"
 #include "co_utils.h"
 #include "sh_arena.h"
+#include "co_typecheck.h"
 
 #define LANG_TYPENAME_NONE      "none"
 #define LANG_TYPENAME_BOOL      "bool"
@@ -18,8 +19,6 @@
 #define LANG_TYPENAME_INT       "int"
 #define LANG_TYPENAME_STRING    "string"
 #define LANG_TYPENAME_ARRAY     "array"
-
-// TODO: replace malloc / free ast node with areana allocator
 
 inline static ast_node_t* ast_int(arena_t* a, int val) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));

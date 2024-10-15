@@ -174,7 +174,6 @@ typedef struct lex_predicate_t {
     lex_ptype_t     type;
 } lex_predicate_t;
 
-
 typedef struct token_t {
     token_type_t type;
     srcref_t ref;

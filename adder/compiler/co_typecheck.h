@@ -5,7 +5,8 @@
 #include <stdbool.h>
 #include "sh_types.h"
 #include "co_types.h"
-#include "co_cres.h"
+#include "co_trace.h"
+#include "sh_arena.h"
 
 /*
 
@@ -56,13 +57,27 @@ typedef struct kfunction_t {
 
 typedef struct kind_t {
     kind_tag_t  content_tag;
-    srcref_t    ref;
     union {
         klist_t     list;
         ktuple_t    tuple;
         kfunction_t function;
     } u;
 } kind_t;
+
+inline static kind_t* kind_list(arena_t* a, kind_t* content_kind) {
+    kind_t* typ = aalloc(a, sizeof(kind_t));
+    typ->content_tag = KLIST;
+    typ->u.list.kind = content_kind;
+    return typ;
+}
+
+inline static kind_t* kind_tuple(arena_t* a) {
+    kind_t* typ = aalloc(a, sizeof(kind_t));
+    typ->content_tag = KTUPLE;
+    typ->u.tuple.field_count = 0;
+    typ->u.tuple.field_kind = NULL;
+    return typ;
+}
 
 inline static bool kind_check(kind_t* a, kind_t* b) {
     
