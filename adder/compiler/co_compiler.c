@@ -2,7 +2,7 @@
 #include "co_utils.h"
 #include "co_compiler.h"
 #include "co_srcmap.h"
-#include "co_cres.h"
+#include "co_trace.h"
 #include <assert.h>
 
 typedef struct ir_inst_t {
@@ -168,19 +168,10 @@ typedef struct compiler_state_t {
     funsign_set_t           extdecls;
     ir_list_t               instrs;
     valbuffer_t             consts;
-    cres_t*                 status;
+    trace_t*                trace;
 } compiler_state_t;
 
-#define ABORT_ON_ERROR(STATE) do { if(cres_has_error((STATE)->status)) return; } while(false)
-
-void state_set_error_out_of_memory(compiler_state_t* state) {
-    cres_set_error(state->status, R_ERR_OUT_OF_MEMORY);
-}
-
-bool state_set_error_compilation(compiler_state_t* state) {
-    return cres_set_error(state->status, R_ERR_COMPILATION);
-}
-
+#define ABORT_ON_ERROR(STATE) do { if(trace_get_error_count((STATE)->trace) > 0) return; } while(false)
 
 bool state_add_localvar(compiler_state_t* state, srcref_t name) {
     srcmap_value_t value = (srcmap_value_t) {
@@ -313,11 +304,10 @@ void codegen_binop(ast_binop_t node, compiler_state_t* state) {
             });
         } break;
         default: {
-            if(state_set_error_compilation(state)) {
-                cres_msg_add_costr(state->status, "unhandled binary operation: ");
-                char* m = ast_binop_type_as_string(node.type);
-                cres_msg_add(state->status, m, strlen(m));
-            }
+            trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, trace_no_ref());            
+            trace_msg_append_costr(msg, "unhandled binary operation: ");
+            char* m = ast_binop_type_as_string(node.type);
+            trace_msg_append(msg, m, strlen(m));
         } break;
     }
 }
@@ -342,11 +332,10 @@ void codegen_unop(ast_unop_t node, compiler_state_t* state) {
             });
         } break;
         default: {
-            if(state_set_error_compilation(state)) {
-                cres_msg_add_costr(state->status, "unhandled unary operation: ");
-                char* m = ast_unop_type_as_string(node.type);
-                cres_msg_add(state->status, m, strlen(m));
-            }
+            trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, trace_no_ref());            
+            trace_msg_append_costr(msg, "unhandled unary operation: ");
+            char* m = ast_unop_type_as_string(node.type);
+            trace_msg_append(msg, m, strlen(m));
         } break;
     }
 }
@@ -368,10 +357,8 @@ void codegen_value(ast_value_t node, compiler_state_t* state) {
         srcref_t ref = node.u._string;
         char* ptr = srcref_ptr(ref);
         if( ptr[0] != '\"' ) {
-            if( state_set_error_compilation(state) ) {
-                cres_msg_add_srcref(state->status, ref);
-                cres_msg_add_costr(state->status, "received unquoted string");
-            }
+            trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, ref);
+            trace_msg_append_costr(msg, "received unquoted string");
             return;
         }
         size_t len = srcref_len(ref);
@@ -383,17 +370,16 @@ void codegen_value(ast_value_t node, compiler_state_t* state) {
     } else if ( sstr_equal_str(&node.type, LANG_TYPENAME_ARRAY) ) {
 
     } */ else {
-        if( state_set_error_compilation(state) ) {
-            cres_msg_add_costr(state->status, "unsupported value type: ");
-            cres_msg_add(state->status,
-                sstr_ptr(&node.type),
-                sstr_len(&node.type));
-        }
+        trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, trace_no_ref());
+        trace_msg_append_costr(msg, "unsupported value type: ");
+        trace_msg_append(msg,
+            sstr_ptr(&node.type),
+            sstr_len(&node.type));
         return;
     }
 
     if( append_result.out_of_memory ) {
-        state_set_error_out_of_memory(state);
+        trace_out_of_memory_error(state->trace);
         return;
     }
     
@@ -424,12 +410,10 @@ void codegen_fundecl(ast_fundecl_t node, compiler_state_t* state) {
     assert( funsign_get_decltype(node.funsign) == AST_FUNSIGN_INTERN );
 
     if ( state->localvars.count > 0 ) {
-        if ( state_set_error_compilation(state) ) {
-            cres_set_src_location(state->status, funcname);
-            cres_msg_add_costr(state->status,
-                "functions may not be declared "
-                "inside other functions.");
-        }
+        trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, funcname);
+        trace_msg_append_costr(msg,
+            "functions may not be declared "
+            "inside other functions.");
         return;
     }
 
@@ -482,12 +466,11 @@ void codegen_funcall(ast_funcall_t node, compiler_state_t* state) {
         return;
     }
 
-    if( state_set_error_compilation(state) ) {
-        cres_set_src_location(state->status, node.name);
-        cres_msg_add_costr(state->status, "function '");
-        cres_msg_add_srcref(state->status, node.name);
-        cres_msg_add_costr(state->status, "' is not declared.");
-    }
+    trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, node.name);
+    trace_msg_append_costr(msg, "function '");
+    trace_msg_append_srcref(msg, node.name);
+    trace_msg_append_costr(msg, "' is not declared.");
+    
 }
 
 void codegen_assignment(ast_assign_t node, compiler_state_t* state) {
@@ -651,7 +634,7 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
             }
             vb_result_t app_res = valbuffer_insert_int(&state->consts, (int)count);
             if( app_res.out_of_memory ) {
-                state_set_error_out_of_memory(state);
+                trace_out_of_memory_error(state->trace);
                 return;
             }
             uint32_t const_index = app_res.index;
@@ -787,33 +770,33 @@ gvm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts, funsign_set_
 }
 
 
-gvm_program_t gvm_compile(ast_node_t* node, cres_t* status) {
+gvm_program_t gvm_compile(ast_node_t* node, trace_t* trace) {
 
     gvm_program_t program = { 0 };
 
     compiler_state_t state = (compiler_state_t) {
-        .status = status
+        .trace = trace
     };
 
     if( srcmap_init(&state.functions, 16) == false ) {
-        state_set_error_out_of_memory(&state);
+        trace_out_of_memory_error(state.trace);
         return program;
     }
 
     if( funsign_set_init(&state.extdecls, 16) == false ) {
-        state_set_error_out_of_memory(&state);
+        trace_out_of_memory_error(state.trace);
         return program;
     }
     
     if( srcmap_init(&state.localvars, 16) == false ) {
-        state_set_error_out_of_memory(&state);
+        trace_out_of_memory_error(state.trace);
         srcmap_destroy(&state.functions);
         funsign_set_destroy(&state.extdecls);
         return program;
     }
 
     if( irl_init(&state.instrs, 16) == false ) {
-        state_set_error_out_of_memory(&state);
+        trace_out_of_memory_error(state.trace);
         srcmap_destroy(&state.functions);
         funsign_set_destroy(&state.extdecls);
         srcmap_destroy(&state.localvars);
@@ -821,7 +804,7 @@ gvm_program_t gvm_compile(ast_node_t* node, cres_t* status) {
     }
 
     if( valbuffer_create(&state.consts, 16) == false ) {
-        state_set_error_out_of_memory(&state);
+        trace_out_of_memory_error(state.trace);
         srcmap_destroy(&state.functions);
         funsign_set_destroy(&state.extdecls);
         srcmap_destroy(&state.localvars);
@@ -836,7 +819,7 @@ gvm_program_t gvm_compile(ast_node_t* node, cres_t* status) {
 
     codegen(node, &state);
 
-    if( cres_has_error(state.status) == false ) {
+    if( trace_get_error_count(state.trace) == 0 ) {
         ir_index_t index = state_get_funcaddr(&state, srcref_const("main"));
         if(index.tag == IRID_INS) {
             //assert(index.tag == IRID_INS && "main entrypoint not found");
@@ -844,8 +827,8 @@ gvm_program_t gvm_compile(ast_node_t* node, cres_t* status) {
             // irl_dump(&state.instrs);
             program = write_program(&state.instrs, &state.consts, &state.extdecls);
         } else {
-            state_set_error_compilation(&state);
-            cres_msg_add_costr(state.status, "no main() function found in program");
+            trace_msg_t* msg = trace_create_message(state.trace, TM_ERROR, trace_no_ref());
+            trace_msg_append_costr(msg, "no main() function found in program");
         }
     }
     

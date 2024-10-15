@@ -137,14 +137,32 @@ typedef struct srcref_t {
     size_t  idx_end;
 } srcref_t;
 
-#define CRES_MAX_MSG_LEN 512
+#define TRACE_MSG_MAX_LEN 256
 
-typedef struct cres_t {
-    cres_code_t code;
-    srcref_t    ref;
-    char        msg[CRES_MAX_MSG_LEN];
-    size_t      msg_len;
-} cres_t;
+typedef enum trace_msg_type_t {
+    TM_NONE,
+    TM_INFO,
+    TM_WARNING,
+    TM_ERROR,
+    TM_OUT_OF_MEMORY,
+    TM_INTERNAL_ERROR
+} trace_msg_type_t;
+
+typedef struct trace_msg_t {
+    trace_msg_type_t type;
+    char*       source_path;
+    srcref_t    source_location;
+    size_t      length;
+    char        message[TRACE_MSG_MAX_LEN];
+} trace_msg_t;
+
+typedef struct trace_t {
+    size_t       message_count;
+    size_t       message_capacity;
+    trace_msg_t* messages;
+    char*        current_source_path;
+    size_t       error_count;
+} trace_t;
 
 typedef enum lex_ptype_t {
     LP_IS,
@@ -171,7 +189,7 @@ typedef struct token_collection_t {
 typedef struct parser_t {
     token_collection_t  collection;
     size_t              cursor;
-    cres_t              result;
+    trace_t*            trace;
     arena_t*            arena;
 } parser_t;
 

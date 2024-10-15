@@ -4,6 +4,7 @@
 #include <sh_value.h>
 #include <sh_arena.h>
 #include <co_ast.h>
+#include <co_trace.h>
 #include <co_parser.h>
 #include <co_compiler.h>
 #include <co_program.h>
@@ -325,13 +326,16 @@ void test_ast(test_case_t* this) {
 
     ast_node_t* fun = ast_fundecl(arena, funsign, body);
 
-    cres_t status = { 0 };
-    gvm_program_t program = gvm_compile(fun, &status);
-    if( cres_has_error(&status) ) {
-        cres_fprint(stdout, &status, NULL);
+    trace_t trace = { 0 };
+    trace_init(&trace, 16);
+
+    gvm_program_t program = gvm_compile(fun, &trace);
+    if( trace_get_error_count(&trace) > 0 ) {
+        trace_fprint(stdout, &trace);
     }
 
     arena_destroy(arena);
+    trace_destroy(&trace);
 
     gvm_t vm;
     val_t argbuf[] = { val_number(1), val_number(-1) };
@@ -487,7 +491,9 @@ void test_tokenizer(test_case_t* this) {
 
     size_t nsubcases = sizeof(subtests) / sizeof(subtests[0]);
 
-    cres_t result = (cres_t) { 0 };
+    trace_t trace = {0};
+
+    trace_init(&trace, 16);
 
     for(size_t i = 0; i < nsubcases; i++) {
         
@@ -497,8 +503,10 @@ void test_tokenizer(test_case_t* this) {
             .include_spaces = subtests[i].incl_space,
             .text = subtests[i].text,
             .text_length = strlen(subtests[i].text),
-            .resultptr = &result
+            .trace = &trace
         };
+
+        trace_clear(&trace);
 
         tokens_clear(&coll);
         tokenizer_analyze(&coll, &args);
@@ -528,7 +536,11 @@ void test_tokenizer(test_case_t* this) {
                 (unsigned int) coll.count);
 
         tokens_destroy(&coll);
+
+        trace_fprint(stdout, &trace);
     }
+
+    trace_destroy(&trace);
 }
 
 val_t test_printfn(gvm_t* vm, size_t argcount, val_t* args) {
@@ -551,10 +563,13 @@ void test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     static char result_as_text[512] = {0};
     arena_t* arena = arena_create(1024);
     parser_t parser;
+    trace_t trace;
+
+    trace_init(&trace, 16);
 
     bool is_known_todo = strcmp(test_category, "todo") == 0;
 
-    pa_result_t result = pa_init(&parser, arena, source_code, strlen(source_code), tc_filepath);
+    pa_result_t result = pa_init(&parser, arena, &trace, source_code, strlen(source_code), tc_filepath);
 
     if( is_known_todo ) {
         TEST_MSG(par_is_error(result) == false,
@@ -582,20 +597,20 @@ void test_compile_and_run(test_case_t* this, char* test_category, char* source_c
 
     if( parsing_ok == false ) {
         if( is_known_todo == false ) {
-            cres_fprint(stdout, &parser.result, tc_filepath);
+            trace_fprint(stdout, &trace);
             tokens_print(&parser.collection);
         }
         arena_destroy(arena);
         pa_destroy(&parser);
+        trace_destroy(&trace);
         return;
     }
 
     ast_node_t* node = par_extract_node(result);
 
-    cres_t status = { 0 };
-    gvm_program_t program = gvm_compile(node, &status);
-    if( cres_has_error(&status) && is_known_todo == false ) {
-        cres_fprint(stdout, &status, tc_filepath);
+    gvm_program_t program = gvm_compile(node, &trace);
+    if( trace_get_error_count(&trace) > 0 && is_known_todo == false ) {
+        trace_fprint(stdout, &trace);
         ast_dump(node);
     }
 
@@ -613,6 +628,7 @@ void test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     if( program.inst.size == 0 ) {
         pa_destroy(&parser);
         arena_destroy(arena);
+        trace_destroy(&trace);
         return;
     }
 
@@ -678,6 +694,7 @@ void test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     pa_destroy(&parser);
     arena_destroy(arena);
     gvm_destroy(&vm);
+    trace_destroy(&trace);
 }
 
 

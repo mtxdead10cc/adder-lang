@@ -1,6 +1,7 @@
 #include "co_program.h"
 #include "co_parser.h"
 #include "co_compiler.h"
+#include "co_trace.h"
 #include "sh_asminfo.h"
 #include "sh_types.h"
 #include "sh_value.h"
@@ -9,30 +10,43 @@
 gvm_program_t gvm_program_compile_source(char* source, size_t source_len, char* filepath) {
 
     parser_t parser = { 0 };
+    trace_t trace = { 0 };
+
+    if( trace_init(&trace, 16) == false ) {
+        return (gvm_program_t) { 0 };
+    }
+
+    trace_set_current_source_path(&trace, filepath);
+
     arena_t* arena = arena_create(1024 * 500);
-    pa_result_t result = pa_init(&parser, arena, source, source_len, filepath);
+    pa_result_t result = pa_init(&parser, arena, &trace, source, source_len, filepath);
     if( par_is_error(result) ) {
-        cres_fprint(stdout, (cres_t*) par_extract_error(result), filepath);
+        trace_fprint(stdout, &trace);
+        trace_destroy(&trace);
         pa_destroy(&parser);
         return (gvm_program_t) { 0 };
     }
     result = pa_parse_program(&parser);
+
     if( par_is_error(result) ) {
-        cres_fprint(stdout, (cres_t*) par_extract_error(result), filepath);
-        pa_destroy(&parser);
-        return (gvm_program_t) { 0 };
-    }
-    if( par_is_nothing(result) ) {
-        printf("error: empty program.\n");
+        trace_fprint(stdout, &trace);
+        trace_destroy(&trace);
         pa_destroy(&parser);
         return (gvm_program_t) { 0 };
     }
 
+    if( par_is_nothing(result) ) {
+        printf("error: empty program.\n");
+        trace_fprint(stdout, &trace);
+        pa_destroy(&parser);
+        trace_destroy(&trace);
+        return (gvm_program_t) { 0 };
+    }
+
     ast_node_t* program_node = par_extract_node(result);
-    cres_t status = {0};
-    gvm_program_t program = gvm_compile(program_node, &status);
-    if( cres_has_error(&status) ) {
-        cres_fprint(stdout, &status, filepath);
+    gvm_program_t program = gvm_compile(program_node, &trace);
+    if( trace_get_error_count(&trace) > 0 ) {
+        trace_fprint(stdout, &trace);
     }
     pa_destroy(&parser);
     arena_destroy(arena);

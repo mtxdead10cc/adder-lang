@@ -1,6 +1,6 @@
 #include "co_tokenizer.h"
 #include "co_srcmap.h"
-#include "co_cres.h"
+#include "co_trace.h"
 #include <stdio.h>
 
 bool tokens_init(token_collection_t* collection, size_t capacity) {
@@ -216,10 +216,8 @@ void destroy_token_map(srcmap_t* map) {
 }
 
 srcref_t get_current_srcref(tokenizer_state_t* state) {
-    size_t last_buffer_index = state->buffer_size > 0
-        ? state->buffer_size - 1
-        : 0;
-    return srcref(state->buffer, state->cursor, last_buffer_index);
+    size_t next_index = min(state->cursor + 1, state->buffer_size-1);
+    return srcref(state->buffer, state->cursor, next_index);
 }
 
 bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
@@ -233,11 +231,11 @@ bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
     };
 
     if( tokens_append(collection, (token_t){TT_INITIAL, srcref(args->text, 0, 0)}) == false ) {
-        cres_set_error(args->resultptr, R_ERR_OUT_OF_MEMORY);
+        trace_out_of_memory_error(args->trace);
         return false;
     }
 
-    while ( state.cursor < state.buffer_size && cres_is_ok(args->resultptr) ) {
+    while ( state.cursor < state.buffer_size && trace_get_error_count(args->trace) == 0 ) {
         
         size_t last_cursor_pos = state.cursor;
         bool alloc_ok = true;
@@ -269,21 +267,10 @@ bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
         }
 
         if( alloc_ok == false ) {
-            cres_set_error(args->resultptr, R_ERR_OUT_OF_MEMORY);
+            trace_out_of_memory_error(args->trace);
         } else if( last_cursor_pos == state.cursor ) {
-            if( cres_set_error(args->resultptr, R_ERR_TOKEN) ) {
-                srcref_t ref = get_current_srcref(&state);
-                cres_set_src_location(args->resultptr, ref);
-                cres_msg_add_costr(args->resultptr, "unable to make anything useful out of ");
-                cres_msg_add_costr(args->resultptr, "'");
-                size_t len = srcref_len(ref);
-                if( len > 2 )
-                    len = 2;
-                cres_msg_add(args->resultptr,
-                    srcref_ptr(ref),
-                    len);
-                cres_msg_add_costr(args->resultptr, "...'");
-            }
+            trace_msg_t* msg = trace_create_message(args->trace, TM_ERROR, get_current_srcref(&state));
+            trace_msg_append_costr(msg, "failed to make sense of input text.");
         }
     }
 
@@ -291,8 +278,8 @@ bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
     destroy_token_map(&state.kw_map_symbolic);
 
     if( tokens_append(collection, (token_t) {TT_FINAL, get_current_srcref(&state)}) == false ) {
-        cres_set_error(args->resultptr, R_ERR_OUT_OF_MEMORY);
+        trace_out_of_memory_error(args->trace);
     }
 
-    return cres_is_ok(args->resultptr);
+    return trace_get_error_count(args->trace) == 0;
 }

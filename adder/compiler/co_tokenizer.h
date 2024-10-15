@@ -92,7 +92,7 @@ typedef struct tokenizer_args_t {
     char* text;
     size_t text_length;
     char* filepath;
-    cres_t* resultptr;
+    trace_t* trace;
 } tokenizer_args_t;
 
 bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args);
