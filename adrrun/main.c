@@ -107,7 +107,7 @@ void print_todo_list(todo_item_t* items, size_t count) {
 void todo_list() {
     todo_item_t items[] = {
         { true,  "VM supports calling native functions by index." },
-        { true,  "Proper sstr type references in the ast" },
+        { false,  "Proper type container in the ast" },
         { false, "VM execute must verify that all required " 
                  "native_funsign_t requirenment are fulfilled." },
         { false, "Compiler checks return type on funcall. " },

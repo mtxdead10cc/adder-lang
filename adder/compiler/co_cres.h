@@ -158,6 +158,8 @@ inline static bool cres_has_error(cres_t* res) {
     return res->code != R_OK;
 }
 
+// TODO: change this to 'push error' (to enable reporting multiple errors)
+
 inline static bool cres_set_error(cres_t* res, cres_code_t code) {
     if( cres_has_error(res) ) {
         return false;
