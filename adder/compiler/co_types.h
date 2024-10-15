@@ -172,6 +172,7 @@ typedef struct parser_t {
     token_collection_t  collection;
     size_t              cursor;
     cres_t              result;
+    arena_t*            arena;
 } parser_t;
 
 typedef struct ast_node_t ast_node_t;

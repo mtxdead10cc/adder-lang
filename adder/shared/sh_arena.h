@@ -4,14 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include "sh_types.h"
 
-typedef struct arena_t arena_t;
-typedef struct arena_t {
-    arena_t* next;
-    ptrdiff_t size;
-    ptrdiff_t capacity;
-    uint8_t* data;
-} arena_t;
 
 arena_t* arena_create(ptrdiff_t size);
 void     arena_destroy(arena_t* arena);

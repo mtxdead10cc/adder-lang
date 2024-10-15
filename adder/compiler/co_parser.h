@@ -23,7 +23,7 @@ typedef struct pa_result_t {
     void*               data;
 } pa_result_t;
 
-pa_result_t pa_init(parser_t* parser, char* text, size_t text_length, char* filepath);
+pa_result_t pa_init(parser_t* parser, arena_t* arena, char* text, size_t text_length, char* filepath);
 void     pa_destroy(parser_t* parser);
 bool     pa_is_at_end(parser_t* parser);
 bool     pa_advance(parser_t* parser);

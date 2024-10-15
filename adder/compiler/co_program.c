@@ -9,7 +9,8 @@
 gvm_program_t gvm_program_compile_source(char* source, size_t source_len, char* filepath) {
 
     parser_t parser = { 0 };
-    pa_result_t result = pa_init(&parser, source, source_len, filepath);
+    arena_t* arena = arena_create(1024 * 500);
+    pa_result_t result = pa_init(&parser, arena, source, source_len, filepath);
     if( par_is_error(result) ) {
         cres_fprint(stdout, (cres_t*) par_extract_error(result), filepath);
         pa_destroy(&parser);
@@ -33,8 +34,8 @@ gvm_program_t gvm_program_compile_source(char* source, size_t source_len, char* 
     if( cres_has_error(&status) ) {
         cres_fprint(stdout, &status, filepath);
     }
-    ast_free(program_node);
     pa_destroy(&parser);
+    arena_destroy(arena);
     return program;
 }
 

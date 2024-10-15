@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-pa_result_t pa_init(parser_t* parser, char* text, size_t text_length, char* filepath) {
+pa_result_t pa_init(parser_t* parser, arena_t* arena, char* text, size_t text_length, char* filepath) {
 
     parser->result = (cres_t) { 0 };
     
@@ -42,6 +42,7 @@ pa_result_t pa_init(parser_t* parser, char* text, size_t text_length, char* file
         return par_error(parser);
     }
 
+    parser->arena = arena;
     parser->cursor = 0;
     return par_nothing();
 }
@@ -193,7 +194,7 @@ pa_result_t pa_parse_number(parser_t* parser) {
     }
     float value = 0.0f;
     if( srcref_as_float(token.ref, &value) ) {
-        return par_node(ast_float(value));
+        return par_node(ast_float(parser->arena, value));
     }
     return pa_error_invalid_token_format(parser, token);
 }
@@ -206,7 +207,7 @@ pa_result_t pa_parse_boolean(parser_t* parser) {
     }
     bool value = false;
     if( srcref_as_bool(token.ref, &value) ) {
-        return par_node(ast_bool(value));
+        return par_node(ast_bool(parser->arena, value));
     }
     return pa_error_invalid_token_format(parser, token);
 }
@@ -217,7 +218,7 @@ pa_result_t pa_parse_string(parser_t* parser) {
     if( par_is_nothing(result) == false ) {
         return result;
     }
-    return par_node(ast_string(token.ref));
+    return par_node(ast_string(parser->arena, token.ref));
 }
 
 pa_result_t pa_try_parse_value(parser_t* parser) {
@@ -235,7 +236,7 @@ pa_result_t pa_try_parse_value(parser_t* parser) {
 pa_result_t pa_try_parse_var_name(parser_t* parser) {
     token_t token = pa_current_token(parser);
     if( pa_advance_if(parser, TT_SYMBOL) ) {
-        return par_node(ast_varref(token.ref));
+        return par_node(ast_varref(parser->arena, token.ref));
     }
     return par_nothing();
 }
@@ -270,27 +271,25 @@ pa_result_t pa_try_parse_func_call(parser_t* parser) {
     pa_advance(parser);
     pa_advance(parser);
 
-    ast_node_t* args = ast_block();
+    ast_node_t* args = ast_block(parser->arena);
 
     if( pa_advance_if(parser, TT_CLOSE_PAREN) ) {
-        return par_node(ast_funcall(func_name.ref, args));
+        return par_node(ast_funcall(parser->arena, func_name.ref, args));
     }
     
     do {
         pa_result_t expr_res = pa_parse_expression(parser);
         if( par_is_node(expr_res) == false ) {
-            ast_free(args);
             return expr_res;
         }
-        ast_block_add(args, par_extract_node(expr_res));
+        ast_block_add(parser->arena, args, par_extract_node(expr_res));
     } while( pa_advance_if(parser, TT_SEPARATOR) );
 
     pa_result_t result = pa_consume(parser, TT_CLOSE_PAREN);
     if( par_is_nothing(result) == false ) {
-        ast_free(args);
         return result;
     } else {
-        return par_node(ast_funcall(func_name.ref, args));
+        return par_node(ast_funcall(parser->arena, func_name.ref, args));
     }
 }
 
@@ -302,7 +301,7 @@ pa_result_t pa_try_parse_array_def(parser_t* parser) {
 
     pa_advance(parser);
 
-    ast_node_t* array = ast_array();
+    ast_node_t* array = ast_array(parser->arena);
 
     if( pa_advance_if(parser, TT_CLOSE_SBRACKET) ) {
         return par_node(array);
@@ -311,16 +310,14 @@ pa_result_t pa_try_parse_array_def(parser_t* parser) {
     do {
         pa_result_t expr_res = pa_parse_expression(parser);
         if( par_is_node(expr_res) == false ) {
-            ast_free(array);
             return expr_res;
         }
-        ast_array_add(array, par_extract_node(expr_res));
+        ast_array_add(parser->arena, array, par_extract_node(expr_res));
     } while( pa_advance_if(parser, TT_SEPARATOR) );
 
     pa_result_t result = pa_consume(parser, TT_CLOSE_SBRACKET);
 
     if( par_is_nothing(result) == false ) {
-        ast_free(array);
         return result;
     } else {
         return par_node(array);
@@ -333,7 +330,7 @@ pa_result_t pa_try_parse_unary_operation(parser_t* parser, token_type_t tt, ast_
         if( par_is_error(inner) )
             return inner;
         assert( par_is_nothing(inner) == false );
-        return par_node(ast_unnop(op, par_extract_node(inner)));
+        return par_node(ast_unnop(parser->arena, op, par_extract_node(inner)));
     }
     return par_nothing();
 }
@@ -345,7 +342,7 @@ pa_result_t pa_try_parse_binary_operation(pa_result_t lhs, parser_t* parser, tok
         if( par_is_error(rhs) )
             return rhs;
         assert( par_is_nothing(rhs) == false );
-        return par_node(ast_binop(op, 
+        return par_node(ast_binop(parser->arena, op, 
             par_extract_node(lhs),
             par_extract_node(rhs)));
     }
@@ -458,7 +455,7 @@ pa_result_t pa_parse_vardecl(parser_t* parser) {
 
     assert( par_is_nothing(result) );
 
-    return par_node(ast_vardecl(varname.ref,
+    return par_node(ast_vardecl(parser->arena, varname.ref,
                         srcref_as_sstr(typename.ref)));
 }
 
@@ -474,8 +471,8 @@ pa_result_t pa_try_parse_assignment(parser_t* parser) {
         if( par_is_error(rhs) )
             return rhs;
         assert( par_is_nothing(rhs) == false );
-        return par_node(ast_assign(
-                ast_varref(varname.ref),
+        return par_node(ast_assign(parser->arena, 
+                ast_varref(parser->arena, varname.ref),
                 par_extract_node(rhs)));
 
     } else if( pa_peek_token(parser, 2).type == TT_ASSIGN ) {
@@ -490,7 +487,7 @@ pa_result_t pa_try_parse_assignment(parser_t* parser) {
         if( par_is_error(rhs) )
             return rhs;
         assert(par_is_nothing(rhs) == false);
-        return par_node(ast_assign(
+        return par_node(ast_assign(parser->arena, 
                 par_extract_node(decl),
                 par_extract_node(rhs)));
     } else {
@@ -504,7 +501,7 @@ pa_result_t pa_parse_body(parser_t* parser) {
     if( par_is_error(result) )
         return result;
 
-    ast_node_t* body_block = ast_block();
+    ast_node_t* body_block = ast_block(parser->arena);
 
     do {
         if( pa_current_token(parser).type == TT_CLOSE_CURLY )
@@ -512,11 +509,10 @@ pa_result_t pa_parse_body(parser_t* parser) {
 
         pa_result_t stmt_res = pa_parse_statement(parser);
         if( par_is_node(stmt_res) == false ) {
-            ast_free(body_block);
             return stmt_res;
         }
 
-        ast_block_add(body_block, par_extract_node(stmt_res));
+        ast_block_add(parser->arena, body_block, par_extract_node(stmt_res));
         
     } while( pa_is_at_end(parser) == false );
 
@@ -566,10 +562,10 @@ pa_result_t pa_try_parse_if_chain(parser_t* parser) {
             return result;
         next = par_extract_node(result);
     } else {
-        next = ast_block();                     // empty / nothing
+        next = ast_block(parser->arena);                     // empty / nothing
     }
 
-    return par_node(ast_if(condition, if_true, next));
+    return par_node(ast_if(parser->arena, condition, if_true, next));
 }
 
 pa_result_t pa_try_parse_for_stmt(parser_t* parser) {
@@ -612,12 +608,12 @@ pa_result_t pa_try_parse_for_stmt(parser_t* parser) {
 
     ast_node_t* body = par_extract_node(result);
 
-    return par_node(ast_foreach(vardecl, collection, body));
+    return par_node(ast_foreach(parser->arena, vardecl, collection, body));
 }
 
 pa_result_t pa_try_parse_body_break(parser_t* parser) {
     if( pa_advance_if(parser, TT_KW_BREAK) )
-        return par_node(ast_break());
+        return par_node(ast_break(parser->arena));
     return par_nothing();
 }
 
@@ -627,9 +623,9 @@ pa_result_t pa_try_parse_body_return(parser_t* parser) {
         if( par_is_error(result) )
             return result;
         if( par_is_nothing(result) )
-            return par_node(ast_return(ast_block())); // empty block for "nothing"
+            return par_node(ast_return(parser->arena, ast_block(parser->arena))); // empty block for "nothing"
         else
-            return par_node(ast_return(par_extract_node(result)));
+            return par_node(ast_return(parser->arena, par_extract_node(result)));
     }
     return par_nothing();
 }
@@ -683,7 +679,7 @@ pa_result_t pa_parse_funsign(parser_t* parser, ast_funsign_type_t decltype) {
     if( par_is_error(result) )
         return result;
 
-    ast_node_t* argspec = ast_block();
+    ast_node_t* argspec = ast_block(parser->arena);
 
     do {
         if( pa_current_token(parser).type == TT_CLOSE_PAREN )
@@ -691,11 +687,10 @@ pa_result_t pa_parse_funsign(parser_t* parser, ast_funsign_type_t decltype) {
 
         pa_result_t vardecl = pa_parse_vardecl(parser);
         if( par_is_node(vardecl) == false ) {
-            ast_free(argspec);
             return vardecl;
         }
 
-        ast_block_add(argspec, par_extract_node(vardecl));
+        ast_block_add(parser->arena, argspec, par_extract_node(vardecl));
         
     } while( pa_advance_if(parser, TT_SEPARATOR) );
 
@@ -703,7 +698,7 @@ pa_result_t pa_parse_funsign(parser_t* parser, ast_funsign_type_t decltype) {
     if( par_is_error(result) )
         return result;
     
-    return par_node(ast_funsign(funname.ref,
+    return par_node(ast_funsign(parser->arena, funname.ref,
         argspec, decltype,
         srcref_as_sstr(rettype.ref)));
 }
@@ -725,7 +720,7 @@ pa_result_t pa_try_parse_fundecl(parser_t* parser) {
     if( par_is_error(result) )
         return result;
 
-    return par_node(ast_fundecl( funsign,
+    return par_node(ast_fundecl( parser->arena, funsign,
                                  par_extract_node(result) ));
 }
 
@@ -765,12 +760,12 @@ pa_result_t pa_parse_program(parser_t* parser) {
         return consume_result;
 
     pa_result_t result;
-    ast_node_t* program = ast_block();
+    ast_node_t* program = ast_block(parser->arena);
 
     do {
         result = pa_parse_toplevel_statement(parser);
         if( par_is_node(result) ) {
-            ast_block_add(program,
+            ast_block_add(parser->arena, program,
                 par_extract_node(result));
         } else {
             break;
@@ -779,12 +774,10 @@ pa_result_t pa_parse_program(parser_t* parser) {
              && !pa_advance_if(parser, TT_FINAL) );
 
     if( par_is_error(result) ) {
-        ast_free(program);
         return result;
     }
 
     if( par_is_error(consume_result) ) {
-        ast_free(program);
         return result;
     }
 

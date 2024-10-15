@@ -265,63 +265,65 @@ void test_vm(test_case_t* this) {
 void test_ast(test_case_t* this) {
     char* buf = "mainABtmpI";
 
-    ast_node_t* decl_args = ast_block();
+    arena_t* arena = arena_create(1024);
 
-    ast_block_add(decl_args,
-        ast_vardecl(
+    ast_node_t* decl_args = ast_block(arena);
+
+    ast_block_add(arena, decl_args,
+        ast_vardecl(arena, 
             srcref(buf, 4, 1),
             sstr(LANG_TYPENAME_FLOAT)));
 
-    ast_block_add(decl_args,
-        ast_vardecl(
+    ast_block_add(arena, decl_args,
+        ast_vardecl(arena, 
             srcref(buf, 5, 1),
             sstr(LANG_TYPENAME_FLOAT)));
 
-    ast_node_t* body = ast_block();
+    ast_node_t* body = ast_block(arena);
 
-    ast_block_add(body, 
-        ast_assign(
-            ast_vardecl(srcref(buf, 6, 3), sstr(LANG_TYPENAME_FLOAT)),
-            ast_binop(AST_BIN_ADD,
-                ast_varref(srcref(buf, 5, 1)),
-                ast_varref(srcref(buf, 4, 1))
+    ast_block_add(arena, body, 
+        ast_assign(arena, 
+            ast_vardecl(arena, srcref(buf, 6, 3), sstr(LANG_TYPENAME_FLOAT)),
+            ast_binop(arena, AST_BIN_ADD,
+                ast_varref(arena, srcref(buf, 5, 1)),
+                ast_varref(arena, srcref(buf, 4, 1))
             )));
 
-    ast_block_add(body,
-        ast_if(
-            ast_binop(AST_BIN_LT,
-                ast_varref(srcref(buf, 6, 3)),
-                ast_float(0.0f)),
-            ast_return(ast_float(0.0f)),
-            ast_block()));
+    ast_block_add(arena, body,
+        ast_if(arena, 
+            ast_binop(arena, AST_BIN_LT,
+                ast_varref(arena, srcref(buf, 6, 3)),
+                ast_float(arena, 0.0f)),
+            ast_return(arena, ast_float(arena, 0.0f)),
+            ast_block(arena)));
 
-    ast_node_t* array = ast_array();
-    ast_array_add(array, ast_float(1));
-    ast_array_add(array, ast_float(1));
-    ast_array_add(array, ast_float(1));
-    ast_array_add(array, ast_float(1));
+    ast_node_t* array = ast_array(arena);
+    ast_array_add(arena, array, ast_float(arena, 1));
+    ast_array_add(arena, array, ast_float(arena, 1));
+    ast_array_add(arena, array, ast_float(arena, 1));
+    ast_array_add(arena, array, ast_float(arena, 1));
 
-    ast_block_add(body,
-        ast_foreach(
-            ast_vardecl(
+    ast_block_add(arena, body,
+        ast_foreach(arena, 
+            ast_vardecl(arena, 
                 srcref(buf, 9, 1),
                 sstr(LANG_TYPENAME_FLOAT)),
             array,
-            ast_assign(
-                ast_varref(srcref(buf, 6, 3)),
-                ast_binop(AST_BIN_ADD,
-                    ast_varref(srcref(buf, 6, 3)),
-                    ast_varref(srcref(buf, 9, 1))))
+            ast_assign(arena, 
+                ast_varref(arena, srcref(buf, 6, 3)),
+                ast_binop(arena, AST_BIN_ADD,
+                    ast_varref(arena, srcref(buf, 6, 3)),
+                    ast_varref(arena, srcref(buf, 9, 1))))
         ));
     
-    ast_block_add(body,
-        ast_return(ast_varref(srcref(buf, 6, 3))));
+    ast_block_add(arena, body,
+        ast_return(arena, ast_varref(arena, srcref(buf, 6, 3))));
 
-    ast_node_t* funsign = ast_funsign(srcref(buf, 0, 4),
+    ast_node_t* funsign = ast_funsign(arena, srcref(buf, 0, 4),
         decl_args, AST_FUNSIGN_INTERN,
         sstr(LANG_TYPENAME_FLOAT));
 
-    ast_node_t* fun = ast_fundecl(funsign, body);
+    ast_node_t* fun = ast_fundecl(arena, funsign, body);
 
     cres_t status = { 0 };
     gvm_program_t program = gvm_compile(fun, &status);
@@ -329,7 +331,7 @@ void test_ast(test_case_t* this) {
         cres_fprint(stdout, &status, NULL);
     }
 
-    ast_free(fun);
+    arena_destroy(arena);
 
     gvm_t vm;
     val_t argbuf[] = { val_number(1), val_number(-1) };
@@ -547,11 +549,12 @@ val_t test_printfn(gvm_t* vm, size_t argcount, val_t* args) {
 void test_compile_and_run(test_case_t* this, char* test_category, char* source_code, char* expected_result, char* tc_name, char* tc_filepath) {
 
     static char result_as_text[512] = {0};
+    arena_t* arena = arena_create(1024);
     parser_t parser;
 
     bool is_known_todo = strcmp(test_category, "todo") == 0;
 
-    pa_result_t result = pa_init(&parser, source_code, strlen(source_code), tc_filepath);
+    pa_result_t result = pa_init(&parser, arena, source_code, strlen(source_code), tc_filepath);
 
     if( is_known_todo ) {
         TEST_MSG(par_is_error(result) == false,
@@ -582,6 +585,7 @@ void test_compile_and_run(test_case_t* this, char* test_category, char* source_c
             cres_fprint(stdout, &parser.result, tc_filepath);
             tokens_print(&parser.collection);
         }
+        arena_destroy(arena);
         pa_destroy(&parser);
         return;
     }
@@ -607,8 +611,8 @@ void test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     }
 
     if( program.inst.size == 0 ) {
-        ast_free(node);
         pa_destroy(&parser);
+        arena_destroy(arena);
         return;
     }
 
@@ -671,8 +675,8 @@ void test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     }
 
     gvm_program_destroy(&program);
-    ast_free(node);
     pa_destroy(&parser);
+    arena_destroy(arena);
     gvm_destroy(&vm);
 }
 

@@ -7,6 +7,14 @@
 
 #include "sh_config.h"
 
+typedef struct arena_t arena_t;
+typedef struct arena_t {
+    arena_t* next;
+    ptrdiff_t size;
+    ptrdiff_t capacity;
+    uint8_t* data;
+} arena_t;
+
 typedef uint8_t type_id_t;
 
 typedef uint64_t val_t;
