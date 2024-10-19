@@ -730,7 +730,7 @@ void test_langtest(test_case_t* this) {
 void test_arena_alloc(test_case_t* this) {
 
     arena_t* a = arena_create(sizeof(int));
-    int* nums = anew(a, int, 10);
+    int* nums = (int*) aalloc(a, sizeof(int)*10);
     for(int i = 0; i < 10; i++) {
         nums[i] = i + 1;
     }

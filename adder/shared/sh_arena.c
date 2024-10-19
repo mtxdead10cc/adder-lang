@@ -115,3 +115,12 @@ void* arealloc(arena_t* arena, void* srcptr, ptrdiff_t size) {
     return destptr;
 }
 
+char* astrcopy(arena_t* arena, char* src, size_t len) {
+    char* dest = (char*) aalloc(arena, (len * sizeof(char)));
+    if( dest == NULL )
+        return NULL;
+    memcpy(dest, src, len * sizeof(char));
+    dest[len] = '\0';
+    return dest;
+}
+

@@ -40,3 +40,14 @@ char* sstr_ptr(sstr_t* sstr) {
 void sstr_printf(sstr_t* sstr) {
     printf("%.*s", sstr_len(sstr), sstr->str);
 }
+
+void sstr_format(sstr_t* dest, const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(dest->str, GVM_DEFAULT_STRLEN, fmt, ap);
+    va_end(ap);
+}
+
+void sstr_copy(sstr_t* dest, sstr_t* src) {
+    memcpy(dest->str, src->str, GVM_DEFAULT_STRLEN);
+}

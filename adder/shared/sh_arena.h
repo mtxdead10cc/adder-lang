@@ -12,11 +12,6 @@ void     arena_destroy(arena_t* arena);
 void     arena_dump(arena_t* arena);
 void*    aalloc(arena_t* arena, ptrdiff_t size);
 void*    arealloc(arena_t* arena, void* srcptr, ptrdiff_t size);
-
-#define anew2(a, t)          (t*) aalloc(a, sizeof(t))
-#define anew3(a, t, n)       (t*) aalloc(a, sizeof(t) * n)
-#define anewx(a,b,c,d,...) d
-#define anew(...)            anewx(__VA_ARGS__,anew3,anew2)(__VA_ARGS__)
-
+char*    astrcopy(arena_t* arena, char* src, size_t len);
 
 #endif // SH_ARENA_H_
