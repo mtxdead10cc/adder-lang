@@ -346,36 +346,41 @@ void codegen_value(ast_value_t node, compiler_state_t* state) {
 
     vb_result_t append_result = (vb_result_t) { 0 };
 
-    if( sstr_equal_str(&node.type, LANG_TYPENAME_FLOAT) ) {
-        append_result = valbuffer_insert_float(&state->consts, node.u._number);
-    } else if ( sstr_equal_str(&node.type, LANG_TYPENAME_INT) ) {
-        append_result = valbuffer_insert_float(&state->consts, node.u._number);
-    } else if ( sstr_equal_str(&node.type, LANG_TYPENAME_BOOL) ) {
-        append_result = valbuffer_insert_bool(&state->consts, node.u._bool);
-    } else if ( sstr_equal_str(&node.type, LANG_TYPENAME_STRING) ) {
-        // Note: needs to start with a '"'
-        srcref_t ref = node.u._string;
-        char* ptr = srcref_ptr(ref);
-        if( ptr[0] != '\"' ) {
-            trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, ref);
-            trace_msg_append_costr(msg, "received unquoted string");
+    switch(node.type) {
+        case AST_VALUE_BOOL: {
+            append_result = valbuffer_insert_bool(&state->consts, node.u._bool);
+        } break;
+        case AST_VALUE_FLOAT: {
+            append_result = valbuffer_insert_float(&state->consts, node.u._float);
+        } break;
+        case AST_VALUE_INT: {
+            append_result = valbuffer_insert_int(&state->consts, node.u._int);
+        } break;
+        case AST_VALUE_STRING: {
+            // Note: needs to start with a '"'
+            srcref_t ref = node.u._string;
+            char* ptr = srcref_ptr(ref);
+            if( ptr[0] != '\"' ) {
+                trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, ref);
+                trace_msg_append_costr(msg, "received unquoted string");
+                return;
+            }
+            size_t len = srcref_len(ref);
+            val_t seq[len];
+            len = valbuffer_sequence_from_qouted_string(ptr, seq, len);
+            append_result = valbuffer_append_array(&state->consts, seq, len);
+        } break;
+        case AST_VALUE_CHAR: {
+            append_result = valbuffer_insert_char(&state->consts, node.u._char);
+        } break;
+        default: {
+            trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, trace_no_ref());
+            trace_msg_append_costr(msg, "unsupported value type: ");
+            char* typename = ast_value_type_string(node.type);
+            trace_msg_append(msg,
+                typename, strlen(typename));
             return;
-        }
-        size_t len = srcref_len(ref);
-        val_t seq[len];
-        len = valbuffer_sequence_from_qouted_string(ptr, seq, len);
-        append_result = valbuffer_append_array(&state->consts, seq, len);
-    } /* else if ( sstr_equal_str(&node.type, LANG_TYPENAME_NONE) ) {
-
-    } else if ( sstr_equal_str(&node.type, LANG_TYPENAME_ARRAY) ) {
-
-    } */ else {
-        trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, trace_no_ref());
-        trace_msg_append_costr(msg, "unsupported value type: ");
-        trace_msg_append(msg,
-            sstr_ptr(&node.type),
-            sstr_len(&node.type));
-        return;
+        } break;
     }
 
     if( append_result.out_of_memory ) {
@@ -389,7 +394,7 @@ void codegen_value(ast_value_t node, compiler_state_t* state) {
     });
 }
 
-ast_funsign_type_t funsign_get_decltype(ast_node_t* node) {
+ast_decl_type_t funsign_get_decltype(ast_node_t* node) {
     return node->u.n_funsign.decltype;
 }
 

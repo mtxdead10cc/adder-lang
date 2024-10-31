@@ -453,8 +453,7 @@ pa_result_t pa_parse_vardecl(parser_t* parser) {
 
     assert( par_is_nothing(result) );
 
-    return par_node(ast_vardecl(parser->arena, varname.ref,
-                        srcref_as_sstr(typename.ref)));
+    return par_node(ast_vardecl(parser->arena, varname.ref, typename.ref));
 }
 
 pa_result_t pa_try_parse_assignment(parser_t* parser) {
@@ -662,7 +661,7 @@ pa_result_t pa_parse_statement(parser_t* parser) {
     return result;
 }
 
-pa_result_t pa_parse_funsign(parser_t* parser, ast_funsign_type_t decltype) {
+pa_result_t pa_parse_funsign(parser_t* parser, ast_decl_type_t decltype) {
     token_t rettype = pa_current_token(parser);
     pa_result_t result = pa_consume(parser, TT_SYMBOL);
     if( par_is_error(result) )
@@ -697,8 +696,7 @@ pa_result_t pa_parse_funsign(parser_t* parser, ast_funsign_type_t decltype) {
         return result;
     
     return par_node(ast_funsign(parser->arena, funname.ref,
-        argspec, decltype,
-        srcref_as_sstr(rettype.ref)));
+        argspec, decltype, rettype.ref));
 }
 
 pa_result_t pa_try_parse_fundecl(parser_t* parser) {

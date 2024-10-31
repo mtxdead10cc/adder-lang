@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "sh_types.h"
+#include "co_typing.h"
 
 typedef enum lexeme_t {
     LCAT_NONE           = 0x00000000,
@@ -80,6 +81,15 @@ typedef enum token_type_t {
     TT_STATEMENT_END,
     TT_FINAL
 } token_type_t;
+
+typedef enum ast_value_type_t {
+    AST_VALUE_NONE,
+    AST_VALUE_INT,
+    AST_VALUE_BOOL,
+    AST_VALUE_CHAR,
+    AST_VALUE_FLOAT,
+    AST_VALUE_STRING
+} ast_value_type_t;
 
 typedef enum ast_node_type_t {
     AST_VALUE,
@@ -195,16 +205,17 @@ typedef struct parser_t {
 typedef struct ast_node_t ast_node_t;
 
 typedef struct ast_value_t {
-    sstr_t type;
+    ast_value_type_t type;
     union {
-        float       _number;
+        int         _int;
+        char        _char;
+        float       _float;
         bool        _bool;
         srcref_t    _string;
     } u;
 } ast_value_t;
 
 typedef struct ast_array_t {
-    sstr_t type;
     size_t           count;
     ast_node_t**     content;
 } ast_array_t;
@@ -216,7 +227,7 @@ typedef struct ast_block_t {
 
 typedef struct ast_vardecl_t {
     srcref_t         name;
-    sstr_t type;
+    srcref_t         type;
 } ast_vardecl_t;
 
 typedef struct ast_varref_t {
@@ -246,21 +257,21 @@ typedef struct ast_unop_t {
     ast_node_t*      inner;
 } ast_unop_t;
 
-typedef enum ast_funsign_type_t {
+typedef enum ast_decl_type_t {
     AST_FUNSIGN_INTERN,
     AST_FUNSIGN_EXTERN
-} ast_funsign_type_t;
+} ast_decl_type_t;
 
 typedef struct ast_funsign_t {
-    ast_funsign_type_t decltype;
-    sstr_t          rettype;
-    srcref_t         name;
-    ast_node_t*      argspec;
+    ast_decl_type_t  decltype;
+    srcref_t            return_type;
+    srcref_t            name;
+    ast_node_t*         argspec;
 } ast_funsign_t;
 
 typedef struct ast_fundecl_t {
     ast_node_t* funsign;    // function signature  
-    ast_node_t* body; 
+    ast_node_t* body;
 } ast_fundecl_t;
 
 typedef struct ast_funcall_t {

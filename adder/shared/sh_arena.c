@@ -92,6 +92,8 @@ void* arealloc(arena_t* arena, void* srcptr, ptrdiff_t size) {
     ptrdiff_t srclen = -1;
     arena_t* current = arena;
 
+    // TODO: improve by accepting scrptr == NULL
+
     // forward to top arena while
     // looking for source data len
     while( current != NULL ) {
