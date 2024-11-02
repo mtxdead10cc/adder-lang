@@ -355,3 +355,30 @@ sstr_t srcref_as_sstr(srcref_t ref) {
     strncpy(sstr.str, srcref_ptr(ref), len);
     return sstr;
 }
+
+bool srcref_starts_with_string(srcref_t a, const char* prefix) {
+    return strncmp(srcref_ptr(a), prefix, strnlen(prefix, srcref_len(a))) == 0;
+}
+
+bool srcref_ends_with_string(srcref_t a, const char* suffix) {
+    size_t rlen = srcref_len(a);
+    size_t slen = strnlen(suffix, rlen);
+    size_t offs = rlen - slen;
+    return strncmp(srcref_ptr(a) + offs, suffix, rlen) == 0;
+}
+
+srcref_t srcref_trim_left(srcref_t a, size_t len) {
+    if(srcref_len(a) >= len)
+        a.idx_start += len;
+    else
+        a.idx_start = a.idx_end;
+    return a;
+}
+
+srcref_t srcref_trim_right(srcref_t a, size_t len) {
+    if(srcref_len(a) >= len)
+        a.idx_end -= len;
+    else
+        a.idx_end = a.idx_start;
+    return a;
+}

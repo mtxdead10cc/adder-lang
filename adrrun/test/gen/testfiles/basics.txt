@@ -1,12 +1,12 @@
 $START("1+1")
-num main() {
+int main() {
     return 1 + 1;
 }
 $VERIFY(2)
 
 $START("hellostr")
-str main() {
-    num a = 1;
+string main() {
+    int a = 1;
     if( a <= 2 ) {
         return "hello123";
     }
@@ -15,40 +15,43 @@ str main() {
 $VERIFY("hello123")
 
 $START("and-or")
-bol main() {
-    num a = 1;
+bool main() {
+    int a = 1;
     return (a >= 6) and (6 <= a) or true;
 }
 $VERIFY("false")
 
 $START("funcall")
-num add(num a, num b) {
+int add(int a, int b) {
     return a + b;
 }
-num main() {
-    num a = 3;
+int main() {
+    int a = 3;
     return add(a, 4);
 }
 $VERIFY("7")
 
 $START("foreach")
-num loop(num a) {
-    var array = [0, 1, 10]; 
-    for(num i in array) {
+int valfn(int v) {
+    return v;
+}
+int loop(int a) {
+    array<int> array = [valfn(0), 1, 10]; 
+    for(int i in array) {
         a = a + i;
     }
     return a;
 }
-num main() {
-    num a = 0;
+int main() {
+    int a = 0;
     return loop(a);
 }
 $VERIFY("11")
 
 $START("ifelse")
-num loop() {
-    num a = 0;
-    for(num i in [1, 2, 3, 4]) {
+int loop() {
+    int a = 0;
+    for(int i in [1, 2, 3, 4]) {
         if( i >= 4 ) {
             return i + a;
         } else if ( i == 1 ) {
@@ -61,49 +64,49 @@ num loop() {
     }
     return 0;
 }
-num main() {
+int main() {
     return loop();
 }
 $VERIFY("4")
 
 $START("negate")
-bol main() {
-    num a = 100.4;
+bool main() {
+    int a = 100.4;
     return -a;
 }
 $VERIFY("-100.4")
 
 $START("divide")
-bol main() {
-    num a = 1;
+bool main() {
+    int a = 1;
     return a / 2;
 }
 $VERIFY("0.5")
 
 $START("modulus")
-bol main() {
-    num a = 1;
+bool main() {
+    int a = 1;
     return a % 2;
 }
 $VERIFY("1")
 
 $START("not")
-bol main() {
-    num a = 1;
+bool main() {
+    int a = 1;
     return not (a == 2);
 }
 $VERIFY("true")
 
 $START("native-extern")
-#extern none print(str arg);
-num main() {
+#extern none print(string arg);
+int main() {
     print("hello\n");
     return 0;
 }
 $VERIFY("0")
 
 $START("operator-preceedence")
-num main() {
+bool main() {
     if( (2 * 3 + 1) != 7 ) {
         return false;
     }

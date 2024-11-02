@@ -15,7 +15,7 @@ ltc_t langtest_testcases[] = {
         .category = "verify",
         .name = "1+1",
         .code = 
-        "num main() {\n"
+        "int main() {\n"
         "    return 1 + 1;\n"
         "}\n",
         .expect = "2",
@@ -25,8 +25,8 @@ ltc_t langtest_testcases[] = {
         .category = "verify",
         .name = "hellostr",
         .code = 
-        "str main() {\n"
-        "    num a = 1;\n"
+        "string main() {\n"
+        "    int a = 1;\n"
         "    if( a <= 2 ) {\n"
         "        return \"hello123\";\n"
         "    }\n"
@@ -39,8 +39,8 @@ ltc_t langtest_testcases[] = {
         .category = "verify",
         .name = "and-or",
         .code = 
-        "bol main() {\n"
-        "    num a = 1;\n"
+        "bool main() {\n"
+        "    int a = 1;\n"
         "    return (a >= 6) and (6 <= a) or true;\n"
         "}\n",
         .expect = "false",
@@ -50,11 +50,11 @@ ltc_t langtest_testcases[] = {
         .category = "verify",
         .name = "funcall",
         .code = 
-        "num add(num a, num b) {\n"
+        "int add(int a, int b) {\n"
         "    return a + b;\n"
         "}\n"
-        "num main() {\n"
-        "    num a = 3;\n"
+        "int main() {\n"
+        "    int a = 3;\n"
         "    return add(a, 4);\n"
         "}\n",
         .expect = "7",
@@ -64,15 +64,18 @@ ltc_t langtest_testcases[] = {
         .category = "verify",
         .name = "foreach",
         .code = 
-        "num loop(num a) {\n"
-        "    var array = [0, 1, 10]; \n"
-        "    for(num i in array) {\n"
+        "int valfn(int v) {\n"
+        "    return v;\n"
+        "}\n"
+        "int loop(int a) {\n"
+        "    array<int> array = [valfn(0), 1, 10]; \n"
+        "    for(int i in array) {\n"
         "        a = a + i;\n"
         "    }\n"
         "    return a;\n"
         "}\n"
-        "num main() {\n"
-        "    num a = 0;\n"
+        "int main() {\n"
+        "    int a = 0;\n"
         "    return loop(a);\n"
         "}\n",
         .expect = "11",
@@ -82,9 +85,9 @@ ltc_t langtest_testcases[] = {
         .category = "verify",
         .name = "ifelse",
         .code = 
-        "num loop() {\n"
-        "    num a = 0;\n"
-        "    for(num i in [1, 2, 3, 4]) {\n"
+        "int loop() {\n"
+        "    int a = 0;\n"
+        "    for(int i in [1, 2, 3, 4]) {\n"
         "        if( i >= 4 ) {\n"
         "            return i + a;\n"
         "        } else if ( i == 1 ) {\n"
@@ -97,7 +100,7 @@ ltc_t langtest_testcases[] = {
         "    }\n"
         "    return 0;\n"
         "}\n"
-        "num main() {\n"
+        "int main() {\n"
         "    return loop();\n"
         "}\n",
         .expect = "4",
@@ -107,8 +110,8 @@ ltc_t langtest_testcases[] = {
         .category = "verify",
         .name = "negate",
         .code = 
-        "bol main() {\n"
-        "    num a = 100.4;\n"
+        "bool main() {\n"
+        "    int a = 100.4;\n"
         "    return -a;\n"
         "}\n",
         .expect = "-100.4",
@@ -118,8 +121,8 @@ ltc_t langtest_testcases[] = {
         .category = "verify",
         .name = "divide",
         .code = 
-        "bol main() {\n"
-        "    num a = 1;\n"
+        "bool main() {\n"
+        "    int a = 1;\n"
         "    return a / 2;\n"
         "}\n",
         .expect = "0.5",
@@ -129,8 +132,8 @@ ltc_t langtest_testcases[] = {
         .category = "verify",
         .name = "modulus",
         .code = 
-        "bol main() {\n"
-        "    num a = 1;\n"
+        "bool main() {\n"
+        "    int a = 1;\n"
         "    return a % 2;\n"
         "}\n",
         .expect = "1",
@@ -140,8 +143,8 @@ ltc_t langtest_testcases[] = {
         .category = "verify",
         .name = "not",
         .code = 
-        "bol main() {\n"
-        "    num a = 1;\n"
+        "bool main() {\n"
+        "    int a = 1;\n"
         "    return not (a == 2);\n"
         "}\n",
         .expect = "true",
@@ -151,8 +154,8 @@ ltc_t langtest_testcases[] = {
         .category = "verify",
         .name = "native-extern",
         .code = 
-        "#extern none print(str arg);\n"
-        "num main() {\n"
+        "#extern none print(string arg);\n"
+        "int main() {\n"
         "    print(\"hello\n\");\n"
         "    return 0;\n"
         "}\n",
@@ -163,7 +166,7 @@ ltc_t langtest_testcases[] = {
         .category = "todo",
         .name = "operator-preceedence",
         .code = 
-        "num main() {\n"
+        "bool main() {\n"
         "    if( (2 * 3 + 1) != 7 ) {\n"
         "        return false;\n"
         "    }\n"

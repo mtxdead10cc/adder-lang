@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "sh_types.h"
-#include "co_typing.h"
 
 typedef enum lexeme_t {
     LCAT_NONE           = 0x00000000,
@@ -87,8 +86,7 @@ typedef enum ast_value_type_t {
     AST_VALUE_INT,
     AST_VALUE_BOOL,
     AST_VALUE_CHAR,
-    AST_VALUE_FLOAT,
-    AST_VALUE_STRING
+    AST_VALUE_FLOAT
 } ast_value_type_t;
 
 typedef enum ast_node_type_t {
@@ -211,9 +209,15 @@ typedef struct ast_value_t {
         char        _char;
         float       _float;
         bool        _bool;
-        srcref_t    _string;
     } u;
 } ast_value_t;
+
+typedef struct ast_annot_t ast_annot_t;
+typedef struct ast_annot_t { // type annotation
+    srcref_t       name;
+    size_t         childcount;
+    ast_annot_t**  children;
+} ast_annot_t;
 
 typedef struct ast_array_t {
     size_t           count;
@@ -227,7 +231,7 @@ typedef struct ast_block_t {
 
 typedef struct ast_vardecl_t {
     srcref_t         name;
-    srcref_t         type;
+    ast_annot_t*     type;
 } ast_vardecl_t;
 
 typedef struct ast_varref_t {
@@ -263,8 +267,8 @@ typedef enum ast_decl_type_t {
 } ast_decl_type_t;
 
 typedef struct ast_funsign_t {
-    ast_decl_type_t  decltype;
-    srcref_t            return_type;
+    ast_decl_type_t     decltype;
+    ast_annot_t*        return_type;
     srcref_t            name;
     ast_node_t*         argspec;
 } ast_funsign_t;
@@ -307,5 +311,13 @@ typedef struct ast_node_t {
         ast_funcall_t   n_funcall;
     } u;
 } ast_node_t;
+
+#define LANG_TYPENAME_NONE      "none"
+#define LANG_TYPENAME_BOOL      "bool"
+#define LANG_TYPENAME_FLOAT     "float"
+#define LANG_TYPENAME_INT       "int"
+#define LANG_TYPENAME_STRING    "string"
+#define LANG_TYPENAME_ARRAY     "array"
+#define LANG_TYPENAME_CHAR      "char"
 
 #endif // GVM_COMPILER_TYPES_H_

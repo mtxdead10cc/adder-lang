@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 #define MIN(A, B) ((A) < (B) ? (A) : (B))
@@ -118,11 +119,27 @@ void* arealloc(arena_t* arena, void* srcptr, ptrdiff_t size) {
 }
 
 char* astrcopy(arena_t* arena, char* src, size_t len) {
-    char* dest = (char*) aalloc(arena, (len * sizeof(char)));
+    char* dest = (char*) aalloc(arena, ((len + 1) * sizeof(char)));
     if( dest == NULL )
         return NULL;
     memcpy(dest, src, len * sizeof(char));
     dest[len] = '\0';
     return dest;
+}
+
+char* asprintf(arena_t* arena, const char* fmt, ...) {
+    va_list length_args;
+    va_start(length_args, fmt);
+    va_list result_args;
+    va_copy(result_args, length_args);
+
+    int len = vsnprintf(NULL, 0, fmt, length_args);
+    assert( len >= 0 );
+    char* str = aalloc(arena, (len + 1) * sizeof(char));
+    vsnprintf(str, len + 1, fmt, result_args);
+
+    va_end(result_args);
+    va_end(length_args);
+    return str;
 }
 

@@ -62,6 +62,11 @@ bool     srcref_equals(srcref_t a, srcref_t b);
 bool     srcref_equals_string(srcref_t a, const char* b_str);
 bool     srcref_as_float(srcref_t ref, float* value);
 bool     srcref_as_bool(srcref_t ref, bool* value);
+bool     srcref_starts_with_string(srcref_t a, const char* prefix);
+bool     srcref_ends_with_string(srcref_t a, const char* suffix);
+srcref_t srcref_trim_left(srcref_t a, size_t len);
+srcref_t srcref_trim_right(srcref_t a, size_t len);
+
 
 void     srcref_print(srcref_t ref);
 int      srcref_snprint(char* str, size_t slen, srcref_t ref);

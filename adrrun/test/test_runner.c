@@ -8,6 +8,7 @@
 #include <co_parser.h>
 #include <co_compiler.h>
 #include <co_program.h>
+#include <co_typing.h>
 #include <sh_program.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -137,6 +138,42 @@ void test_heap_memory(test_case_t* this) {
         "#6.4 (pop & heap_gc_collect) failed");
 
     gvm_destroy(&vm);
+}
+
+void test_shared_utils(test_case_t* this) {
+
+    srcref_t ref = srcref_const("[##hello##]");
+
+    TEST_ASSERT_MSG(this,
+        srcref_starts_with_string(ref, "[##"),
+        "#1.1 srcref_starts_with_string failed");
+
+    TEST_ASSERT_MSG(this,
+        srcref_starts_with_string(ref, "[##?") == false,
+        "#1.2 negated srcref_starts_with_string failed");
+
+    TEST_ASSERT_MSG(this,
+        srcref_ends_with_string(ref, "##]"),
+        "#2.1 srcref_ends_with_string failed");
+
+    TEST_ASSERT_MSG(this,
+        srcref_ends_with_string(ref, "&##]") == false,
+        "#2.2 negated srcref_ends_with_string failed");
+
+    srcref_t a = srcref_trim_left(ref, 3);
+    TEST_ASSERT_MSG(this,
+        srcref_equals_string(a, "hello##]"),
+        "#3.1 srcref_trim_left failed");
+
+    srcref_t b = srcref_trim_right(a, 3);
+    TEST_ASSERT_MSG(this,
+        srcref_equals_string(b, "hello"),
+        "#3.2 srcref_trim_right failed");
+
+    srcref_t c = srcref_trim_right(b, 30);
+    TEST_ASSERT_MSG(this,
+        srcref_equals_string(c, ""),
+        "#3.3 srcref_trim_right overflow failed");
 }
 
 void test_vm(test_case_t* this) {
@@ -273,18 +310,18 @@ void test_ast(test_case_t* this) {
     ast_block_add(arena, decl_args,
         ast_vardecl(arena, 
             srcref(buf, 4, 1),
-            srcref_const(LANG_TYPENAME_FLOAT)));
+            ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT))));
 
     ast_block_add(arena, decl_args,
         ast_vardecl(arena, 
             srcref(buf, 5, 1),
-            srcref_const(LANG_TYPENAME_FLOAT)));
+            ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT))));
 
     ast_node_t* body = ast_block(arena);
 
     ast_block_add(arena, body, 
         ast_assign(arena, 
-            ast_vardecl(arena, srcref(buf, 6, 3), srcref_const(LANG_TYPENAME_FLOAT)),
+            ast_vardecl(arena, srcref(buf, 6, 3), ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT))),
             ast_binop(arena, AST_BIN_ADD,
                 ast_varref(arena, srcref(buf, 5, 1)),
                 ast_varref(arena, srcref(buf, 4, 1))
@@ -308,7 +345,7 @@ void test_ast(test_case_t* this) {
         ast_foreach(arena, 
             ast_vardecl(arena, 
                 srcref(buf, 9, 1),
-                srcref_const(LANG_TYPENAME_FLOAT)),
+                ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT))),
             array,
             ast_assign(arena, 
                 ast_varref(arena, srcref(buf, 6, 3)),
@@ -322,7 +359,7 @@ void test_ast(test_case_t* this) {
 
     ast_node_t* funsign = ast_funsign(arena, srcref(buf, 0, 4),
         decl_args, AST_FUNSIGN_INTERN,
-        srcref_const(LANG_TYPENAME_FLOAT));
+        ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT)));
 
     ast_node_t* fun = ast_fundecl(arena, funsign, body);
 
@@ -701,9 +738,9 @@ void test_compile_and_run(test_case_t* this, char* test_category, char* source_c
 void test_langtest(test_case_t* this) {
     
     char* text = 
-    "num main() {\n"
-    "  num q = 0;\n"
-    "  for(num y in [1,2,3,4,5]) {\n"
+    "int main() {\n"
+    "  int q = 0;\n"
+    "  for(int y in [1,2,3,4,5]) {\n"
     "      q = q + (y * 5);\n"
     "  }\n"
     "  return q;\n"
@@ -809,6 +846,122 @@ void test_arena_alloc(test_case_t* this) {
     arena_destroy(a);
 }
 
+void test_typing(test_case_t* this) {
+    arena_t* a = arena_create(1024);
+
+    ast_node_t* n = ast_block(a);
+    ast_block_add(a, n, ast_int(a, 1));
+    ast_block_add(a, n, ast_float(a, 1.0f));
+    ast_block_add(a, n, ast_bool(a, false));
+    ast_block_add(a, n, ast_char(a, 'h'));
+    
+    char* sign = make_signature(a, n);
+    TEST_ASSERT_MSG(this,
+        strcmp(sign, "ifbc") == 0,
+        "#1.1 value signatures");
+
+    n = ast_array(a);
+    ast_array_add(a, n, ast_int(a, 1));
+    ast_array_add(a, n, ast_int(a, 1));
+    ast_array_add(a, n, ast_int(a, 1));
+    ast_array_add(a, n, ast_int(a, 1));
+    ast_array_add(a, n, ast_int(a, 1));
+
+    sign = make_signature(a, n);
+    TEST_ASSERT_MSG(this,
+        strcmp(sign, "[i]") == 0,
+        "#1.2 array signature");
+
+    n = ast_array(a);
+    ast_array_add(a, n, ast_int(a, 1));
+    ast_array_add(a, n, ast_int(a, 1));
+    ast_array_add(a, n, ast_float(a, 1.0f));
+    ast_array_add(a, n, ast_int(a, 1));
+    ast_array_add(a, n, ast_int(a, 1));
+
+    sign = make_signature(a, n);
+    TEST_ASSERT_MSG(this,
+        strcmp(sign, "[*]") == 0,
+        "#1.3 array invalid signature");
+
+   
+    ast_node_t* args = ast_block(a);
+    ast_block_add(a, args, ast_float(a, 1.0f));
+    ast_block_add(a, args, ast_int(a, 1));
+    n = ast_funcall(a, srcref_const("name-funcall"), args);
+
+    sign = make_signature(a, n);
+    TEST_ASSERT_MSG(this,
+        strcmp(sign, "#name-funcall:fi") == 0,
+        "#1.3 funcall signature");
+
+    ast_node_t* funsign = ast_funsign(a,
+        srcref_const("name-fundecl"),
+        args,
+        AST_FUNSIGN_INTERN,
+        ast_annot(a, srcref_const(LANG_TYPENAME_INT)));
+    n = ast_fundecl(a, funsign, ast_block(a));
+
+    sign = make_signature(a, n);
+    TEST_ASSERT_MSG(this,
+        strcmp(sign, "#name-fundecl:fi") == 0,
+        "#1.4 fundecl signature");
+
+    n = ast_binop(a, AST_BIN_ADD, ast_char(a, 'C'), ast_int(a, 1));
+
+    sign = make_signature(a, n);
+    TEST_ASSERT_MSG(this,
+        strcmp(sign, "#+:ci") == 0,
+        "#1.5 binop signature");
+
+    n = ast_unnop(a, AST_UN_NEG, ast_char(a, 'C'));
+
+    sign = make_signature(a, n);
+    TEST_ASSERT_MSG(this,
+        strcmp(sign, "#-:c") == 0,
+        "#1.6 unnop signature");
+
+    ctx_t* ctx = ctx_create(a, 1);
+    ctx_insert(ctx, "ab", "2");
+    ctx_insert(ctx, "aba", "3");
+    ctx_insert(ctx, "a", "1");
+    
+    TEST_ASSERT_MSG(this,
+        ctx->size == 3,
+        "#2.0 context setup");
+
+    int nerrors = 0;
+    for(size_t i = 0; i < ctx->size; i++) {
+        nerrors += (atoi(ctx->kvps[i].val) != ((int)i + 1));
+    }
+
+    TEST_ASSERT_MSG(this,
+        nerrors == 0,
+        "#2.1 context insert");
+
+    char* res = ctx_infer(ctx, "aba");
+    TEST_ASSERT_MSG(this,
+        strcmp(res, "3") == 0,
+        "#2.3 context infer");
+
+    ctx_t* ctx2 = ctx_clone(ctx);
+
+    TEST_ASSERT_MSG(this,
+        ctx2->size == 3,
+        "#2.4 context clone");
+
+    nerrors = 0;
+    for(size_t i = 0; i < ctx2->size; i++) {
+        nerrors += (atoi(ctx2->kvps[i].val) != ((int)i + 1));
+    }
+
+    TEST_ASSERT_MSG(this,
+        nerrors == 0,
+        "#2.5 context clone check");
+
+    arena_destroy(a);
+}
+
 
 test_results_t run_testcases() {
 
@@ -841,6 +994,16 @@ test_results_t run_testcases() {
         {
             .name = "language test",
             .test = test_langtest,
+            .nfailed = 0
+        },
+        {
+            .name = "typing test",
+            .test = test_typing,
+            .nfailed = 0
+        },
+        {
+            .name = "shared utils test",
+            .test = test_shared_utils,
             .nfailed = 0
         }
     };

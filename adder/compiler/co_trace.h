@@ -53,6 +53,7 @@ inline static trace_msg_t* trace_create_message(trace_t* trace, trace_msg_type_t
         trace->error_count ++;
     msg->source_path = trace->current_source_path;
     msg->source_location = src_loc;
+    msg->length = 0;
     return msg;
 }
 
@@ -79,7 +80,7 @@ inline static int trace_msg_append(trace_msg_t* msg, char* str, size_t slen) {
     return write_len;
 }
 
-#define trace_msg_append_costr(RES, STR) trace_msg_append((RES), (STR), (sizeof((STR))/sizeof(char)) - 1)
+#define trace_msg_append_costr(MSG, STR) trace_msg_append((MSG), (STR), (sizeof((STR))/sizeof(char)) - 1)
 
 inline static int trace_msg_append_token_type_name(trace_msg_t* msg, token_type_t type) {
     switch (type) {
@@ -218,11 +219,11 @@ inline static size_t trace_get_error_count(trace_t* trace) {
 }
 
 inline static void trace_clear(trace_t* trace) {
+    memset(trace->messages, 0, sizeof(trace_msg_t) * trace->message_count);
     trace->error_count = 0;
     trace->message_count = 0;
     trace->current_source_path = NULL;
 }
-
 
 
 #endif // TRACE_H_

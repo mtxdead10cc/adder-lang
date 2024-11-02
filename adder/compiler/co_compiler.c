@@ -356,20 +356,6 @@ void codegen_value(ast_value_t node, compiler_state_t* state) {
         case AST_VALUE_INT: {
             append_result = valbuffer_insert_int(&state->consts, node.u._int);
         } break;
-        case AST_VALUE_STRING: {
-            // Note: needs to start with a '"'
-            srcref_t ref = node.u._string;
-            char* ptr = srcref_ptr(ref);
-            if( ptr[0] != '\"' ) {
-                trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, ref);
-                trace_msg_append_costr(msg, "received unquoted string");
-                return;
-            }
-            size_t len = srcref_len(ref);
-            val_t seq[len];
-            len = valbuffer_sequence_from_qouted_string(ptr, seq, len);
-            append_result = valbuffer_append_array(&state->consts, seq, len);
-        } break;
         case AST_VALUE_CHAR: {
             append_result = valbuffer_insert_char(&state->consts, node.u._char);
         } break;

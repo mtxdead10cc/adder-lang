@@ -439,25 +439,69 @@ pa_result_t pa_parse_expression(parser_t* parser) {
     }
 }
 
-pa_result_t pa_parse_vardecl(parser_t* parser) {
-    token_t typename = pa_current_token(parser);
-    token_t varname = pa_peek_token(parser, 1);
+bool is_valid_type_name(srcref_t ref) {
+    if( srcref_equals_string(ref, LANG_TYPENAME_ARRAY) )
+        return true;
+    if( srcref_equals_string(ref, LANG_TYPENAME_BOOL) )
+        return true;
+    if( srcref_equals_string(ref, LANG_TYPENAME_CHAR) )
+        return true;
+    if( srcref_equals_string(ref, LANG_TYPENAME_INT) )
+        return true;
+    if( srcref_equals_string(ref, LANG_TYPENAME_FLOAT) )
+        return true;
+    if( srcref_equals_string(ref, LANG_TYPENAME_STRING) )
+        return true;
+    if( srcref_equals_string(ref, LANG_TYPENAME_NONE) )
+        return true;
+    return false;
+}
 
+pa_result_t parse_type_annotation(parser_t* parser, ast_annot_t** annot) {
+    token_t name = pa_current_token(parser);
     pa_result_t result = pa_consume(parser, TT_SYMBOL);
+    if( par_is_error(result) )
+        return result;
+    if( is_valid_type_name(name.ref) == false ) {
+        return pa_error_invalid_expression(parser, name, "unrecognized type name");
+    }
+    *annot = ast_annot(parser->arena, name.ref);
+    if( pa_advance_if(parser, TT_CMP_LT) ) {
+        do {
+            ast_annot_t* child = NULL;
+            result = parse_type_annotation(parser, &child);
+            if( par_is_error(result) )
+                return result;
+            assert( child != NULL );
+            ast_annot_add_child(parser->arena, (*annot), child);
+        } while (pa_advance_if(parser, TT_SEPARATOR));
+        return pa_consume(parser, TT_CMP_GT);
+    }
+    return par_nothing();
+}
 
-    if( par_is_nothing(result) )
-        result = pa_consume(parser, TT_SYMBOL);
+pa_result_t pa_parse_vardecl(parser_t* parser) {
+    ast_annot_t* typename;
+    pa_result_t result = parse_type_annotation(parser, &typename);
+    if( par_is_error(result) )
+        return result;
+
+    token_t varname = pa_current_token(parser);
+    result = pa_consume(parser, TT_SYMBOL);
 
     if( par_is_error(result) )
         return result;
 
     assert( par_is_nothing(result) );
 
-    return par_node(ast_vardecl(parser->arena, varname.ref, typename.ref));
+    return par_node(ast_vardecl(parser->arena, varname.ref, typename));
 }
 
+// TODO: should probably rething how assignment is parsed.
+// type varname | varname should perhaps be valid
+// statements by themselves without assignment?
 pa_result_t pa_try_parse_assignment(parser_t* parser) {
-    if( pa_peek_token(parser, 1).type == TT_ASSIGN ) {
+    if( pa_peek_token(parser, 1).type == TT_ASSIGN ) {              // <- this is a little "iffy"
         token_t varname = pa_current_token(parser);
         pa_result_t result = pa_consume(parser, TT_SYMBOL);
         if( par_is_error(result) )
@@ -472,7 +516,7 @@ pa_result_t pa_try_parse_assignment(parser_t* parser) {
                 ast_varref(parser->arena, varname.ref),
                 par_extract_node(rhs)));
 
-    } else if( pa_peek_token(parser, 2).type == TT_ASSIGN ) {
+    } else if( is_valid_type_name(pa_current_token(parser).ref) ) { // <- if the first token is a type ... also "iffy"
         pa_result_t decl = pa_parse_vardecl(parser);
         if( par_is_error(decl) )
             return decl;
@@ -662,8 +706,9 @@ pa_result_t pa_parse_statement(parser_t* parser) {
 }
 
 pa_result_t pa_parse_funsign(parser_t* parser, ast_decl_type_t decltype) {
-    token_t rettype = pa_current_token(parser);
-    pa_result_t result = pa_consume(parser, TT_SYMBOL);
+
+    ast_annot_t* retannot;
+    pa_result_t result = parse_type_annotation(parser, &retannot);
     if( par_is_error(result) )
         return result;
 
@@ -696,7 +741,7 @@ pa_result_t pa_parse_funsign(parser_t* parser, ast_decl_type_t decltype) {
         return result;
     
     return par_node(ast_funsign(parser->arena, funname.ref,
-        argspec, decltype, rettype.ref));
+        argspec, decltype, retannot));
 }
 
 pa_result_t pa_try_parse_fundecl(parser_t* parser) {
