@@ -190,9 +190,13 @@ pa_result_t pa_parse_number(parser_t* parser) {
     if( par_is_nothing(result) == false ) {
         return result;
     }
+
     float value = 0.0f;
     if( srcref_as_float(token.ref, &value) ) {
-        return par_node(ast_float(parser->arena, value));
+        if( srcref_contains_char(token.ref, '.') )
+            return par_node(ast_float(parser->arena, value));
+        else
+            return par_node(ast_int(parser->arena, value));
     }
     return pa_error_invalid_token_format(parser, token);
 }

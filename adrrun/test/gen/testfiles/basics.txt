@@ -70,21 +70,21 @@ int main() {
 $VERIFY("4")
 
 $START("negate")
-bool main() {
-    int a = 100.4;
+float main() {
+    float a = 100.4;
     return -a;
 }
 $VERIFY("-100.4")
 
 $START("divide")
-bool main() {
+int main() {
     int a = 1;
     return a / 2;
 }
 $VERIFY("0.5")
 
 $START("modulus")
-bool main() {
+int main() {
     int a = 1;
     return a % 2;
 }

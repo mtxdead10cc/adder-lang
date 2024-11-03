@@ -311,6 +311,16 @@ bool srcref_equals_string(srcref_t a, const char* b_str) {
     return strncmp(a_str, b_str, len) == 0;
 }
 
+bool srcref_contains_char(srcref_t ref, char c) {
+    size_t len = srcref_len(ref);
+    char* ptr = srcref_ptr(ref);
+    for(size_t i = 0; i < len; i++) {
+        if(ptr[i] == c)
+            return true;
+    }
+    return false;
+}
+
 bool srcref_as_float(srcref_t ref, float* value) {
     size_t len = srcref_len(ref);
     char buf[len+1];

@@ -645,6 +645,11 @@ void test_compile_and_run(test_case_t* this, char* test_category, char* source_c
 
     ast_node_t* node = par_extract_node(result);
 
+    typecheck(arena, &trace, node);
+    if( trace_get_error_count(&trace) > 0 && is_known_todo == false ) {
+        trace_fprint(stdout, &trace);
+    }
+
     gvm_program_t program = gvm_compile(node, &trace);
     if( trace_get_error_count(&trace) > 0 && is_known_todo == false ) {
         trace_fprint(stdout, &trace);

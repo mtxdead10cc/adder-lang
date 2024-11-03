@@ -34,5 +34,7 @@ void ctx_dump(ctx_t* ctx);
 
 char* make_signature(arena_t* a, ast_node_t* n);
 
+char* typecheck(arena_t* arena, trace_t* trace, ast_node_t* root);
+
 
 #endif // CO_TYPING_H_

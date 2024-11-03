@@ -110,8 +110,8 @@ ltc_t langtest_testcases[] = {
         .category = "verify",
         .name = "negate",
         .code = 
-        "bool main() {\n"
-        "    int a = 100.4;\n"
+        "float main() {\n"
+        "    float a = 100.4;\n"
         "    return -a;\n"
         "}\n",
         .expect = "-100.4",
@@ -121,7 +121,7 @@ ltc_t langtest_testcases[] = {
         .category = "verify",
         .name = "divide",
         .code = 
-        "bool main() {\n"
+        "int main() {\n"
         "    int a = 1;\n"
         "    return a / 2;\n"
         "}\n",
@@ -132,7 +132,7 @@ ltc_t langtest_testcases[] = {
         .category = "verify",
         .name = "modulus",
         .code = 
-        "bool main() {\n"
+        "int main() {\n"
         "    int a = 1;\n"
         "    return a % 2;\n"
         "}\n",

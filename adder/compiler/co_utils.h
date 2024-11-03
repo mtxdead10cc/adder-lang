@@ -60,6 +60,7 @@ size_t   srcref_len(srcref_t ref);
 char*    srcref_ptr(srcref_t ref);
 bool     srcref_equals(srcref_t a, srcref_t b);
 bool     srcref_equals_string(srcref_t a, const char* b_str);
+bool     srcref_contains_char(srcref_t ref, char c);
 bool     srcref_as_float(srcref_t ref, float* value);
 bool     srcref_as_bool(srcref_t ref, bool* value);
 bool     srcref_starts_with_string(srcref_t a, const char* prefix);
