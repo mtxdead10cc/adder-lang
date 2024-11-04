@@ -163,7 +163,7 @@ ltc_t langtest_testcases[] = {
         .filepath = "basics.txt"
     },
     {
-        .category = "todo",
+        .category = "verify",
         .name = "operator-preceedence",
         .code = 
         "bool main() {\n"

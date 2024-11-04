@@ -3,6 +3,7 @@
 #include "co_compiler.h"
 #include "co_srcmap.h"
 #include "co_trace.h"
+#include "co_typing.h"
 #include <assert.h>
 
 typedef struct ir_inst_t {
@@ -796,9 +797,18 @@ gvm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts, funsign_set_
 }
 
 
-gvm_program_t gvm_compile(ast_node_t* node, trace_t* trace) {
+gvm_program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace) {
 
     gvm_program_t program = { 0 };
+
+    trace_clear(trace);
+    ctx_t* ctx = typing_check(arena, trace, node);
+    if( trace_get_error_count(trace) > 0 ) {
+        // typecheck failed
+        return program;
+    }
+
+    (void)(ctx); // used soon
 
     compiler_state_t state = (compiler_state_t) {
         .trace = trace

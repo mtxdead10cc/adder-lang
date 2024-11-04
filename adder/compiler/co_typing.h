@@ -32,9 +32,8 @@ char* ctx_lookup(ctx_t* ctx, char* key);
 char* ctx_infer(ctx_t* ctx, char* key);
 void ctx_dump(ctx_t* ctx);
 
-char* make_signature(arena_t* a, ast_node_t* n);
-
-char* typecheck(arena_t* arena, trace_t* trace, ast_node_t* root);
+char* typing_signature(arena_t* a, ast_node_t* n);
+ctx_t* typing_check(arena_t* arena, trace_t* trace, ast_node_t* root);
 
 
 #endif // CO_TYPING_H_

@@ -107,21 +107,22 @@ typedef enum ast_node_type_t {
     AST_BLOCK
 } ast_node_type_t;
 
+// ordered by precedence
 typedef enum ast_binop_type_t {
-    AST_BIN_ADD,
-    AST_BIN_SUB,
     AST_BIN_MUL,
     AST_BIN_DIV,
     AST_BIN_MOD,
-    AST_BIN_AND,
-    AST_BIN_OR,
+    AST_BIN_ADD,
+    AST_BIN_SUB,
     AST_BIN_XOR,
-    AST_BIN_EQ,
-    AST_BIN_NEQ,
+    AST_BIN_LT,
+    AST_BIN_GT,
     AST_BIN_LT_EQ,
     AST_BIN_GT_EQ,
-    AST_BIN_LT,
-    AST_BIN_GT
+    AST_BIN_EQ,
+    AST_BIN_NEQ,
+    AST_BIN_OR,
+    AST_BIN_AND
 } ast_binop_type_t;
 
 typedef enum ast_unop_type_t {

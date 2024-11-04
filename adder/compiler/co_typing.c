@@ -91,7 +91,7 @@ char* annotation_signature(arena_t* a, ast_annot_t* annot) {
  *   funcall (in types)  -> '#funname:ifcbi'
  *   variable            -> '$varname'
  */
-char* make_signature(arena_t* a, ast_node_t* n) {
+char* typing_signature(arena_t* a, ast_node_t* n) {
     switch(n->type) {
         case AST_VALUE: {
             return value_signature(n->u.n_value);
@@ -105,7 +105,7 @@ char* make_signature(arena_t* a, ast_node_t* n) {
         case AST_ARRAY: {
             char* inner = NULL;
             for(size_t i = 0; i < n->u.n_array.count; i++) {
-                char* tmp = make_signature(a, n->u.n_array.content[i]);
+                char* tmp = typing_signature(a, n->u.n_array.content[i]);
                 if( inner == NULL )
                     inner = tmp;
                 if( strcmp(tmp, inner) != 0 ) {
@@ -121,7 +121,7 @@ char* make_signature(arena_t* a, ast_node_t* n) {
             char* sign = "";
             for(size_t i = 0; i < n->u.n_block.count; i++) {
                 ast_node_t* inner = n->u.n_block.content[i];
-                sign = asprintf(a, "%s%s", sign, make_signature(a, inner));
+                sign = asprintf(a, "%s%s", sign, typing_signature(a, inner));
             }
             return sign;
         } break;
@@ -130,28 +130,28 @@ char* make_signature(arena_t* a, ast_node_t* n) {
             return asprintf(a, "#%.*s:%s",
                 srcref_len(name),
                 srcref_ptr(name),
-                make_signature(a, n->u.n_funcall.args));
+                typing_signature(a, n->u.n_funcall.args));
         } break;
         case AST_FUN_DECL: {
-            return make_signature(a, n->u.n_fundecl.funsign);
+            return typing_signature(a, n->u.n_fundecl.funsign);
         } break;
         case AST_FUN_SIGN: {
             srcref_t name = n->u.n_funsign.name;
             return asprintf(a, "#%.*s:%s",
                 srcref_len(name),
                 srcref_ptr(name),
-                make_signature(a, n->u.n_funsign.argspec));
+                typing_signature(a, n->u.n_funsign.argspec));
         } break;
         case AST_BINOP: {
             return asprintf(a, "#%s:%s%s",
                 binop_name(n->u.n_binop.type),
-                make_signature(a, n->u.n_binop.left),
-                make_signature(a, n->u.n_binop.right));
+                typing_signature(a, n->u.n_binop.left),
+                typing_signature(a, n->u.n_binop.right));
         } break;
         case AST_UNOP: {
             return asprintf(a, "#%s:%s",
                 unop_name(n->u.n_unop.type),
-                make_signature(a, n->u.n_unop.inner));
+                typing_signature(a, n->u.n_unop.inner));
         } break;
         default: {
             return "";
@@ -287,17 +287,11 @@ bool is_valid_value(ast_value_t v) {
         || type == AST_VALUE_NONE;
 }
 
-#define REFSTACK_CAP 32
-
-typedef struct typing_state_t {
-    trace_t*  trace;
-} typing_state_t;
-
-char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
+char* infer(trace_t* trace, ast_node_t* node, ctx_t* ctx) {
     switch(node->type) {
         case AST_VALUE: {
             if( is_valid_value(node->u.n_value) == false ) {
-                trace_msg_t* msg = trace_create_message(state->trace,
+                trace_msg_t* msg = trace_create_message(trace,
                     TM_ERROR, ast_extract_srcref(node));
                 trace_msg_append_costr(msg, "value: unknown value type");
             }
@@ -314,7 +308,7 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             if( annot_sign != NULL ) {
                 ctx_insert(ctx, var_sign, annot_sign);
             } else {
-                trace_msg_t* msg = trace_create_message(state->trace,
+                trace_msg_t* msg = trace_create_message(trace,
                     TM_ERROR, annot->name);
                 trace_msg_append_costr(msg, "variable declaration: invalid type annotation");
             }
@@ -323,7 +317,7 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
         case AST_ARRAY: {
             char* inner = NULL;
             for(size_t i = 0; i < node->u.n_array.count; i++) {
-                char* tmp = infer(state, node->u.n_array.content[i], ctx);
+                char* tmp = infer(trace, node->u.n_array.content[i], ctx);
                 if( inner == NULL )
                     inner = tmp;
                 if( strcmp(tmp, inner) != 0 ) {
@@ -332,7 +326,7 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
                 }
             }
             if( inner == NULL ) {
-                trace_msg_t* msg = trace_create_message(state->trace,
+                trace_msg_t* msg = trace_create_message(trace,
                     TM_ERROR, ast_extract_srcref(node));
                 trace_msg_append_costr(msg, "array definition: arrays must contain items of the same type");
                 inner = "*";
@@ -349,7 +343,11 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             char* sign = "";
             for(size_t i = 0; i < node->u.n_block.count; i++) {
                 ast_node_t* inner = node->u.n_block.content[i];
-                sign = asprintf(ctx->arena, "%s%s", sign, infer(state, inner, ctx));
+                // infer all regardless if we use the result
+                // (needed to check all statements / expressions
+                //  inside the body)
+                char* tmp = infer(trace, inner, ctx);
+                sign = asprintf(ctx->arena, "%s%s", sign, tmp);
             }
             return sign;
         } break;
@@ -358,10 +356,10 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             char* sign = asprintf(ctx->arena, "#%.*s:%s",
                 srcref_len(name),
                 srcref_ptr(name),
-                infer(state, node->u.n_funcall.args, ctx));
+                infer(trace, node->u.n_funcall.args, ctx));
             char* returnsign = ctx_infer(ctx, sign);
             if( returnsign == NULL ) {
-                trace_msg_t* msg = trace_create_message(state->trace,
+                trace_msg_t* msg = trace_create_message(trace,
                     TM_ERROR, ast_extract_srcref(node));
                 trace_msg_append_costr(msg, "function call: unknown function ");
                 trace_msg_append_srcref(msg, ast_extract_srcref(node));
@@ -373,19 +371,19 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             ast_node_t* funsign = node->u.n_fundecl.funsign;
 
             // Add function signature to context
-            infer(state, funsign, ctx);
+            infer(trace, funsign, ctx);
 
             // Get actual return signature
             // 'iiiii': multiple return statements returning int, this is ok
             // 'ibbf':  multiple return statements returning different types, not ok
             // 'i':     a single return statement returning an int, this is ok
             // '':      no return statement, also ok
-            char* body_return = infer(state, node->u.n_fundecl.body, ctx_clone(ctx));
+            char* body_return = infer(trace, node->u.n_fundecl.body, ctx_clone(ctx));
 
             char* annot_return = annotation_signature(ctx->arena, funsign->u.n_funsign.return_type);
             if( annot_return == NULL ) {
                 srcref_t ref = ast_srcref_from_annotation(funsign->u.n_funsign.return_type);
-                trace_msg_t* msg = trace_create_message(state->trace,
+                trace_msg_t* msg = trace_create_message(trace,
                     TM_ERROR, ref);
                 trace_msg_append_costr(msg, "function declaration: invalid return type annotation: ");
                 trace_msg_append_srcref(msg, ref);
@@ -411,7 +409,7 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             }
 
             if( match == false ) {
-                trace_msg_t* msg = trace_create_message(state->trace,
+                trace_msg_t* msg = trace_create_message(trace,
                     TM_ERROR, ast_extract_srcref(node));
                 trace_msg_append_costr(msg,
                     "function declaration: return type (");
@@ -430,12 +428,12 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             char* sign = asprintf(ctx->arena, "#%.*s:%s",
                 srcref_len(name),
                 srcref_ptr(name),
-                infer(state, node->u.n_funsign.argspec, ctx));
+                infer(trace, node->u.n_funsign.argspec, ctx));
             if( retsign != NULL ) {
                 ctx_insert(ctx, sign, retsign);
             } else {
                 srcref_t ref = ast_srcref_from_annotation(annot);
-                trace_msg_t* msg = trace_create_message(state->trace,
+                trace_msg_t* msg = trace_create_message(trace,
                     TM_ERROR, ref);
                 trace_msg_append_costr(msg, "function signature: invalid type annotation: ");
                 trace_msg_append_srcref(msg, ref);
@@ -446,11 +444,11 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             // Lookup global definition and return it's type
             char* sign = asprintf(ctx->arena, "#%s:%s%s",
                 binop_name(node->u.n_binop.type),
-                infer(state, node->u.n_binop.left, ctx),
-                infer(state, node->u.n_binop.right, ctx));
+                infer(trace, node->u.n_binop.left, ctx),
+                infer(trace, node->u.n_binop.right, ctx));
             char* rettype = ctx_infer(ctx, sign);
             if( rettype == NULL ) {
-                trace_msg_t* msg = trace_create_message(state->trace,
+                trace_msg_t* msg = trace_create_message(trace,
                         TM_ERROR, ast_extract_srcref(node));
                 trace_msg_append_costr(msg, "binary operation: undefined (");
                 trace_msg_append_srcref(msg, node->u.n_binop.ref);
@@ -463,10 +461,10 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             // Lookup global definition and return it's type
             char* sign = asprintf(ctx->arena, "#%s:%s",
                 unop_name(node->u.n_unop.type),
-                infer(state, node->u.n_unop.inner, ctx));
+                infer(trace, node->u.n_unop.inner, ctx));
             char* rettype = ctx_infer(ctx, sign);
             if( rettype == NULL ) {
-                trace_msg_t* msg = trace_create_message(state->trace,
+                trace_msg_t* msg = trace_create_message(trace,
                         TM_ERROR, ast_extract_srcref(node));
                 trace_msg_append_costr(msg, "unary operation: undefined (");
                 trace_msg_append_srcref(msg, node->u.n_binop.ref);
@@ -480,33 +478,33 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             ast_node_t* ifbody = node->u.n_if.iftrue;
             ast_node_t* next = node->u.n_if.next;
 
-            char* sign = infer(state, ifcond, ctx);
+            char* sign = infer(trace, ifcond, ctx);
             size_t len = strlen(sign);
             for(size_t i = 0; i < len; i++) {
                 if( sign[i] != 'b' ) {
-                    trace_msg_t* msg = trace_create_message(state->trace,
+                    trace_msg_t* msg = trace_create_message(trace,
                         TM_ERROR, ast_extract_srcref(node));
                     trace_msg_append_costr(msg, "if-condition: non boolean type");
                 }
             }
 
             if( len == 0 ) {
-                trace_msg_t* msg = trace_create_message(state->trace,
+                trace_msg_t* msg = trace_create_message(trace,
                         TM_ERROR, ast_extract_srcref(node)); // this will not be a valid reference
                 trace_msg_append_costr(msg, "if-condition: empty");
             }
 
-            char* bodysign = infer(state, ifbody, ctx_clone(ctx));
-            char* nextsign = infer(state, next, ctx_clone(ctx));
+            char* bodysign = infer(trace, ifbody, ctx_clone(ctx));
+            char* nextsign = infer(trace, next, ctx_clone(ctx));
             return asprintf(ctx->arena, "%s%s", bodysign, nextsign);
         } break;
         case AST_ASSIGN: {
             ast_node_t* left = node->u.n_assign.left_var;
             ast_node_t* right = node->u.n_assign.right_value;
-            char* left_sign = infer(state, left, ctx);
-            char* right_sign = infer(state, right, ctx);
+            char* left_sign = infer(trace, left, ctx);
+            char* right_sign = infer(trace, right, ctx);
             if( strcmp(left_sign, right_sign) != 0 ) {
-                trace_msg_t* msg = trace_create_message(state->trace,
+                trace_msg_t* msg = trace_create_message(trace,
                         TM_ERROR, ast_extract_srcref(node));
                 trace_msg_append_costr(msg,
                     "assignment: variable type does not match value type:\n\t");
@@ -522,7 +520,7 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
                                 srcref_len(name),
                                 srcref_ptr(name)));
             if( sign == NULL ) {
-                trace_msg_t* msg = trace_create_message(state->trace,
+                trace_msg_t* msg = trace_create_message(trace,
                         TM_ERROR, node->u.n_varref.name);
                 trace_msg_append_costr(msg,
                     "variable reference: reference to undefined variable");
@@ -531,22 +529,22 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             return sign;
         } break;
         case AST_RETURN: {
-            return ctx_infer(ctx, infer(state, node->u.n_return.result, ctx));
+            return ctx_infer(ctx, infer(trace, node->u.n_return.result, ctx));
         } break;
         case AST_BREAK: {
             return "";
         } break;
         case AST_FOREACH: {
-            char* varsign = infer(state, node->u.n_foreach.vardecl, ctx);
-            char* collsign = infer(state, node->u.n_foreach.collection, ctx);
+            char* varsign = infer(trace, node->u.n_foreach.vardecl, ctx);
+            char* collsign = infer(trace, node->u.n_foreach.collection, ctx);
             char* collsign_expect = asprintf(ctx->arena, "[%s]", varsign);
             if( strcmp(collsign, collsign_expect) != 0 ) {
-                trace_msg_t* msg = trace_create_message(state->trace,
+                trace_msg_t* msg = trace_create_message(trace,
                         TM_ERROR, node->u.n_foreach.vardecl->u.n_vardecl.name);
                 trace_msg_append_costr(msg,
                     "for-each: variable type does not match array content");
             }
-            return infer(state, node->u.n_foreach.during, ctx);
+            return infer(trace, node->u.n_foreach.during, ctx);
         } break;
         default: {
             return "";
@@ -554,10 +552,7 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
     }
 }
 
-char* typecheck(arena_t* arena, trace_t* trace, ast_node_t* root) {
-    typing_state_t state = {
-        .trace = trace
-    };
+ctx_t* typing_check(arena_t* arena, trace_t* trace, ast_node_t* root) {
     ctx_t* ctx = ctx_create(arena, 16);
     ctx_insert(ctx, "#+:ff", "f");
     ctx_insert(ctx, "#-:ff", "f");
@@ -572,16 +567,19 @@ char* typecheck(arena_t* arena, trace_t* trace, ast_node_t* root) {
     ctx_insert(ctx, "#<=:ii", "b");
     ctx_insert(ctx, "#>=:ii", "b");
     ctx_insert(ctx, "#==:ii", "b");
+    ctx_insert(ctx, "#!=:ii", "b");
     ctx_insert(ctx, "#>:ff", "b");
     ctx_insert(ctx, "#<:ff", "b");
     ctx_insert(ctx, "#<=:ff", "b");
     ctx_insert(ctx, "#>=:ff", "b");
     ctx_insert(ctx, "#==:ff", "f");
+    ctx_insert(ctx, "#!=:ff", "f");
     ctx_insert(ctx, "#-:f", "f");
     ctx_insert(ctx, "#-:i", "i");
     ctx_insert(ctx, "#%:ii", "i");
     ctx_insert(ctx, "#not:b", "b");
     ctx_insert(ctx, "#and:bb", "b");
     ctx_insert(ctx, "#or:bb", "b");
-    return infer(&state, root, ctx);
+    infer(trace, root, ctx);
+    return ctx;
 }

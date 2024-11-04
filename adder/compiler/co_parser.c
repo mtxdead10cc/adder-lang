@@ -338,6 +338,27 @@ pa_result_t pa_try_parse_unary_operation(parser_t* parser, token_type_t tt, ast_
     return par_nothing();
 }
 
+int get_precedence(ast_binop_type_t bin_op_type) {
+    return 100 - (int) bin_op_type;
+}
+
+bool should_reorder(ast_binop_type_t op, ast_node_t* right) {
+    if( right->type == AST_BINOP )
+        return get_precedence(op) > get_precedence(right->u.n_binop.type);
+    return false;
+}
+
+ast_node_t* get_left(ast_node_t* node) {
+    if( node->type == AST_BINOP )
+        return node->u.n_binop.left;
+    return node;
+}
+
+ast_node_t* get_right(ast_node_t* node) {
+    if( node->type == AST_BINOP )
+        return node->u.n_binop.right;
+    return node;
+}
 
 pa_result_t pa_try_parse_binary_operation(pa_result_t lhs, parser_t* parser, token_type_t tt, ast_binop_type_t op) {
     token_t token = pa_current_token(parser);
@@ -346,10 +367,42 @@ pa_result_t pa_try_parse_binary_operation(pa_result_t lhs, parser_t* parser, tok
         if( par_is_error(rhs) )
             return rhs;
         assert( par_is_nothing(rhs) == false );
-        return par_node(ast_binop(parser->arena, op, 
-            par_extract_node(lhs),
-            par_extract_node(rhs),
-            &token.ref));
+        arena_t* a = parser->arena;
+        ast_node_t* left = par_extract_node(lhs);
+        ast_node_t* right = par_extract_node(rhs);
+        // handle operator precedence
+        if( should_reorder(op, right) ) {
+            /* (A $ (B # C)) -> ((A $ B) # C)) =
+                ($ 
+                 LHS: A
+                 RHS: (#
+                        LHS: B
+                        RHS: C))
+                -> 
+                (# 
+                 LHS: ($
+                        LHS: A
+                        RHS: B)
+                 RHS: C) */
+            ast_binop_type_t outer_op = right->u.n_binop.type;
+            ast_binop_type_t inner_op = op;
+            srcref_t* right_refptr = &right->u.n_binop.ref;
+            return par_node(ast_binop(a,
+                outer_op, 
+                ast_binop(a,
+                    inner_op,
+                    left,
+                    get_left(right),
+                    &token.ref),
+                get_right(right),
+                right_refptr));
+        } else {
+            return par_node(ast_binop(a,
+                op,
+                left,
+                right,
+                &token.ref));
+        }
     }
     return par_nothing();
 }
@@ -391,8 +444,6 @@ pa_result_t pa_parse_expression(parser_t* parser) {
 
     // parsing binary operation expressions
 
-    // todo: handle operator precedence
-
     pa_result_t bin_op_result = pa_try_parse_binary_operation(result, parser, TT_BINOP_AND, AST_BIN_AND);
 
     if( par_is_nothing(bin_op_result) )
@@ -414,6 +465,7 @@ pa_result_t pa_parse_expression(parser_t* parser) {
         bin_op_result = pa_try_parse_binary_operation(result, parser, TT_BINOP_PLUS, AST_BIN_ADD);
 
     // TODO: THESE SHOULD NOT CONTINUE RECURSIVELY!!! ---------------------------
+    // UNLESS there is an AND or an OR in between.
 
     if( par_is_nothing(bin_op_result) )
         bin_op_result = pa_try_parse_binary_operation(result, parser, TT_CMP_EQ, AST_BIN_EQ);

@@ -366,7 +366,7 @@ void test_ast(test_case_t* this) {
     trace_t trace = { 0 };
     trace_init(&trace, 16);
 
-    gvm_program_t program = gvm_compile(fun, &trace);
+    gvm_program_t program = gvm_compile(arena, fun, &trace);
     if( trace_get_error_count(&trace) > 0 ) {
         trace_fprint(stdout, &trace);
     }
@@ -645,13 +645,7 @@ void test_compile_and_run(test_case_t* this, char* test_category, char* source_c
 
     ast_node_t* node = par_extract_node(result);
 
-    typecheck(arena, &trace, node);
-    if( trace_get_error_count(&trace) > 0 && is_known_todo == false ) {
-        trace_fprint(stdout, &trace);
-        trace_clear(&trace);
-    }
-
-    gvm_program_t program = gvm_compile(node, &trace);
+    gvm_program_t program = gvm_compile(arena, node, &trace);
     if( trace_get_error_count(&trace) > 0 && is_known_todo == false ) {
         trace_fprint(stdout, &trace);
         ast_dump(node);
@@ -864,7 +858,7 @@ void test_typing(test_case_t* this) {
     ast_block_add(a, n, ast_bool(a, false, NULL));
     ast_block_add(a, n, ast_char(a, 'h', NULL));
     
-    char* sign = make_signature(a, n);
+    char* sign = typing_signature(a, n);
     TEST_ASSERT_MSG(this,
         strcmp(sign, "ifbc") == 0,
         "#1.1 value signatures");
@@ -876,7 +870,7 @@ void test_typing(test_case_t* this) {
     ast_array_add(a, n, ast_int(a, 1, NULL));
     ast_array_add(a, n, ast_int(a, 1, NULL));
 
-    sign = make_signature(a, n);
+    sign = typing_signature(a, n);
     TEST_ASSERT_MSG(this,
         strcmp(sign, "[i]") == 0,
         "#1.2 array signature");
@@ -888,7 +882,7 @@ void test_typing(test_case_t* this) {
     ast_array_add(a, n, ast_int(a, 1, NULL));
     ast_array_add(a, n, ast_int(a, 1, NULL));
 
-    sign = make_signature(a, n);
+    sign = typing_signature(a, n);
     TEST_ASSERT_MSG(this,
         strcmp(sign, "[*]") == 0,
         "#1.3 array invalid signature");
@@ -899,7 +893,7 @@ void test_typing(test_case_t* this) {
     ast_block_add(a, args, ast_int(a, 1, NULL));
     n = ast_funcall(a, srcref_const("name-funcall"), args);
 
-    sign = make_signature(a, n);
+    sign = typing_signature(a, n);
     TEST_ASSERT_MSG(this,
         strcmp(sign, "#name-funcall:fi") == 0,
         "#1.3 funcall signature");
@@ -911,21 +905,21 @@ void test_typing(test_case_t* this) {
         ast_annot(a, srcref_const(LANG_TYPENAME_INT)));
     n = ast_fundecl(a, funsign, ast_block(a));
 
-    sign = make_signature(a, n);
+    sign = typing_signature(a, n);
     TEST_ASSERT_MSG(this,
         strcmp(sign, "#name-fundecl:fi") == 0,
         "#1.4 fundecl signature");
 
     n = ast_binop(a, AST_BIN_ADD, ast_char(a, 'C', NULL), ast_int(a, 1, NULL), NULL);
 
-    sign = make_signature(a, n);
+    sign = typing_signature(a, n);
     TEST_ASSERT_MSG(this,
         strcmp(sign, "#+:ci") == 0,
         "#1.5 binop signature");
 
     n = ast_unnop(a, AST_UN_NEG, ast_char(a, 'C', NULL), NULL);
 
-    sign = make_signature(a, n);
+    sign = typing_signature(a, n);
     TEST_ASSERT_MSG(this,
         strcmp(sign, "#-:c") == 0,
         "#1.6 unnop signature");

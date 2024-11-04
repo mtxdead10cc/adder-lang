@@ -44,7 +44,7 @@ gvm_program_t gvm_program_compile_source(char* source, size_t source_len, char* 
     }
 
     ast_node_t* program_node = par_extract_node(result);
-    gvm_program_t program = gvm_compile(program_node, &trace);
+    gvm_program_t program = gvm_compile(arena, program_node, &trace);
     if( trace_get_error_count(&trace) > 0 ) {
         trace_fprint(stdout, &trace);
     }

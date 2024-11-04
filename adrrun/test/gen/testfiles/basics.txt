@@ -115,4 +115,4 @@ bool main() {
     }
     return true;
 }
-$TODO("true")
+$VERIFY("true")
