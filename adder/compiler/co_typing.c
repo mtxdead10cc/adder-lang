@@ -1,4 +1,5 @@
 #include "co_typing.h"
+#include "co_ast.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -290,37 +291,14 @@ bool is_valid_value(ast_value_t v) {
 
 typedef struct typing_state_t {
     trace_t*  trace;
-    int       reftop;
-    srcref_t  refstack[REFSTACK_CAP];
 } typing_state_t;
-
-srcref_t state_get_ref(typing_state_t* state) {
-    int reftop = state->reftop;
-    if( reftop < 0 )
-        return trace_no_ref();
-    if( reftop >= REFSTACK_CAP )
-        return state->refstack[REFSTACK_CAP-1];
-    return state->refstack[state->reftop];
-}
-
-void state_push_ref(typing_state_t* state, srcref_t ref) {
-    state->reftop ++;
-    if( state->reftop < REFSTACK_CAP ) {
-        state->refstack[state->reftop] = ref;
-    }
-}
-
-void state_pop_ref(typing_state_t* state) {
-    state->reftop --;
-}
-
 
 char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
     switch(node->type) {
         case AST_VALUE: {
             if( is_valid_value(node->u.n_value) == false ) {
                 trace_msg_t* msg = trace_create_message(state->trace,
-                    TM_ERROR, state_get_ref(state));
+                    TM_ERROR, ast_extract_srcref(node));
                 trace_msg_append_costr(msg, "value: unknown value type");
             }
             return value_signature(node->u.n_value);
@@ -355,7 +333,7 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             }
             if( inner == NULL ) {
                 trace_msg_t* msg = trace_create_message(state->trace,
-                    TM_ERROR, state_get_ref(state));
+                    TM_ERROR, ast_extract_srcref(node));
                 trace_msg_append_costr(msg, "array definition: arrays must contain items of the same type");
                 inner = "*";
             }
@@ -377,18 +355,16 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
         } break;
         case AST_FUN_CALL: {
             srcref_t name = node->u.n_funcall.name;
-            state_push_ref(state, name);
             char* sign = asprintf(ctx->arena, "#%.*s:%s",
                 srcref_len(name),
                 srcref_ptr(name),
                 infer(state, node->u.n_funcall.args, ctx));
-            state_pop_ref(state);
             char* returnsign = ctx_infer(ctx, sign);
             if( returnsign == NULL ) {
                 trace_msg_t* msg = trace_create_message(state->trace,
-                    TM_ERROR, name);
+                    TM_ERROR, ast_extract_srcref(node));
                 trace_msg_append_costr(msg, "function call: unknown function ");
-                trace_msg_append_srcref(msg, name);
+                trace_msg_append_srcref(msg, ast_extract_srcref(node));
                 returnsign = "";
             }
             return returnsign;
@@ -404,15 +380,15 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             // 'ibbf':  multiple return statements returning different types, not ok
             // 'i':     a single return statement returning an int, this is ok
             // '':      no return statement, also ok
-            state_push_ref(state, funsign->u.n_funsign.name);
             char* body_return = infer(state, node->u.n_fundecl.body, ctx_clone(ctx));
-            state_pop_ref(state);
 
             char* annot_return = annotation_signature(ctx->arena, funsign->u.n_funsign.return_type);
             if( annot_return == NULL ) {
+                srcref_t ref = ast_srcref_from_annotation(funsign->u.n_funsign.return_type);
                 trace_msg_t* msg = trace_create_message(state->trace,
-                    TM_ERROR, funsign->u.n_funsign.return_type->name);
-                trace_msg_append_costr(msg, "function declaration: invalid return type annotation");
+                    TM_ERROR, ref);
+                trace_msg_append_costr(msg, "function declaration: invalid return type annotation: ");
+                trace_msg_append_srcref(msg, ref);
                 return "";
             }
 
@@ -436,9 +412,12 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
 
             if( match == false ) {
                 trace_msg_t* msg = trace_create_message(state->trace,
-                    TM_ERROR, funsign->u.n_funsign.name);
+                    TM_ERROR, ast_extract_srcref(node));
                 trace_msg_append_costr(msg,
-                    "function declaration: return type does not match returned value type");
+                    "function declaration: return type (");
+                srcref_t ref = ast_srcref_from_annotation(funsign->u.n_funsign.return_type);
+                trace_msg_append_srcref(msg, ref);
+                trace_msg_append_costr(msg, ") does not match returned value type.");
             }
 
             return "";
@@ -455,9 +434,11 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             if( retsign != NULL ) {
                 ctx_insert(ctx, sign, retsign);
             } else {
+                srcref_t ref = ast_srcref_from_annotation(annot);
                 trace_msg_t* msg = trace_create_message(state->trace,
-                    TM_ERROR, annot->name);
-                trace_msg_append_costr(msg, "function signature: invalid type annotation");
+                    TM_ERROR, ref);
+                trace_msg_append_costr(msg, "function signature: invalid type annotation: ");
+                trace_msg_append_srcref(msg, ref);
             }
             return "";
         } break;
@@ -470,8 +451,10 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             char* rettype = ctx_infer(ctx, sign);
             if( rettype == NULL ) {
                 trace_msg_t* msg = trace_create_message(state->trace,
-                        TM_ERROR, state_get_ref(state));
-                trace_msg_append_costr(msg, "binary operation: undefined");
+                        TM_ERROR, ast_extract_srcref(node));
+                trace_msg_append_costr(msg, "binary operation: undefined (");
+                trace_msg_append_srcref(msg, node->u.n_binop.ref);
+                trace_msg_append_costr(msg, ")");
                 rettype = "";
             }
             return rettype;
@@ -484,8 +467,10 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             char* rettype = ctx_infer(ctx, sign);
             if( rettype == NULL ) {
                 trace_msg_t* msg = trace_create_message(state->trace,
-                        TM_ERROR, state_get_ref(state));
-                trace_msg_append_costr(msg, "unary operation: undefined");
+                        TM_ERROR, ast_extract_srcref(node));
+                trace_msg_append_costr(msg, "unary operation: undefined (");
+                trace_msg_append_srcref(msg, node->u.n_binop.ref);
+                trace_msg_append_costr(msg, ")");
                 rettype = "";
             }
             return rettype;
@@ -500,14 +485,14 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             for(size_t i = 0; i < len; i++) {
                 if( sign[i] != 'b' ) {
                     trace_msg_t* msg = trace_create_message(state->trace,
-                        TM_ERROR, state_get_ref(state));
+                        TM_ERROR, ast_extract_srcref(node));
                     trace_msg_append_costr(msg, "if-condition: non boolean type");
                 }
             }
 
             if( len == 0 ) {
                 trace_msg_t* msg = trace_create_message(state->trace,
-                        TM_ERROR, state_get_ref(state));
+                        TM_ERROR, ast_extract_srcref(node)); // this will not be a valid reference
                 trace_msg_append_costr(msg, "if-condition: empty");
             }
 
@@ -522,9 +507,10 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
             char* right_sign = infer(state, right, ctx);
             if( strcmp(left_sign, right_sign) != 0 ) {
                 trace_msg_t* msg = trace_create_message(state->trace,
-                        TM_ERROR, state_get_ref(state));
+                        TM_ERROR, ast_extract_srcref(node));
                 trace_msg_append_costr(msg,
-                    "assignment: variable type declaration does not match value type");
+                    "assignment: variable type does not match value type:\n\t");
+                trace_msg_append_srcref(msg, ast_extract_srcref(node));
             }
             return "";
         } break;
@@ -570,9 +556,7 @@ char* infer(typing_state_t* state, ast_node_t* node, ctx_t* ctx) {
 
 char* typecheck(arena_t* arena, trace_t* trace, ast_node_t* root) {
     typing_state_t state = {
-        .trace = trace,
-        .reftop = 0,
-        .refstack = { {0} }
+        .trace = trace
     };
     ctx_t* ctx = ctx_create(arena, 16);
     ctx_insert(ctx, "#+:ff", "f");

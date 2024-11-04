@@ -53,6 +53,8 @@ size_t string_count_until(char* text, char stopchar);
 size_t valbuffer_sequence_from_qouted_string(char* text, val_t* result, size_t result_capacity);
 void valbuffer_sequence_from_string(char* text, val_t* result, size_t length);
 
+#define srcref_is_valid(REF) ((REF).source != NULL)
+
 srcref_t srcref(char* text, size_t start, size_t len);
 srcref_t srcref_const(const char* text);
 srcref_t srcref_combine(srcref_t a, srcref_t b);
@@ -72,7 +74,6 @@ srcref_t srcref_trim_right(srcref_t a, size_t len);
 void     srcref_print(srcref_t ref);
 int      srcref_snprint(char* str, size_t slen, srcref_t ref);
 int      srcref_fprint(FILE* stream, srcref_t ref);
-char*    srcref_tmpstr(srcref_t ref);
 sstr_t   srcref_as_sstr(srcref_t ref);
 
 #endif // CO_UTILS_H_

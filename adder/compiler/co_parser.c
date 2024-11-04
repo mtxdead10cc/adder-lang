@@ -194,9 +194,9 @@ pa_result_t pa_parse_number(parser_t* parser) {
     float value = 0.0f;
     if( srcref_as_float(token.ref, &value) ) {
         if( srcref_contains_char(token.ref, '.') )
-            return par_node(ast_float(parser->arena, value));
+            return par_node(ast_float(parser->arena, value, &token.ref));
         else
-            return par_node(ast_int(parser->arena, value));
+            return par_node(ast_int(parser->arena, value, &token.ref));
     }
     return pa_error_invalid_token_format(parser, token);
 }
@@ -209,7 +209,7 @@ pa_result_t pa_parse_boolean(parser_t* parser) {
     }
     bool value = false;
     if( srcref_as_bool(token.ref, &value) ) {
-        return par_node(ast_bool(parser->arena, value));
+        return par_node(ast_bool(parser->arena, value, &token.ref));
     }
     return pa_error_invalid_token_format(parser, token);
 }
@@ -327,18 +327,20 @@ pa_result_t pa_try_parse_array_def(parser_t* parser) {
 }
 
 pa_result_t pa_try_parse_unary_operation(parser_t* parser, token_type_t tt, ast_unop_type_t op) {
+    token_t token = pa_current_token(parser);
     if( pa_advance_if(parser, tt) ) {
         pa_result_t inner = pa_parse_expression(parser);
         if( par_is_error(inner) )
             return inner;
         assert( par_is_nothing(inner) == false );
-        return par_node(ast_unnop(parser->arena, op, par_extract_node(inner)));
+        return par_node(ast_unnop(parser->arena, op, par_extract_node(inner), &token.ref));
     }
     return par_nothing();
 }
 
 
 pa_result_t pa_try_parse_binary_operation(pa_result_t lhs, parser_t* parser, token_type_t tt, ast_binop_type_t op) {
+    token_t token = pa_current_token(parser);
     if( pa_advance_if(parser, tt) ) {
         pa_result_t rhs = pa_parse_expression(parser);
         if( par_is_error(rhs) )
@@ -346,7 +348,8 @@ pa_result_t pa_try_parse_binary_operation(pa_result_t lhs, parser_t* parser, tok
         assert( par_is_nothing(rhs) == false );
         return par_node(ast_binop(parser->arena, op, 
             par_extract_node(lhs),
-            par_extract_node(rhs)));
+            par_extract_node(rhs),
+            &token.ref));
     }
     return par_nothing();
 }

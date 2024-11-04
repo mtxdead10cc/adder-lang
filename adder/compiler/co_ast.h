@@ -33,41 +33,60 @@ inline static void ast_annot_add_child(arena_t* a, ast_annot_t* parent, ast_anno
     parent->children[parent->childcount - 1] = child;
 }
 
-inline static ast_node_t* ast_int(arena_t* a, int val) {
+inline static srcref_t ast_srcref_from_annotation(ast_annot_t* annot) {
+    srcref_t combined = annot->name;
+    for(size_t i = 0; i < annot->childcount; i++) {
+        combined = srcref_combine(combined,
+            ast_srcref_from_annotation(annot->children[i]));
+    }
+    return combined;
+}
+
+inline static srcref_t _from_srcref_ptr(srcref_t* ref) {
+    if( ref == NULL )
+        return (srcref_t) { 0 };
+    return *ref;
+}
+
+inline static ast_node_t* ast_int(arena_t* a, int val, srcref_t* refptr) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_VALUE,
     node->u.n_value = (ast_value_t) {
         .type = AST_VALUE_INT,
+        .ref = _from_srcref_ptr(refptr),
         .u._int = val
     };
     return node;
 }
 
-inline static ast_node_t* ast_float(arena_t* a, float val) {
+inline static ast_node_t* ast_float(arena_t* a, float val, srcref_t* refptr) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_VALUE,
     node->u.n_value = (ast_value_t) {
         .type = AST_VALUE_FLOAT,
+        .ref = _from_srcref_ptr(refptr),
         .u._float = val
     };
     return node;
 }
 
-inline static ast_node_t* ast_bool(arena_t* a, bool val) {
+inline static ast_node_t* ast_bool(arena_t* a, bool val, srcref_t* refptr) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_VALUE,
     node->u.n_value = (ast_value_t) {
         .type = AST_VALUE_BOOL,
+        .ref = _from_srcref_ptr(refptr),
         .u._bool = val
     };
     return node;
 }
 
-inline static ast_node_t* ast_char(arena_t* a, char val) {
+inline static ast_node_t* ast_char(arena_t* a, char val, srcref_t* refptr) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_VALUE,
     node->u.n_value = (ast_value_t) {
         .type = AST_VALUE_CHAR,
+        .ref = _from_srcref_ptr(refptr),
         .u._char = val
     };
     return node;
@@ -140,7 +159,11 @@ inline static ast_node_t* ast_string(arena_t* a, srcref_t val) {
     ptrdiff_t len = srcref_len(val) - 2;
     char*     str = srcref_ptr(val) + 1;
     for (ptrdiff_t i = 0; i < len; i++) {
-        ast_array_add(a, char_array, ast_char(a, str[i]));
+        srcref_t char_ref = srcref(val.source,
+            val.idx_start + 1 + i, 1);
+        ast_array_add(a,
+            char_array,
+            ast_char(a, str[i], &char_ref));
     }
     return char_array;
 }
@@ -231,22 +254,24 @@ inline static ast_node_t* ast_foreach( arena_t* a, ast_node_t* vardecl,
     return node;
 }
 
-inline static ast_node_t* ast_binop(arena_t* a, ast_binop_type_t op, ast_node_t* left, ast_node_t* right) {
+inline static ast_node_t* ast_binop(arena_t* a, ast_binop_type_t op, ast_node_t* left, ast_node_t* right, srcref_t* op_refptr) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_BINOP,
     node->u.n_binop = (ast_binop_t) {
         .type = op,
+        .ref = _from_srcref_ptr(op_refptr),
         .left = left,
         .right = right
     };
     return node;
 }
 
-inline static ast_node_t* ast_unnop(arena_t* a, ast_unop_type_t op, ast_node_t* inner) {
+inline static ast_node_t* ast_unnop(arena_t* a, ast_unop_type_t op, ast_node_t* inner, srcref_t* op_refptr) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_UNOP,
     node->u.n_unop = (ast_unop_t) {
         .type = op,
+        .ref = _from_srcref_ptr(op_refptr),
         .inner = inner
     };
     return node;
@@ -260,6 +285,123 @@ inline static ast_node_t* ast_assign(arena_t* a, ast_node_t* left, ast_node_t* r
         .right_value = right
     };
     return node;
+}
+
+inline static srcref_t ast_extract_srcref(ast_node_t* node) {
+    switch (node->type) {
+        case AST_VALUE: {
+            return node->u.n_value.ref;
+        } break;
+        case AST_VAR_REF: {
+            return node->u.n_varref.name;
+        } break;
+        case AST_ARRAY: {
+            srcref_t combined = { 0 };
+            for(size_t i = 0; i < node->u.n_array.count; i++) {
+                combined = srcref_combine(combined,
+                    ast_extract_srcref(node->u.n_array.content[i]));
+            }
+            return combined;
+        } break;
+        case AST_IF_CHAIN: {
+            srcref_t combined = { 0 };
+            combined = srcref_combine(combined,
+                ast_extract_srcref(node->u.n_if.cond));
+            combined = srcref_combine(combined,
+                ast_extract_srcref(node->u.n_if.iftrue));
+            combined = srcref_combine(combined,
+                ast_extract_srcref(node->u.n_if.next));
+            return combined;
+        } break;
+        case AST_FOREACH: {
+            srcref_t combined = { 0 };
+            combined = srcref_combine(combined,
+                ast_extract_srcref(node->u.n_foreach.vardecl));
+            combined = srcref_combine(combined,
+                ast_extract_srcref(node->u.n_foreach.collection));
+            combined = srcref_combine(combined,
+                ast_extract_srcref(node->u.n_foreach.during));
+            return combined;
+        } break;
+        case AST_BINOP: {
+            srcref_t combined = { 0 };
+            combined = srcref_combine(combined,
+                ast_extract_srcref(node->u.n_binop.left));
+            combined = srcref_combine(combined,
+                node->u.n_binop.ref);
+            combined = srcref_combine(combined,
+                ast_extract_srcref(node->u.n_binop.right));
+            return combined;
+        } break;
+        case AST_UNOP: {
+            srcref_t combined = { 0 };
+            combined = srcref_combine(combined,
+                node->u.n_unop.ref);
+            combined = srcref_combine(combined,
+                ast_extract_srcref(node->u.n_unop.inner));
+            return combined;
+        } break;
+        case AST_ASSIGN: {
+            srcref_t combined = { 0 };
+            combined = srcref_combine(combined,
+                ast_extract_srcref(node->u.n_assign.left_var));
+            combined = srcref_combine(combined,
+                ast_extract_srcref(node->u.n_assign.right_value));
+            return combined;
+        } break;
+        case AST_VAR_DECL: {
+            srcref_t combined = { 0 };
+            combined = srcref_combine(combined, 
+                ast_srcref_from_annotation(node->u.n_vardecl.type));
+            combined = srcref_combine(combined,
+                node->u.n_vardecl.name);
+            return combined;
+        } break;
+        case AST_FUN_DECL: {
+            srcref_t combined = { 0 };
+            combined = srcref_combine(combined,
+                ast_extract_srcref(node->u.n_fundecl.funsign));
+            combined = srcref_combine(combined,
+                ast_extract_srcref(node->u.n_fundecl.body));
+            return combined;
+        } break;
+        case AST_FUN_SIGN: {
+            srcref_t combined = { 0 };
+            combined = srcref_combine(combined,
+                ast_srcref_from_annotation(node->u.n_funsign.return_type));
+            combined = srcref_combine(combined,
+                ast_extract_srcref(node->u.n_funsign.argspec));
+            combined = srcref_combine(combined,
+                node->u.n_funsign.name);
+            return combined;
+        } break;
+        case AST_FUN_CALL: {
+            srcref_t combined = { 0 };
+            combined = srcref_combine(combined,
+                ast_extract_srcref(node->u.n_funcall.args));
+            combined = srcref_combine(combined,
+                node->u.n_funcall.name);
+            return combined;
+        } break;
+        case AST_RETURN: {
+            return ast_extract_srcref(node->u.n_return.result);
+        } break;
+        case AST_BREAK: {
+            // todo: maybe add srcrefs to everything?
+            return (srcref_t) { 0 };
+        } break;
+        case AST_BLOCK: {
+            srcref_t combined = { 0 };
+            for(size_t i = 0; i < node->u.n_block.count; i++) {
+                combined = srcref_combine(combined,
+                    ast_extract_srcref(node->u.n_block.content[i]));
+            }
+            return combined;
+        } break;
+        default: {
+            return (srcref_t) { 0 };
+        } break;      
+    }
 }
 
 inline static char* ast_node_type_as_string(ast_node_type_t type) {

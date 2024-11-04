@@ -204,6 +204,7 @@ typedef struct ast_node_t ast_node_t;
 
 typedef struct ast_value_t {
     ast_value_type_t type;
+    srcref_t         ref;
     union {
         int         _int;
         char        _char;
@@ -252,12 +253,14 @@ typedef struct ast_foreach_t {
 
 typedef struct ast_binop_t {
     ast_binop_type_t type;
+    srcref_t         ref;
     ast_node_t*      left;
     ast_node_t*      right;
 } ast_binop_t;
 
 typedef struct ast_unop_t {
     ast_unop_type_t  type;
+    srcref_t         ref;
     ast_node_t*      inner;
 } ast_unop_t;
 

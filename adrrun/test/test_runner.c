@@ -325,21 +325,21 @@ void test_ast(test_case_t* this) {
             ast_binop(arena, AST_BIN_ADD,
                 ast_varref(arena, srcref(buf, 5, 1)),
                 ast_varref(arena, srcref(buf, 4, 1))
-            )));
+            , NULL)));
 
     ast_block_add(arena, body,
         ast_if(arena, 
             ast_binop(arena, AST_BIN_LT,
                 ast_varref(arena, srcref(buf, 6, 3)),
-                ast_float(arena, 0.0f)),
-            ast_return(arena, ast_float(arena, 0.0f)),
+                ast_float(arena, 0.0f, NULL), NULL),
+            ast_return(arena, ast_float(arena, 0.0f, NULL)),
             ast_block(arena)));
 
     ast_node_t* array = ast_array(arena);
-    ast_array_add(arena, array, ast_float(arena, 1));
-    ast_array_add(arena, array, ast_float(arena, 1));
-    ast_array_add(arena, array, ast_float(arena, 1));
-    ast_array_add(arena, array, ast_float(arena, 1));
+    ast_array_add(arena, array, ast_float(arena, 1, NULL));
+    ast_array_add(arena, array, ast_float(arena, 1, NULL));
+    ast_array_add(arena, array, ast_float(arena, 1, NULL));
+    ast_array_add(arena, array, ast_float(arena, 1, NULL));
 
     ast_block_add(arena, body,
         ast_foreach(arena, 
@@ -351,7 +351,7 @@ void test_ast(test_case_t* this) {
                 ast_varref(arena, srcref(buf, 6, 3)),
                 ast_binop(arena, AST_BIN_ADD,
                     ast_varref(arena, srcref(buf, 6, 3)),
-                    ast_varref(arena, srcref(buf, 9, 1))))
+                    ast_varref(arena, srcref(buf, 9, 1)), NULL))
         ));
     
     ast_block_add(arena, body,
@@ -859,10 +859,10 @@ void test_typing(test_case_t* this) {
     arena_t* a = arena_create(1024);
 
     ast_node_t* n = ast_block(a);
-    ast_block_add(a, n, ast_int(a, 1));
-    ast_block_add(a, n, ast_float(a, 1.0f));
-    ast_block_add(a, n, ast_bool(a, false));
-    ast_block_add(a, n, ast_char(a, 'h'));
+    ast_block_add(a, n, ast_int(a, 1, NULL));
+    ast_block_add(a, n, ast_float(a, 1.0f, NULL));
+    ast_block_add(a, n, ast_bool(a, false, NULL));
+    ast_block_add(a, n, ast_char(a, 'h', NULL));
     
     char* sign = make_signature(a, n);
     TEST_ASSERT_MSG(this,
@@ -870,11 +870,11 @@ void test_typing(test_case_t* this) {
         "#1.1 value signatures");
 
     n = ast_array(a);
-    ast_array_add(a, n, ast_int(a, 1));
-    ast_array_add(a, n, ast_int(a, 1));
-    ast_array_add(a, n, ast_int(a, 1));
-    ast_array_add(a, n, ast_int(a, 1));
-    ast_array_add(a, n, ast_int(a, 1));
+    ast_array_add(a, n, ast_int(a, 1, NULL));
+    ast_array_add(a, n, ast_int(a, 1, NULL));
+    ast_array_add(a, n, ast_int(a, 1, NULL));
+    ast_array_add(a, n, ast_int(a, 1, NULL));
+    ast_array_add(a, n, ast_int(a, 1, NULL));
 
     sign = make_signature(a, n);
     TEST_ASSERT_MSG(this,
@@ -882,11 +882,11 @@ void test_typing(test_case_t* this) {
         "#1.2 array signature");
 
     n = ast_array(a);
-    ast_array_add(a, n, ast_int(a, 1));
-    ast_array_add(a, n, ast_int(a, 1));
-    ast_array_add(a, n, ast_float(a, 1.0f));
-    ast_array_add(a, n, ast_int(a, 1));
-    ast_array_add(a, n, ast_int(a, 1));
+    ast_array_add(a, n, ast_int(a, 1, NULL));
+    ast_array_add(a, n, ast_int(a, 1, NULL));
+    ast_array_add(a, n, ast_float(a, 1.0f, NULL));
+    ast_array_add(a, n, ast_int(a, 1, NULL));
+    ast_array_add(a, n, ast_int(a, 1, NULL));
 
     sign = make_signature(a, n);
     TEST_ASSERT_MSG(this,
@@ -895,8 +895,8 @@ void test_typing(test_case_t* this) {
 
    
     ast_node_t* args = ast_block(a);
-    ast_block_add(a, args, ast_float(a, 1.0f));
-    ast_block_add(a, args, ast_int(a, 1));
+    ast_block_add(a, args, ast_float(a, 1.0f, NULL));
+    ast_block_add(a, args, ast_int(a, 1, NULL));
     n = ast_funcall(a, srcref_const("name-funcall"), args);
 
     sign = make_signature(a, n);
@@ -916,14 +916,14 @@ void test_typing(test_case_t* this) {
         strcmp(sign, "#name-fundecl:fi") == 0,
         "#1.4 fundecl signature");
 
-    n = ast_binop(a, AST_BIN_ADD, ast_char(a, 'C'), ast_int(a, 1));
+    n = ast_binop(a, AST_BIN_ADD, ast_char(a, 'C', NULL), ast_int(a, 1, NULL), NULL);
 
     sign = make_signature(a, n);
     TEST_ASSERT_MSG(this,
         strcmp(sign, "#+:ci") == 0,
         "#1.5 binop signature");
 
-    n = ast_unnop(a, AST_UN_NEG, ast_char(a, 'C'));
+    n = ast_unnop(a, AST_UN_NEG, ast_char(a, 'C', NULL), NULL);
 
     sign = make_signature(a, n);
     TEST_ASSERT_MSG(this,

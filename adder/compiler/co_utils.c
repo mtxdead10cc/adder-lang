@@ -268,6 +268,10 @@ srcref_t srcref_const(const char* text) {
 }
 
 srcref_t srcref_combine(srcref_t a, srcref_t b) {
+    if( srcref_is_valid(a) == false )
+        return b;
+    if( srcref_is_valid(b) == false )
+        return a;
     assert(a.source == b.source && "can't combine srcres from different sources");
     return (srcref_t) {
         .idx_end    = (a.idx_end > b.idx_end)       ? a.idx_end     : b.idx_end,
@@ -277,41 +281,55 @@ srcref_t srcref_combine(srcref_t a, srcref_t b) {
 }
 
 size_t srcref_len(srcref_t ref) {
-    return ref.idx_end - ref.idx_start;
+    if( ref.idx_end >= ref.idx_start )
+        return ref.idx_end - ref.idx_start;
+    else
+        return 0;
 }
 
 char* srcref_ptr(srcref_t ref) {
+    if( srcref_is_valid(ref) == false )
+        return NULL;
     return ref.source + ref.idx_start;
 }
 
 void srcref_print(srcref_t ref) {
-    size_t len = srcref_len(ref);
-    char buf[len + 1];
-    strncpy(buf, srcref_ptr(ref), len);
-    buf[len] = '\0';
-    printf("%s", buf);
+    if( srcref_is_valid(ref) ) { 
+        size_t len = srcref_len(ref);
+        char buf[len + 1];
+        strncpy(buf, srcref_ptr(ref), len);
+        buf[len] = '\0';
+        printf("%s", buf);
+    } else {
+        printf("<invalid-srcref>");
+    }
 }
 
 bool srcref_equals(srcref_t a, srcref_t b) {
-    size_t len = srcref_len(a);
-    if( len != srcref_len(b) ) {
+    if( srcref_is_valid(a) == false
+     || srcref_is_valid(b) == false )
         return false;
-    }
+    size_t len = srcref_len(a);
+    if( len != srcref_len(b) )
+        return false;
     char* a_str = srcref_ptr(a);
     char* b_str = srcref_ptr(b);
     return strncmp(a_str, b_str, len) == 0;
 }
 
 bool srcref_equals_string(srcref_t a, const char* b_str) {
-    size_t len = srcref_len(a);
-    if( len != strlen(b_str) ) {
+    if( srcref_is_valid(a) == false )
         return false;
-    }
+    size_t len = srcref_len(a);
+    if( len != strlen(b_str) )
+        return false;
     char* a_str = srcref_ptr(a);
     return strncmp(a_str, b_str, len) == 0;
 }
 
 bool srcref_contains_char(srcref_t ref, char c) {
+    if( srcref_is_valid(ref) == false )
+        return false;
     size_t len = srcref_len(ref);
     char* ptr = srcref_ptr(ref);
     for(size_t i = 0; i < len; i++) {
@@ -322,6 +340,8 @@ bool srcref_contains_char(srcref_t ref, char c) {
 }
 
 bool srcref_as_float(srcref_t ref, float* value) {
+    if( srcref_is_valid(ref) == false )
+        return false;
     size_t len = srcref_len(ref);
     char buf[len+1];
     strncpy(buf, ref.source + ref.idx_start, len);
@@ -333,6 +353,8 @@ bool srcref_as_float(srcref_t ref, float* value) {
 }
 
 bool srcref_as_bool(srcref_t ref, bool* value) {
+    if( srcref_is_valid(ref) == false )
+        return false;
     if(srcref_equals_string(ref, "true")) {
         *value = true;
         return true;
@@ -344,33 +366,37 @@ bool srcref_as_bool(srcref_t ref, bool* value) {
 }
 
 int srcref_snprint(char* str, size_t slen, srcref_t ref) {
-    return snprintf(str, slen, "%.*s", (int) srcref_len(ref), srcref_ptr(ref));
+    if( srcref_is_valid(ref) )
+        return snprintf(str, slen, "%.*s", (int) srcref_len(ref), srcref_ptr(ref));
+    else
+        return snprintf(str, slen, "<invalid-srcref>");
 }
 
 int srcref_fprint(FILE* stream, srcref_t ref) {
-    return fprintf(stream, "%.*s", (int) srcref_len(ref), srcref_ptr(ref));
-}
-
-char* srcref_tmpstr(srcref_t ref) {
-    static char tmp_buffer[256] = { 0 };
-    size_t len = srcref_len(ref);
-    assert(len < 256 && "ref points to string that is lager than the tmp buffer.");
-    snprintf(tmp_buffer, 255, "%.*s", (int) srcref_len(ref), srcref_ptr(ref));
-    return tmp_buffer;
+    if( srcref_is_valid(ref) )
+        return fprintf(stream, "%.*s", (int) srcref_len(ref), srcref_ptr(ref));
+    else
+        return fprintf(stream, "<invalid-srcref>");
 }
 
 sstr_t srcref_as_sstr(srcref_t ref) {
     sstr_t sstr = {0};
+    if( srcref_is_valid(ref) == false )
+        return sstr;
     size_t len = min(srcref_len(ref), GVM_DEFAULT_STRLEN);
     strncpy(sstr.str, srcref_ptr(ref), len);
     return sstr;
 }
 
 bool srcref_starts_with_string(srcref_t a, const char* prefix) {
+    if( srcref_is_valid(a) == false )
+        return false;
     return strncmp(srcref_ptr(a), prefix, strnlen(prefix, srcref_len(a))) == 0;
 }
 
 bool srcref_ends_with_string(srcref_t a, const char* suffix) {
+    if( srcref_is_valid(a) == false )
+        return false;
     size_t rlen = srcref_len(a);
     size_t slen = strnlen(suffix, rlen);
     size_t offs = rlen - slen;

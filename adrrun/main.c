@@ -28,6 +28,7 @@ time_t get_creation_time(char *path) {
 #define DEFAULT_PATH "resources/test.gvm"
 
 val_t test(gvm_t* vm, size_t argcount, val_t* args) {
+    (void)(argcount); // hide unused warning
     int a = val_into_number(args[0]);
     int b = val_into_number(args[1]);
     int len = b - a + 1;
