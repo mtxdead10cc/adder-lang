@@ -38,7 +38,7 @@ char* sstr_ptr(sstr_t* sstr) {
 }
 
 void sstr_printf(sstr_t* sstr) {
-    printf("%.*s", sstr_len(sstr), sstr->str);
+    printf("%.*s", (int)sstr_len(sstr), sstr->str);
 }
 
 void sstr_format(sstr_t* dest, const char* fmt, ...) {

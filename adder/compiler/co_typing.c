@@ -64,7 +64,7 @@ char* annotation_signature(arena_t* a, ast_annot_t* annot) {
         return asprintf(a, "[%s]", inner);
     } else if(srcref_equals_string(annot->name, LANG_TYPENAME_STRING)) {
         return "[c]";
-    } else if(srcref_equals_string(annot->name, LANG_TYPENAME_NONE)) {
+    } else if(srcref_equals_string(annot->name, LANG_TYPENAME_VOID)) {
         return "n";
     } else if(srcref_equals_string(annot->name, LANG_TYPENAME_INT)) {
         return "i";
@@ -595,6 +595,7 @@ char* typecheck(arena_t* arena, trace_t* trace, ast_node_t* root) {
     ctx_insert(ctx, "#==:ff", "f");
     ctx_insert(ctx, "#-:f", "f");
     ctx_insert(ctx, "#-:i", "i");
+    ctx_insert(ctx, "#%:ii", "i");
     ctx_insert(ctx, "#not:b", "b");
     ctx_insert(ctx, "#and:bb", "b");
     ctx_insert(ctx, "#or:bb", "b");

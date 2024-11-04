@@ -234,7 +234,7 @@ void test_vm(test_case_t* this) {
     u8buffer_write(&instr_buf, (value >> (8*3)));
 
     u8buffer_write(&instr_buf, OP_SUB);
-    u8buffer_write(&instr_buf, OP_RETURN);
+    u8buffer_write(&instr_buf, OP_RETURN_VALUE);
 
     // PROGRAM -- END
 
@@ -272,7 +272,7 @@ void test_vm(test_case_t* this) {
     u8buffer_write(&instr_buf, (value >> (8*3)));
 
     u8buffer_write(&instr_buf, OP_ADD);
-    u8buffer_write(&instr_buf, OP_RETURN);
+    u8buffer_write(&instr_buf, OP_RETURN_VALUE);
 
     // PROGRAM -- END
 
@@ -648,6 +648,7 @@ void test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     typecheck(arena, &trace, node);
     if( trace_get_error_count(&trace) > 0 && is_known_todo == false ) {
         trace_fprint(stdout, &trace);
+        trace_clear(&trace);
     }
 
     gvm_program_t program = gvm_compile(node, &trace);
@@ -709,6 +710,9 @@ void test_compile_and_run(test_case_t* this, char* test_category, char* source_c
             ivec2_t v = val_into_ivec2(res);
             sprintf(result_as_text, "(%i, %i)", v.x, v.y);
         } break;
+        case VAL_NONE: {
+            sprintf(result_as_text, "<none>");
+        }
         default: break;
     }
 

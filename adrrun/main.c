@@ -106,18 +106,21 @@ void print_todo_list(todo_item_t* items, size_t count) {
 
 void todo_list() {
     todo_item_t items[] = {        
-        { false, "Proper type container in the AST" },
-        { false, "Figure out how to deal with srcrefs in the AST" },
+        { true,  "Proper type container in the AST" },
+        { true,  "Figure out how to deal with srcrefs in the AST" },
         { false, "VM execute must verify that all required " 
                  "native_funsign_t requirenment are fulfilled." },
-        { false, "Compiler checks return type on funcall. " },
-        { false, "Type checking." },
+        { false, "Compiler checks return type on funcall." },
+        { true,  "Type checking." },
         { false, "Foreach break." },
+        { false, "Typechecker: figure out how to have var declarations without assignments."},
+        { true,  "Figure out how to handle the none type and void-return." },
+        { false, "Improve the typechecking (maybe use ast_annot_t instead of strings)." },
         { true,  "VM supports calling native functions by index." },
         { true,  "Handling of multiple error messages." },
         { true,  "Typechecking structure." },
         { true,  "AST is arena allocated" },
-        { true, "Compiler arena allocator." }
+        { true,  "Compiler arena allocator." }
     };
     size_t count = sizeof(items) / sizeof(items[0]);
     print_todo_list(items, count);

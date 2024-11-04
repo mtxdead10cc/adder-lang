@@ -456,7 +456,7 @@ bool is_valid_type_name(srcref_t ref) {
         return true;
     if( srcref_equals_string(ref, LANG_TYPENAME_STRING) )
         return true;
-    if( srcref_equals_string(ref, LANG_TYPENAME_NONE) )
+    if( srcref_equals_string(ref, LANG_TYPENAME_VOID) )
         return true;
     return false;
 }
@@ -664,7 +664,9 @@ pa_result_t pa_try_parse_body_break(parser_t* parser) {
 
 pa_result_t pa_try_parse_body_return(parser_t* parser) {
     if( pa_advance_if(parser, TT_KW_RETURN) ) {
-        pa_result_t result = pa_parse_expression(parser);
+        pa_result_t result = par_nothing();
+        if( pa_current_token(parser).type != TT_STATEMENT_END )
+            result = pa_parse_expression(parser);
         if( par_is_error(result) )
             return result;
         if( par_is_nothing(result) )

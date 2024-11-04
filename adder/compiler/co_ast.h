@@ -288,6 +288,7 @@ inline static char* ast_binop_type_as_string(ast_binop_type_t type) {
         case AST_BIN_ADD:   return "ADD";
         case AST_BIN_SUB:   return "SUB";
         case AST_BIN_MUL:   return "MUL";
+        case AST_BIN_MOD:   return "MOD";
         case AST_BIN_DIV:   return "DIV";
         case AST_BIN_AND:   return "AND";
         case AST_BIN_OR:    return "OR";
@@ -324,7 +325,7 @@ inline static char* ast_value_type_string(ast_value_type_t type) {
         case AST_VALUE_CHAR:    return LANG_TYPENAME_CHAR;
         case AST_VALUE_INT:     return LANG_TYPENAME_INT;
         case AST_VALUE_FLOAT:   return LANG_TYPENAME_FLOAT;
-        case AST_VALUE_NONE:    return LANG_TYPENAME_NONE;
+        case AST_VALUE_NONE:    return LANG_TYPENAME_VOID;
         default: return "<UNKNOWN-VALUE-TYPE>";
     }
 }

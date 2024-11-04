@@ -98,12 +98,12 @@ bool main() {
 $VERIFY("true")
 
 $START("native-extern")
-#extern none print(string arg);
-int main() {
+#extern void print(string arg);
+void main() {
     print("hello\n");
-    return 0;
+    return;
 }
-$VERIFY("0")
+$VERIFY("<none>")
 
 $START("operator-preceedence")
 bool main() {

@@ -604,6 +604,45 @@ void codegen_if_chain(ast_node_t* node, compiler_state_t* state) {
     }
 }
 
+void codegen_return_stmt(ast_return_t stmt, compiler_state_t* state) {
+    uint32_t ret_size = 0;
+    switch (stmt.result->type) {
+        case AST_VALUE:
+        case AST_VAR_REF:
+        case AST_ARRAY:
+        case AST_FUN_CALL:
+        case AST_BINOP:
+        case AST_UNOP: {
+            ret_size = 1;
+        } break;
+        case AST_BLOCK: {
+            ret_size = stmt.result->u.n_block.count;
+        } break;
+        case AST_IF_CHAIN:
+        case AST_FOREACH:
+        case AST_ASSIGN:
+        case AST_VAR_DECL:
+        case AST_FUN_DECL:
+        case AST_FUN_SIGN:
+        case AST_RETURN:
+        case AST_BREAK: {
+            ret_size = 0;
+        } break;
+    }
+    if( ret_size == 0 ) {
+        irl_add(&state->instrs, (ir_inst_t){
+            .opcode = OP_RETURN_NOTHING,
+            .args = { 0 }
+        });
+    } else { 
+        codegen(stmt.result, state);
+        irl_add(&state->instrs, (ir_inst_t){
+            .opcode = OP_RETURN_VALUE,
+            .args = { 0 }
+        });
+    }
+}
+
 void codegen(ast_node_t* node, compiler_state_t* state) {
 
     ABORT_ON_ERROR(state);
@@ -617,6 +656,9 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
         } break;
         case AST_ASSIGN: {
             codegen_assignment(node->u.n_assign, state);
+        } break;
+        case AST_RETURN: {
+            codegen_return_stmt(node->u.n_return, state);
         } break;
         case AST_ARRAY: {
             size_t count = node->u.n_array.count;
@@ -635,13 +677,6 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
             });
             irl_add(&state->instrs, (ir_inst_t){
                 .opcode = OP_MAKE_ARRAY,
-                .args = { 0 }
-            });
-        } break;
-        case AST_RETURN: {
-            codegen(node->u.n_return.result, state);
-            irl_add(&state->instrs, (ir_inst_t){
-                .opcode = OP_RETURN,
                 .args = { 0 }
             });
         } break;

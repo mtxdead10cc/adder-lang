@@ -147,7 +147,7 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
             } break;
             case OP_DUP_1:
             case OP_POP_1:
-            case OP_RETURN:
+            case OP_RETURN_VALUE:
             case OP_PRINT: {
                 no_error = validation_check_stack_arg_count(vm, op_name, 1);
             } break;
@@ -213,7 +213,7 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
 }
 
 inline static bool validation_post_exec(gvm_t* vm, gvm_op_t opcode) {
-    assert(OP_OPCODE_COUNT == 37 && "Opcode count changed.");
+    assert(OP_OPCODE_COUNT == 38 && "Opcode count changed.");
     char* op_name = get_op_name(opcode);
     validation_t* validation = ((validation_t*)vm->validation);
     bool no_error = true;
@@ -250,7 +250,8 @@ inline static bool validation_post_exec(gvm_t* vm, gvm_op_t opcode) {
             case OP_JUMP:
             case OP_HALT:
             case OP_EXIT: 
-            case OP_RETURN:
+            case OP_RETURN_NOTHING:
+            case OP_RETURN_VALUE:
             default: {
                 /* nothing */
             } break;

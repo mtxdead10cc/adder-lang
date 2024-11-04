@@ -31,7 +31,8 @@ static op_info_t opinfo[OP_OPCODE_COUNT] = {
     { "call",               1, { OP_ARG_ADDRESS, OP_ARG_NONE  }      },
     { "entry-point",        1, { OP_ARG_ADDRESS, OP_ARG_NONE  }      },
     { "make-frame",         2, { OP_ARG_NUMERIC, OP_ARG_NUMERIC }    },
-    { "return",             0, { OP_ARG_NONE, OP_ARG_NONE }          },
+    { "return-nothing",     0, { OP_ARG_NONE, OP_ARG_NONE }          },
+    { "return-value",       0, { OP_ARG_NONE, OP_ARG_NONE }          },
     { "store-local",        1, { OP_ARG_NUMERIC, OP_ARG_NONE  }      },
     { "load-local",         1, { OP_ARG_NUMERIC, OP_ARG_NONE  }      },
     { "print",              0, { OP_ARG_NONE, OP_ARG_NONE }          },
@@ -42,7 +43,7 @@ static op_info_t opinfo[OP_OPCODE_COUNT] = {
     { "call-native",        1, { OP_ARG_CONSTANT, OP_ARG_NONE  }     }
 };
 
-#define _OP_CODE_COUNT_VALIDATION 37
+#define _OP_CODE_COUNT_VALIDATION 38
 
 char* get_op_name(gvm_op_t op_code) {
     assert(_OP_CODE_COUNT_VALIDATION == OP_OPCODE_COUNT);

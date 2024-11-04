@@ -154,12 +154,12 @@ ltc_t langtest_testcases[] = {
         .category = "verify",
         .name = "native-extern",
         .code = 
-        "#extern none print(string arg);\n"
-        "int main() {\n"
+        "#extern void print(string arg);\n"
+        "void main() {\n"
         "    print(\"hello\n\");\n"
-        "    return 0;\n"
+        "    return;\n"
         "}\n",
-        .expect = "0",
+        .expect = "<none>",
         .filepath = "basics.txt"
     },
     {

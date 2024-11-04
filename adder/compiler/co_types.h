@@ -312,7 +312,7 @@ typedef struct ast_node_t {
     } u;
 } ast_node_t;
 
-#define LANG_TYPENAME_NONE      "none"
+#define LANG_TYPENAME_VOID      "void"
 #define LANG_TYPENAME_BOOL      "bool"
 #define LANG_TYPENAME_FLOAT     "float"
 #define LANG_TYPENAME_INT       "int"
