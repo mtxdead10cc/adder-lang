@@ -9,6 +9,7 @@
 #include <co_compiler.h>
 #include <co_program.h>
 #include <co_typing.h>
+#include <co_infer.h>
 #include <sh_program.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -965,6 +966,64 @@ void test_typing(test_case_t* this) {
     arena_destroy(a);
 }
 
+void test_inference(test_case_t* this) {
+    arena_t* a = arena_create(2048);
+
+    trace_t trace;
+
+    trace_init(&trace, 16);
+    trace_set_current_source_path(&trace, "test-inference");
+
+    mt_t* v = mt_var(a, "v");
+    mt_t* i = mt_con(a, "int");
+    mt_t* b = mt_con(a, "bool");
+
+    unify(&trace, i, b);
+
+    TEST_ASSERT_MSG(this,
+        trace.error_count == 1,
+        "#1.0 unify non-matching");
+
+    trace_clear(&trace);
+
+    unify(&trace, i, v);
+
+    TEST_ASSERT_MSG(this,
+        trace.error_count == 0,
+        "#1.1 unify with var");
+    
+    TEST_ASSERT_MSG(this,
+        find(v) == i,
+        "#1.2 unify with var");
+
+    unify(&trace, v, b);
+
+    TEST_ASSERT_MSG(this,
+        trace.error_count == 1,
+        "#1.3 unify non-matching with var");
+
+    trace_clear(&trace);
+
+    mt_t* f = mt_con(a, "->");
+    mt_con_add_arg(a, f, mt_var(a, "a"));
+    mt_con_add_arg(a, f, mt_var(a, "a"));
+
+    mt_t* g = mt_con(a, "->");
+    mt_con_add_arg(a, g, v);
+    mt_con_add_arg(a, g, i);
+
+    unify(&trace, f, g);
+
+    TEST_ASSERT_MSG(this,
+        trace.error_count == 0,
+        "#1.4 unify func");
+
+    trace_clear(&trace);
+
+    trace_destroy(&trace);
+    arena_destroy(a);
+}
+
 
 test_results_t run_testcases() {
 
@@ -1007,6 +1066,11 @@ test_results_t run_testcases() {
         {
             .name = "shared utils test",
             .test = test_shared_utils,
+            .nfailed = 0
+        },
+        {
+            .name = "type inference test",
+            .test = test_inference,
             .nfailed = 0
         }
     };

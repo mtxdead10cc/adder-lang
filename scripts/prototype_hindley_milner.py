@@ -26,15 +26,15 @@ class TyVar(MonoType):
     def __str__(self) -> str:
         target = self.find()
         if target != self:
-            return f"[var '{self.name}' >> {target}]"
+            return f"<{target}>"
         else:
-            return f"[var '{self.name}']"
+            return f"<'{self.name}'>"
 
 class TyCon(MonoType):
     def __init__(self, name:str, args:list[MonoType]) -> None:
         self.name = name
         self.args = args
-        
+    
     def __str__(self) -> str:
         return f"[con '{self.name}' [{','.join([str(s) for s in self.args])}]]"
     
@@ -51,6 +51,9 @@ class Forall:
     def __init__(self, tyvars: list[TyVar], ty: MonoType) -> None:
         self.tyvars = tyvars
         self.ty = ty
+    
+    def __str__(self) -> str:
+        return f"<forall ({' -> '.join([str(s) for s in self.tyvars])}) -> {self.ty}>"
 
 fresh_var_counter = 0
 
@@ -106,13 +109,13 @@ def unify(ty1: MonoType, ty2: MonoType) -> None:
         return unify(ty2, ty1)
     if isinstance(ty1, TyCon) and isinstance(ty2, TyCon):
         if ty1.name != ty2.name:
-            raise TypeError(f"Failed to unify {type(ty1)} and {type(ty2)}")
+            raise TypeError(f"Failed to unify {ty1} and {ty2}")
         if len(ty1.args) != len(ty2.args):
-            raise TypeError(f"Failed to unify args of {type(ty1)} and {type(ty2)}")
+            raise TypeError(f"Failed to unify args of {ty1} and {ty2}")
         for l, r in zip(ty1.args, ty2.args):
             unify(l, r)
         return
-    raise TypeError(f"Unexpected type {type(ty1)}")
+    raise TypeError(f"Unexpected type {ty1}")
 
 
 def apply_ty(ty: MonoType, subst: dict[str, MonoType]) -> MonoType:
@@ -158,7 +161,14 @@ def recursive_find(ty: MonoType) -> MonoType:
         return TyCon(ty.name, [recursive_find(arg) for arg in ty.args])
     raise TypeError(type(ty))
 
+def print_ctx(ctx: dict[str, Forall]):
+    print(" --- CTX --- ")
+    for k, v in ctx.items():
+        print(k, ":", str(v))
+    print(" ----------- ")
+
 def infer(expr: Node, ctx: dict[str, Forall]) -> MonoType:
+    print_ctx(ctx)
     result = fresh_tyvar()
     if isinstance(expr, Var):
         scheme = ctx.get(expr.name)
@@ -191,21 +201,41 @@ def infer(expr: Node, ctx: dict[str, Forall]) -> MonoType:
         body_ty = infer(body, {**ctx, name: value_scheme})
         unify(result, body_ty)
         return result
-    raise TypeError(f"Unexpected type {type(expr)}")
+    raise TypeError(f"Unexpected type {expr}")
 
 
 if __name__ == "__main__":
     
     # create fake function f: T -> T
-    ctx = {"f": Forall([], func_type(TyVar("T"), TyVar("T")))}
+    #ctx = {
+    #    "f": Forall([], func_type(TyVar("T"), TyVar("T")))
+    #}
+    
+    #expr = Where(
+    #    Assign(
+    #        Var("y"),
+    #        Apply(Var("f"), Int())),
+    #    Where(
+    #        Assign(Var("x"), Apply(Var("f"), Int())),
+    #        Var("x"))
+    #)
+    
+    #res = infer(expr, ctx)
+    #print(res)
+    
+    #ctx = {
+    #    "f": Forall([], func_type(TyCon("int", []), TyCon("int", [])))
+    #}
+    #expr = Apply(Var("f"), Int())
+    
+    ctx = {
+        # "f": Forall([TyVar("a")], func_type(TyVar("a"), TyVar("a")))
+        "f": Forall([], func_type(TyVar("a"), TyCon("int", [])))
+    }
     
     expr = Where(
-        Assign(
-            Var("y"),
-            Apply(Var("f"), Int())),
-        Where(
-            Assign(Var("x"), Apply(Var("f"), Int())),
-            Var("x"))
+        Assign(Var("y"), Apply(Var("f"), Int())),
+        Where(Assign(Var("x"), Apply(Var("f"), Int())), Var("x"))
     )
     
     res = infer(expr, ctx)
