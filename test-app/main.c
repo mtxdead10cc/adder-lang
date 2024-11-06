@@ -1,14 +1,9 @@
 #include <stdio.h>
-#include <gvm.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <gvm_value.h>
-#include <gvm_env.h>
 #include <time.h>
 #include <assert.h>
-#include <gvm_heap.h>
-#include <gvm_memory.h>
 #include "board/board.h"
 #include "utils/termhax.h"
 #include "utils/keyboard.h"
@@ -51,49 +46,10 @@ bool filter(piece_t* initial, piece_t* current) {
 
 #define MAKE_PATH(F) ("../test-app/scripts/" F)
 
-void destroy_scripts(gvm_program_t* programs, int count) {
-    for(int i = 0; i < count; i++) {
-        gvm_program_destroy(&programs[i]);
-    }
-}
-
-int compile_scripts(char** paths, gvm_program_t* programs, int count) {
-    int err_count = 0;
-    destroy_scripts(programs, count);
-    for(int i = 0; i < count; i++) {
-        programs[i] = gvm_program_read_and_compile(paths[i]);
-        if( programs[i].inst.size == 0 ) {
-            printf("failed to compile '%s'\n", paths[i]);
-            err_count ++;
-        }
-    }
-    return err_count;
-}
-
 int main(int argv, char** argc) {
 
-    char* script_paths[] = {
-        MAKE_PATH("type_1.gvm")
-    };
-    int script_count = sizeof(script_paths) / sizeof(script_paths[0]);
-    gvm_program_t programs[script_count];
-    memset(programs, 0, sizeof(gvm_program_t) * script_count);
-
-    compile_scripts(script_paths, programs, script_count);
-    
-    gvm_t vm = (gvm_t) { 0 };
-    gvm_create(&vm, 500, 500);
-
-    gvm_exec_args_t args = {
-        .args.count = 0,
-        .cycle_limit = 500
-    };
-    gvm_execute(&vm, &programs[0], &args);
-
-    destroy_scripts(programs, script_count);
-
     bool print_help = false;
-    bool run_game = false;
+    bool run_game = true;
     
     for(int i = 0; i < argv; i++) {
         print_help  |= strncmp(argc[i], "-h", 2) == 0;

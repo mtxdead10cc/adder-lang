@@ -222,7 +222,6 @@ inline static void trace_clear(trace_t* trace) {
     memset(trace->messages, 0, sizeof(trace_msg_t) * trace->message_count);
     trace->error_count = 0;
     trace->message_count = 0;
-    trace->current_source_path = NULL;
 }
 
 
