@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "sh_arena.h"
+#include "co_types.h"
 
 typedef enum mt_tag_t {
     MT_UNK,
@@ -52,8 +53,8 @@ typedef struct tyctx_t {
 
 tyctx_t*        tyctx_create(arena_t* a, int capacity);
 tyctx_t*        tyctx_clone(tyctx_t* ctx);
-bool            tyctx_insert(tyctx_t* ctx, char* name, mt_forall_t* scheme);
-mt_forall_t*    tyctx_lookup(tyctx_t* ctx, char* name);
+bool            tyctx_insert(tyctx_t* ctx, srcref_t name, mt_forall_t* scheme);
+mt_forall_t*    tyctx_lookup(tyctx_t* ctx, srcref_t name);
 void            tyctx_dump(tyctx_t* ctx);
 
 mt_forall_t* mt_forall(arena_t* a, mt_t* type);

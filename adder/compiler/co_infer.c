@@ -30,12 +30,12 @@ typedef struct res_t {
     int index;
 } res_t;
 
-res_t tyctx_binsearch(tyctx_kvp_t* kvps, int low, int high, char* name) {
+res_t tyctx_binsearch(tyctx_kvp_t* kvps, int low, int high, srcref_t name) {
     if ( high >= low ) {
         int mid = low + (high - low) / 2;
-        if (strcmp(kvps[mid].name, name) == 0)
+        if (strncmp(kvps[mid].name, srcref_ptr(name), srcref_len(name)) == 0)
             return (res_t) { true, mid };
-        if (strcmp(kvps[mid].name, name) > 0)
+        if (strncmp(kvps[mid].name, srcref_ptr(name), srcref_len(name)) > 0)
             return tyctx_binsearch(kvps, low, mid - 1, name);
         return tyctx_binsearch(kvps, mid + 1, high, name);
     }
@@ -65,7 +65,7 @@ void tyctx_make_room_at(tyctx_t* ctx, int index) {
     ctx->size++;
 }
 
-bool tyctx_insert(tyctx_t* ctx, char* name, mt_forall_t* scheme) {
+bool tyctx_insert(tyctx_t* ctx, srcref_t name, mt_forall_t* scheme) {
 
     if( tyctx_ensure_capacity(ctx, 1) == false )
         return false;
@@ -74,7 +74,8 @@ bool tyctx_insert(tyctx_t* ctx, char* name, mt_forall_t* scheme) {
     if( res.found == false ) {
         tyctx_make_room_at(ctx, res.index);
         ctx->kvps[res.index] = (tyctx_kvp_t) {
-            .name = name,
+            .name = asprintf(ctx->arena, "%.*s",
+                srcref_len(name), srcref_ptr(name)),
             .scheme = scheme
         };
         return true;
@@ -83,7 +84,8 @@ bool tyctx_insert(tyctx_t* ctx, char* name, mt_forall_t* scheme) {
     return false;
 }
 
-mt_forall_t* tyctx_lookup(tyctx_t* ctx, char* name) {
+
+mt_forall_t* tyctx_lookup(tyctx_t* ctx, srcref_t name) {
     res_t res = tyctx_binsearch(ctx->kvps, 0, (int) ctx->size - 1, name);
     if( res.found ) {
         return ctx->kvps[res.index].scheme;
@@ -224,6 +226,154 @@ void mt_forall_add_var(arena_t* a, mt_forall_t* fa, mt_t* var) {
             sizeof(mt_t*) * fa->tyvarcnt);
     }
     fa->tyvars[fa->tyvarcnt - 1] = var;
+}
+
+// todo: ensure that the indices
+// matches ast_value_type_t
+static mt_t vtypes[] = {
+    { .tag = MT_CON, .u.con = { "none", 0, NULL } },
+    { .tag = MT_CON, .u.con = { "int", 0, NULL } },
+    { .tag = MT_CON, .u.con = { "bool", 0, NULL } },
+    { .tag = MT_CON, .u.con = { "char", 0, NULL } },
+    { .tag = MT_CON, .u.con = { "float", 0, NULL } }
+};
+
+mt_t* ti_value(ast_value_type_t vt) {
+    return &vtypes[(int)vt];
+}
+
+static size_t freshcntr = 0;
+
+mt_t* ti_freshvar(tyctx_t* c) {
+    return mt_var(c->arena,
+                asprintf(c->arena,
+                    "var-%lu", freshcntr++));
+}
+
+mt_t* ti_infer(tyctx_t* c, trace_t* t, ast_node_t* n);
+
+mt_t* ti_instantiate(tyctx_t* c, trace_t* t, mt_forall_t* fa) {
+    (void)(t);
+    (void)(c);
+    // todo: implement this
+    return fa->type;
+}
+
+mt_forall_t* ti_generalize(tyctx_t* c, trace_t* t, mt_t* val_ty) {
+    (void)(t);
+    mt_forall_t* fa = mt_forall(c->arena, val_ty);
+    // todo: implement
+    return fa;
+}
+
+mt_t* ti_array(tyctx_t* c, trace_t* t, ast_array_t array) {
+    return NULL;
+}
+
+mt_t* ti_if(tyctx_t* c, trace_t* t, ast_if_t ifstmt) {
+    return NULL;
+}
+
+mt_t* ti_foreach(tyctx_t* c, trace_t* t, ast_foreach_t fe) {
+    return NULL;
+}
+
+mt_t* ti_binop(tyctx_t* c, trace_t* t, ast_binop_t bop) {
+    return NULL;
+}
+
+mt_t* ti_unop(tyctx_t* c, trace_t* t, ast_unop_t uop) {
+    return NULL;
+}
+
+mt_t* ti_assign(tyctx_t* c, trace_t* t, ast_assign_t an) {
+    return NULL;
+}
+
+mt_t* ti_var(tyctx_t* c, trace_t* t, srcref_t name) {
+    mt_t* var = ti_freshvar(c);
+    mt_forall_t* fa = tyctx_lookup(c, name);
+    if( fa == NULL ) {
+        trace_msg_t* m = trace_create_message(t, TM_ERROR, name);
+        trace_msg_append_costr(m, "type-check: unbound variable ");
+        trace_msg_append_srcref(m, name);
+    }
+    unify(t, var, ti_instantiate(c, t, fa));
+    return var;
+}
+
+mt_t* ti_vardecl(tyctx_t* c, trace_t* t, ast_vardecl_t vd) {
+    return ti_var(c, t, vd.name);
+}
+
+mt_t* ti_varref(tyctx_t* c, trace_t* t, ast_varref_t vr) {
+    return ti_var(c, t, vr.name);
+}
+
+srcref_t extract_var_name(ast_node_t* n) {
+    if( n->type == AST_VAR_DECL )
+        return n->u.n_vardecl.name;
+    if( n->type == AST_VAR_REF )
+        return n->u.n_varref.name;
+    assert( false && "can't extract name from non-variable" );
+    return (srcref_t) { 0 };
+}
+
+mt_t* ti_funsign(tyctx_t* c, trace_t* t, ast_funsign_t fs) {
+    assert( fs.argspec->type == AST_BLOCK );
+    ast_block_t blk = fs.argspec->u.n_block;
+    // add all args to context
+    // go with the a -> b -> c -> d approach!
+    return NULL;
+}
+
+mt_t* ti_fundecl(tyctx_t* c, trace_t* t, ast_fundecl_t fd) {
+    mt_t* var = ti_freshvar(c);
+    tyctx_t* nc = tyctx_clone(c);
+    
+
+    
+    return NULL;
+}
+
+mt_t* ti_funcall(tyctx_t* c, trace_t* t, ast_funcall_t fc) {
+    return NULL;
+}
+
+mt_t* ti_return(tyctx_t* c, trace_t* t, ast_return_t ret) {
+    return NULL;
+}
+
+mt_t* ti_break(tyctx_t* c, trace_t* t) {
+    return NULL;
+}
+
+mt_t* ti_block(tyctx_t* c, trace_t* t, ast_block_t blk) {
+    return NULL;
+}
+
+mt_t* ti_infer(tyctx_t* c, trace_t* t, ast_node_t* n) {
+    switch(n->type) {
+        case AST_VALUE:     return ti_value(n->u.n_value.type);
+        case AST_ARRAY:     return ti_array(c, t, n->u.n_array);
+        case AST_IF_CHAIN:  return ti_if(c, t, n->u.n_if);
+        case AST_FOREACH:   return ti_foreach(c, t, n->u.n_foreach);
+        case AST_BINOP:     return ti_binop(c, t, n->u.n_binop);
+        case AST_UNOP:      return ti_unop(c, t, n->u.n_unop);
+        case AST_ASSIGN:    return ti_assign(c, t, n->u.n_assign);
+        case AST_VAR_DECL:  return ti_vardecl(c, t, n->u.n_vardecl);
+        case AST_VAR_REF:   return ti_varref(c, t, n->u.n_varref);
+        case AST_FUN_SIGN:  return ti_funsign(c, t, n->u.n_funsign);
+        case AST_FUN_DECL:  return ti_fundecl(c, t, n->u.n_fundecl);
+        case AST_FUN_CALL:  return ti_funcall(c, t, n->u.n_funcall);
+        case AST_RETURN:    return ti_return(c, t, n->u.n_return);
+        case AST_BREAK:     return ti_break(c, t);
+        case AST_BLOCK:     return ti_block(c, t, n->u.n_block);
+        default: {
+            assert(false && "unhandled type");
+            return ti_value(AST_VALUE_NONE);
+        }
+    }
 }
 
 
