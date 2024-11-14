@@ -1,5 +1,6 @@
 {
     "files.associations": {
+        "*.jinja": "jinja-html",
         "stdint.h": "c",
         "array": "c",
         "string_view": "c",
@@ -46,7 +47,8 @@
         "sh_asminfo.h": "c",
         "sh_utils.h": "c",
         "sh_types.h": "c",
-        "langtest.h": "c"
+        "langtest.h": "c",
+        "numbers": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

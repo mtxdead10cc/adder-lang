@@ -80,6 +80,20 @@ inline static int trace_msg_append(trace_msg_t* msg, char* str, size_t slen) {
     return write_len;
 }
 
+inline static int trace_msg_append_fmt(trace_msg_t* msg, const char* fmt, ...) {
+    if( msg == NULL )
+        return 0;
+    int remaining = (int) TRACE_MSG_MAX_LEN - (int) msg->length;
+    if( remaining <= 0 )
+        return 0;
+    va_list args;
+    va_start(args, fmt);
+    int w = vsnprintf(msg->message + msg->length, remaining, fmt, args);
+    msg->length += w;
+    va_end(args);
+    return w;
+}
+
 #define trace_msg_append_costr(MSG, STR) trace_msg_append((MSG), (STR), (sizeof((STR))/sizeof(char)) - 1)
 
 inline static int trace_msg_append_token_type_name(trace_msg_t* msg, token_type_t type) {
@@ -219,7 +233,7 @@ inline static size_t trace_get_error_count(trace_t* trace) {
 }
 
 inline static void trace_clear(trace_t* trace) {
-    memset(trace->messages, 0, sizeof(trace_msg_t) * trace->message_count);
+    //memset(trace->messages, 0, sizeof(trace_msg_t) * trace->message_count);
     trace->error_count = 0;
     trace->message_count = 0;
 }

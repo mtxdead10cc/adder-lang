@@ -9,7 +9,7 @@
 #include <co_compiler.h>
 #include <co_program.h>
 #include <co_typing.h>
-#include <co_infer.h>
+#include <co_bty.h>
 #include <sh_program.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -969,56 +969,64 @@ void test_typing(test_case_t* this) {
 void test_inference(test_case_t* this) {
     arena_t* a = arena_create(2048);
 
-    trace_t trace;
+    trace_t trace = { 0 };
+    trace_init(&trace, 5);
 
-    trace_init(&trace, 16);
-    trace_set_current_source_path(&trace, "test-inference");
+    ast_annot_t* arr_annot = ast_annot(a, srcref_const("array"));
+    ast_annot_add_child(a, arr_annot, ast_annot(a, srcref_const("float")));
 
-    mt_t* v = mt_var(a, "v");
-    mt_t* i = mt_con(a, "int");
-    mt_t* b = mt_con(a, "bool");
+    ast_node_t* arr = ast_array(a);
+    ast_array_add(a, arr, ast_int(a, 1, NULL));
+    ast_array_add(a, arr, ast_int(a, 2, NULL));
+    ast_array_add(a, arr, ast_int(a, 3, NULL));
+    ast_array_add(a, arr, ast_int(a, 4, NULL));
+    ast_array_add(a, arr, ast_int(a, 5, NULL));
 
-    unify(&trace, i, b);
+    ast_node_t* n = ast_assign(a,
+        ast_vardecl(a, 
+            srcref_const("var"),
+            arr_annot),
+        arr);
+
+    bty_ctx_t* ctx = bty_ctx_create(a, &trace, 16);
+    bty_type_t* t = bty_synthesize(ctx, n);
+
+    printf("Type: %s\n", sprint_bty_type(a, t));
 
     TEST_ASSERT_MSG(this,
-        trace.error_count == 1,
-        "#1.0 unify non-matching");
+        trace_get_error_count(&trace) == 0,
+        "#1.0 synth error");
 
+    bty_ctx_dump(ctx);
     trace_clear(&trace);
 
-    unify(&trace, i, v);
-
-    TEST_ASSERT_MSG(this,
-        trace.error_count == 0,
-        "#1.1 unify with var");
+    ctx = bty_ctx_create(a, &trace, 16);
     
-    TEST_ASSERT_MSG(this,
-        find(v) == i,
-        "#1.2 unify with var");
+    n = ast_binop(a,
+        AST_BIN_OR,
+        ast_binop(a, AST_BIN_AND,
+            ast_bool(a, false, NULL),
+            ast_bool(a, true, NULL),
+            NULL),
+        ast_binop(a, AST_BIN_EQ,
+            ast_int(a, 0, NULL),
+            ast_int(a, 1, NULL),
+            NULL),
+        NULL);
 
-    unify(&trace, v, b);
+    t = bty_synthesize(ctx, n);
 
-    TEST_ASSERT_MSG(this,
-        trace.error_count == 1,
-        "#1.3 unify non-matching with var");
-
-    trace_clear(&trace);
-
-    mt_t* f = mt_con(a, "->");
-    mt_con_add_arg(a, f, mt_var(a, "a"));
-    mt_con_add_arg(a, f, mt_var(a, "a"));
-
-    mt_t* g = mt_con(a, "->");
-    mt_con_add_arg(a, g, v);
-    mt_con_add_arg(a, g, i);
-
-    unify(&trace, f, g);
+    printf("Type: %s\n", sprint_bty_type(a, t));
 
     TEST_ASSERT_MSG(this,
-        trace.error_count == 0,
-        "#1.4 unify func");
+        trace_get_error_count(&trace) == 0,
+        "#1.1 synth error");
 
-    trace_clear(&trace);
+    if( trace_get_error_count(&trace) > 0 ) {
+        trace_fprint(stdout, &trace);
+    }
+
+    
 
     trace_destroy(&trace);
     arena_destroy(a);
