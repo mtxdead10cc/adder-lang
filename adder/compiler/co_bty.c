@@ -584,6 +584,12 @@ bty_type_t* bty_synthesize(bty_ctx_t* c, ast_node_t* n) {
             bty_check(c, n->u.n_assign.right_value, ty);
             return ty;
         }
+        case AST_RETURN: {
+            return bty_synthesize(c, n->u.n_return.result);
+        }
+        case AST_BREAK: {
+            return bty_void();
+        }
         default: return bty_unknown();
     }
 }
