@@ -42,51 +42,49 @@ inline static srcref_t ast_srcref_from_annotation(ast_annot_t* annot) {
     return combined;
 }
 
-inline static srcref_t _from_srcref_ptr(srcref_t* ref) {
-    if( ref == NULL )
-        return (srcref_t) { 0 };
-    return *ref;
+inline static void ast_ref(ast_node_t* n, srcref_t ref) {
+    n->ref = ref;
 }
 
-inline static ast_node_t* ast_int(arena_t* a, int val, srcref_t* refptr) {
+inline static ast_node_t* ast_int(arena_t* a, int val) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_VALUE,
+    node->type = AST_VALUE;
+    node->ref = (srcref_t) { 0 };
     node->u.n_value = (ast_value_t) {
         .type = AST_VALUE_INT,
-        .ref = _from_srcref_ptr(refptr),
         .u._int = val
     };
     return node;
 }
 
-inline static ast_node_t* ast_float(arena_t* a, float val, srcref_t* refptr) {
+inline static ast_node_t* ast_float(arena_t* a, float val) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_VALUE,
+    node->type = AST_VALUE;
+    node->ref = (srcref_t) { 0 };
     node->u.n_value = (ast_value_t) {
         .type = AST_VALUE_FLOAT,
-        .ref = _from_srcref_ptr(refptr),
         .u._float = val
     };
     return node;
 }
 
-inline static ast_node_t* ast_bool(arena_t* a, bool val, srcref_t* refptr) {
+inline static ast_node_t* ast_bool(arena_t* a, bool val) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_VALUE,
+    node->type = AST_VALUE;
+    node->ref = (srcref_t) { 0 };
     node->u.n_value = (ast_value_t) {
         .type = AST_VALUE_BOOL,
-        .ref = _from_srcref_ptr(refptr),
         .u._bool = val
     };
     return node;
 }
 
-inline static ast_node_t* ast_char(arena_t* a, char val, srcref_t* refptr) {
+inline static ast_node_t* ast_char(arena_t* a, char val) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_VALUE,
+    node->type = AST_VALUE;
+    node->ref = (srcref_t) { 0 };
     node->u.n_value = (ast_value_t) {
         .type = AST_VALUE_CHAR,
-        .ref = _from_srcref_ptr(refptr),
         .u._char = val
     };
     return node;
@@ -94,7 +92,8 @@ inline static ast_node_t* ast_char(arena_t* a, char val, srcref_t* refptr) {
 
 inline static ast_node_t* ast_varref(arena_t* a, srcref_t name) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_VAR_REF,
+    node->type = AST_VAR_REF;
+    node->ref = (srcref_t) { 0 };
     node->u.n_varref = (ast_varref_t) {
         .name = name
     };
@@ -103,7 +102,8 @@ inline static ast_node_t* ast_varref(arena_t* a, srcref_t name) {
 
 inline static ast_node_t* ast_vardecl(arena_t* a, srcref_t name, ast_annot_t* type) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_VAR_DECL,
+    node->type = AST_VAR_DECL;
+    node->ref = (srcref_t) { 0 };
     node->u.n_vardecl = (ast_vardecl_t) {
         .type = type,
         .name = name
@@ -113,7 +113,8 @@ inline static ast_node_t* ast_vardecl(arena_t* a, srcref_t name, ast_annot_t* ty
 
 inline static ast_node_t* ast_block(arena_t* a) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_BLOCK,
+    node->type = AST_BLOCK;
+    node->ref = (srcref_t) { 0 };
     node->u.n_block = (ast_block_t) {
         .count = 0,
         .content = NULL
@@ -134,7 +135,8 @@ inline static void ast_block_add(arena_t* a, ast_node_t* block, ast_node_t* node
 
 inline static ast_node_t* ast_array(arena_t* a) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_ARRAY,
+    node->type = AST_ARRAY;
+    node->ref = (srcref_t) { 0 };
     node->u.n_array = (ast_array_t) {
         .count = 0,
         .content = NULL
@@ -153,24 +155,48 @@ inline static void ast_array_add(arena_t* a, ast_node_t* array, ast_node_t* node
     array->u.n_array.content[array->u.n_array.count++] = node;
 }
 
+inline static ast_node_t* ast_arglist(arena_t* a) {
+    ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
+    node->type = AST_ARGLIST;
+    node->ref = (srcref_t) { 0 };
+    node->u.n_args = (ast_arglist_t) {
+        .count = 0,
+        .content = NULL
+    };
+    return node;
+}
+
+inline static void ast_arglist_add(arena_t* a, ast_node_t* args, ast_node_t* node) {
+    assert(args->type == AST_ARGLIST);
+    if( args->u.n_args.count == 0 ) {
+        assert(args->u.n_args.content == NULL);
+        args->u.n_args.content = (ast_node_t**) aalloc(a, sizeof(ast_node_t*));
+    } else {
+        args->u.n_args.content = (ast_node_t**) arealloc(a, args->u.n_args.content, sizeof(ast_node_t*) * (args->u.n_args.count + 1));
+    }
+    args->u.n_args.content[args->u.n_args.count++] = node;
+}
+
 inline static ast_node_t* ast_string(arena_t* a, srcref_t val) {
     ast_node_t* char_array = ast_array(a);
+    ast_ref(char_array, val);
     // account for the fact that strings are qouted
     ptrdiff_t len = srcref_len(val) - 2;
     char*     str = srcref_ptr(val) + 1;
     for (ptrdiff_t i = 0; i < len; i++) {
         srcref_t char_ref = srcref(val.source,
             val.idx_start + 1 + i, 1);
-        ast_array_add(a,
-            char_array,
-            ast_char(a, str[i], &char_ref));
+        ast_node_t* n = ast_char(a, str[i]);
+        ast_ref(n, char_ref);
+        ast_array_add(a, char_array, n);
     }
     return char_array;
 }
 
 inline static ast_node_t* ast_return(arena_t* a, ast_node_t* ret) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_RETURN,
+    node->type = AST_RETURN;
+    node->ref = (srcref_t) { 0 };
     node->u.n_return = (ast_return_t) {
         .result = ret
     };
@@ -180,34 +206,40 @@ inline static ast_node_t* ast_return(arena_t* a, ast_node_t* ret) {
 inline static ast_node_t* ast_break(arena_t* a) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_BREAK;
+    node->ref = (srcref_t) { 0 };
     return node;
 }
 
-inline static ast_node_t* ast_funsign( arena_t* a, srcref_t name,
-                                       ast_node_t* argspec,
-                                       ast_decl_type_t decltype,
-                                       ast_annot_t* return_type ) 
+inline static ast_node_t* ast_funexdecl( arena_t* a, srcref_t name,
+                                         ast_node_t* args,
+                                         ast_annot_t* retannot ) 
 {
+    assert(args->type == AST_ARGLIST);
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_FUN_SIGN,
-    node->u.n_funsign = (ast_funsign_t) {
+    node->type = AST_FUN_EXDECL;
+    node->ref = (srcref_t) { 0 };
+    node->u.n_funexdecl = (ast_funexdecl_t) {
         .name = name,
-        .argspec = argspec,
-        .decltype = decltype,
-        .return_type = return_type
+        .argspec = args,
+        .retannot = retannot
     };
     return node;
 }
 
-inline static ast_node_t* ast_fundecl( arena_t* a, ast_node_t* funsign,
-                                       ast_node_t* body ) 
+inline static ast_node_t* ast_fundecl( arena_t* a, srcref_t name,
+                                       ast_node_t* args,
+                                       ast_node_t* body,
+                                       ast_annot_t* retannot ) 
 {
-    assert(funsign->type == AST_FUN_SIGN);
     assert(body->type == AST_BLOCK);
+    assert(args->type == AST_ARGLIST);
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_FUN_DECL,
+    node->type = AST_FUN_DECL;
+    node->ref = (srcref_t) { 0 };
     node->u.n_fundecl = (ast_fundecl_t) {
-        .funsign = funsign,
+        .name = name,
+        .argspec = args,
+        .retannot = retannot,
         .body = body
     };
     return node;
@@ -217,7 +249,8 @@ inline static ast_node_t* ast_funcall( arena_t* a, srcref_t name,
                                        ast_node_t* args ) 
 {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_FUN_CALL,
+    node->type = AST_FUN_CALL;
+    node->ref = (srcref_t) { 0 };
     node->u.n_funcall = (ast_funcall_t) {
         .name = name,
         .args = args,
@@ -230,7 +263,8 @@ inline static ast_node_t* ast_if( arena_t* a, ast_node_t* cond,
                                   ast_node_t* next ) 
 {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_IF_CHAIN,
+    node->type = AST_IF_CHAIN;
+    node->ref = (srcref_t) { 0 };
     node->u.n_if = (ast_if_t) {
         .cond = cond,
         .iftrue = if_true,
@@ -245,7 +279,8 @@ inline static ast_node_t* ast_foreach( arena_t* a, ast_node_t* vardecl,
                                        ast_node_t* loop_body ) 
 {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_FOREACH,
+    node->type = AST_FOREACH;
+    node->ref = (srcref_t) { 0 };
     node->u.n_foreach = (ast_foreach_t) {
         .vardecl = vardecl,
         .collection = collection,
@@ -254,24 +289,24 @@ inline static ast_node_t* ast_foreach( arena_t* a, ast_node_t* vardecl,
     return node;
 }
 
-inline static ast_node_t* ast_binop(arena_t* a, ast_binop_type_t op, ast_node_t* left, ast_node_t* right, srcref_t* op_refptr) {
+inline static ast_node_t* ast_binop(arena_t* a, ast_binop_type_t op, ast_node_t* left, ast_node_t* right) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_BINOP,
+    node->type = AST_BINOP;
+    node->ref = (srcref_t) { 0 };
     node->u.n_binop = (ast_binop_t) {
         .type = op,
-        .ref = _from_srcref_ptr(op_refptr),
         .left = left,
         .right = right
     };
     return node;
 }
 
-inline static ast_node_t* ast_unnop(arena_t* a, ast_unop_type_t op, ast_node_t* inner, srcref_t* op_refptr) {
+inline static ast_node_t* ast_unnop(arena_t* a, ast_unop_type_t op, ast_node_t* inner) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_UNOP,
+    node->type = AST_UNOP;
+    node->ref = (srcref_t) { 0 };
     node->u.n_unop = (ast_unop_t) {
         .type = op,
-        .ref = _from_srcref_ptr(op_refptr),
         .inner = inner
     };
     return node;
@@ -279,7 +314,8 @@ inline static ast_node_t* ast_unnop(arena_t* a, ast_unop_type_t op, ast_node_t* 
 
 inline static ast_node_t* ast_assign(arena_t* a, ast_node_t* left, ast_node_t* right) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_ASSIGN,
+    node->type = AST_ASSIGN;
+    node->ref = (srcref_t) { 0 };
     node->u.n_assign = (ast_assign_t) {
         .left_var = left,
         .right_value = right
@@ -289,12 +325,6 @@ inline static ast_node_t* ast_assign(arena_t* a, ast_node_t* left, ast_node_t* r
 
 inline static srcref_t ast_extract_srcref(ast_node_t* node) {
     switch (node->type) {
-        case AST_VALUE: {
-            return node->u.n_value.ref;
-        } break;
-        case AST_VAR_REF: {
-            return node->u.n_varref.name;
-        } break;
         case AST_ARRAY: {
             srcref_t combined = { 0 };
             for(size_t i = 0; i < node->u.n_array.count; i++) {
@@ -328,15 +358,13 @@ inline static srcref_t ast_extract_srcref(ast_node_t* node) {
             combined = srcref_combine(combined,
                 ast_extract_srcref(node->u.n_binop.left));
             combined = srcref_combine(combined,
-                node->u.n_binop.ref);
-            combined = srcref_combine(combined,
                 ast_extract_srcref(node->u.n_binop.right));
             return combined;
         } break;
         case AST_UNOP: {
             srcref_t combined = { 0 };
             combined = srcref_combine(combined,
-                node->u.n_unop.ref);
+                node->ref);
             combined = srcref_combine(combined,
                 ast_extract_srcref(node->u.n_unop.inner));
             return combined;
@@ -360,19 +388,21 @@ inline static srcref_t ast_extract_srcref(ast_node_t* node) {
         case AST_FUN_DECL: {
             srcref_t combined = { 0 };
             combined = srcref_combine(combined,
-                ast_extract_srcref(node->u.n_fundecl.funsign));
+                ast_extract_srcref(node->u.n_fundecl.argspec));
             combined = srcref_combine(combined,
                 ast_extract_srcref(node->u.n_fundecl.body));
+            combined = srcref_combine(combined,
+                node->u.n_funexdecl.name);
             return combined;
         } break;
-        case AST_FUN_SIGN: {
+        case AST_FUN_EXDECL: {
             srcref_t combined = { 0 };
             combined = srcref_combine(combined,
-                ast_srcref_from_annotation(node->u.n_funsign.return_type));
+                ast_srcref_from_annotation(node->u.n_funexdecl.retannot));
             combined = srcref_combine(combined,
-                ast_extract_srcref(node->u.n_funsign.argspec));
+                ast_extract_srcref(node->u.n_funexdecl.argspec));
             combined = srcref_combine(combined,
-                node->u.n_funsign.name);
+                node->u.n_funexdecl.name);
             return combined;
         } break;
         case AST_FUN_CALL: {
@@ -386,10 +416,6 @@ inline static srcref_t ast_extract_srcref(ast_node_t* node) {
         case AST_RETURN: {
             return ast_extract_srcref(node->u.n_return.result);
         } break;
-        case AST_BREAK: {
-            // todo: maybe add srcrefs to everything?
-            return (srcref_t) { 0 };
-        } break;
         case AST_BLOCK: {
             srcref_t combined = { 0 };
             for(size_t i = 0; i < node->u.n_block.count; i++) {
@@ -398,30 +424,39 @@ inline static srcref_t ast_extract_srcref(ast_node_t* node) {
             }
             return combined;
         } break;
+        case AST_ARGLIST: {
+            srcref_t combined = { 0 };
+            for(size_t i = 0; i < node->u.n_args.count; i++) {
+                combined = srcref_combine(combined,
+                    ast_extract_srcref(node->u.n_args.content[i]));
+            }
+            return combined;
+        } break;
         default: {
-            return (srcref_t) { 0 };
+            return node->ref;
         } break;      
     }
 }
 
 inline static char* ast_node_type_as_string(ast_node_type_t type) {
     switch (type) {
-        case AST_VALUE:     return "VALUE";
-        case AST_VAR_REF:   return "VAR_REF";
-        case AST_ARRAY:     return "ARRAY";
-        case AST_IF_CHAIN:  return "IF";
-        case AST_FOREACH:   return "FOREACH";
-        case AST_BINOP:     return "BINOP";
-        case AST_UNOP:      return "UNOP";
-        case AST_ASSIGN:    return "ASSIGN";
-        case AST_VAR_DECL:  return "VAR_DECL";
-        case AST_FUN_DECL:  return "FUN_DECL";
-        case AST_FUN_SIGN:  return "FUN_SIGN";
-        case AST_FUN_CALL:  return "FUN_CALL";
-        case AST_RETURN:    return "RETURN";
-        case AST_BREAK:     return "BREAK";
-        case AST_BLOCK:     return "BLOCK";
-        default:            return "<UNKNOWN-AST-NODE-TYPE>";
+        case AST_VALUE:         return "VALUE";
+        case AST_VAR_REF:       return "VAR_REF";
+        case AST_ARRAY:         return "ARRAY";
+        case AST_IF_CHAIN:      return "IF";
+        case AST_FOREACH:       return "FOREACH";
+        case AST_BINOP:         return "BINOP";
+        case AST_UNOP:          return "UNOP";
+        case AST_ASSIGN:        return "ASSIGN";
+        case AST_VAR_DECL:      return "VAR_DECL";
+        case AST_FUN_DECL:      return "FUN_DECL";
+        case AST_FUN_EXDECL:    return "FUN_EXDECL";
+        case AST_FUN_CALL:      return "FUN_CALL";
+        case AST_RETURN:        return "RETURN";
+        case AST_BREAK:         return "BREAK";
+        case AST_BLOCK:         return "BLOCK";
+        case AST_ARGLIST:       return "AST_ARGLIST";
+        default:                return "<UNKNOWN-AST-NODE-TYPE>";
     }
 }
 
@@ -450,14 +485,6 @@ inline static char* ast_unop_type_as_string(ast_unop_type_t type) {
         case AST_UN_NOT: return "NOT";
         case AST_UN_NEG: return "NEG";
         default: return "<UNKNOWN-UNOP-TYPE>";
-    }
-}
-
-inline static char* ast_decl_type_string(ast_decl_type_t type) {
-    switch(type) {
-        case AST_FUNSIGN_EXTERN: return "EXTERN";
-        case AST_FUNSIGN_INTERN: return "INTERN";
-        default: return "<UNKNOWN-FUNSIGN-TYPE>";
     }
 }
 
@@ -557,6 +584,17 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
                 }
             }
         } break;
+        case AST_ARGLIST: {
+            size_t count = node->u.n_args.count;
+            if( count > 0 )
+                _ast_nl(indent + 1);
+            for(size_t i = 0; i < count; i++) {
+                _ast_dump(node->u.n_args.content[i], indent+1);
+                if( i < (count - 1) ) {
+                    _ast_nl(indent + 1);
+                }
+            }
+        } break;
         case AST_IF_CHAIN: {
             _ast_dump(node->u.n_if.cond, indent);
             printf(" ");
@@ -569,16 +607,18 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
             _ast_nl(indent + 1);
             _ast_dump(node->u.n_foreach.during, indent);
         } break;
-        case AST_FUN_SIGN: {
-            printf("%s ", ast_decl_type_string(node->u.n_funsign.decltype));
-            srcref_print(node->u.n_funsign.name);
-            _ast_dump(node->u.n_funsign.argspec, indent + 1);
-            printf(" -> ");
-            _ast_dump_annot(node->u.n_funsign.return_type);
-        } break;
         case AST_FUN_DECL: {
-            _ast_dump(node->u.n_fundecl.funsign, indent + 1);                                       _ast_nl(indent + 1);
+            srcref_print(node->u.n_fundecl.name);
+            _ast_dump(node->u.n_fundecl.argspec, indent + 1);
+            printf(" -> ");
+            _ast_dump_annot(node->u.n_fundecl.retannot);
             printf(" body: "); _ast_dump(node->u.n_fundecl.body, indent + 2);                       _ast_nl(indent);
+        } break;
+        case AST_FUN_EXDECL: {
+            srcref_print(node->u.n_funexdecl.name);
+            _ast_dump(node->u.n_funexdecl.argspec, indent + 1);
+            printf(" -> ");
+            _ast_dump_annot(node->u.n_funexdecl.retannot);
         } break;
         case AST_FUN_CALL: {
             srcref_print(node->u.n_funcall.name);

@@ -99,12 +99,13 @@ typedef enum ast_node_type_t {
     AST_ASSIGN,
     AST_VAR_DECL,
     AST_VAR_REF,
-    AST_FUN_SIGN,
+    AST_FUN_EXDECL,
     AST_FUN_DECL,
     AST_FUN_CALL,
     AST_RETURN,
     AST_BREAK,
-    AST_BLOCK
+    AST_BLOCK,
+    AST_ARGLIST
 } ast_node_type_t;
 
 // ordered by precedence
@@ -205,7 +206,6 @@ typedef struct ast_node_t ast_node_t;
 
 typedef struct ast_value_t {
     ast_value_type_t type;
-    srcref_t         ref;
     union {
         int         _int;
         char        _char;
@@ -231,6 +231,11 @@ typedef struct ast_block_t {
     ast_node_t** content;
 } ast_block_t;
 
+typedef struct ast_arglist_t {
+    size_t       count;
+    ast_node_t** content;
+} ast_arglist_t;
+
 typedef struct ast_vardecl_t {
     srcref_t         name;
     ast_annot_t*     type;
@@ -254,32 +259,26 @@ typedef struct ast_foreach_t {
 
 typedef struct ast_binop_t {
     ast_binop_type_t type;
-    srcref_t         ref;
     ast_node_t*      left;
     ast_node_t*      right;
 } ast_binop_t;
 
 typedef struct ast_unop_t {
     ast_unop_type_t  type;
-    srcref_t         ref;
     ast_node_t*      inner;
 } ast_unop_t;
 
-typedef enum ast_decl_type_t {
-    AST_FUNSIGN_INTERN,
-    AST_FUNSIGN_EXTERN
-} ast_decl_type_t;
-
-typedef struct ast_funsign_t {
-    ast_decl_type_t     decltype;
-    ast_annot_t*        return_type;
+typedef struct ast_funexdecl_t {
     srcref_t            name;
     ast_node_t*         argspec;
-} ast_funsign_t;
+    ast_annot_t*        retannot;
+} ast_funexdecl_t;
 
 typedef struct ast_fundecl_t {
-    ast_node_t* funsign;    // function signature  
-    ast_node_t* body;
+    srcref_t            name;
+    ast_node_t*         argspec;
+    ast_annot_t*        retannot;
+    ast_node_t*         body;
 } ast_fundecl_t;
 
 typedef struct ast_funcall_t {
@@ -298,15 +297,17 @@ typedef struct ast_return_t {
  
 typedef struct ast_node_t {
     ast_node_type_t     type;
+    srcref_t            ref;
     union {
         ast_value_t     n_value;
         ast_varref_t    n_varref;
         ast_array_t     n_array;
         ast_vardecl_t   n_vardecl;
         ast_block_t     n_block;
+        ast_arglist_t   n_args;
         ast_if_t        n_if;
         ast_fundecl_t   n_fundecl;
-        ast_funsign_t   n_funsign;
+        ast_funexdecl_t n_funexdecl;
         ast_binop_t     n_binop;
         ast_unop_t      n_unop;
         ast_assign_t    n_assign;

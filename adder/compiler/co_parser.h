@@ -29,10 +29,11 @@ bool     pa_is_at_end(parser_t* parser);
 bool     pa_advance(parser_t* parser);
 token_t  pa_current_token(parser_t* parser);
 token_t  pa_peek_token(parser_t* parser, int lookahead);
-srcref_t pa_current_src_location(parser_t* parser);
 pa_result_t pa_consume(parser_t* parser, token_type_t expected);
 
-inline static pa_result_t par_node(ast_node_t* node) {
+inline static pa_result_t par_node(ast_node_t* node, srcref_t* ref) {
+    if( ref != NULL )
+        node->ref = *ref; // same as ast_ref(...)
     return (pa_result_t) {
         .type = PAR_AST_NODE,
         .data = node

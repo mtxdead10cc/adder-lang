@@ -8,7 +8,6 @@
 #include <co_parser.h>
 #include <co_compiler.h>
 #include <co_program.h>
-#include <co_typing.h>
 #include <co_bty.h>
 #include <sh_program.h>
 #include <stdio.h>
@@ -306,14 +305,14 @@ void test_ast(test_case_t* this) {
 
     arena_t* arena = arena_create(1024);
 
-    ast_node_t* decl_args = ast_block(arena);
+    ast_node_t* decl_args = ast_arglist(arena);
 
-    ast_block_add(arena, decl_args,
+    ast_arglist_add(arena, decl_args,
         ast_vardecl(arena, 
             srcref(buf, 4, 1),
             ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT))));
 
-    ast_block_add(arena, decl_args,
+    ast_arglist_add(arena, decl_args,
         ast_vardecl(arena, 
             srcref(buf, 5, 1),
             ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT))));
@@ -325,22 +324,21 @@ void test_ast(test_case_t* this) {
             ast_vardecl(arena, srcref(buf, 6, 3), ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT))),
             ast_binop(arena, AST_BIN_ADD,
                 ast_varref(arena, srcref(buf, 5, 1)),
-                ast_varref(arena, srcref(buf, 4, 1))
-            , NULL)));
+                ast_varref(arena, srcref(buf, 4, 1)))));
 
     ast_block_add(arena, body,
         ast_if(arena, 
             ast_binop(arena, AST_BIN_LT,
                 ast_varref(arena, srcref(buf, 6, 3)),
-                ast_float(arena, 0.0f, NULL), NULL),
-            ast_return(arena, ast_float(arena, 0.0f, NULL)),
+                ast_float(arena, 0.0f)),
+            ast_return(arena, ast_float(arena, 0.0f)),
             ast_block(arena)));
 
     ast_node_t* array = ast_array(arena);
-    ast_array_add(arena, array, ast_float(arena, 1, NULL));
-    ast_array_add(arena, array, ast_float(arena, 1, NULL));
-    ast_array_add(arena, array, ast_float(arena, 1, NULL));
-    ast_array_add(arena, array, ast_float(arena, 1, NULL));
+    ast_array_add(arena, array, ast_float(arena, 1));
+    ast_array_add(arena, array, ast_float(arena, 1));
+    ast_array_add(arena, array, ast_float(arena, 1));
+    ast_array_add(arena, array, ast_float(arena, 1));
 
     ast_block_add(arena, body,
         ast_foreach(arena, 
@@ -352,17 +350,17 @@ void test_ast(test_case_t* this) {
                 ast_varref(arena, srcref(buf, 6, 3)),
                 ast_binop(arena, AST_BIN_ADD,
                     ast_varref(arena, srcref(buf, 6, 3)),
-                    ast_varref(arena, srcref(buf, 9, 1)), NULL))
+                    ast_varref(arena, srcref(buf, 9, 1))))
         ));
     
     ast_block_add(arena, body,
         ast_return(arena, ast_varref(arena, srcref(buf, 6, 3))));
 
-    ast_node_t* funsign = ast_funsign(arena, srcref(buf, 0, 4),
-        decl_args, AST_FUNSIGN_INTERN,
+    ast_node_t* fun = ast_fundecl(arena,
+        srcref(buf, 0, 4),
+        decl_args,
+        body,
         ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT)));
-
-    ast_node_t* fun = ast_fundecl(arena, funsign, body);
 
     trace_t trace = { 0 };
     trace_init(&trace, 16);
@@ -850,122 +848,6 @@ void test_arena_alloc(test_case_t* this) {
     arena_destroy(a);
 }
 
-void test_typing(test_case_t* this) {
-    arena_t* a = arena_create(1024);
-
-    ast_node_t* n = ast_block(a);
-    ast_block_add(a, n, ast_int(a, 1, NULL));
-    ast_block_add(a, n, ast_float(a, 1.0f, NULL));
-    ast_block_add(a, n, ast_bool(a, false, NULL));
-    ast_block_add(a, n, ast_char(a, 'h', NULL));
-    
-    char* sign = typing_signature(a, n);
-    TEST_ASSERT_MSG(this,
-        strcmp(sign, "ifbc") == 0,
-        "#1.1 value signatures");
-
-    n = ast_array(a);
-    ast_array_add(a, n, ast_int(a, 1, NULL));
-    ast_array_add(a, n, ast_int(a, 1, NULL));
-    ast_array_add(a, n, ast_int(a, 1, NULL));
-    ast_array_add(a, n, ast_int(a, 1, NULL));
-    ast_array_add(a, n, ast_int(a, 1, NULL));
-
-    sign = typing_signature(a, n);
-    TEST_ASSERT_MSG(this,
-        strcmp(sign, "[i]") == 0,
-        "#1.2 array signature");
-
-    n = ast_array(a);
-    ast_array_add(a, n, ast_int(a, 1, NULL));
-    ast_array_add(a, n, ast_int(a, 1, NULL));
-    ast_array_add(a, n, ast_float(a, 1.0f, NULL));
-    ast_array_add(a, n, ast_int(a, 1, NULL));
-    ast_array_add(a, n, ast_int(a, 1, NULL));
-
-    sign = typing_signature(a, n);
-    TEST_ASSERT_MSG(this,
-        strcmp(sign, "[*]") == 0,
-        "#1.3 array invalid signature");
-
-   
-    ast_node_t* args = ast_block(a);
-    ast_block_add(a, args, ast_float(a, 1.0f, NULL));
-    ast_block_add(a, args, ast_int(a, 1, NULL));
-    n = ast_funcall(a, srcref_const("name-funcall"), args);
-
-    sign = typing_signature(a, n);
-    TEST_ASSERT_MSG(this,
-        strcmp(sign, "#name-funcall:fi") == 0,
-        "#1.3 funcall signature");
-
-    ast_node_t* funsign = ast_funsign(a,
-        srcref_const("name-fundecl"),
-        args,
-        AST_FUNSIGN_INTERN,
-        ast_annot(a, srcref_const(LANG_TYPENAME_INT)));
-    n = ast_fundecl(a, funsign, ast_block(a));
-
-    sign = typing_signature(a, n);
-    TEST_ASSERT_MSG(this,
-        strcmp(sign, "#name-fundecl:fi") == 0,
-        "#1.4 fundecl signature");
-
-    n = ast_binop(a, AST_BIN_ADD, ast_char(a, 'C', NULL), ast_int(a, 1, NULL), NULL);
-
-    sign = typing_signature(a, n);
-    TEST_ASSERT_MSG(this,
-        strcmp(sign, "#+:ci") == 0,
-        "#1.5 binop signature");
-
-    n = ast_unnop(a, AST_UN_NEG, ast_char(a, 'C', NULL), NULL);
-
-    sign = typing_signature(a, n);
-    TEST_ASSERT_MSG(this,
-        strcmp(sign, "#-:c") == 0,
-        "#1.6 unnop signature");
-
-    ctx_t* ctx = ctx_create(a, 1);
-    ctx_insert(ctx, "ab", "2");
-    ctx_insert(ctx, "aba", "3");
-    ctx_insert(ctx, "a", "1");
-    
-    TEST_ASSERT_MSG(this,
-        ctx->size == 3,
-        "#2.0 context setup");
-
-    int nerrors = 0;
-    for(size_t i = 0; i < ctx->size; i++) {
-        nerrors += (atoi(ctx->kvps[i].val) != ((int)i + 1));
-    }
-
-    TEST_ASSERT_MSG(this,
-        nerrors == 0,
-        "#2.1 context insert");
-
-    char* res = ctx_infer(ctx, "aba");
-    TEST_ASSERT_MSG(this,
-        strcmp(res, "3") == 0,
-        "#2.3 context infer");
-
-    ctx_t* ctx2 = ctx_clone(ctx);
-
-    TEST_ASSERT_MSG(this,
-        ctx2->size == 3,
-        "#2.4 context clone");
-
-    nerrors = 0;
-    for(size_t i = 0; i < ctx2->size; i++) {
-        nerrors += (atoi(ctx2->kvps[i].val) != ((int)i + 1));
-    }
-
-    TEST_ASSERT_MSG(this,
-        nerrors == 0,
-        "#2.5 context clone check");
-
-    arena_destroy(a);
-}
-
 void test_inference(test_case_t* this) {
     arena_t* a = arena_create(2048);
 
@@ -976,11 +858,11 @@ void test_inference(test_case_t* this) {
     ast_annot_add_child(a, arr_annot, ast_annot(a, srcref_const("float")));
 
     ast_node_t* arr = ast_array(a);
-    ast_array_add(a, arr, ast_int(a, 1, NULL));
-    ast_array_add(a, arr, ast_int(a, 2, NULL));
-    ast_array_add(a, arr, ast_int(a, 3, NULL));
-    ast_array_add(a, arr, ast_int(a, 4, NULL));
-    ast_array_add(a, arr, ast_int(a, 5, NULL));
+    ast_array_add(a, arr, ast_int(a, 1));
+    ast_array_add(a, arr, ast_int(a, 2));
+    ast_array_add(a, arr, ast_int(a, 3));
+    ast_array_add(a, arr, ast_int(a, 4));
+    ast_array_add(a, arr, ast_int(a, 5));
 
     ast_node_t* n = ast_assign(a,
         ast_vardecl(a, 
@@ -1005,14 +887,11 @@ void test_inference(test_case_t* this) {
     n = ast_binop(a,
         AST_BIN_OR,
         ast_binop(a, AST_BIN_AND,
-            ast_bool(a, false, NULL),
-            ast_bool(a, true, NULL),
-            NULL),
+            ast_bool(a, false),
+            ast_bool(a, true)),
         ast_binop(a, AST_BIN_EQ,
-            ast_int(a, 0, NULL),
-            ast_int(a, 1, NULL),
-            NULL),
-        NULL);
+            ast_int(a, 0),
+            ast_int(a, 1)));
 
     t = bty_synthesize(ctx, n);
 
@@ -1025,8 +904,6 @@ void test_inference(test_case_t* this) {
     if( trace_get_error_count(&trace) > 0 ) {
         trace_fprint(stdout, &trace);
     }
-
-    
 
     trace_destroy(&trace);
     arena_destroy(a);
@@ -1064,11 +941,6 @@ test_results_t run_testcases() {
         {
             .name = "language test",
             .test = test_langtest,
-            .nfailed = 0
-        },
-        {
-            .name = "typing test",
-            .test = test_typing,
             .nfailed = 0
         },
         {

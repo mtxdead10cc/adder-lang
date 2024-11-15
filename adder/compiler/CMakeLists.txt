@@ -11,7 +11,6 @@ target_sources(adrcom PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/co_srcmap.c
     ${CMAKE_CURRENT_SOURCE_DIR}/co_program.c
     ${CMAKE_CURRENT_SOURCE_DIR}/co_utils.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/co_typing.c
     ${CMAKE_CURRENT_SOURCE_DIR}/co_bty.c
 )
 

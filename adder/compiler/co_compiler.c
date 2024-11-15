@@ -3,7 +3,7 @@
 #include "co_compiler.h"
 #include "co_srcmap.h"
 #include "co_trace.h"
-#include "co_typing.h"
+#include "co_bty.h"
 #include <assert.h>
 
 typedef struct ir_inst_t {
@@ -90,6 +90,7 @@ void irl_dump(ir_list_t* list) {
 
 size_t get_node_content_length(ast_node_t* args) {
     switch (args->type) {
+        case AST_ARGLIST:   return args->u.n_args.count;
         case AST_ARRAY:     return args->u.n_array.count;
         case AST_BLOCK:     return args->u.n_block.count;
         case AST_FUN_CALL:
@@ -381,25 +382,11 @@ void codegen_value(ast_value_t node, compiler_state_t* state) {
     });
 }
 
-ast_decl_type_t funsign_get_decltype(ast_node_t* node) {
-    return node->u.n_funsign.decltype;
-}
-
-srcref_t funsign_get_name(ast_node_t* node) {
-    return node->u.n_funsign.name; 
-}
-
-ast_node_t* funsign_get_argspec(ast_node_t* node) {
-    return node->u.n_funsign.argspec; 
-}
-
 void codegen_fundecl(ast_fundecl_t node, compiler_state_t* state) {
 
     ABORT_ON_ERROR(state);
 
-    srcref_t funcname = funsign_get_name(node.funsign);
-
-    assert( funsign_get_decltype(node.funsign) == AST_FUNSIGN_INTERN );
+    srcref_t funcname = node.name;
 
     if ( state->localvars.count > 0 ) {
         trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, funcname);
@@ -420,7 +407,7 @@ void codegen_fundecl(ast_fundecl_t node, compiler_state_t* state) {
     
     srcmap_clear(&state->localvars);
 
-    codegen(funsign_get_argspec(node.funsign), state); // in order to "add" arg names
+    codegen(node.argspec, state); // in order to "add" arg names
 
     uint32_t arg_count = (uint32_t) state->localvars.count;
     codegen(node.body, state); // adds locals to frame
@@ -624,8 +611,9 @@ void codegen_return_stmt(ast_return_t stmt, compiler_state_t* state) {
         case AST_ASSIGN:
         case AST_VAR_DECL:
         case AST_FUN_DECL:
-        case AST_FUN_SIGN:
+        case AST_FUN_EXDECL:
         case AST_RETURN:
+        case AST_ARGLIST:
         case AST_BREAK: {
             ret_size = 0;
         } break;
@@ -687,6 +675,12 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
                 codegen(node->u.n_block.content[i], state);
             }
         } break;
+        case AST_ARGLIST: {
+            size_t count = node->u.n_args.count;
+            for(size_t i = 0; i < count; i++) {
+                codegen(node->u.n_args.content[i], state);
+            }
+        } break;
         case AST_IF_CHAIN: {
             codegen_if_chain(node, state);
         } break;
@@ -717,11 +711,10 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
         case AST_BREAK: {
             assert(false && "break op is not implemented yet");
         } break;
-        case AST_FUN_SIGN: {
-            assert(node->u.n_funsign.decltype == AST_FUNSIGN_EXTERN && "can't process this function signature");
+        case AST_FUN_EXDECL: {
             funsign_set_add(&state->extdecls,
-                mk_native_funsign(node->u.n_funsign.name,
-                           node->u.n_funsign.argspec,
+                mk_native_funsign(node->u.n_funexdecl.name,
+                           node->u.n_funexdecl.argspec,
                            srcref_const("type")));
         } break;
     }
@@ -802,13 +795,15 @@ gvm_program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace) {
     gvm_program_t program = { 0 };
 
     trace_clear(trace);
-    ctx_t* ctx = typing_check(arena, trace, node);
+    //bty_ctx_t* ctx = typing_check(arena, trace, node);
     if( trace_get_error_count(trace) > 0 ) {
         // typecheck failed
         return program;
     }
 
-    (void)(ctx); // used soon
+    //(void)(ctx);
+
+    (void)(arena);
 
     compiler_state_t state = (compiler_state_t) {
         .trace = trace

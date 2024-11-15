@@ -445,12 +445,13 @@ bty_type_t* bty_synth_all_same_or_null(bty_ctx_t* c, ast_node_t** coll, size_t l
 
 // note: it might be possible to call bty_check
 // here instead of 'custom' checking subtype
-bty_type_t* bty_synth_unop(bty_ctx_t* c, ast_unop_t op) {
+bty_type_t* bty_synth_unop(bty_ctx_t* c, ast_node_t* n) {
+    ast_unop_t op = n->u.n_unop;
     bty_type_t* ty = bty_synthesize(c, op.inner);
     switch(op.type) {
         case AST_UN_NOT: {
             if( bty_is_subtype(ty, bty_bool()) == false ) {
-                trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, op.ref);
+                trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, n->ref);
                 trace_msg_append_fmt(m,
                     "type-error: can't interpret %s as a boolean value",
                     sprint_bty_type(c->arena, ty));
@@ -459,7 +460,7 @@ bty_type_t* bty_synth_unop(bty_ctx_t* c, ast_unop_t op) {
         } break;
         case AST_UN_NEG: {
             if( bty_is_subtype(ty, bty_float()) == false ) {
-                trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, op.ref);
+                trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, n->ref);
                 trace_msg_append_fmt(m,
                     "type-error: can't interpret %s as a numeric value",
                     sprint_bty_type(c->arena, ty));
@@ -493,8 +494,8 @@ bool is_allowed_binop_operand_type(ast_binop_type_t op, bty_type_t* ty) {
     }
 }
 
-bty_type_t* bty_synth_binop(bty_ctx_t* c, ast_binop_t op) {
-
+bty_type_t* bty_synth_binop(bty_ctx_t* c, ast_node_t* n) {
+    ast_binop_t op = n->u.n_binop;
     bty_type_t* lty = bty_synthesize(c, op.left);
     bty_type_t* rty = bty_synthesize(c, op.right);
 
@@ -507,7 +508,7 @@ bty_type_t* bty_synth_binop(bty_ctx_t* c, ast_binop_t op) {
         ty = lty;
     
     if( ty == NULL ) {
-        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, op.ref);
+        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, n->ref);
         trace_msg_append_fmt(m,
             "type-error: binary operator unknown result type\n\tLHS: %s\n\tRHS: %s",
             sprint_bty_type(c->arena, lty),
@@ -516,7 +517,7 @@ bty_type_t* bty_synth_binop(bty_ctx_t* c, ast_binop_t op) {
     }
 
     if( is_allowed_binop_operand_type(op.type, ty) == false ) {
-        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, op.ref);
+        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, n->ref);
         trace_msg_append_fmt(m,
             "type-error: unsupported operand type: %s",
             sprint_bty_type(c->arena, ty));
@@ -541,7 +542,7 @@ bty_type_t* bty_synth_binop(bty_ctx_t* c, ast_binop_t op) {
         default:            break;
     }
 
-    trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, op.ref);
+    trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, n->ref);
     trace_msg_append_fmt(m,
         "type-error: unknown binary operator\n\tLHS: %s\n\tRHS: %s",
         sprint_bty_type(c->arena, lty),
@@ -563,7 +564,7 @@ bty_type_t* bty_synthesize(bty_ctx_t* c, ast_node_t* n) {
                 n->u.n_array.count);
             if( ty != NULL )
                 return bty_list(c->arena, ty); 
-            trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_extract_srcref(n));
+            trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, n->ref);
             trace_msg_append_costr(m, "type-error: array contains mixed type elements");
             return bty_unknown(); // todo: perhaps return some kind of error? 
         }
@@ -574,10 +575,10 @@ bty_type_t* bty_synthesize(bty_ctx_t* c, ast_node_t* n) {
             return ty;
         }
         case AST_UNOP: {
-            return bty_synth_unop(c, n->u.n_unop);
+            return bty_synth_unop(c, n);
         }
         case AST_BINOP: {
-            return bty_synth_binop(c, n->u.n_binop);
+            return bty_synth_binop(c, n);
         }
         case AST_ASSIGN: {
             bty_type_t* ty = bty_synthesize(c, n->u.n_assign.left_var);
@@ -601,7 +602,7 @@ void bty_check(bty_ctx_t* c, ast_node_t* n, bty_type_t* et) {
 
     bty_type_t* ty = bty_synthesize(c, n);
     if( bty_is_subtype(ty, et) == false ) {
-        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_extract_srcref(n));
+        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, n->ref);
         trace_msg_append_fmt(m,
             "type-error: expected %s but got %s",
             sprint_bty_type(c->arena, et),
