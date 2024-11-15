@@ -238,7 +238,7 @@ pa_result_t pa_try_parse_value(parser_t* parser) {
 pa_result_t pa_try_parse_var_name(parser_t* parser) {
     token_t token = pa_current_token(parser);
     if( pa_advance_if(parser, TT_SYMBOL) ) {
-        return par_node(ast_varref(parser->arena, token.ref), &token.ref);
+        return par_node(ast_varref(parser->arena, token.ref), NULL);
     }
     return par_nothing();
 }
@@ -276,7 +276,7 @@ pa_result_t pa_try_parse_func_call(parser_t* parser) {
     ast_node_t* args = ast_block(parser->arena);
 
     if( pa_advance_if(parser, TT_CLOSE_PAREN) ) {
-        return par_node(ast_funcall(parser->arena, func_name.ref, args), &func_name.ref);
+        return par_node(ast_funcall(parser->arena, func_name.ref, args), NULL);
     }
     
     do {
@@ -291,7 +291,7 @@ pa_result_t pa_try_parse_func_call(parser_t* parser) {
     if( par_is_nothing(result) == false ) {
         return result;
     } else {
-        return par_node(ast_funcall(parser->arena, func_name.ref, args), &func_name.ref);
+        return par_node(ast_funcall(parser->arena, func_name.ref, args), NULL);
     }
 }
 
@@ -552,8 +552,12 @@ pa_result_t pa_parse_vardecl(parser_t* parser) {
         return result;
 
     assert( par_is_nothing(result) );
-
-    return par_node(ast_vardecl(parser->arena, varname.ref, typename), &varname.ref);
+    return par_node(
+        ast_tyannot(parser->arena,
+            typename,
+            ast_varref(parser->arena,
+                varname.ref)),
+        NULL);
 }
 
 // TODO: should probably rething how assignment is parsed.

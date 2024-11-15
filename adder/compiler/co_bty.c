@@ -568,10 +568,9 @@ bty_type_t* bty_synthesize(bty_ctx_t* c, ast_node_t* n) {
             trace_msg_append_costr(m, "type-error: array contains mixed type elements");
             return bty_unknown(); // todo: perhaps return some kind of error? 
         }
-        case AST_VAR_DECL: {
-            bty_type_t* ty = bty_from_annotation(c, n->u.n_vardecl.type);
-            bool res = bty_ctx_insert(c, n->u.n_vardecl.name, ty);
-            assert(res);
+        case AST_TYANNOT: {
+            bty_type_t* ty = bty_from_annotation(c, n->u.n_tyannot.type);
+            bty_check(c, n->u.n_tyannot.expr, ty); // note: should check add to the context?
             return ty;
         }
         case AST_UNOP: {
@@ -599,6 +598,13 @@ bty_type_t* bty_synthesize(bty_ctx_t* c, ast_node_t* n) {
 
 void bty_check(bty_ctx_t* c, ast_node_t* n, bty_type_t* et) {
 
+    // note: not sure about this, adding a var to the context
+    // only if it does not already exist
+    if( n->type == AST_VAR_REF && bty_ctx_lookup(c, n->u.n_varref.name) == NULL ) {
+        bool res = bty_ctx_insert(c, n->u.n_varref.name, et);
+        assert(res);
+        return;
+    }
 
     bty_type_t* ty = bty_synthesize(c, n);
     if( bty_is_subtype(ty, et) == false ) {

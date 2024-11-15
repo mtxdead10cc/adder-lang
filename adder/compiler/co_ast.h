@@ -42,10 +42,6 @@ inline static srcref_t ast_srcref_from_annotation(ast_annot_t* annot) {
     return combined;
 }
 
-inline static void ast_ref(ast_node_t* n, srcref_t ref) {
-    n->ref = ref;
-}
-
 inline static ast_node_t* ast_int(arena_t* a, int val) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_VALUE;
@@ -100,13 +96,13 @@ inline static ast_node_t* ast_varref(arena_t* a, srcref_t name) {
     return node;
 }
 
-inline static ast_node_t* ast_vardecl(arena_t* a, srcref_t name, ast_annot_t* type) {
+inline static ast_node_t* ast_tyannot(arena_t* a, ast_annot_t* type, ast_node_t* expr) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
-    node->type = AST_VAR_DECL;
+    node->type = AST_TYANNOT;
     node->ref = (srcref_t) { 0 };
-    node->u.n_vardecl = (ast_vardecl_t) {
+    node->u.n_tyannot = (ast_tyannot_t) {
         .type = type,
-        .name = name
+        .expr = expr
     };
     return node;
 }
@@ -179,15 +175,14 @@ inline static void ast_arglist_add(arena_t* a, ast_node_t* args, ast_node_t* nod
 
 inline static ast_node_t* ast_string(arena_t* a, srcref_t val) {
     ast_node_t* char_array = ast_array(a);
-    ast_ref(char_array, val);
+    char_array->ref = val;
     // account for the fact that strings are qouted
     ptrdiff_t len = srcref_len(val) - 2;
     char*     str = srcref_ptr(val) + 1;
     for (ptrdiff_t i = 0; i < len; i++) {
-        srcref_t char_ref = srcref(val.source,
-            val.idx_start + 1 + i, 1);
         ast_node_t* n = ast_char(a, str[i]);
-        ast_ref(n, char_ref);
+        n->ref = srcref(val.source,
+            val.idx_start + 1 + i, 1);
         ast_array_add(a, char_array, n);
     }
     return char_array;
@@ -323,6 +318,16 @@ inline static ast_node_t* ast_assign(arena_t* a, ast_node_t* left, ast_node_t* r
     return node;
 }
 
+inline static srcref_t ast_try_extract_name(ast_node_t* n) {
+    switch(n->type) {
+        case AST_VAR_REF:       return n->u.n_varref.name;
+        case AST_FUN_DECL:      return n->u.n_fundecl.name;
+        case AST_FUN_EXDECL:    return n->u.n_funexdecl.name;
+        case AST_TYANNOT:       return ast_try_extract_name(n->u.n_tyannot.expr);
+        default:                return (srcref_t) { 0 };
+    }
+}
+
 inline static srcref_t ast_extract_srcref(ast_node_t* node) {
     switch (node->type) {
         case AST_ARRAY: {
@@ -377,12 +382,12 @@ inline static srcref_t ast_extract_srcref(ast_node_t* node) {
                 ast_extract_srcref(node->u.n_assign.right_value));
             return combined;
         } break;
-        case AST_VAR_DECL: {
+        case AST_TYANNOT: {
             srcref_t combined = { 0 };
             combined = srcref_combine(combined, 
-                ast_srcref_from_annotation(node->u.n_vardecl.type));
+                ast_srcref_from_annotation(node->u.n_tyannot.type));
             combined = srcref_combine(combined,
-                node->u.n_vardecl.name);
+                ast_extract_srcref(node->u.n_tyannot.expr));
             return combined;
         } break;
         case AST_FUN_DECL: {
@@ -448,7 +453,7 @@ inline static char* ast_node_type_as_string(ast_node_type_t type) {
         case AST_BINOP:         return "BINOP";
         case AST_UNOP:          return "UNOP";
         case AST_ASSIGN:        return "ASSIGN";
-        case AST_VAR_DECL:      return "VAR_DECL";
+        case AST_TYANNOT:       return "AST_TYANNOT";
         case AST_FUN_DECL:      return "FUN_DECL";
         case AST_FUN_EXDECL:    return "FUN_EXDECL";
         case AST_FUN_CALL:      return "FUN_CALL";
@@ -565,10 +570,10 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
         case AST_RETURN: {
             _ast_dump(node->u.n_return.result, indent);
         } break;
-        case AST_VAR_DECL: {
-            _ast_dump_annot(node->u.n_vardecl.type);
-            printf(" ");
-            srcref_print(node->u.n_vardecl.name);
+        case AST_TYANNOT: {
+            _ast_dump(node->u.n_tyannot.expr, indent);
+            printf(": ");
+            _ast_dump_annot(node->u.n_tyannot.type);
         } break;
         case AST_BREAK: {
             /* nothing */

@@ -457,20 +457,26 @@ void codegen_assignment(ast_assign_t node, compiler_state_t* state) {
     ABORT_ON_ERROR(state);
 
     codegen(node.right_value, state);
-    srcref_t varname = { 0 };
-    // depending on declared variable or just
-    // a reference to already existing
-    // we do slightly differen things.
-    if( node.left_var->type == AST_VAR_DECL ) {
+
+    srcref_t varname = ast_try_extract_name(node.left_var);
+    
+
+    ast_node_type_t left_node_type = node.left_var->type;
+
+    assert( left_node_type == AST_TYANNOT || left_node_type == AST_VAR_REF );
+    assert(srcref_is_valid(varname));
+
+    // if variable with type annotation:
+    //    it is a new var, so add it to known locals
+    // if just a variable; already known (do not add)
+
+    if( left_node_type == AST_TYANNOT ) {
+        assert(node.left_var->u.n_tyannot.expr->type == AST_VAR_REF);
         codegen(node.left_var, state); // add var to known locals
-        assert(state->localvars.count > 0 && "local vars was empty");
-        varname = node.left_var->u.n_vardecl.name;
-    } else if ( node.left_var->type == AST_VAR_REF ) {
-        assert(state->localvars.count > 0 && "local vars was empty");
-        varname = node.left_var->u.n_varref.name;
-    } else {
-        assert(false && "expected variable node as LSH in assignment");
     }
+
+    assert(state->localvars.count > 0 && "local vars was empty");
+
     ir_index_t index = state_get_localvar(state, varname);
     assert(index.tag == IRID_VAR && "varname not found");
     irl_add(&state->instrs, (ir_inst_t){
@@ -493,7 +499,8 @@ void codegen_foreach(ast_foreach_t node, compiler_state_t* state) {
         .args = { 0 }
     });
     codegen(node.vardecl, state); // add varname
-    srcref_t varname = node.vardecl->u.n_vardecl.name;
+    srcref_t varname = ast_try_extract_name(node.vardecl);
+    assert(srcref_is_valid(varname));
     ir_index_t varindex = state_get_localvar(state, varname);
     assert(varindex.tag == IRID_VAR && "variable not found");
     irl_add(&state->instrs, (ir_inst_t){
@@ -609,7 +616,7 @@ void codegen_return_stmt(ast_return_t stmt, compiler_state_t* state) {
         case AST_IF_CHAIN:
         case AST_FOREACH:
         case AST_ASSIGN:
-        case AST_VAR_DECL:
+        case AST_TYANNOT:
         case AST_FUN_DECL:
         case AST_FUN_EXDECL:
         case AST_RETURN:
@@ -704,9 +711,11 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
         case AST_VALUE: {
             codegen_value(node->u.n_value, state);
         } break;
-        case AST_VAR_DECL: {
+        case AST_TYANNOT: {
+            ast_node_t* var = node->u.n_tyannot.expr;
+            assert(var->type == AST_VAR_REF);
             // just add valiable name to frame local var set.
-            state_add_localvar(state, node->u.n_vardecl.name);
+            state_add_localvar(state, var->u.n_varref.name);
         } break;
         case AST_BREAK: {
             assert(false && "break op is not implemented yet");

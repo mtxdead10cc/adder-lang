@@ -97,7 +97,7 @@ typedef enum ast_node_type_t {
     AST_BINOP,
     AST_UNOP,
     AST_ASSIGN,
-    AST_VAR_DECL,
+    AST_TYANNOT,
     AST_VAR_REF,
     AST_FUN_EXDECL,
     AST_FUN_DECL,
@@ -236,10 +236,10 @@ typedef struct ast_arglist_t {
     ast_node_t** content;
 } ast_arglist_t;
 
-typedef struct ast_vardecl_t {
-    srcref_t         name;
-    ast_annot_t*     type;
-} ast_vardecl_t;
+typedef struct ast_tyannot_t {
+    ast_annot_t* type;
+    ast_node_t*  expr;
+} ast_tyannot_t;
 
 typedef struct ast_varref_t {
     srcref_t        name;
@@ -302,7 +302,7 @@ typedef struct ast_node_t {
         ast_value_t     n_value;
         ast_varref_t    n_varref;
         ast_array_t     n_array;
-        ast_vardecl_t   n_vardecl;
+        ast_tyannot_t   n_tyannot;
         ast_block_t     n_block;
         ast_arglist_t   n_args;
         ast_if_t        n_if;

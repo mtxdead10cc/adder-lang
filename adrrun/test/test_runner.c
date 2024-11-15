@@ -308,20 +308,25 @@ void test_ast(test_case_t* this) {
     ast_node_t* decl_args = ast_arglist(arena);
 
     ast_arglist_add(arena, decl_args,
-        ast_vardecl(arena, 
-            srcref(buf, 4, 1),
-            ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT))));
+        ast_tyannot(arena,
+            ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT)),
+            ast_varref(arena, 
+                srcref(buf, 4, 1))));
 
     ast_arglist_add(arena, decl_args,
-        ast_vardecl(arena, 
-            srcref(buf, 5, 1),
-            ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT))));
+        ast_tyannot(arena,
+            ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT)),
+            ast_varref(arena, 
+                srcref(buf, 5, 1))));
 
     ast_node_t* body = ast_block(arena);
 
     ast_block_add(arena, body, 
         ast_assign(arena, 
-            ast_vardecl(arena, srcref(buf, 6, 3), ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT))),
+            ast_tyannot(arena,
+                ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT)),
+                    ast_varref(arena, 
+                        srcref(buf, 6, 3))),
             ast_binop(arena, AST_BIN_ADD,
                 ast_varref(arena, srcref(buf, 5, 1)),
                 ast_varref(arena, srcref(buf, 4, 1)))));
@@ -342,9 +347,10 @@ void test_ast(test_case_t* this) {
 
     ast_block_add(arena, body,
         ast_foreach(arena, 
-            ast_vardecl(arena, 
-                srcref(buf, 9, 1),
-                ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT))),
+            ast_tyannot(arena,
+                ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT)),
+                    ast_varref(arena, 
+                        srcref(buf, 9, 1))),
             array,
             ast_assign(arena, 
                 ast_varref(arena, srcref(buf, 6, 3)),
@@ -865,9 +871,10 @@ void test_inference(test_case_t* this) {
     ast_array_add(a, arr, ast_int(a, 5));
 
     ast_node_t* n = ast_assign(a,
-        ast_vardecl(a, 
-            srcref_const("var"),
-            arr_annot),
+        ast_tyannot(a,
+            arr_annot,
+            ast_varref(a, 
+                srcref_const("var"))),
         arr);
 
     bty_ctx_t* ctx = bty_ctx_create(a, &trace, 16);
