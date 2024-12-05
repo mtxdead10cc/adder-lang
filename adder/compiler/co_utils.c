@@ -268,11 +268,13 @@ srcref_t srcref_const(const char* text) {
 }
 
 srcref_t srcref_combine(srcref_t a, srcref_t b) {
+    if( a.source != b.source )
+        return (srcref_t) { 0 };
     if( srcref_is_valid(a) == false )
         return b;
     if( srcref_is_valid(b) == false )
         return a;
-    assert(a.source == b.source && "can't combine srcres from different sources");
+    //assert(a.source == b.source && "can't combine srcres from different sources");
     return (srcref_t) {
         .idx_end    = (a.idx_end > b.idx_end)       ? a.idx_end     : b.idx_end,
         .idx_start  = (a.idx_start < b.idx_start)   ? a.idx_start   : b.idx_start,

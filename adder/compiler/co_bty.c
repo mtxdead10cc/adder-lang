@@ -7,12 +7,12 @@
 #include "co_ast.h"
 
 static bty_type_t bty_base_types[] = {
-    { BTY_UNKNOWN,      {{0}} },
     { BTY_VOID,         {{0}} },
     { BTY_FLOAT,        {{0}} },
     { BTY_INT,          {{0}} },
     { BTY_CHAR,         {{0}} },
-    { BTY_BOOL,         {{0}} }
+    { BTY_BOOL,         {{0}} },
+    { BTY_NEVER,        {{0}} }
 };
 
 #define verify_base_type_array_member(I) \
@@ -23,12 +23,6 @@ bool bty_is_equal(bty_type_t* a, bty_type_t* b);
 bty_type_t* bty_from_const_expr(arena_t* a, ast_node_t* e);
 bty_type_t* bty_synthesize(bty_ctx_t* c, ast_node_t* n);
 void bty_check(bty_ctx_t* c, ast_node_t* n, bty_type_t* t);
-
-
-bty_type_t* bty_unknown(void) {
-    verify_base_type_array_member(BTY_UNKNOWN);
-    return &bty_base_types[BTY_UNKNOWN];
-}
 
 bty_type_t* bty_void(void) {
     verify_base_type_array_member(BTY_VOID);
@@ -55,9 +49,14 @@ bty_type_t* bty_bool(void) {
     return &bty_base_types[BTY_BOOL];
 }
 
+bty_type_t* bty_never(void) {
+    verify_base_type_array_member(BTY_NEVER);
+    return &bty_base_types[BTY_NEVER];
+}
+
 bty_type_t* bty_from_const_array(arena_t* a, ast_array_t ar) {
     if( ar.count == 0 )
-        return bty_list(a, bty_unknown());
+        return bty_list(a, bty_error(a, BTY_ERR_TYPECHECK));
 
     bty_type_t* inner_type = bty_from_const_expr(a, ar.content[0]);
     if( inner_type == NULL )
@@ -91,12 +90,12 @@ bty_type_t* bty_from_const_expr(arena_t* a, ast_node_t* e) {
     }
 }
 
-bty_type_t* bty_func(arena_t* a, bty_type_t* ret) {
+bty_type_t* bty_func(arena_t* a) {
     bty_type_t* fun = (bty_type_t*) aalloc(a, sizeof(bty_type_t));
     fun->tag = BTY_FUNC;
     fun->u.fun.argc = 0;
     fun->u.fun.args = NULL;
-    fun->u.fun.ret = ret;
+    fun->u.fun.ret = bty_void();
     return fun;
 }
 
@@ -117,15 +116,53 @@ void bty_func_add_arg(arena_t* a, bty_type_t* fun, bty_type_t* arg) {
     fun->u.fun.args[fun->u.fun.argc - 1] = arg;
 }
 
+void bty_func_set_return_type(bty_type_t* fun, bty_type_t* ret) {
+    assert(fun->tag == BTY_FUNC);
+    fun->u.fun.ret = ret;
+}
+
 bty_type_t* bty_list(arena_t* a, bty_type_t* content_type) {
     bty_type_t* lst = (bty_type_t*) aalloc(a, sizeof(bty_type_t));
     lst->tag = BTY_LIST;
-    lst->u.lst.ctype = content_type;
+    lst->u.con = content_type;
     return lst;
 }
 
-bool bty_is_unknown(bty_type_t* ty) {
-    return ty->tag == BTY_UNKNOWN;
+bty_type_t* bty_error(arena_t* a, uint32_t error_code) {
+    bty_type_t* ty = (bty_type_t*) aalloc(a, sizeof(bty_type_t));
+    ty->tag = BTY_ERROR;
+    ty->u.err.erc = error_code;
+    return ty;
+}
+
+bty_type_t* bty_return(arena_t* a, bty_type_t* type) {
+    bty_type_t* ty = (bty_type_t*) aalloc(a, sizeof(bty_type_t));
+    ty->tag = BTY_RETURN;
+    ty->u.con = type;
+    return ty;
+}
+
+bty_type_t* bty_sometimes(arena_t* a, bty_type_t* type) {
+    bty_type_t* ty = (bty_type_t*) aalloc(a, sizeof(bty_type_t));
+    ty->tag = BTY_SOMETIMES;
+    ty->u.con = type;
+    return ty;
+}
+
+bty_type_t* bty_always(arena_t* a, bty_type_t* type) {
+    bty_type_t* ty = (bty_type_t*) aalloc(a, sizeof(bty_type_t));
+    ty->tag = BTY_ALWAYS;
+    ty->u.con = type;
+    return ty;
+}
+
+
+bool bty_is_error(bty_type_t* ty) {
+    return ty->tag == BTY_ERROR;
+}
+
+bool bty_is_void(bty_type_t* ty) {
+    return ty->tag == BTY_VOID;
 }
 
 bool bty_is_float(bty_type_t* ty) {
@@ -152,10 +189,26 @@ bool bty_is_list(bty_type_t* ty) {
     return ty->tag == BTY_LIST;
 }
 
+bool bty_is_return(bty_type_t* ty) {
+    return ty->tag == BTY_RETURN;
+}
+
+bool bty_is_never(bty_type_t* ty) {
+    return ty->tag == BTY_NEVER;
+}
+
+bool bty_is_sometimes(bty_type_t* ty) {
+    return ty->tag == BTY_SOMETIMES;
+}
+
+bool bty_is_always(bty_type_t* ty) {
+    return ty->tag == BTY_ALWAYS;
+}
+
 char* sprint_bty_type(arena_t* a, bty_type_t* ty) {
     switch(ty->tag) {
-        case BTY_UNKNOWN: {
-            return asprintf(a, "unknown");
+        case BTY_ERROR: {
+            return asprintf(a, "error (0x%X)", ty->u.err.erc);
         } break;
         case BTY_VOID: {
             return asprintf(a, "void");
@@ -172,19 +225,40 @@ char* sprint_bty_type(arena_t* a, bty_type_t* ty) {
         case BTY_BOOL: {
             return asprintf(a, "bool");
         } break;
+        case BTY_NEVER: {
+            return asprintf(a, "never");
+        } break;
+        case BTY_SOMETIMES: {
+            return asprintf(a,
+                "sometimes %s", 
+                sprint_bty_type(a, 
+                    ty->u.con));
+        } break;
+        case BTY_ALWAYS: {
+            return asprintf(a,
+                "always %s", 
+                sprint_bty_type(a, 
+                    ty->u.con));
+        } break;
+        case BTY_RETURN: {
+            return asprintf(a,
+                "return %s", 
+                sprint_bty_type(a, 
+                    ty->u.con));
+        } break;
         case BTY_LIST: {
             return asprintf(a,
                 "list of %s", 
                 sprint_bty_type(a, 
-                    ty->u.lst.ctype));
+                    ty->u.con));
         } break;
         case BTY_FUNC: {
             char* text = "";
             for(int i = 0; i < ty->u.fun.argc; i++) {
                 if( i > 0 )
-                    text = asprintf(a, "%s,", text);
+                    text = asprintf(a, "%s, ", text);
                 text = asprintf(a, 
-                    "%s %s", text,
+                    "%s%s", text,
                     sprint_bty_type(a,
                         ty->u.fun.args[i]));
             }
@@ -208,8 +282,6 @@ char* sprint_bty_type(arena_t* a, bty_type_t* ty) {
         APP RESULT >= DEF RETURN  
 */
 
-
-
 bool bty_is_func_subtype(bty_type_t* child, bty_type_t* parent) {
     assert(child->tag == BTY_FUNC);
     if( parent->tag != BTY_FUNC )
@@ -231,26 +303,46 @@ bool bty_is_list_subtype(bty_type_t* child, bty_type_t* parent) {
     assert(child->tag == BTY_LIST);
     if( parent->tag != BTY_LIST )
         return false;
-    return bty_is_subtype(child->u.lst.ctype, parent->u.lst.ctype);
+    return bty_is_subtype(child->u.con, parent->u.con);
+}
+
+bool bty_handle_error_subtype(bty_type_t* child, bty_type_t* parent) {
+    assert(child->tag == BTY_ERROR);
+    (void)(parent);
+    return false;
+}
+
+bool bty_is_return_subtype(bty_type_t* child, bty_type_t* parent) {
+    assert(child->tag == BTY_RETURN);
+    if( parent->tag != BTY_RETURN )
+        return false;
+    return bty_is_subtype(child->u.con, parent->u.con);
+}
+
+bool bty_is_always_subtype(bty_type_t* child, bty_type_t* parent) {
+    assert(child->tag == BTY_ALWAYS);
+    if( parent->tag != BTY_ALWAYS )
+        return false;
+    return bty_is_subtype(child->u.con, parent->u.con);
 }
 
 
 bool bty_is_subtype(bty_type_t* child, bty_type_t* parent) {
     switch(child->tag) {
-        case BTY_BOOL:      return parent->tag == BTY_BOOL
-                                || parent->tag == BTY_INT
-                                || parent->tag == BTY_CHAR
-                                || parent->tag == BTY_FLOAT;
-        case BTY_CHAR:      return parent->tag == BTY_INT
-                                || parent->tag == BTY_CHAR
-                                || parent->tag == BTY_FLOAT;
+        case BTY_FLOAT:     return parent->tag == BTY_FLOAT;
         case BTY_INT:       return parent->tag == BTY_INT
                                 || parent->tag == BTY_FLOAT;
-        case BTY_FLOAT:     return parent->tag == BTY_FLOAT;
-        case BTY_UNKNOWN:   return false;
-        case BTY_VOID:      return false;
+        case BTY_CHAR:      return parent->tag == BTY_CHAR
+                                || parent->tag == BTY_FLOAT
+                                || parent->tag == BTY_INT;
+        case BTY_BOOL:      return parent->tag == BTY_BOOL;
+        case BTY_VOID:      return parent->tag == BTY_VOID;
+        case BTY_NEVER:     return parent->tag == BTY_VOID;
+        case BTY_ALWAYS:    return bty_is_always_subtype(child, parent);
+        case BTY_RETURN:    return bty_is_return_subtype(child, parent);
         case BTY_LIST:      return bty_is_list_subtype(child, parent);
         case BTY_FUNC:      return bty_is_func_subtype(child, parent);
+        case BTY_ERROR:     return bty_handle_error_subtype(child, parent);
         default: {
             printf("bty_is_subtype: unknown type\n");
             return false;
@@ -262,7 +354,7 @@ bool bty_is_equal(bty_type_t* a, bty_type_t* b) {
     if( a->tag != b->tag )
         return false;
     if( a->tag == BTY_LIST )
-        return bty_is_equal(a->u.lst.ctype, b->u.lst.ctype);
+        return bty_is_equal(a->u.con, b->u.con);
     if( a->tag == BTY_FUNC ) {
         bty_fun_t af = a->u.fun;
         bty_fun_t bf = b->u.fun;
@@ -305,12 +397,20 @@ typedef struct res_t {
     int index;
 } res_t;
 
+int srcrefcmp(char* actual, srcref_t ref) {
+    int actual_len = strlen(actual);
+    int ref_len = srcref_len(ref);
+    if( actual_len == ref_len )
+        return strncmp(actual, srcref_ptr(ref), ref_len);
+    return ref_len - actual_len;
+}
+
 res_t bty_ctx_binsearch(bty_ctx_kvp_t* kvps, int low, int high, srcref_t name) {
     if ( high >= low ) {
         int mid = low + (high - low) / 2;
-        if (strncmp(kvps[mid].name, srcref_ptr(name), srcref_len(name)) == 0)
+        if (srcrefcmp(kvps[mid].name, name) == 0)
             return (res_t) { true, mid };
-        if (strncmp(kvps[mid].name, srcref_ptr(name), srcref_len(name)) > 0)
+        if (srcrefcmp(kvps[mid].name, name) > 0)
             return bty_ctx_binsearch(kvps, low, mid - 1, name);
         return bty_ctx_binsearch(kvps, mid + 1, high, name);
     }
@@ -387,37 +487,88 @@ void bty_ctx_dump(bty_ctx_t* ctx) {
  *  encounters a type annotation.
  */
 
-bty_type_t* bty_from_annotation(bty_ctx_t* c, ast_annot_t* a) {
-    if(srcref_equals_string(a->name, LANG_TYPENAME_ARRAY)) {
-        if( a->childcount != 1 ) {
-            trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, a->name);
+bty_type_t* bty_from_ast_annot(arena_t* a, trace_t* t, ast_annot_t* asta) {
+    if(srcref_equals_string(asta->name, LANG_TYPENAME_ARRAY)) {
+        if( asta->childcount != 1 ) {
+            trace_msg_t* m = trace_create_message(t, TM_ERROR, asta->name);
             trace_msg_append_costr(m, "invalid type annotation");
             return NULL;
         }
-        bty_type_t* inner = bty_from_annotation(c, a->children[0]);
+        bty_type_t* inner = bty_from_ast_annot(a, t, asta->children[0]);
         if( inner == NULL ) {
-            trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, a->name);
+            trace_msg_t* m = trace_create_message(t, TM_ERROR, asta->name);
             trace_msg_append_costr(m, "invalid type annotation (list content)");
             return NULL;
         }
-        return bty_list(c->arena, inner);
-    } else if(srcref_equals_string(a->name, LANG_TYPENAME_STRING)) {
-        return bty_list(c->arena, bty_char());
-    } else if(srcref_equals_string(a->name, LANG_TYPENAME_VOID)) {
+        return bty_list(a, inner);
+    } else if(srcref_equals_string(asta->name, LANG_TYPENAME_STRING)) {
+        return bty_list(a, bty_char());
+    } else if(srcref_equals_string(asta->name, LANG_TYPENAME_VOID)) {
         return bty_void();
-    } else if(srcref_equals_string(a->name, LANG_TYPENAME_INT)) {
+    } else if(srcref_equals_string(asta->name, LANG_TYPENAME_INT)) {
         return bty_int();
-    } else if(srcref_equals_string(a->name, LANG_TYPENAME_FLOAT)) {
+    } else if(srcref_equals_string(asta->name, LANG_TYPENAME_FLOAT)) {
         return bty_float();
-    } else if(srcref_equals_string(a->name, LANG_TYPENAME_BOOL)) {
+    } else if(srcref_equals_string(asta->name, LANG_TYPENAME_BOOL)) {
         return bty_bool();
-    } else if(srcref_equals_string(a->name, LANG_TYPENAME_CHAR)) {
+    } else if(srcref_equals_string(asta->name, LANG_TYPENAME_CHAR)) {
         return bty_char();
     } else {
-        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, a->name);
+        trace_msg_t* m = trace_create_message(t, TM_ERROR, asta->name);
         trace_msg_append_costr(m, "unhandled type signature");
         return NULL;
     }
+}
+
+bty_type_t* bty_extract_type(arena_t* a, trace_t* t, ast_node_t* n) {
+    if( n->type != AST_TYANNOT )
+        return NULL;
+    ast_node_t* expr = n->u.n_tyannot.expr;
+    ast_annot_t* annot = n->u.n_tyannot.type;
+    switch(expr->type) {
+        case AST_VAR_REF: return bty_from_ast_annot(a, t, annot);
+        case AST_FUN_DECL: {
+            bty_type_t* ft = bty_func(a);
+            bty_func_set_return_type(ft,
+                bty_from_ast_annot(a, t, annot));
+            assert(expr->u.n_fundecl.argspec->type == AST_ARGLIST);
+            ast_arglist_t args = expr->u.n_fundecl.argspec->u.n_args;
+            for(size_t i = 0; i < args.count; i++) {
+                bty_type_t* at = bty_extract_type(a,t,args.content[i]);
+                if( at == NULL )
+                    return NULL;
+                bty_func_add_arg(a, ft, at);
+            }
+            return ft;
+        }
+        case AST_FUN_EXDECL: {
+            bty_type_t* ft = bty_func(a);
+            bty_func_set_return_type(ft,
+                bty_from_ast_annot(a, t, annot));
+            assert(expr->u.n_funexdecl.argspec->type == AST_ARGLIST);
+            ast_arglist_t args = expr->u.n_funexdecl.argspec->u.n_args;
+            for(size_t i = 0; i < args.count; i++) {
+                bty_type_t* at = bty_extract_type(a,t,args.content[i]);
+                if( at == NULL )
+                    return NULL;
+                bty_func_add_arg(a, ft, at);
+            }
+            return ft;
+        }
+        default: return NULL;
+    }
+}
+
+srcref_t bty_extract_name(ast_node_t* n) {
+    if( n->type == AST_VAR_REF )
+        return n->u.n_varref.name;
+    if( n->type == AST_FUN_DECL )
+        return n->u.n_fundecl.name;
+    if( n->type == AST_FUN_EXDECL )
+        return n->u.n_funexdecl.name;
+    if( n->type == AST_TYANNOT )
+        return bty_extract_name(n->u.n_tyannot.expr);
+    return (srcref_t) { 0 };
 }
 
 bty_type_t* bty_synth_var_reference(bty_ctx_t* c, ast_varref_t v) {
@@ -426,13 +577,15 @@ bty_type_t* bty_synth_var_reference(bty_ctx_t* c, ast_varref_t v) {
         trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, v.name);
         trace_msg_append_costr(m, "reference to undefined variable: ");
         trace_msg_append_srcref(m, v.name);
+        return bty_error(c->arena, BTY_ERR_TYPECHECK);
     }
-    return ty; // maybe return some error type instead of NULL?
+    return ty;
 }
+
 
 bty_type_t* bty_synth_all_same_or_null(bty_ctx_t* c, ast_node_t** coll, size_t len) {
     if( len == 0 )
-        return bty_unknown();
+        return bty_error(c->arena, BTY_ERR_TYPECHECK);
     bty_type_t* ty = bty_synthesize(c, coll[0]);
     for(size_t i = 1; i < len; i++) {
         bty_type_t* tmp = bty_synthesize(c, coll[i]);
@@ -455,7 +608,7 @@ bty_type_t* bty_synth_unop(bty_ctx_t* c, ast_node_t* n) {
                 trace_msg_append_fmt(m,
                     "type-error: can't interpret %s as a boolean value",
                     sprint_bty_type(c->arena, ty));
-                return bty_unknown(); // todo: perhaps return some kind of error? 
+                return bty_error(c->arena, BTY_ERR_TYPECHECK);
             }
         } break;
         case AST_UN_NEG: {
@@ -464,7 +617,7 @@ bty_type_t* bty_synth_unop(bty_ctx_t* c, ast_node_t* n) {
                 trace_msg_append_fmt(m,
                     "type-error: can't interpret %s as a numeric value",
                     sprint_bty_type(c->arena, ty));
-                return bty_unknown(); // todo: perhaps return some kind of error? 
+                return bty_error(c->arena, BTY_ERR_TYPECHECK);
             }
         } break;
         default: {
@@ -496,6 +649,7 @@ bool is_allowed_binop_operand_type(ast_binop_type_t op, bty_type_t* ty) {
 
 bty_type_t* bty_synth_binop(bty_ctx_t* c, ast_node_t* n) {
     ast_binop_t op = n->u.n_binop;
+
     bty_type_t* lty = bty_synthesize(c, op.left);
     bty_type_t* rty = bty_synthesize(c, op.right);
 
@@ -513,7 +667,7 @@ bty_type_t* bty_synth_binop(bty_ctx_t* c, ast_node_t* n) {
             "type-error: binary operator unknown result type\n\tLHS: %s\n\tRHS: %s",
             sprint_bty_type(c->arena, lty),
             sprint_bty_type(c->arena, rty));
-        return bty_unknown(); // todo: perhaps return some kind of error? 
+        return bty_error(c->arena, BTY_ERR_TYPECHECK);
     }
 
     if( is_allowed_binop_operand_type(op.type, ty) == false ) {
@@ -521,7 +675,7 @@ bty_type_t* bty_synth_binop(bty_ctx_t* c, ast_node_t* n) {
         trace_msg_append_fmt(m,
             "type-error: unsupported operand type: %s",
             sprint_bty_type(c->arena, ty));
-        return bty_unknown(); // todo: perhaps return some kind of error? 
+        return bty_error(c->arena, BTY_ERR_TYPECHECK);
     }
 
     switch(op.type) {
@@ -547,17 +701,185 @@ bty_type_t* bty_synth_binop(bty_ctx_t* c, ast_node_t* n) {
         "type-error: unknown binary operator\n\tLHS: %s\n\tRHS: %s",
         sprint_bty_type(c->arena, lty),
         sprint_bty_type(c->arena, rty));
-    return bty_unknown();
+    return bty_error(c->arena, BTY_ERR_TYPECHECK);
+}
+
+bty_type_t* bty_synth_funcall(bty_ctx_t* c, ast_funcall_t fc) {
+    if( fc.args->type != AST_ARGLIST ) {
+        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_extract_srcref(fc.args));
+        trace_msg_append_costr(m, "invalid argument(s)");
+        return bty_error(c->arena, BTY_ERR_INTERNAL);
+    }
+    bty_type_t* fnty = bty_ctx_lookup(c, fc.name);
+    assert(fnty != NULL);
+    assert(fnty->tag == BTY_FUNC);
+    ast_arglist_t al = fc.args->u.n_args;
+    if( al.count != (size_t) fnty->u.fun.argc ) {
+        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_extract_srcref(fc.args));
+        trace_msg_append_costr(m, "argument count mismatch");
+        return bty_error(c->arena, BTY_ERR_TYPECHECK);
+    }
+    for(int i = 0; i < fnty->u.fun.argc; i++) {
+        bty_check(c, al.content[i], fnty->u.fun.args[i]);
+    }
+    return fnty->u.fun.ret;
+}
+
+static inline bool is_valid_if_link(ast_node_t* n) {
+    if( n == NULL )
+        return false;
+    return n->type == AST_IF_CHAIN;
+}
+
+static inline bool is_valid_else_block(ast_node_t* n) {
+    if( n == NULL )
+        return false;
+    if( n->type != AST_BLOCK )
+        return false;
+    return n->u.n_block.count > 0;
+}
+
+typedef struct agg_t {
+    trace_t* trace;
+    arena_t* arena;
+    bty_type_t* type;
+    int cnt_always;
+    int cnt_sometimes;
+    int cnt_never;
+} agg_t;
+
+bty_type_t* agg_select_container_type(agg_t* agg, bty_type_t* t, srcref_t ref) {
+    assert(t != NULL);
+    if( agg->type == NULL )
+        return t;
+    if( bty_is_subtype(t, agg->type) )
+        return agg->type;
+    if( bty_is_subtype(agg->type, t) )
+        return t;
+    trace_msg_t* m = trace_create_message(agg->trace, TM_ERROR, ref);
+    trace_msg_append_fmt(m,
+        "type-error: expected return type %s but got %s",
+        sprint_bty_type(agg->arena, agg->type),
+        sprint_bty_type(agg->arena, t));
+    return agg->type;
+}
+
+bool bty_synth_aggregate(agg_t* agg, bty_ctx_t* c, ast_node_t* n, bool clone_ctx) {
+    if( clone_ctx )
+        c = bty_ctx_clone(c);
+    bty_type_t* t = bty_synthesize(c, n);
+    switch(t->tag) {
+        case BTY_ALWAYS: {
+            agg->cnt_always ++;
+            agg->type = agg_select_container_type(agg, t->u.con, n->ref);
+            return true;
+        } break;
+        case BTY_SOMETIMES: {
+            agg->cnt_sometimes ++;
+            agg->type = agg_select_container_type(agg, t->u.con, n->ref);
+            return false;
+        } break;
+        case BTY_RETURN: {
+            agg->cnt_always ++;
+            agg->type = agg_select_container_type(agg, t, n->ref);
+            return true;
+        } break;
+        case BTY_NEVER: {
+            agg->cnt_never ++;
+            return false;
+        } break;
+        default: {
+            agg->cnt_never ++;
+            return false;
+        } break;
+    }
+}
+
+bty_type_t* bty_synth_if(bty_ctx_t* c, ast_node_t* n) {
+
+    agg_t agg = {
+        .cnt_always = 0,
+        .cnt_sometimes = 0,
+        .cnt_never = 0,
+        .type = NULL,
+        .trace = c->trace,
+        .arena = c->arena
+    };
+
+    while ( is_valid_if_link(n) ) {
+        ast_if_t ifs = n->u.n_if;
+        bty_check(c, ifs.cond, bty_bool());
+        bty_synth_aggregate(&agg, c, ifs.iftrue, true);
+        n = ifs.next;
+    }
+
+    if( is_valid_else_block(n) == false ) {
+        // all bodies (including else) return always(t)                             -> always(t)
+        // at least one body (including else) returns sometimes(t) or always(t)     -> sometimes(t)
+        // otherwise                                                                -> never
+        bty_synth_aggregate(&agg, c, n, true);
+        int total = agg.cnt_always
+            + agg.cnt_never 
+            + agg.cnt_sometimes;
+        if( total == agg.cnt_always )
+            return bty_always(c->arena, agg.type);
+    }
+
+    // no else branch:
+    //    at least one body returns sometimes(t) or always(t)   -> sometimes(t)
+    //    all bodies return never                               -> never
+    if( (agg.cnt_always + agg.cnt_sometimes) > 0 )
+        return bty_sometimes(c->arena, agg.type);
+
+    return bty_never();
+}
+
+bty_type_t* bty_synth_body(bty_ctx_t* c, ast_node_t* n) {
+
+    // all inferred are never                                   -> never
+    // all inferred are never with at least one sometimes(t)    -> sometimes(t)
+    // at least one inferred is always(t) (and is last)         -> always(t)
+    
+    assert(n->type == AST_BLOCK);
+
+    agg_t agg = {
+        .cnt_always = 0,
+        .cnt_sometimes = 0,
+        .cnt_never = 0,
+        .type = NULL,
+        .trace = c->trace,
+        .arena = c->arena
+    };
+
+    ast_block_t blk = n->u.n_block;
+    int count = blk.count > 0 ? (int) blk.count : 0;
+    for(int i = 0; i < count; i++) {
+        bool always_returns = bty_synth_aggregate(&agg, c, blk.content[i], false);
+        if( always_returns ) {
+            if( i < (count - 1) ) {
+                printf("todo: error - unreachable code (following return statement).\n");
+            }
+            return bty_always(c->arena, agg.type);
+        }
+    }
+
+    if( agg.cnt_sometimes == 0 )
+        return bty_never();
+
+    return bty_sometimes(c->arena, agg.type);
+}
+
+bty_type_t* bty_synth_foreach(bty_ctx_t* c, ast_node_t* n) {
+    assert(n->type == AST_FOREACH);
+    ast_foreach_t fe = n->u.n_foreach;
+    bty_ctx_t* loop_ctx = bty_ctx_clone(c);
+    bty_type_t* vt = bty_synthesize(loop_ctx, fe.vardecl);
+    bty_check(c, fe.collection, bty_list(c->arena, vt));
+    return bty_synthesize(loop_ctx, fe.during);
 }
 
 bty_type_t* bty_synthesize(bty_ctx_t* c, ast_node_t* n) {
     switch(n->type) {
-        case AST_VALUE: {
-            return bty_from_const_expr(c->arena, n);
-        }
-        case AST_VAR_REF: {
-            return bty_synth_var_reference(c, n->u.n_varref);
-        }
         case AST_ARRAY: {
             bty_type_t* ty = bty_synth_all_same_or_null(c,
                 n->u.n_array.content,
@@ -566,54 +888,153 @@ bty_type_t* bty_synthesize(bty_ctx_t* c, ast_node_t* n) {
                 return bty_list(c->arena, ty); 
             trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, n->ref);
             trace_msg_append_costr(m, "type-error: array contains mixed type elements");
-            return bty_unknown(); // todo: perhaps return some kind of error? 
+            return bty_error(c->arena, BTY_ERR_TYPECHECK);
         }
         case AST_TYANNOT: {
-            bty_type_t* ty = bty_from_annotation(c, n->u.n_tyannot.type);
-            bty_check(c, n->u.n_tyannot.expr, ty); // note: should check add to the context?
+            bty_type_t* ty = bty_extract_type(c->arena, c->trace, n);
+            srcref_t name = bty_extract_name(n);
+            if( ty == NULL || srcref_is_valid(name) == false ) {
+                trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, n->ref);
+                trace_msg_append_costr(m, "type-error: invalid type annotation(s)");
+                return bty_error(c->arena, BTY_ERR_TYPECHECK);
+            }
+            bty_ctx_insert(c, name, ty);
+            bty_check(c, n->u.n_tyannot.expr, ty);
             return ty;
-        }
-        case AST_UNOP: {
-            return bty_synth_unop(c, n);
-        }
-        case AST_BINOP: {
-            return bty_synth_binop(c, n);
         }
         case AST_ASSIGN: {
             bty_type_t* ty = bty_synthesize(c, n->u.n_assign.left_var);
             bty_check(c, n->u.n_assign.right_value, ty);
-            return ty;
-        }
-        case AST_RETURN: {
-            return bty_synthesize(c, n->u.n_return.result);
-        }
-        case AST_BREAK: {
             return bty_void();
         }
-        default: return bty_unknown();
+        case AST_VALUE:     return bty_from_const_expr(c->arena, n);
+        case AST_VAR_REF:   return bty_synth_var_reference(c, n->u.n_varref);
+        case AST_UNOP:      return bty_synth_unop(c, n);
+        case AST_BINOP:     return bty_synth_binop(c, n);
+        case AST_RETURN:    return bty_return(c->arena, bty_synthesize(c, n->u.n_return.result));
+        case AST_BREAK:     return bty_void();
+        case AST_FUN_CALL:  return bty_synth_funcall(c, n->u.n_funcall);
+        case AST_IF_CHAIN:  return bty_synth_if(c, n);
+        case AST_BLOCK:     return bty_synth_body(c, n);
+        case AST_FOREACH:   return bty_synth_foreach(c, n);
+        default:            return bty_error(c->arena, BTY_ERR_INTERNAL);
     }
 }
 
 
+void bty_check_fundecl(bty_ctx_t* c, ast_node_t* n, bty_type_t* et) {
+    assert(et->tag == BTY_FUNC);
+
+    if( n->type != AST_FUN_DECL ) {
+        assert( n->type == AST_FUN_EXDECL );
+        return;
+    }
+
+    bty_fun_t ft = et->u.fun;
+    ast_fundecl_t fd = n->u.n_fundecl;
+    assert( fd.argspec->type == AST_ARGLIST );
+    ast_arglist_t al = fd.argspec->u.n_args;
+    if( al.count != (size_t) ft.argc ) {
+        trace_msg_t* m = trace_create_message(c->trace,
+            TM_ERROR, 
+            ast_extract_srcref(n));
+        trace_msg_append_fmt(m,
+            "type-error: expected %d args, but got %lu",
+            ft.argc,
+            al.count);
+        return;
+    }
+
+
+    bty_ctx_t* body_ctx = bty_ctx_clone(c);
+
+    size_t count = al.count;
+    for(size_t i = 0; i < count; i++) {
+        bty_check(body_ctx, al.content[i], ft.args[i]);
+    }
+
+    bty_check(body_ctx, fd.body,
+        bty_always(c->arena, 
+            bty_return(c->arena, ft.ret)));
+}
+
 
 void bty_check(bty_ctx_t* c, ast_node_t* n, bty_type_t* et) {
 
-    // note: not sure about this, adding a var to the context
-    // only if it does not already exist
-    if( n->type == AST_VAR_REF && bty_ctx_lookup(c, n->u.n_varref.name) == NULL ) {
-        bool res = bty_ctx_insert(c, n->u.n_varref.name, et);
-        assert(res);
+    // todo: handle extdecls
+    if( et->tag == BTY_FUNC ) {
+        bty_check_fundecl(c, n, et);
         return;
     }
 
     bty_type_t* ty = bty_synthesize(c, n);
     if( bty_is_subtype(ty, et) == false ) {
-        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, n->ref);
+        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_extract_srcref(n));
         trace_msg_append_fmt(m,
-            "type-error: expected %s but got %s",
+            "type-error: expected %s but got %s\n",
             sprint_bty_type(c->arena, et),
             sprint_bty_type(c->arena, ty));
+
+        /*printf("expected %s but got %s\n (%s) == ",
+            sprint_bty_type(c->arena, et),
+            sprint_bty_type(c->arena, ty),
+            sprint_bty_type(c->arena, ty)),
+        ast_dump(n);
+        printf("\n");*/
+        return;
     }
+}
+
+bool is_toplevel_definition(ast_node_t* n) {
+    if(n->type == AST_TYANNOT) {
+        ast_node_type_t t = n->u.n_tyannot.expr->type;
+        return t == AST_FUN_DECL || t == AST_FUN_EXDECL;
+    }
+    return false;
+}
+
+bool bty_typecheck(bty_ctx_t* ctx, ast_node_t* program) {
+
+    assert(program->type == AST_BLOCK);
+    size_t count = program->u.n_block.count;
+
+    for(size_t i = 0; i < count; i++) {
+        ast_node_t* def = program->u.n_block.content[i];
+        if( is_toplevel_definition(def) == false ) {
+            trace_msg_t* m = trace_create_message(ctx->trace, TM_ERROR, def->ref);
+            trace_msg_append_fmt(m,
+                "type-error: invalid top-level definition:\n ****** \n%.*s\n ****** \n",
+                srcref_len(def->ref),
+                srcref_ptr(def->ref));
+        } else {
+            bty_type_t* dt = bty_synthesize(ctx, def);
+            if( dt->tag == BTY_ERROR ) {
+                trace_msg_t* m = trace_create_message(ctx->trace, TM_ERROR, def->ref);
+                trace_msg_append_fmt(m,
+                    "type-error: %s\n",
+                     (dt->u.err.erc == BTY_ERR_INTERNAL
+                        ? "internal error"
+                        : "typecheck failed"));
+            }
+        }
+    }
+
+    if( trace_get_error_count(ctx->trace) > 0 )
+        return false;
+
+    bty_type_t* main_type = bty_ctx_lookup(ctx, srcref_const("main"));
+
+    bool has_main = false;
+    if( main_type != NULL ) 
+        has_main = main_type->tag == BTY_FUNC;
+
+    if( has_main == false ) {
+        trace_msg_t* m = trace_create_message(ctx->trace, TM_ERROR, program->ref);
+        trace_msg_append_fmt(m,
+            "type-error: the program is missing the main function (entrypoint)\n");
+    }
+
+    return true;
 }
 
 

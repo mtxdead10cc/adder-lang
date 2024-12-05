@@ -362,16 +362,17 @@ void test_ast(test_case_t* this) {
     ast_block_add(arena, body,
         ast_return(arena, ast_varref(arena, srcref(buf, 6, 3))));
 
-    ast_node_t* fun = ast_fundecl(arena,
-        srcref(buf, 0, 4),
-        decl_args,
-        body,
-        ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT)));
+    ast_node_t* fun = ast_tyannot(arena,
+        ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT)),
+        ast_fundecl(arena,
+            srcref(buf, 0, 4),
+            decl_args,
+            body));
 
     trace_t trace = { 0 };
     trace_init(&trace, 16);
 
-    gvm_program_t program = gvm_compile(arena, fun, &trace);
+    gvm_program_t program = gvm_compile(arena, ast_block_with(arena, fun), &trace);
     if( trace_get_error_count(&trace) > 0 ) {
         trace_fprint(stdout, &trace);
     }
@@ -600,7 +601,7 @@ val_t test_printfn(gvm_t* vm, size_t argcount, val_t* args) {
     }                                                   \
 } while(false)
 
-void test_compile_and_run(test_case_t* this, char* test_category, char* source_code, char* expected_result, char* tc_name, char* tc_filepath) {
+bool test_compile_and_run(test_case_t* this, char* test_category, char* source_code, char* expected_result, char* tc_name, char* tc_filepath) {
 
     static char result_as_text[512] = {0};
     arena_t* arena = arena_create(1024);
@@ -645,7 +646,7 @@ void test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         arena_destroy(arena);
         pa_destroy(&parser);
         trace_destroy(&trace);
-        return;
+        return is_known_todo;
     }
 
     ast_node_t* node = par_extract_node(result);
@@ -671,7 +672,7 @@ void test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         pa_destroy(&parser);
         arena_destroy(arena);
         trace_destroy(&trace);
-        return;
+        return is_known_todo;
     }
 
     gvm_t vm;
@@ -740,6 +741,8 @@ void test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     arena_destroy(arena);
     gvm_destroy(&vm);
     trace_destroy(&trace);
+
+    return true;
 }
 
 
@@ -754,21 +757,25 @@ void test_langtest(test_case_t* this) {
     "  return q;\n"
     "}\n";
 
-    test_compile_and_run(this,
+    bool accepted = test_compile_and_run(this,
         "verify",
         text, "75.0",
-        "simple-main",
-        "builtin"); 
+        "initial: simple-main",
+        "builtin");
+    if( accepted == false )
+        return; 
 
     size_t tc_count = sizeof(langtest_testcases) / sizeof(langtest_testcases[0]);
     for (size_t i = 0; i < tc_count; i++) {
         ltc_t tc = langtest_testcases[i];
-        test_compile_and_run(this,
+        accepted = test_compile_and_run(this,
             tc.category,
             tc.code,
             tc.expect,
             tc.name,
             tc.filepath);
+        if( accepted == false )
+            return; 
     }
 }
 
@@ -854,6 +861,63 @@ void test_arena_alloc(test_case_t* this) {
     arena_destroy(a);
 }
 
+bool check_ctx_lookup(bty_ctx_t* ctx, const char* name, bty_tag_t expected) {
+    bty_type_t* res = bty_ctx_lookup(ctx, srcref_const(name));
+    if( res == NULL )
+        return false;
+    return res->tag == expected;
+}
+
+void test_typing_context(test_case_t* this) {
+    arena_t* a = arena_create(2048);
+
+    trace_t trace = { 0 };
+    trace_init(&trace, 5);
+
+    bty_ctx_t* c = bty_ctx_create(a, &trace, 1);
+
+    TEST_ASSERT_MSG(this,
+        bty_ctx_insert(c, srcref_const("a"), bty_int()),
+        "#1.1 bty_ctx_insert");
+
+    TEST_ASSERT_MSG(this,
+        bty_ctx_insert(c, srcref_const("sdaga"), bty_bool()),
+        "#1.2 bty_ctx_insert");
+
+    TEST_ASSERT_MSG(this,
+        bty_ctx_insert(c, srcref_const("0sdgfg"), bty_float()),
+        "#1.3 bty_ctx_insert");
+
+    TEST_ASSERT_MSG(this,
+        check_ctx_lookup(c, "a", BTY_INT),
+        "#2.1 bty_ctx_lookup");
+
+    TEST_ASSERT_MSG(this,
+        check_ctx_lookup(c, "sdaga", BTY_BOOL),
+        "#2.2 bty_ctx_lookup");
+
+    TEST_ASSERT_MSG(this,
+        check_ctx_lookup(c, "0sdgfg", BTY_FLOAT),
+        "#2.3 bty_ctx_lookup");
+
+    c = bty_ctx_clone(c);
+    
+    TEST_ASSERT_MSG(this,
+        check_ctx_lookup(c, "a", BTY_INT),
+        "#3.1 bty_ctx_lookup");
+
+    TEST_ASSERT_MSG(this,
+        check_ctx_lookup(c, "sdaga", BTY_BOOL),
+        "#3.2 bty_ctx_lookup");
+
+    TEST_ASSERT_MSG(this,
+        check_ctx_lookup(c, "0sdgfg", BTY_FLOAT),
+        "#3.3 bty_ctx_lookup");
+
+    trace_destroy(&trace);
+    arena_destroy(a);
+}
+
 void test_inference(test_case_t* this) {
     arena_t* a = arena_create(2048);
 
@@ -878,15 +942,15 @@ void test_inference(test_case_t* this) {
         arr);
 
     bty_ctx_t* ctx = bty_ctx_create(a, &trace, 16);
-    bty_type_t* t = bty_synthesize(ctx, n);
+    bty_synthesize(ctx, n);
 
-    printf("Type: %s\n", sprint_bty_type(a, t));
+    //printf("Type: %s\n", sprint_bty_type(a, t));
 
     TEST_ASSERT_MSG(this,
         trace_get_error_count(&trace) == 0,
         "#1.0 synth error");
 
-    bty_ctx_dump(ctx);
+    //bty_ctx_dump(ctx);
     trace_clear(&trace);
 
     ctx = bty_ctx_create(a, &trace, 16);
@@ -900,9 +964,9 @@ void test_inference(test_case_t* this) {
             ast_int(a, 0),
             ast_int(a, 1)));
 
-    t = bty_synthesize(ctx, n);
+    bty_synthesize(ctx, n);
 
-    printf("Type: %s\n", sprint_bty_type(a, t));
+    //printf("Type: %s\n", sprint_bty_type(a, t));
 
     TEST_ASSERT_MSG(this,
         trace_get_error_count(&trace) == 0,
@@ -946,18 +1010,23 @@ test_results_t run_testcases() {
             .nfailed = 0
         },
         {
-            .name = "language test",
-            .test = test_langtest,
-            .nfailed = 0
-        },
-        {
             .name = "shared utils test",
             .test = test_shared_utils,
             .nfailed = 0
         },
         {
+            .name = "typing context test",
+            .test = test_typing_context,
+            .nfailed = 0
+        },
+        {
             .name = "type inference test",
             .test = test_inference,
+            .nfailed = 0
+        },
+        {
+            .name = "language test",
+            .test = test_langtest,
             .nfailed = 0
         }
     };

@@ -109,10 +109,10 @@ void todo_list() {
     todo_item_t items[] = {        
         { false, "VM execute must verify that all required " 
                  "native_funsign_t requirenments are fulfilled." },
-        { false, "Compiler checks return type on funcall." },
+        { true, "Compiler checks return type on funcall." },
         { false, "Foreach break." },
-        { false, "Typechecker: figure out how to have var declarations without assignments."},
-        { false, "Improve the typechecking (maybe use ast_annot_t instead of strings)." }
+        { true, "Typechecker: figure out how to have var declarations without assignments."},
+        { true,  "Improve the typechecking (maybe use ast_annot_t instead of strings)." }
     };
     size_t count = sizeof(items) / sizeof(items[0]);
     print_todo_list(items, count);

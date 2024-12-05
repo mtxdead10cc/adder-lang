@@ -273,7 +273,7 @@ pa_result_t pa_try_parse_func_call(parser_t* parser) {
     pa_advance(parser);
     pa_advance(parser);
 
-    ast_node_t* args = ast_block(parser->arena);
+    ast_node_t* args = ast_arglist(parser->arena);
 
     if( pa_advance_if(parser, TT_CLOSE_PAREN) ) {
         return par_node(ast_funcall(parser->arena, func_name.ref, args), NULL);
@@ -284,7 +284,7 @@ pa_result_t pa_try_parse_func_call(parser_t* parser) {
         if( par_is_node(expr_res) == false ) {
             return expr_res;
         }
-        ast_block_add(parser->arena, args, par_extract_node(expr_res));
+        ast_arglist_add(parser->arena, args, par_extract_node(expr_res));
     } while( pa_advance_if(parser, TT_SEPARATOR) );
 
     pa_result_t result = pa_consume(parser, TT_CLOSE_PAREN);
@@ -817,10 +817,11 @@ pa_result_t pa_parse_funexdecl(parser_t* parser) {
         return result;
     
     return par_node(
-            ast_funexdecl(parser->arena,
-                funname.ref,
-                par_extract_node(result),
-                retannot),
+            ast_tyannot(parser->arena,
+                retannot,
+                ast_funexdecl(parser->arena,
+                    funname.ref,
+                    par_extract_node(result))),
             &funname.ref);
 }
 
@@ -854,11 +855,12 @@ pa_result_t pa_try_parse_fundecl(parser_t* parser) {
     ast_node_t* body = par_extract_node(result);
 
     return par_node(
+        ast_tyannot(parser->arena,
+            retannot,
             ast_fundecl(parser->arena,
                 funname.ref,
                 arglist,
-                body,
-                retannot),
+                body)),
             &funname.ref);
 }
 

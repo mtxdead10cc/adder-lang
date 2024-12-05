@@ -712,10 +712,16 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
             codegen_value(node->u.n_value, state);
         } break;
         case AST_TYANNOT: {
-            ast_node_t* var = node->u.n_tyannot.expr;
-            assert(var->type == AST_VAR_REF);
-            // just add valiable name to frame local var set.
-            state_add_localvar(state, var->u.n_varref.name);
+            if( node->u.n_tyannot.expr->type == AST_VAR_REF ) {
+                ast_node_t* var = node->u.n_tyannot.expr;
+                // just add valiable name to frame local var set.
+                state_add_localvar(state, var->u.n_varref.name);
+            } else {
+                // this is a function annotated with its return type
+                ast_node_t* expr = node->u.n_tyannot.expr;
+                assert( expr->type == AST_FUN_DECL || expr->type == AST_FUN_EXDECL );
+                codegen(node->u.n_tyannot.expr, state);
+            }
         } break;
         case AST_BREAK: {
             assert(false && "break op is not implemented yet");
@@ -804,15 +810,12 @@ gvm_program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace) {
     gvm_program_t program = { 0 };
 
     trace_clear(trace);
-    //bty_ctx_t* ctx = typing_check(arena, trace, node);
-    if( trace_get_error_count(trace) > 0 ) {
-        // typecheck failed
+
+    bty_ctx_t* typing_ctx = bty_ctx_create(arena, trace, 16); 
+    if( bty_typecheck(typing_ctx, node) == false ) {
         return program;
     }
 
-    //(void)(ctx);
-
-    (void)(arena);
 
     compiler_state_t state = (compiler_state_t) {
         .trace = trace

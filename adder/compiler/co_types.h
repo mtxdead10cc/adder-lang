@@ -271,13 +271,11 @@ typedef struct ast_unop_t {
 typedef struct ast_funexdecl_t {
     srcref_t            name;
     ast_node_t*         argspec;
-    ast_annot_t*        retannot;
 } ast_funexdecl_t;
 
 typedef struct ast_fundecl_t {
     srcref_t            name;
     ast_node_t*         argspec;
-    ast_annot_t*        retannot;
     ast_node_t*         body;
 } ast_fundecl_t;
 

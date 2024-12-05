@@ -26,8 +26,8 @@ int add(int a, int b) {
     return a + b;
 }
 int main() {
-    int a = 3;
-    return add(a, 4);
+    int g = 3;
+    return add(g, 4);
 }
 $VERIFY("7")
 

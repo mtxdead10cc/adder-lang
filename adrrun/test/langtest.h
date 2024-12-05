@@ -54,8 +54,8 @@ ltc_t langtest_testcases[] = {
         "    return a + b;\n"
         "}\n"
         "int main() {\n"
-        "    int a = 3;\n"
-        "    return add(a, 4);\n"
+        "    int g = 3;\n"
+        "    return add(g, 4);\n"
         "}\n",
         .expect = "7",
         .filepath = "basics.txt"

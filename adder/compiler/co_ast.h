@@ -129,6 +129,18 @@ inline static void ast_block_add(arena_t* a, ast_node_t* block, ast_node_t* node
     block->u.n_block.content[block->u.n_block.count++] = node;
 }
 
+inline static ast_node_t* ast_block_with(arena_t* a, ast_node_t* content) {
+    ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
+    node->type = AST_BLOCK;
+    node->ref = (srcref_t) { 0 };
+    node->u.n_block = (ast_block_t) {
+        .count = 0,
+        .content = NULL
+    };
+    ast_block_add(a, node, content);
+    return node;
+}
+
 inline static ast_node_t* ast_array(arena_t* a) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_ARRAY;
@@ -206,8 +218,7 @@ inline static ast_node_t* ast_break(arena_t* a) {
 }
 
 inline static ast_node_t* ast_funexdecl( arena_t* a, srcref_t name,
-                                         ast_node_t* args,
-                                         ast_annot_t* retannot ) 
+                                         ast_node_t* args ) 
 {
     assert(args->type == AST_ARGLIST);
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
@@ -215,16 +226,14 @@ inline static ast_node_t* ast_funexdecl( arena_t* a, srcref_t name,
     node->ref = (srcref_t) { 0 };
     node->u.n_funexdecl = (ast_funexdecl_t) {
         .name = name,
-        .argspec = args,
-        .retannot = retannot
+        .argspec = args
     };
     return node;
 }
 
 inline static ast_node_t* ast_fundecl( arena_t* a, srcref_t name,
                                        ast_node_t* args,
-                                       ast_node_t* body,
-                                       ast_annot_t* retannot ) 
+                                       ast_node_t* body ) 
 {
     assert(body->type == AST_BLOCK);
     assert(args->type == AST_ARGLIST);
@@ -234,7 +243,6 @@ inline static ast_node_t* ast_fundecl( arena_t* a, srcref_t name,
     node->u.n_fundecl = (ast_fundecl_t) {
         .name = name,
         .argspec = args,
-        .retannot = retannot,
         .body = body
     };
     return node;
@@ -402,8 +410,6 @@ inline static srcref_t ast_extract_srcref(ast_node_t* node) {
         } break;
         case AST_FUN_EXDECL: {
             srcref_t combined = { 0 };
-            combined = srcref_combine(combined,
-                ast_srcref_from_annotation(node->u.n_funexdecl.retannot));
             combined = srcref_combine(combined,
                 ast_extract_srcref(node->u.n_funexdecl.argspec));
             combined = srcref_combine(combined,
@@ -615,15 +621,11 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
         case AST_FUN_DECL: {
             srcref_print(node->u.n_fundecl.name);
             _ast_dump(node->u.n_fundecl.argspec, indent + 1);
-            printf(" -> ");
-            _ast_dump_annot(node->u.n_fundecl.retannot);
             printf(" body: "); _ast_dump(node->u.n_fundecl.body, indent + 2);                       _ast_nl(indent);
         } break;
         case AST_FUN_EXDECL: {
             srcref_print(node->u.n_funexdecl.name);
             _ast_dump(node->u.n_funexdecl.argspec, indent + 1);
-            printf(" -> ");
-            _ast_dump_annot(node->u.n_funexdecl.retannot);
         } break;
         case AST_FUN_CALL: {
             srcref_print(node->u.n_funcall.name);
