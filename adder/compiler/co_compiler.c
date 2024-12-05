@@ -737,7 +737,7 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
 
 void recalc_index_to_bytecode_adress(ir_list_t* instrs) {
     
-    uint32_t idx2addr[instrs->count];
+    uint32_t idx2addr[instrs->count+1];
     uint32_t addr = 0;
     const uint32_t argbytes = 4; // 32-bit args
     
@@ -746,6 +746,11 @@ void recalc_index_to_bytecode_adress(ir_list_t* instrs) {
         uint32_t argcount = get_op_arg_count(instrs->irs[i].opcode);
         addr = addr + (argcount * argbytes) + 1;
     }
+
+    // needed for jumps landing
+    // after last instruction
+    // happens for if ... else ...
+    idx2addr[instrs->count] = addr; 
 
     for (uint32_t i = 0; i < instrs->count; i++) {
         switch(instrs->irs[i].opcode) {
@@ -761,6 +766,8 @@ void recalc_index_to_bytecode_adress(ir_list_t* instrs) {
             default: break;
         }
     }
+
+    
 }
 
 gvm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts, funsign_set_t* imports) {
@@ -862,12 +869,16 @@ gvm_program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace) {
 
     codegen(node, &state);
 
+    // add final halt instruction
+    irl_add(&state.instrs, (ir_inst_t) {
+        .opcode = OP_HALT,
+        .args = { 0 }
+    });
+
     if( trace_get_error_count(state.trace) == 0 ) {
         ir_index_t index = state_get_funcaddr(&state, srcref_const("main"));
         if(index.tag == IRID_INS) {
-            //assert(index.tag == IRID_INS && "main entrypoint not found");
             irl_get(&state.instrs, entrypoint)->args[0] = index.idx;
-            // irl_dump(&state.instrs);
             program = write_program(&state.instrs, &state.consts, &state.extdecls);
         } else {
             trace_msg_t* msg = trace_create_message(state.trace, TM_ERROR, trace_no_ref());

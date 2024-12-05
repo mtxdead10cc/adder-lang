@@ -185,20 +185,46 @@ inline static void ast_arglist_add(arena_t* a, ast_node_t* args, ast_node_t* nod
     args->u.n_args.content[args->u.n_args.count++] = node;
 }
 
-// TODO: THE COMPILER MUST HANDLE ESCAPE CODES!!!
-
 inline static ast_node_t* ast_string(arena_t* a, srcref_t val) {
     ast_node_t* char_array = ast_array(a);
     char_array->ref = val;
+
     // account for the fact that strings are qouted
     ptrdiff_t len = srcref_len(val) - 2;
     char*     str = srcref_ptr(val) + 1;
+
     for (ptrdiff_t i = 0; i < len; i++) {
-        ast_node_t* n = ast_char(a, str[i]);
-        n->ref = srcref(val.source,
+        char c0 = str[i];
+        char c1 = str[min(i+1, len)];
+        
+        srcref_t ref = srcref(val.source,
             val.idx_start + 1 + i, 1);
+
+        // handle escape sequences
+
+        if( c0 == '\\' ) {
+            if( c1 == 'n' ) {
+                c0 = 0x0A;
+                i = min(i+1, len);
+            } else if ( c1 == 't' ) {
+                c0 = 0x09;
+                i = min(i+1, len);
+            } else if ( c1 == 'v' ) {
+                c0 = 0x0B;
+                i = min(i+1, len);
+            } else if ( c1 == 'a' ) {
+                c0 = 0x07;
+                i = min(i+1, len);
+            } else if ( c1 == '\\' ) {
+                i = min(i+1, len);
+            }
+        }
+
+        ast_node_t* n = ast_char(a, c0);
+        n->ref = ref;
         ast_array_add(a, char_array, n);
     }
+
     return char_array;
 }
 
@@ -623,7 +649,7 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
         case AST_FUN_DECL: {
             srcref_print(node->u.n_fundecl.name);
             _ast_dump(node->u.n_fundecl.argspec, indent + 1);
-            printf(" body: "); _ast_dump(node->u.n_fundecl.body, indent + 2);                       _ast_nl(indent);
+            printf(" body: "); _ast_dump(node->u.n_fundecl.body, indent + 2); _ast_nl(indent);
         } break;
         case AST_FUN_EXDECL: {
             srcref_print(node->u.n_funexdecl.name);

@@ -337,7 +337,7 @@ bool bty_is_subtype(bty_type_t* child, bty_type_t* parent) {
                                 || parent->tag == BTY_INT;
         case BTY_BOOL:      return parent->tag == BTY_BOOL;
         case BTY_VOID:      return parent->tag == BTY_VOID;
-        case BTY_NEVER:     return parent->tag == BTY_VOID;
+        case BTY_NEVER:     return parent->tag == BTY_NEVER;
         case BTY_ALWAYS:    return bty_is_always_subtype(child, parent);
         case BTY_RETURN:    return bty_is_return_subtype(child, parent);
         case BTY_LIST:      return bty_is_list_subtype(child, parent);
@@ -819,7 +819,7 @@ bty_type_t* bty_synth_if(bty_ctx_t* c, ast_node_t* n) {
         n = ifs.next;
     }
 
-    if( is_valid_else_block(n) == false ) {
+    if( is_valid_else_block(n) ) {
         // all bodies (including else) return always(t)                             -> always(t)
         // at least one body (including else) returns sometimes(t) or always(t)     -> sometimes(t)
         // otherwise                                                                -> never
@@ -919,11 +919,16 @@ bty_type_t* bty_synthesize(bty_ctx_t* c, ast_node_t* n) {
             bty_check(c, n->u.n_assign.right_value, ty);
             return bty_void();
         }
+        case AST_RETURN: {
+            bty_type_t* type = bty_synthesize(c, n->u.n_return.result);
+            if( type->tag == BTY_NEVER )
+                return bty_never();
+            return bty_return(c->arena, type);
+        } break;
         case AST_VALUE:     return bty_from_const_expr(c->arena, n);
         case AST_VAR_REF:   return bty_synth_var_reference(c, n->u.n_varref);
         case AST_UNOP:      return bty_synth_unop(c, n);
         case AST_BINOP:     return bty_synth_binop(c, n);
-        case AST_RETURN:    return bty_return(c->arena, bty_synthesize(c, n->u.n_return.result));
         case AST_BREAK:     return bty_void();
         case AST_FUN_CALL:  return bty_synth_funcall(c, n->u.n_funcall);
         case AST_IF_CHAIN:  return bty_synth_if(c, n);
@@ -974,9 +979,13 @@ void bty_check_fundecl(bty_ctx_t* c, ast_node_t* n, bty_type_t* et) {
         bty_check(body_ctx, al.content[i], ft.args[i]);
     }
 
-    bty_check(body_ctx, fd.body,
-        bty_always(c->arena, 
-            bty_return(c->arena, ft.ret)));
+    if( ft.ret->tag == BTY_VOID ) {
+        bty_check(body_ctx, fd.body, bty_never());    
+    } else {
+        bty_check(body_ctx, fd.body,
+            bty_always(c->arena, 
+                bty_return(c->arena, ft.ret)));
+    }
 }
 
 

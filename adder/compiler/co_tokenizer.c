@@ -111,7 +111,7 @@ void sweep_discard_token(
 {
     size_t start = state->cursor;
     size_t len = sweep_while(state, offset, while_true);
-    assert(len > 0 && "unexpected sweep_while progress");
+    //assert(len > 0 && "unexpected sweep_while progress");
     len = len + offset + trailing;
     state->cursor = start + len;
 }

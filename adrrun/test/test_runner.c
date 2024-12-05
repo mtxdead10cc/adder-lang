@@ -518,7 +518,7 @@ void test_tokenizer(test_case_t* this) {
             .incl_space = false
         },
         {
-            .text = "a = b;",
+            .text = "a = b;//\n//",
             .tokens_types = (token_type_t[]){
                 TT_INITIAL,
                 TT_SYMBOL,

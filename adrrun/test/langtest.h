@@ -177,6 +177,16 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "true",
         .filepath = "basics.txt"
+    },
+    {
+        .category = "todo",
+        .name = "double-negative-parens",
+        .code = 
+        "int main() {\n"
+        "    return 100 - (-100) - 200;\n"
+        "}\n",
+        .expect = "0",
+        .filepath = "basics.txt"
     }
 };
 
