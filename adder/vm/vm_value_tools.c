@@ -2,6 +2,7 @@
 #include "sh_utils.h"
 #include "vm.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 
 void val_print(val_t val) {
@@ -41,6 +42,15 @@ void val_print(val_t val) {
         printf("<unk>");
         break;
     }
+}
+
+void val_print_string(val_t* buffer, int length) {
+    char* cbuf = malloc(length + 1);
+    for(int i = 0; i < length; i++) {
+        cbuf[i] = val_into_char(buffer[i]);
+    }
+    cbuf[length] = '\0';
+    printf("%s", cbuf);
 }
 
 void val_print_lookup(val_t val, addr_lookup_fn lookup, void* user) {

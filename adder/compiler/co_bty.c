@@ -711,7 +711,13 @@ bty_type_t* bty_synth_funcall(bty_ctx_t* c, ast_funcall_t fc) {
         return bty_error(c->arena, BTY_ERR_INTERNAL);
     }
     bty_type_t* fnty = bty_ctx_lookup(c, fc.name);
-    assert(fnty != NULL);
+    if( fnty == NULL ) {
+        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, fc.name);
+        trace_msg_append_fmt(m, "function '%.*s' could not be found",
+            srcref_len(fc.name),
+            srcref_ptr(fc.name));
+        return bty_error(c->arena, BTY_ERR_TYPECHECK);
+    }
     assert(fnty->tag == BTY_FUNC);
     ast_arglist_t al = fc.args->u.n_args;
     if( al.count != (size_t) fnty->u.fun.argc ) {
@@ -898,7 +904,13 @@ bty_type_t* bty_synthesize(bty_ctx_t* c, ast_node_t* n) {
                 trace_msg_append_costr(m, "type-error: invalid type annotation(s)");
                 return bty_error(c->arena, BTY_ERR_TYPECHECK);
             }
-            bty_ctx_insert(c, name, ty);
+            bool insert_ok = bty_ctx_insert(c, name, ty);
+            if( insert_ok == false ) {
+                trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, n->ref);
+                trace_msg_append_fmt(m, "type-error: the name '%.*s' is already in use in this context",
+                    srcref_len(name),
+                    srcref_ptr(name));
+            }
             bty_check(c, n->u.n_tyannot.expr, ty);
             return ty;
         }
@@ -923,10 +935,20 @@ bty_type_t* bty_synthesize(bty_ctx_t* c, ast_node_t* n) {
 
 
 void bty_check_fundecl(bty_ctx_t* c, ast_node_t* n, bty_type_t* et) {
+
     assert(et->tag == BTY_FUNC);
 
-    if( n->type != AST_FUN_DECL ) {
-        assert( n->type == AST_FUN_EXDECL );
+    if( n->type == AST_FUN_EXDECL ) {
+        return;
+    }
+    
+    if ( n->type != AST_FUN_DECL ) {
+        trace_msg_t* m = trace_create_message(c->trace,
+            TM_INTERNAL_ERROR, 
+            ast_extract_srcref(n));
+        trace_msg_append_fmt(m,
+            "internal-error: fundecl unexpected node type %s",
+            ast_node_type_as_string(n->type));
         return;
     }
 
@@ -945,7 +967,6 @@ void bty_check_fundecl(bty_ctx_t* c, ast_node_t* n, bty_type_t* et) {
         return;
     }
 
-
     bty_ctx_t* body_ctx = bty_ctx_clone(c);
 
     size_t count = al.count;
@@ -961,7 +982,6 @@ void bty_check_fundecl(bty_ctx_t* c, ast_node_t* n, bty_type_t* et) {
 
 void bty_check(bty_ctx_t* c, ast_node_t* n, bty_type_t* et) {
 
-    // todo: handle extdecls
     if( et->tag == BTY_FUNC ) {
         bty_check_fundecl(c, n, et);
         return;
@@ -974,13 +994,6 @@ void bty_check(bty_ctx_t* c, ast_node_t* n, bty_type_t* et) {
             "type-error: expected %s but got %s\n",
             sprint_bty_type(c->arena, et),
             sprint_bty_type(c->arena, ty));
-
-        /*printf("expected %s but got %s\n (%s) == ",
-            sprint_bty_type(c->arena, et),
-            sprint_bty_type(c->arena, ty),
-            sprint_bty_type(c->arena, ty)),
-        ast_dump(n);
-        printf("\n");*/
         return;
     }
 }

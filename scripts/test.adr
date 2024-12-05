@@ -1,0 +1,19 @@
+
+#extern void print(string str);
+
+float addf(float a, float b) {
+    return a + b + 1000000.0;
+}
+
+int addi(int a, int b) {
+    return a + b;
+}
+
+bool main() {
+    print("yay!");
+    print("hello\n");
+    if( addf(1, 2) > 10000 ) {
+        return true;
+    }
+    return false;
+}

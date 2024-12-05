@@ -403,7 +403,7 @@ void codegen_fundecl(ast_fundecl_t node, compiler_state_t* state) {
 
     bool ok = state_add_funcaddr(state, funcname, frame_index);
 
-    assert(ok == true);
+    assert(ok && "the function already exists");
     
     srcmap_clear(&state->localvars);
 

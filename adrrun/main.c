@@ -41,6 +41,15 @@ val_t test(gvm_t* vm, size_t argcount, val_t* args) {
     return val_array(array);
 }
 
+val_t adr_print(gvm_t* vm, size_t argcount, val_t* args) {
+    for(size_t i = 0; i < argcount; i++) {
+        if( i > 0 )
+            printf(" ");
+        gvm_print_val(vm, args[i]);
+    }
+    return val_none();
+}
+
 bool run(char* path, bool verbose, bool keep_alive) {
     time_t last_creation_time = 0xFFFFFFFFFFFFFFFF;
     bool compile_ok = true;
@@ -69,7 +78,7 @@ bool run(char* path, bool verbose, bool keep_alive) {
             gvm_create(&vm, 128, 128);
 
             // register native functions
-            gvm_native_func(&vm, "test", "arr", 2, &test);
+            gvm_native_func(&vm, "print", "void", 1, &adr_print);
 
             // execute script
             gvm_exec_args_t args = { 0 };
@@ -111,6 +120,7 @@ void todo_list() {
                  "native_funsign_t requirenments are fulfilled." },
         { true, "Compiler checks return type on funcall." },
         { false, "Foreach break." },
+        { false, "The parser / compiler should handle char escape codes." },
         { true, "Typechecker: figure out how to have var declarations without assignments."},
         { true,  "Improve the typechecking (maybe use ast_annot_t instead of strings)." }
     };

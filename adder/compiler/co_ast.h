@@ -185,6 +185,8 @@ inline static void ast_arglist_add(arena_t* a, ast_node_t* args, ast_node_t* nod
     args->u.n_args.content[args->u.n_args.count++] = node;
 }
 
+// TODO: THE COMPILER MUST HANDLE ESCAPE CODES!!!
+
 inline static ast_node_t* ast_string(arena_t* a, srcref_t val) {
     ast_node_t* char_array = ast_array(a);
     char_array->ref = val;
