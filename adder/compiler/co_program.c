@@ -258,7 +258,7 @@ gvm_program_t gvm_program_compile_source(char* source, size_t source_len, char* 
     
     if( debug_print ) {
         arena_t* arena = arena_create(512);
-        printf("%s", sprint_ast(arena, 0, program_node));
+        printf("%s\n", sprint_ast(arena, 0, program_node));
         arena_destroy(arena);
     }
 

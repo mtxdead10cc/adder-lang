@@ -122,6 +122,6 @@ $VERIFY("true")
 
 $START("double-negative-parens")
 int main() {
-    return 100 - (-100) - 200;
+    return 100 - -100 - 200;
 }
-$TODO("0")
+$VERIFY("0")

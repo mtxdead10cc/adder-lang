@@ -182,11 +182,11 @@ ltc_t langtest_testcases[] = {
         .filepath = "basics.txt"
     },
     {
-        .category = "todo",
+        .category = "verify",
         .name = "double-negative-parens",
         .code = 
         "int main() {\n"
-        "    return 100 - (-100) - 200;\n"
+        "    return 100 - -100 - 200;\n"
         "}\n",
         .expect = "0",
         .filepath = "basics.txt"
