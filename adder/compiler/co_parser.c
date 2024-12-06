@@ -362,7 +362,7 @@ int get_precedence(ast_binop_type_t bin_op_type) {
 
 bool should_reorder(ast_binop_type_t op, ast_node_t* right) {
     if( right->type == AST_BINOP )
-        return get_precedence(op) > get_precedence(right->u.n_binop.type);
+        return get_precedence(op) >= get_precedence(right->u.n_binop.type);
     return false;
 }
 
@@ -389,7 +389,7 @@ pa_result_t pa_try_parse_binary_operation(pa_result_t lhs, parser_t* parser, tok
         ast_node_t* left = par_extract_node(lhs);
         ast_node_t* right = par_extract_node(rhs);
         // handle operator precedence
-        if( should_reorder(op, right) ) {
+        if( should_reorder(op, right) && rhs.group_expression == false ) {
             /* (A $ (B # C)) -> ((A $ B) # C)) =
                 ($ 
                  LHS: A
