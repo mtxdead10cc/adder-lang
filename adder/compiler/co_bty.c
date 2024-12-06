@@ -11,8 +11,7 @@ static bty_type_t bty_base_types[] = {
     { BTY_FLOAT,        {{0}} },
     { BTY_INT,          {{0}} },
     { BTY_CHAR,         {{0}} },
-    { BTY_BOOL,         {{0}} },
-    { BTY_NEVER,        {{0}} }
+    { BTY_BOOL,         {{0}} }
 };
 
 #define verify_base_type_array_member(I) \
@@ -47,11 +46,6 @@ bty_type_t* bty_char(void) {
 bty_type_t* bty_bool(void) {
     verify_base_type_array_member(BTY_BOOL);
     return &bty_base_types[BTY_BOOL];
-}
-
-bty_type_t* bty_never(void) {
-    verify_base_type_array_member(BTY_NEVER);
-    return &bty_base_types[BTY_NEVER];
 }
 
 bty_type_t* bty_from_const_array(arena_t* a, ast_array_t ar) {
@@ -193,10 +187,6 @@ bool bty_is_return(bty_type_t* ty) {
     return ty->tag == BTY_RETURN;
 }
 
-bool bty_is_never(bty_type_t* ty) {
-    return ty->tag == BTY_NEVER;
-}
-
 bool bty_is_sometimes(bty_type_t* ty) {
     return ty->tag == BTY_SOMETIMES;
 }
@@ -225,24 +215,21 @@ char* sprint_bty_type(arena_t* a, bty_type_t* ty) {
         case BTY_BOOL: {
             return asprintf(a, "bool");
         } break;
-        case BTY_NEVER: {
-            return asprintf(a, "never");
-        } break;
         case BTY_SOMETIMES: {
             return asprintf(a,
-                "sometimes %s", 
+                "%s or nothing", 
                 sprint_bty_type(a, 
                     ty->u.con));
         } break;
         case BTY_ALWAYS: {
             return asprintf(a,
-                "always %s", 
+                "%s", 
                 sprint_bty_type(a, 
                     ty->u.con));
         } break;
         case BTY_RETURN: {
             return asprintf(a,
-                "return %s", 
+                "return type %s", 
                 sprint_bty_type(a, 
                     ty->u.con));
         } break;
@@ -337,7 +324,6 @@ bool bty_is_subtype(bty_type_t* child, bty_type_t* parent) {
                                 || parent->tag == BTY_INT;
         case BTY_BOOL:      return parent->tag == BTY_BOOL;
         case BTY_VOID:      return parent->tag == BTY_VOID;
-        case BTY_NEVER:     return parent->tag == BTY_NEVER;
         case BTY_ALWAYS:    return bty_is_always_subtype(child, parent);
         case BTY_RETURN:    return bty_is_return_subtype(child, parent);
         case BTY_LIST:      return bty_is_list_subtype(child, parent);
@@ -790,7 +776,7 @@ bool bty_synth_aggregate(agg_t* agg, bty_ctx_t* c, ast_node_t* n, bool clone_ctx
             agg->type = agg_select_container_type(agg, t, n->ref);
             return true;
         } break;
-        case BTY_NEVER: {
+        case BTY_VOID: {
             agg->cnt_never ++;
             return false;
         } break;
@@ -837,7 +823,7 @@ bty_type_t* bty_synth_if(bty_ctx_t* c, ast_node_t* n) {
     if( (agg.cnt_always + agg.cnt_sometimes) > 0 )
         return bty_sometimes(c->arena, agg.type);
 
-    return bty_never();
+    return bty_void();
 }
 
 bty_type_t* bty_synth_body(bty_ctx_t* c, ast_node_t* n) {
@@ -870,7 +856,7 @@ bty_type_t* bty_synth_body(bty_ctx_t* c, ast_node_t* n) {
     }
 
     if( agg.cnt_sometimes == 0 )
-        return bty_never();
+        return bty_void();
 
     return bty_sometimes(c->arena, agg.type);
 }
@@ -921,8 +907,8 @@ bty_type_t* bty_synthesize(bty_ctx_t* c, ast_node_t* n) {
         }
         case AST_RETURN: {
             bty_type_t* type = bty_synthesize(c, n->u.n_return.result);
-            if( type->tag == BTY_NEVER )
-                return bty_never();
+            if( type->tag == BTY_VOID )
+                return bty_void();
             return bty_return(c->arena, type);
         } break;
         case AST_VALUE:     return bty_from_const_expr(c->arena, n);
@@ -980,7 +966,7 @@ void bty_check_fundecl(bty_ctx_t* c, ast_node_t* n, bty_type_t* et) {
     }
 
     if( ft.ret->tag == BTY_VOID ) {
-        bty_check(body_ctx, fd.body, bty_never());    
+        bty_check(body_ctx, fd.body, bty_void());    
     } else {
         bty_check(body_ctx, fd.body,
             bty_always(c->arena, 

@@ -19,7 +19,6 @@ typedef enum bty_tag_t {
     BTY_INT,
     BTY_CHAR,
     BTY_BOOL,
-    BTY_NEVER,
     BTY_SOMETIMES,
     BTY_ALWAYS,
     BTY_LIST,
