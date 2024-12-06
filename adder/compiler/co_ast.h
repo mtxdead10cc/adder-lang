@@ -304,6 +304,12 @@ inline static ast_node_t* ast_if( arena_t* a, ast_node_t* cond,
     return node;
 }
 
+inline static bool ast_is_valid_else_block(ast_node_t* node) {
+    if( node == NULL )
+        return false;
+    return node->type == AST_BLOCK
+        && node->u.n_block.count > 0;
+}
 
 inline static ast_node_t* ast_foreach( arena_t* a, ast_node_t* vardecl,
                                        ast_node_t* collection,

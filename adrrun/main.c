@@ -5,6 +5,7 @@
 #include <vm_value_tools.h>
 #include <vm_heap.h>
 #include <co_program.h>
+#include <co_ast.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,7 +51,7 @@ val_t adr_print(gvm_t* vm, size_t argcount, val_t* args) {
     return val_none();
 }
 
-bool run(char* path, bool verbose, bool keep_alive) {
+bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
     time_t last_creation_time = 0xFFFFFFFFFFFFFFFF;
     bool compile_ok = true;
 
@@ -64,13 +65,13 @@ bool run(char* path, bool verbose, bool keep_alive) {
         }
 
         last_creation_time = creation_time;
-        gvm_program_t program = gvm_program_read_and_compile(path);
+        gvm_program_t program = gvm_program_read_and_compile(path, show_ast);
         compile_ok = program.inst.size > 0;
         printf("%s [%s]\n", path, compile_ok ? "OK" : "FAILED");
         
         if( compile_ok ) {
 
-            if( verbose ) {
+            if( disassemble ) {
                 gvm_program_disassemble(stdout, &program);
             }
 
@@ -131,7 +132,8 @@ void todo_list() {
 int main(int argv, char** argc) {
 
     char* path = NULL;
-    bool verbose = false;
+    bool disassemble = false;
+    bool print_ast = false;
     bool print_help = false;
     bool keep_alive = false;
     bool run_tests = false;
@@ -140,7 +142,8 @@ int main(int argv, char** argc) {
     todo_list();
     
     for(int i = 0; i < argv; i++) {
-        verbose     |= strncmp(argc[i], "-v", 2) == 0;
+        disassemble |= strncmp(argc[i], "-d", 2) == 0;
+        print_ast   |= strncmp(argc[i], "-a", 2) == 0;
         print_help  |= strncmp(argc[i], "-h", 2) == 0;
         keep_alive  |= strncmp(argc[i], "-k", 2) == 0;
         run_tests   |= strncmp(argc[i], "-t", 2) == 0;
@@ -159,7 +162,7 @@ int main(int argv, char** argc) {
     }
 
     if( path != NULL ) {
-        bool compile_ok = run(path, verbose, keep_alive);
+        bool compile_ok = run(path, disassemble, print_ast, keep_alive);
         print_help = print_help || (compile_ok == false && keep_alive == false);
     }
 

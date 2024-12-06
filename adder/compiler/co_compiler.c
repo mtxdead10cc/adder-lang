@@ -528,13 +528,6 @@ int get_if_chain_length(ast_node_t* current) {
     return count;
 }
 
-bool is_valid_else_block(ast_node_t* node) {
-    if( node == NULL )
-        return false;
-    return node->type == AST_BLOCK
-        && node->u.n_block.count > 0;
-}
-
 void codegen_if_chain(ast_node_t* node, compiler_state_t* state) {
     
     ABORT_ON_ERROR(state);
@@ -571,7 +564,7 @@ void codegen_if_chain(ast_node_t* node, compiler_state_t* state) {
         current = current->u.n_if.next;
 
         // 3)
-        if( current->type == AST_IF_CHAIN || is_valid_else_block(current) ) {
+        if( current->type == AST_IF_CHAIN || ast_is_valid_else_block(current) ) {
             // if we're at the last block 
             // we make sure to not jump 
             // since we get a corrupt jump 
@@ -590,7 +583,7 @@ void codegen_if_chain(ast_node_t* node, compiler_state_t* state) {
     }
 
     // N)
-    if( is_valid_else_block(current) )
+    if( ast_is_valid_else_block(current) )
         codegen(current, state);
     
     // N+1) set the exit jump points

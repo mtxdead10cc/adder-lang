@@ -113,6 +113,9 @@ bool main() {
     if( (2 / 2 - 1) != 0 ) {
         return false;
     }
+    if( (-2 * -2 - 1) != 3 ) {
+        return false;
+    }
     return true;
 }
 $VERIFY("true")

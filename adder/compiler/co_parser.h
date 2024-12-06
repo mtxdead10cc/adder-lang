@@ -22,6 +22,7 @@ typedef enum pa_result_type_t {
 typedef struct pa_result_t {
     pa_result_type_t    type; 
     void*               data;
+    bool                group_expression; // exprs like "-(a + b)"
 } pa_result_t;
 
 pa_result_t pa_init(parser_t* parser, arena_t* arena, trace_t* trace, char* text, size_t text_length, char* filepath);
@@ -41,21 +42,24 @@ inline static pa_result_t par_node(ast_node_t* node, srcref_t* override) {
 
     return (pa_result_t) {
         .type = PAR_AST_NODE,
-        .data = node
+        .data = node,
+        .group_expression = false
     };
 }
 
 inline static pa_result_t par_nothing(void) {
     return (pa_result_t) {
         .type = PAR_NOTHING,
-        .data = NULL
+        .data = NULL,
+        .group_expression = false
     };
 }
 
 inline static pa_result_t par_error(void) {
     return (pa_result_t) {
         .type = PAR_BUILD_ERROR,
-        .data = NULL
+        .data = NULL,
+        .group_expression = false
     };
 }
 

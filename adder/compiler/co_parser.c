@@ -258,6 +258,7 @@ pa_result_t pa_try_parse_group(parser_t* parser) {
     if( par_is_error(result_consume) ) {
         return result_consume;
     }
+    result_inner.group_expression = true; // mark as group expression
     return result_inner;
 }
 
@@ -335,7 +336,22 @@ pa_result_t pa_try_parse_unary_operation(parser_t* parser, token_type_t tt, ast_
         if( par_is_error(inner) )
             return inner;
         assert( par_is_nothing(inner) == false );
-        return par_node(ast_unnop(parser->arena, op, par_extract_node(inner)), &token.ref);
+        // find the innermost left expression
+        // and negate that
+        ast_node_t* iexp = par_extract_node(inner);
+        // grouped expressions should be wrapped
+        // so this recursion does not trigger 
+        // on for example "-(a + b)".
+        if( iexp->type == AST_BINOP && inner.group_expression == false ) {
+            ast_node_t* current = iexp;
+            while( current->u.n_binop.left->type == AST_BINOP ) {
+                current = current->u.n_binop.left;
+            }
+            current->u.n_binop.left = ast_unnop(parser->arena, op,
+                current->u.n_binop.left);
+            return par_node(iexp, &token.ref);
+        }
+        return par_node(ast_unnop(parser->arena, op, iexp), &token.ref);
     }
     return par_nothing();
 }

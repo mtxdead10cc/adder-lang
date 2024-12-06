@@ -1,16 +1,4 @@
-
 #extern void print(string str);
-
-int test(int a, int b) {
-    return -1 * 10 * a - b;
-}
-
 int main() {
-    int t = test(1, -200);
-    if( t > 0 ) {
-        print("positive!\n");
-    } else if (t <= 0.0) {
-        print("negative!\n");
-    }
-    return t;
+    return -(-1 - -4);
 }

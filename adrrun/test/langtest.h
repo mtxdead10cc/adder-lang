@@ -173,6 +173,9 @@ ltc_t langtest_testcases[] = {
         "    if( (2 / 2 - 1) != 0 ) {\n"
         "        return false;\n"
         "    }\n"
+        "    if( (-2 * -2 - 1) != 3 ) {\n"
+        "        return false;\n"
+        "    }\n"
         "    return true;\n"
         "}\n",
         .expect = "true",
