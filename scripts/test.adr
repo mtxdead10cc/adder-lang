@@ -1,4 +1,5 @@
 #extern void print(string str);
 int main() {
-    return -2 * -2 - 1;
+    int k = 0;
+    return k * (-2 * -2 - 1);
 }

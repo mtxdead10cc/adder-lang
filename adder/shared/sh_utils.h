@@ -16,17 +16,21 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define clamp(v, a, b) (max(min((v), b), a))
 
+#define SSTR_MAX_LEN ((int) (GVM_DEFAULT_STRLEN) - 1)
+
 sstr_t sstr(char* str);
 bool   sstr_equal_str(sstr_t* sstr, char* str);
 bool   sstr_equal(sstr_t* a, sstr_t* b);
-size_t sstr_len(sstr_t* sstr);
+int    sstr_len(sstr_t* sstr);
 char*  sstr_ptr(sstr_t* sstr);
 void   sstr_printf(sstr_t* sstr);
 void   sstr_copy(sstr_t* dest, sstr_t* src);
 void   sstr_replace(sstr_t* sstr, char* text);
 void   sstr_clear(sstr_t* sstr);
-void sstr_append(sstr_t* on, sstr_t* addition);
-void sstr_append_str(sstr_t* on, char* addition);
-void sstr_append_nstr(sstr_t* on, char* addition, size_t len);
+
+int sstr_append(sstr_t* on, sstr_t* addition);
+int sstr_append_str(sstr_t* on, char* addition);
+int sstr_append_nstr(sstr_t* on, char* addition, int len);
+int sstr_append_fmt(sstr_t* on, const char* fmt, ...);
 
 #endif // GVM_UTILS_H_

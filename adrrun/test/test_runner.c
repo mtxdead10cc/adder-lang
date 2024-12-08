@@ -140,7 +140,7 @@ void test_heap_memory(test_case_t* this) {
     gvm_destroy(&vm);
 }
 
-void test_shared_utils(test_case_t* this) {
+void test_utils(test_case_t* this) {
 
     srcref_t ref = srcref_const("[##hello##]");
 
@@ -174,6 +174,93 @@ void test_shared_utils(test_case_t* this) {
     TEST_ASSERT_MSG(this,
         srcref_equals_string(c, ""),
         "#3.3 srcref_trim_right overflow failed");
+
+    sstr_t s = sstr("");
+    sstr_t sadd = sstr("ABC");
+    int rem = sstr_append(&s, &sadd);
+
+    TEST_ASSERT_MSG(this,
+        rem == (SSTR_MAX_LEN - 3),
+        "#4.1 sstr append remaining failed");
+
+    TEST_ASSERT_MSG(this,
+        sstr_equal_str(&s, "ABC"),
+        "#4.2 sstr append failed");
+
+    rem = sstr_append_nstr(&s, "EFGH", 1);
+    
+    TEST_ASSERT_MSG(this,
+        rem == (SSTR_MAX_LEN - 4),
+        "#4.3 sstr n-append remaining failed");
+
+    TEST_ASSERT_MSG(this,
+        sstr_equal_str(&s, "ABCE"),
+        "#4.4 sstr n-append failed");
+
+    rem = sstr_append_str(&s, "F");
+    
+    TEST_ASSERT_MSG(this,
+        rem == (SSTR_MAX_LEN - 5),
+        "#4.5 sstr append c-str remaining failed");
+
+    TEST_ASSERT_MSG(this,
+        sstr_equal_str(&s, "ABCEF"),
+        "#4.6 sstr append c-str failed");
+
+    rem = sstr_append_fmt(&s, "%.3f", 1.1111f);
+    
+    TEST_ASSERT_MSG(this,
+        rem == (SSTR_MAX_LEN - 10),
+        "#4.7 sstr append fmt remaining failed");
+
+    TEST_ASSERT_MSG(this,
+        sstr_equal_str(&s, "ABCEF1.111"),
+        "#4.8 sstr append fmt failed");
+
+    int count = (SSTR_MAX_LEN - 10);
+
+    assert(SSTR_MAX_LEN <= 500 && "update this test");
+    rem = sstr_append_fmt(&s, "%.*s",
+        count,
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------"
+        "--------------------");
+
+    TEST_ASSERT_MSG(this,
+        rem == 0,
+        "#4.9 sstr append fmt remaining failed");
+
+    int check_count = 0;
+    for(int i = 0; i < SSTR_MAX_LEN; i++) {
+        if( s.str[i] == '-' )
+            check_count ++;
+    }
+
+    TEST_ASSERT_MSG(this,
+        check_count == count,
+        "#4.10 sstr append fmt remaining failed");
 }
 
 void test_vm(test_case_t* this) {
@@ -1010,8 +1097,8 @@ test_results_t run_testcases() {
             .nfailed = 0
         },
         {
-            .name = "shared utils test",
-            .test = test_shared_utils,
+            .name = "utils test",
+            .test = test_utils,
             .nfailed = 0
         },
         {
