@@ -2,6 +2,8 @@
 #define SH_FFI
 
 #include "sh_utils.h"
+#include <stdbool.h>
+#include <stdarg.h>
 
 typedef enum ffi_tag_t {
     FFI_TYPE_CONST,
@@ -41,5 +43,21 @@ void ffi_func_add_arg(ffi_type_t* func, ffi_type_t* arg_type);
 void ffi_recfree(ffi_type_t* ffi);
 void ffi_fprint(FILE* f, ffi_type_t* ffi);
 bool ffi_equals(ffi_type_t* a, ffi_type_t* b);
+
+ffi_type_t* ffi_vfunc_nullterm(ffi_type_t* return_type, ...);
+#define ffi_vfunc(R, ...) ffi_vfunc_nullterm((R), __VA_ARGS__, NULL)
+
+typedef struct ffi_bundle_t {
+    int          capacity;
+    int          count;
+    sstr_t*      name;
+    ffi_type_t** type;
+} ffi_bundle_t;
+
+bool ffi_bundle_init(ffi_bundle_t* bundle, int capacity);
+int  ffi_bundle_index_of(ffi_bundle_t* bundle, sstr_t* name);
+bool ffi_bundle_add(ffi_bundle_t* bundle, sstr_t name, ffi_type_t* type);
+void ffi_bundle_destroy(ffi_bundle_t* bundle);
+void ffi_bundle_fprint(FILE* f, ffi_bundle_t* bundle);
 
 #endif // SH_FFI

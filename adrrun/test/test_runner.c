@@ -10,6 +10,7 @@
 #include <co_program.h>
 #include <co_bty.h>
 #include <sh_program.h>
+#include <sh_ffi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -769,7 +770,8 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         .cycle_limit = 100
     };
 
-    gvm_native_func(&vm, "print", "type", 1, &test_printfn);
+    assert(false && "TODO: register print function here!");
+    //gvm_native_func(&vm, "print", "type", 1, &test_printfn);
 
     val_t res = gvm_execute(&vm, &program, &args);
 
@@ -1067,10 +1069,31 @@ void test_inference(test_case_t* this) {
     arena_destroy(a);
 }
 
+void test_ffi_types(test_case_t* this) {
+    ffi_bundle_t b = (ffi_bundle_t) { 0 };
+    ffi_bundle_init(&b, 1);
+
+    ffi_bundle_add(&b, sstr("test01"), ffi_const(sstr("int")));
+    ffi_bundle_add(&b, sstr("test02"), ffi_list(ffi_const(sstr("int"))));
+    ffi_bundle_add(&b, sstr("test03"), ffi_func(ffi_const(sstr("int"))));
+    ffi_bundle_add(&b, sstr("test04"), ffi_vfunc(ffi_const(sstr("int")),
+                                                    ffi_const(sstr("bool")),
+                                                    ffi_const(sstr("char")),
+                                                    ffi_const(sstr("int"))));
+
+    ffi_bundle_fprint(stdout, &b);
+    ffi_bundle_destroy(&b);
+}
+
 
 test_results_t run_testcases() {
 
     test_case_t test_cases[] = {
+        {
+            .name = "ffi types",
+            .test = test_ffi_types,
+            .nfailed = 0
+        },
         {
             .name = "sh alloc",
             .test = test_arena_alloc,

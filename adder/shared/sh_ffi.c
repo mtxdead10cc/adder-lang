@@ -1,4 +1,5 @@
 #include "sh_ffi.h"
+#include <stdarg.h>
 #include <stdlib.h>
 #include <assert.h>
 
@@ -20,7 +21,7 @@ ffi_type_t* ffi_func(ffi_type_t* return_type) {
     ffi_type_t* ffi = malloc(sizeof(ffi_type_t));
     ffi->tag = FFI_TYPE_FUNC;
     ffi->u.func.return_type = return_type;
-    ffi->u.func.arg_types = malloc(sizeof(ffi_type_t));
+    ffi->u.func.arg_types = malloc(sizeof(ffi_type_t*));
     ffi->u.func.arg_count = 0;
     return ffi;
 }
@@ -36,6 +37,18 @@ void ffi_func_add_arg(ffi_type_t* func, ffi_type_t* arg_type) {
     func->u.func.arg_types = extended;
     func->u.func.arg_types[func->u.func.arg_count] = arg_type;
     func->u.func.arg_count += 1;
+}
+
+ffi_type_t* ffi_vfunc_nullterm(ffi_type_t* return_type, ...) {
+    va_list args;
+    va_start(args, return_type);
+    ffi_type_t* func = ffi_func(return_type);
+    ffi_type_t* arg_type = NULL;
+    while( (arg_type = va_arg(args, ffi_type_t*)) != NULL ) {
+        ffi_func_add_arg(func, arg_type);
+    }
+    va_end(args);
+    return func;
 }
 
 void ffi_recfree(ffi_type_t* ffi) {
@@ -127,6 +140,72 @@ bool ffi_equals(ffi_type_t* a, ffi_type_t* b) {
             printf("unknown FFI type %d\n", a->tag);
             return false;
         }
+    }
+}
+
+bool ffi_bundle_init(ffi_bundle_t* bundle, int capacity) {
+    bundle->capacity = capacity;
+    bundle->count = 0;
+    bundle->name = malloc( capacity * sizeof(sstr_t) );
+    bundle->type = malloc( capacity * sizeof(ffi_type_t*) );
+    return bundle->name != NULL && bundle->type != NULL;
+}
+
+int ffi_bundle_index_of(ffi_bundle_t* bundle, sstr_t* name) {
+    int count = bundle->count;
+    for(int i = 0; i < count; i++) {
+        if( sstr_equal(&bundle->name[i], name) )
+            return i;
+    }
+    return -1;
+}
+
+bool ffi_bundle_add(ffi_bundle_t* bundle, sstr_t name, ffi_type_t* type) {
+    int index = ffi_bundle_index_of(bundle, &name);
+    if( index >= 0 )
+        return ffi_equals(bundle->type[index], type);
+    if( bundle->count >= bundle->capacity ) {
+        int new_cap = bundle->count * 2;
+        bundle->name = realloc(bundle->name, new_cap * sizeof(sstr_t));
+        assert(bundle->name != NULL); // todo: handle fail
+        bundle->type = realloc(bundle->type, new_cap * sizeof(ffi_type_t*));
+        assert(bundle->type != NULL); // todo: handle fail
+    }
+    bundle->name[bundle->count] = name;
+    bundle->type[bundle->count] = type;
+    bundle->count ++;
+    return true;
+}
+
+void ffi_bundle_destroy(ffi_bundle_t* bundle) {
+    
+    if(bundle->type != NULL) {
+        int count = bundle->count;
+        for(int i = 0; i < count; i++) {
+            // note: this will break if types 
+            // are reused (by the user).
+            // should probably fix this at
+            // some point
+            ffi_recfree(bundle->type[i]);
+            bundle->type[i] = NULL;
+        }
+        free(bundle->type);
+    }
+
+    if(bundle->name != NULL) {
+        free(bundle->name);
+    }
+}
+
+void ffi_bundle_fprint(FILE* f, ffi_bundle_t* bundle) {
+    fprintf(f, "FFI BUNDLE\n");
+    int count = bundle->count;
+    for(int i = 0; i < count; i++) {
+        fprintf(f, "\t%.*s: ",
+            sstr_len(&bundle->name[i]),
+            sstr_ptr(&bundle->name[i]));
+        ffi_fprint(f, bundle->type[i]);
+        fprintf(f, "\n");
     }
 }
 
