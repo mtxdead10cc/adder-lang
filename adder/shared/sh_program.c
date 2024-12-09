@@ -114,9 +114,4 @@ void gvm_program_destroy(gvm_program_t* prog) {
         prog->inst.size = 0;
         prog->inst.buffer = NULL;
     }
-    if( prog->required.signatures != NULL ) {
-        free(prog->required.signatures);
-        prog->required.count = 0;
-        prog->required.signatures = NULL;
-    }
 }

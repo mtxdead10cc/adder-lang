@@ -2,6 +2,7 @@
 #define GVM_VM_TYPES_H_
 
 #include "sh_types.h"
+#include "sh_ffi.h"
 
 typedef struct grid_t {
     int width;
@@ -34,21 +35,6 @@ typedef val_t* (*addr_lookup_fn)(void* user, val_addr_t addr);
 
 typedef struct gvm_t gvm_t;
 
-typedef val_t (*func_ptr_t)(gvm_t* vm, size_t argcount, val_t* args);
-
-typedef struct env_fundecl_t {
-    char        name[GVM_DEFAULT_STRLEN];
-    char        rettype[GVM_DEFAULT_STRLEN];
-} env_fundecl_t;
-
-typedef struct env_t {
-    size_t           count;
-    size_t           capacity;
-    env_fundecl_t*   fundecls;
-    func_ptr_t*      handlers;
-    size_t*          argcounts;
-} env_t;
-
 typedef struct gvm_exec_args_t {
     struct {
         uint32_t    count; 
@@ -60,13 +46,10 @@ typedef struct gvm_exec_args_t {
 typedef struct gvm_runtime_t {
     val_t*      constants;
     uint8_t*    instructions;
-    func_ptr_t* nfuncptrs;
-    size_t*     nfuncargc;
     uint32_t    pc;
 } gvm_runtime_t;
 
 typedef struct gvm_t {
-    env_t           env;
     gvm_mem_t       mem;
     gvm_runtime_t   run;
     void*           validation; // validation data (NULL if no validation)

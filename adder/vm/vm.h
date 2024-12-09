@@ -5,7 +5,6 @@
 #include "vm_types.h"
 
 bool gvm_create(gvm_t* vm, int stack_size, int dyn_size);
-bool gvm_native_func(gvm_t* vm, char* name, char* return_type, size_t arg_count, func_ptr_t func);
 val_t gvm_execute(gvm_t* vm, gvm_program_t* code_obj, gvm_exec_args_t* args);
 void  gvm_destroy(gvm_t* vm);
 

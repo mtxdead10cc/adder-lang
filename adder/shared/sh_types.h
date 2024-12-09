@@ -99,12 +99,7 @@ typedef struct sstr_t {
     char str[GVM_DEFAULT_STRLEN];
 } sstr_t;
 
-typedef struct native_funsign_t {
-    sstr_t name;
-    sstr_t return_type;
-    size_t arg_count;
-} native_funsign_t;
-
+typedef struct ffi_bundle_t ffi_bundle_t;
 typedef struct gvm_program_t {
     struct {
         uint32_t    size;   // size in bytes
@@ -114,11 +109,7 @@ typedef struct gvm_program_t {
         uint32_t    count;  // number of constants (values)
         val_t*      buffer; // values
     } cons;
-    struct {
-        uint32_t                count;
-        native_funsign_t*       signatures;
-    } required;
+    ffi_bundle_t*   ffi;
 } gvm_program_t;
-
 
 #endif // GVM_SHARED_TYPES_H_

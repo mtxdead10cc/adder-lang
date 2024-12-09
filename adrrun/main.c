@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <vm.h>
 #include <sh_value.h>
-#include <vm_env.h>
+#include <sh_ffi.h>
 #include <vm_value_tools.h>
 #include <vm_heap.h>
 #include <co_program.h>
@@ -42,18 +42,39 @@ val_t test(gvm_t* vm, size_t argcount, val_t* args) {
     return val_array(array);
 }
 
-val_t adr_print(gvm_t* vm, size_t argcount, val_t* args) {
-    for(size_t i = 0; i < argcount; i++) {
+void adr_print(ffi_hndl_meta_t md, int argcount, val_t* args) {
+    for(int i = 0; i < argcount; i++) {
         if( i > 0 )
             printf(" ");
-        gvm_print_val(vm, args[i]);
+        gvm_print_val(md.vm, args[i]);
     }
-    return val_none();
+}
+
+void setup_default_env(ffi_bundle_t* bundle) {
+    bool res = ffi_bundle_init(bundle, 8);
+    if( res == false ) {
+        printf("error: failed to init FFI.\n");
+        return;
+    }
+    res = ffi_bundle_add(bundle,
+        sstr("print"), 
+        (ffi_handle_t) {
+            .local = 0,
+            .tag = FFI_HNDL_ACTION,
+            .u.action = adr_print,
+        },
+        ffi_vfunc(ffi_const("void"),
+            ffi_list(ffi_const("char"))));
+    if( res == false ) {
+        printf("error: failed to register FFI function: print\n");
+    }
 }
 
 bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
     time_t last_creation_time = 0xFFFFFFFFFFFFFFFF;
     bool compile_ok = true;
+    ffi_bundle_t bundle = { 0 };
+    setup_default_env(&bundle);
 
     do {
 
@@ -65,7 +86,7 @@ bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
         }
 
         last_creation_time = creation_time;
-        gvm_program_t program = gvm_program_read_and_compile(path, show_ast);
+        gvm_program_t program = gvm_program_read_and_compile(path, show_ast, &bundle);
         compile_ok = program.inst.size > 0;
         printf("%s [%s]\n", path, compile_ok ? "OK" : "FAILED");
         
@@ -77,9 +98,6 @@ bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
 
             gvm_t vm = { 0 };
             gvm_create(&vm, 128, 128);
-
-            // register native functions
-            gvm_native_func(&vm, "print", "void", 1, &adr_print);
 
             // execute script
             gvm_exec_args_t args = { 0 };
@@ -95,6 +113,8 @@ bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
         }
 
     } while ( keep_alive );
+
+    ffi_bundle_destroy(&bundle);
 
     return compile_ok;
 }
@@ -123,7 +143,8 @@ void todo_list() {
         { false, "Foreach break." },
         { false, "The parser / compiler should handle char escape codes." },
         { true, "Typechecker: figure out how to have var declarations without assignments."},
-        { true,  "Improve the typechecking (maybe use ast_annot_t instead of strings)." }
+        { true,  "Improve the typechecking (maybe use ast_annot_t instead of strings)." },
+        { false, "valgrind --tool=memcheck --track-origins=yes --leak-check=full ./adrrun" }
     };
     size_t count = sizeof(items) / sizeof(items[0]);
     print_todo_list(items, count);

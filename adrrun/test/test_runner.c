@@ -460,7 +460,7 @@ void test_ast(test_case_t* this) {
     trace_t trace = { 0 };
     trace_init(&trace, 16);
 
-    gvm_program_t program = gvm_compile(arena, ast_block_with(arena, fun), &trace);
+    gvm_program_t program = gvm_compile(arena, ast_block_with(arena, fun), &trace, NULL);
     if( trace_get_error_count(&trace) > 0 ) {
         trace_fprint(stdout, &trace);
     }
@@ -674,11 +674,10 @@ void test_tokenizer(test_case_t* this) {
     trace_destroy(&trace);
 }
 
-val_t test_printfn(gvm_t* vm, size_t argcount, val_t* args) {
+void test_printfn(ffi_hndl_meta_t md, int argcount, val_t* args) {
     (void)(argcount);
     printf(" >    ");
-    gvm_print_val(vm, args[0]);
-    return val_none();
+    gvm_print_val(md.vm, args[0]);
 }
 
 #define TEST_MSG(COND, ...) do {   \
@@ -689,14 +688,41 @@ val_t test_printfn(gvm_t* vm, size_t argcount, val_t* args) {
     }                                                   \
 } while(false)
 
+bool test_setup_default_env(ffi_bundle_t* bundle) {
+    bool res = ffi_bundle_init(bundle, 8);
+    if( res == false ) {
+        printf("error: failed to init FFI.\n");
+        return false;;
+    }
+    res = ffi_bundle_add(bundle,
+        sstr("print"), 
+        (ffi_handle_t) {
+            .local = 0,
+            .tag = FFI_HNDL_ACTION,
+            .u.action = test_printfn,
+        },
+        ffi_vfunc(ffi_const("void"),
+            ffi_list(ffi_const("char"))));
+    if( res == false ) {
+        printf("error: failed to register FFI function: print\n");
+        return false;
+    }
+    return true;
+}
+
 bool test_compile_and_run(test_case_t* this, char* test_category, char* source_code, char* expected_result, char* tc_name, char* tc_filepath) {
 
     static char result_as_text[512] = {0};
     arena_t* arena = arena_create(1024);
     parser_t parser;
     trace_t trace;
+    ffi_bundle_t ffi = { 0 };
 
     trace_init(&trace, 16);
+
+    TEST_ASSERT_MSG(this,
+        test_setup_default_env(&ffi),
+        "failed to setup FFI");
 
     bool is_known_todo = strcmp(test_category, "todo") == 0;
 
@@ -739,7 +765,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
 
     ast_node_t* node = par_extract_node(result);
 
-    gvm_program_t program = gvm_compile(arena, node, &trace);
+    gvm_program_t program = gvm_compile(arena, node, &trace, &ffi);
     if( trace_get_error_count(&trace) > 0 && is_known_todo == false ) {
         trace_fprint(stdout, &trace);
         ast_dump(node);
@@ -760,6 +786,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         pa_destroy(&parser);
         arena_destroy(arena);
         trace_destroy(&trace);
+        ffi_bundle_destroy(&ffi);
         return is_known_todo;
     }
 
@@ -769,9 +796,6 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         .args = { 0 },
         .cycle_limit = 100
     };
-
-    assert(false && "TODO: register print function here!");
-    //gvm_native_func(&vm, "print", "type", 1, &test_printfn);
 
     val_t res = gvm_execute(&vm, &program, &args);
 
@@ -830,6 +854,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     arena_destroy(arena);
     gvm_destroy(&vm);
     trace_destroy(&trace);
+    ffi_bundle_destroy(&ffi);
 
     return true;
 }
@@ -1073,15 +1098,33 @@ void test_ffi_types(test_case_t* this) {
     ffi_bundle_t b = (ffi_bundle_t) { 0 };
     ffi_bundle_init(&b, 1);
 
-    ffi_bundle_add(&b, sstr("test01"), ffi_const(sstr("int")));
-    ffi_bundle_add(&b, sstr("test02"), ffi_list(ffi_const(sstr("int"))));
-    ffi_bundle_add(&b, sstr("test03"), ffi_func(ffi_const(sstr("int"))));
-    ffi_bundle_add(&b, sstr("test04"), ffi_vfunc(ffi_const(sstr("int")),
-                                                    ffi_const(sstr("bool")),
-                                                    ffi_const(sstr("char")),
-                                                    ffi_const(sstr("int"))));
+    ffi_bundle_add(&b, sstr("test01"), (ffi_handle_t){0}, ffi_const("int"));
+    ffi_bundle_add(&b, sstr("test02"), (ffi_handle_t){0}, ffi_list(ffi_const("int")));
+    ffi_bundle_add(&b, sstr("test03"), (ffi_handle_t){0}, ffi_func(ffi_const("int")));
+    ffi_bundle_add(&b, sstr("test04"), (ffi_handle_t){0}, ffi_vfunc(ffi_const("int"),
+                                            ffi_const("bool"),
+                                            ffi_const("char"),
+                                            ffi_const("int")));
 
-    ffi_bundle_fprint(stdout, &b);
+    ffi_type_t* check = ffi_vfunc(ffi_const("int"),
+                            ffi_const("bool"),
+                            ffi_const("char"),
+                            ffi_const("int"));
+
+    TEST_ASSERT_MSG(this,
+        ffi_equals(check, ffi_bundle_get_type(&b, sstr("test04"))),
+        "#1.1 ffi_bundle_get & ffi_equals");
+
+    TEST_ASSERT_MSG(this,
+        ffi_bundle_add(&b, sstr("test04"), (ffi_handle_t){0}, ffi_const("int")) == false,
+        "#1.2 ffi_bundle_add overwrite");
+
+    TEST_ASSERT_MSG(this,
+        ffi_bundle_add(&b, sstr("test04"), (ffi_handle_t){0}, check),
+        "#1.3 ffi_bundle_add same");
+    
+    ffi_recfree(check);
+    //ffi_bundle_fprint(stdout, &b);
     ffi_bundle_destroy(&b);
 }
 

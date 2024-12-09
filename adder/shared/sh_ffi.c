@@ -3,10 +3,10 @@
 #include <stdlib.h>
 #include <assert.h>
 
-ffi_type_t* ffi_const(sstr_t type_name) {
+ffi_type_t* ffi_const(char* type_name) {
     ffi_type_t* ffi = malloc(sizeof(ffi_type_t));
     ffi->tag = FFI_TYPE_CONST;
-    ffi->u.cons.type_name = type_name;
+    ffi->u.cons.type_name = sstr(type_name);
     return ffi;
 }
 
@@ -21,15 +21,22 @@ ffi_type_t* ffi_func(ffi_type_t* return_type) {
     ffi_type_t* ffi = malloc(sizeof(ffi_type_t));
     ffi->tag = FFI_TYPE_FUNC;
     ffi->u.func.return_type = return_type;
-    ffi->u.func.arg_types = malloc(sizeof(ffi_type_t*));
+    ffi->u.func.arg_types = NULL;
     ffi->u.func.arg_count = 0;
     return ffi;
 }
 
 void ffi_func_add_arg(ffi_type_t* func, ffi_type_t* arg_type) {
     assert(func->tag == FFI_TYPE_FUNC);
-    ffi_type_t** extended = realloc(func->u.func.arg_types,
-        sizeof(ffi_type_t) * (1 + func->u.func.arg_count));
+    ffi_type_t** extended = NULL;
+    size_t alloc_size = sizeof(ffi_type_t*) * (1 + func->u.func.arg_count);
+    if( func->u.func.arg_types != NULL ) {
+        assert(func->u.func.arg_count > 0);
+        extended = realloc(func->u.func.arg_types, alloc_size);
+    } else {
+        assert(func->u.func.arg_count == 0);
+        extended = malloc(alloc_size);
+    }
     if( extended == NULL ) {
         printf("error: (ffi_func_add_arg) out of memory\n");
         return;
@@ -40,9 +47,9 @@ void ffi_func_add_arg(ffi_type_t* func, ffi_type_t* arg_type) {
 }
 
 ffi_type_t* ffi_vfunc_nullterm(ffi_type_t* return_type, ...) {
+    ffi_type_t* func = ffi_func(return_type);
     va_list args;
     va_start(args, return_type);
-    ffi_type_t* func = ffi_func(return_type);
     ffi_type_t* arg_type = NULL;
     while( (arg_type = va_arg(args, ffi_type_t*)) != NULL ) {
         ffi_func_add_arg(func, arg_type);
@@ -148,20 +155,22 @@ bool ffi_bundle_init(ffi_bundle_t* bundle, int capacity) {
     bundle->count = 0;
     bundle->name = malloc( capacity * sizeof(sstr_t) );
     bundle->type = malloc( capacity * sizeof(ffi_type_t*) );
+    bundle->handle = malloc( capacity * sizeof(ffi_handle_t) );
     return bundle->name != NULL && bundle->type != NULL;
 }
 
-int ffi_bundle_index_of(ffi_bundle_t* bundle, sstr_t* name) {
+int ffi_bundle_index_of(ffi_bundle_t* bundle, sstr_t name) {
     int count = bundle->count;
     for(int i = 0; i < count; i++) {
-        if( sstr_equal(&bundle->name[i], name) )
+        if( sstr_equal(&bundle->name[i], &name) )
             return i;
     }
     return -1;
 }
 
-bool ffi_bundle_add(ffi_bundle_t* bundle, sstr_t name, ffi_type_t* type) {
-    int index = ffi_bundle_index_of(bundle, &name);
+bool ffi_bundle_add(ffi_bundle_t* bundle, sstr_t name, ffi_handle_t handle, ffi_type_t* type) {
+    // TODO: Verify that handle and type matches
+    int index = ffi_bundle_index_of(bundle, name);
     if( index >= 0 )
         return ffi_equals(bundle->type[index], type);
     if( bundle->count >= bundle->capacity ) {
@@ -170,11 +179,21 @@ bool ffi_bundle_add(ffi_bundle_t* bundle, sstr_t name, ffi_type_t* type) {
         assert(bundle->name != NULL); // todo: handle fail
         bundle->type = realloc(bundle->type, new_cap * sizeof(ffi_type_t*));
         assert(bundle->type != NULL); // todo: handle fail
+        bundle->handle = realloc(bundle->handle, new_cap * sizeof(ffi_handle_t));
+        assert(bundle->handle != NULL); // todo: handle fail
     }
     bundle->name[bundle->count] = name;
     bundle->type[bundle->count] = type;
+    bundle->handle[bundle->count] = handle;
     bundle->count ++;
     return true;
+}
+
+ffi_type_t* ffi_bundle_get_type(ffi_bundle_t* bundle, sstr_t name) {
+    int index = ffi_bundle_index_of(bundle, name);
+    if( index >= 0 )
+        return bundle->type[index];
+    return NULL;
 }
 
 void ffi_bundle_destroy(ffi_bundle_t* bundle) {
@@ -194,6 +213,10 @@ void ffi_bundle_destroy(ffi_bundle_t* bundle) {
 
     if(bundle->name != NULL) {
         free(bundle->name);
+    }
+
+    if(bundle->handle != NULL) {
+        free(bundle->handle);
     }
 }
 

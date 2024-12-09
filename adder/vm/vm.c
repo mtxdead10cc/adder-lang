@@ -4,7 +4,6 @@
 #include "sh_value.h"
 #include "sh_utils.h"
 #include "sh_config.h"
-#include "vm_env.h"
 #include "vm_heap.h"
 #include "vm_validate.h"
 
@@ -91,14 +90,7 @@ bool gvm_create(gvm_t* vm, int stack_size, int dyn_size) {
         return false;
     }
     memset(gc_marks, 0, CALC_GC_MARK_U64_COUNT(dyn_size) * sizeof(uint64_t));
-
-    if( env_init(&vm->env, 8) == false ) {
-        printf("error: could'nt allocate environment.\n");
-        free(mem);
-        free(gc_marks);
-        return false;
-    }
-
+    
     vm->mem.membase = mem;
     vm->mem.memsize = total_addressable;
     
@@ -119,19 +111,51 @@ bool gvm_create(gvm_t* vm, int stack_size, int dyn_size) {
     return true;
 }
 
-bool gvm_native_func(gvm_t* vm, char* name, char* return_type, size_t arg_count, func_ptr_t func) {
-    return env_register_function(&vm->env, env_mk_func(name, return_type), arg_count, func);
-}
-
 void gvm_destroy(gvm_t* vm) {
     if( vm == NULL || vm->mem.membase == 0 ) {
         return;
     }
-    env_destroy(&vm->env);
+        
     VALIDATION_DESTROY(vm);
     free(vm->mem.membase);
     free(vm->mem.heap.gc_marks);
     memset(vm, 0, sizeof(gvm_t));
+}
+
+inline static int ffi_get_arg_count(ffi_type_t* type) {
+    switch(type->tag) {
+        case FFI_TYPE_FUNC: return type->u.func.arg_count;
+        default: return 0;
+    }
+}
+
+inline static void ffi_invoke(ffi_bundle_t* bundle, uint32_t index, gvm_t* vm) {
+    int argcount = ffi_get_arg_count(bundle->type[index]);
+    vm->mem.stack.top -= argcount;
+    switch(bundle->handle[index].tag) {
+        case FFI_HNDL_ACTION: {
+            bundle->handle[index].u.action(
+                (ffi_hndl_meta_t) {
+                    .local = bundle->handle[index].local,
+                    .vm = vm
+                },
+                argcount,
+                vm->mem.stack.values + vm->mem.stack.top + 1);
+        } break;
+        case FFI_HNDL_FUNCTION: {
+            val_t ret = bundle->handle[index].u.function(
+                (ffi_hndl_meta_t) {
+                    .local = bundle->handle[index].local,
+                    .vm = vm
+                },
+                argcount,
+                vm->mem.stack.values + vm->mem.stack.top + 1);
+            vm->mem.stack.values[++vm->mem.stack.top] = ret;
+        } break;
+        default: {
+            assert(false && "Not implemented");
+        }
+    }
 }
 
 val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args) {
@@ -146,9 +170,7 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
     vm_run->constants = consts;
     vm_run->instructions = instructions;
     vm_run->pc = 0;
-    vm_run->nfuncptrs = vm->env.handlers;
-    vm_run->nfuncargc = vm->env.argcounts;
-    
+
     gvm_mem_t* vm_mem = &vm->mem;
     memset(vm_mem->stack.values, 0, sizeof(val_t) * vm_mem->stack.size);
 
@@ -496,12 +518,7 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
             case OP_CALL_NATIVE: {
                 uint32_t findex = READ_U32(instructions, vm_run->pc);
                 TRACE_INT_ARG(findex);
-                size_t argcount = vm_run->nfuncargc[findex];
-                func_ptr_t funcptr = vm_run->nfuncptrs[findex];
-                vm_mem->stack.top -= argcount;
-                val_t retval = funcptr(vm, argcount, stack + vm_mem->stack.top + 1);
-                if( VAL_GET_TYPE(retval) != VAL_NONE )
-                    stack[++vm_mem->stack.top] = retval;
+                ffi_invoke(program->ffi, findex, vm);
                 vm_run->pc += 4;
             } break;
             default: {
