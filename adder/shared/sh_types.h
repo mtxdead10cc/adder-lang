@@ -53,7 +53,7 @@ typedef enum val_type_t {
     VAL_TYPE_COUNT
 } val_type_t;
 
-typedef enum gvm_op_t {
+typedef enum vm_op_t {
     OP_HALT = 0x00,
     OP_AND,
     OP_OR,
@@ -93,14 +93,14 @@ typedef enum gvm_op_t {
     OP_ITER_NEXT,
     OP_CALL_NATIVE,
     OP_OPCODE_COUNT
-} gvm_op_t;
+} vm_op_t;
 
 typedef struct sstr_t {
-    char str[GVM_DEFAULT_STRLEN];
+    char str[VM_DEFAULT_STRLEN];
 } sstr_t;
 
 typedef struct ffi_bundle_t ffi_bundle_t;
-typedef struct gvm_program_t {
+typedef struct vm_program_t {
     struct {
         uint32_t    size;   // size in bytes
         uint8_t*    buffer; // instructions
@@ -110,6 +110,6 @@ typedef struct gvm_program_t {
         val_t*      buffer; // values
     } cons;
     ffi_bundle_t*   ffi;
-} gvm_program_t;
+} vm_program_t;
 
 #endif // GVM_SHARED_TYPES_H_

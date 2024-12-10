@@ -55,10 +55,10 @@ bool ffi_equals(ffi_type_t* a, ffi_type_t* b);
 ffi_type_t* ffi_vfunc_nullterm(ffi_type_t* return_type, ...);
 #define ffi_vfunc(R, ...) ffi_vfunc_nullterm((R), __VA_ARGS__, NULL)
 
-typedef struct gvm_t gvm_t;
+typedef struct vm_t vm_t;
 typedef struct ffi_hndl_meta_t {
     void* local;
-    gvm_t* vm;
+    vm_t* vm;
 } ffi_hndl_meta_t;
 
 typedef val_t (*ffi_value_get_t)(ffi_hndl_meta_t);

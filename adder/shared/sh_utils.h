@@ -1,5 +1,5 @@
-#ifndef GVM_UTILS_H_
-#define GVM_UTILS_H_
+#ifndef VM_UTILS_H_
+#define VM_UTILS_H_
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -16,7 +16,7 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define clamp(v, a, b) (max(min((v), b), a))
 
-#define SSTR_MAX_LEN ((int) (GVM_DEFAULT_STRLEN) - 1)
+#define SSTR_MAX_LEN ((int) (VM_DEFAULT_STRLEN) - 1)
 
 sstr_t sstr(char* str);
 bool   sstr_equal_str(sstr_t* sstr, char* str);
@@ -33,4 +33,4 @@ int sstr_append_str(sstr_t* on, char* addition);
 int sstr_append_nstr(sstr_t* on, char* addition, int len);
 int sstr_append_fmt(sstr_t* on, const char* fmt, ...);
 
-#endif // GVM_UTILS_H_
+#endif // VM_UTILS_H_

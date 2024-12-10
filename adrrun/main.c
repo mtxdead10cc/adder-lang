@@ -28,7 +28,7 @@ time_t get_creation_time(char *path) {
 
 #define DEFAULT_PATH "resources/test.gvm"
 
-val_t test(gvm_t* vm, size_t argcount, val_t* args) {
+val_t test(vm_t* vm, size_t argcount, val_t* args) {
     (void)(argcount); // hide unused warning
     int a = val_into_number(args[0]);
     int b = val_into_number(args[1]);
@@ -46,7 +46,7 @@ void adr_print(ffi_hndl_meta_t md, int argcount, val_t* args) {
     for(int i = 0; i < argcount; i++) {
         if( i > 0 )
             printf(" ");
-        gvm_print_val(md.vm, args[i]);
+        vm_print_val(md.vm, args[i]);
     }
 }
 
@@ -86,30 +86,30 @@ bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
         }
 
         last_creation_time = creation_time;
-        gvm_program_t program = gvm_program_read_and_compile(path, show_ast, &bundle);
+        vm_program_t program = program_read_and_compile(path, show_ast, &bundle);
         compile_ok = program.inst.size > 0;
         printf("%s [%s]\n", path, compile_ok ? "OK" : "FAILED");
         
         if( compile_ok ) {
 
             if( disassemble ) {
-                gvm_program_disassemble(stdout, &program);
+                program_disassemble(stdout, &program);
             }
 
-            gvm_t vm = { 0 };
-            gvm_create(&vm, 128, 128);
+            vm_t vm = { 0 };
+            vm_create(&vm, 128, 128);
 
             // execute script
             gvm_exec_args_t args = { 0 };
             args.cycle_limit = 500;
-            val_t result = gvm_execute(&vm, &program, &args);
+            val_t result = vm_execute(&vm, &program, &args);
 
             printf("> ");
-            gvm_print_val(&vm, result);
+            vm_print_val(&vm, result);
             printf("\n");
 
-            gvm_program_destroy(&program);
-            gvm_destroy(&vm);
+            program_destroy(&program);
+            vm_destroy(&vm);
         }
 
     } while ( keep_alive );

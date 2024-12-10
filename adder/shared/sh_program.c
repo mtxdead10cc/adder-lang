@@ -67,14 +67,14 @@ void fprint_value(FILE* stream, val_t* memory, val_t val) {
     }
 }
 
-void gvm_program_disassemble(FILE* stream, gvm_program_t* program) {
+void program_disassemble(FILE* stream, vm_program_t* program) {
     int current_byte = 0;
     int current_instruction = 0;
     val_t* consts = program->cons.buffer;
     uint8_t* instructions = program->inst.buffer;
     int instr_byte_count = program->inst.size;
     while( current_byte < instr_byte_count ) {
-        gvm_op_t opcode = instructions[current_byte];
+        vm_op_t opcode = instructions[current_byte];
         int arg_count = get_op_arg_count(opcode);
         if( arg_count < 0 ) {
             fprintf(stream, "<op %i not found>", opcode);
@@ -100,7 +100,7 @@ void gvm_program_disassemble(FILE* stream, gvm_program_t* program) {
     }
 }
 
-void gvm_program_destroy(gvm_program_t* prog) {
+void program_destroy(vm_program_t* prog) {
     if( prog == NULL ) {
         return;
     }

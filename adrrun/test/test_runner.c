@@ -39,9 +39,9 @@ typedef struct test_case_t {
 } while(false)
 
 void test_heap_memory(test_case_t* this) {
-    gvm_t vm;
+    vm_t vm;
 
-    TEST_ASSERT_MSG(this, gvm_create(&vm, 16, 256), "failed to create gvm\n");
+    TEST_ASSERT_MSG(this, vm_create(&vm, 16, 256), "failed to create gvm\n");
 
     vm.mem.stack.top = -1;
 
@@ -138,7 +138,7 @@ void test_heap_memory(test_case_t* this) {
         vm.mem.heap.gc_marks[3] == 0x0UL,
         "#6.4 (pop & heap_gc_collect) failed");
 
-    gvm_destroy(&vm);
+    vm_destroy(&vm);
 }
 
 void test_utils(test_case_t* this) {
@@ -266,9 +266,9 @@ void test_utils(test_case_t* this) {
 
 void test_vm(test_case_t* this) {
 
-    gvm_t vm;
+    vm_t vm;
 
-    gvm_program_t program = { 0 };
+    vm_program_t program = { 0 };
 
     gvm_exec_args_t args = {
         .args = { 0 },
@@ -276,7 +276,7 @@ void test_vm(test_case_t* this) {
     };
 
     TEST_ASSERT_MSG(this,
-        gvm_create(&vm, 16, 16),
+        vm_create(&vm, 16, 16),
         "#1.0 failed to create VM.");
     
     u8buffer_t instr_buf;
@@ -331,7 +331,7 @@ void test_vm(test_case_t* this) {
     program.inst.size = instr_buf.size;
     program.inst.buffer = instr_buf.data;
 
-    val_t ret = gvm_execute(&vm, &program, &args);
+    val_t ret = vm_execute(&vm, &program, &args);
 
     TEST_ASSERT_MSG(this,
         VAL_GET_TYPE(ret) == VAL_NUMBER,
@@ -373,7 +373,7 @@ void test_vm(test_case_t* this) {
     program.inst.size = instr_buf.size;
     program.inst.buffer = instr_buf.data;
 
-    ret = gvm_execute(&vm, &program, &args);
+    ret = vm_execute(&vm, &program, &args);
 
     TEST_ASSERT_MSG(this,
         VAL_GET_TYPE(ret) == VAL_NUMBER,
@@ -383,7 +383,7 @@ void test_vm(test_case_t* this) {
         val_into_number(ret) == 110.0f,
         "#4.2 unexpected return value.");
 
-    gvm_destroy(&vm);
+    vm_destroy(&vm);
     u8buffer_destroy(&instr_buf);
     valbuffer_destroy(&const_buf);
 }
@@ -460,7 +460,7 @@ void test_ast(test_case_t* this) {
     trace_t trace = { 0 };
     trace_init(&trace, 16);
 
-    gvm_program_t program = gvm_compile(arena, ast_block_with(arena, fun), &trace, NULL);
+    vm_program_t program = gvm_compile(arena, ast_block_with(arena, fun), &trace, NULL);
     if( trace_get_error_count(&trace) > 0 ) {
         trace_fprint(stdout, &trace);
     }
@@ -468,7 +468,7 @@ void test_ast(test_case_t* this) {
     arena_destroy(arena);
     trace_destroy(&trace);
 
-    gvm_t vm;
+    vm_t vm;
     val_t argbuf[] = { val_number(1), val_number(-1) };
     gvm_exec_args_t args = {
         .args = { .buffer = argbuf, .count = 2 },
@@ -476,10 +476,10 @@ void test_ast(test_case_t* this) {
     };
 
     TEST_ASSERT_MSG(this,
-        gvm_create(&vm, 16, 16),
+        vm_create(&vm, 16, 16),
         "#1.0 failed to create VM.");
 
-    val_t ret = gvm_execute(&vm, &program, &args);
+    val_t ret = vm_execute(&vm, &program, &args);
      TEST_ASSERT_MSG(this,
         VAL_GET_TYPE(ret) == VAL_NUMBER,
         "#1.1 unexpected return type.");
@@ -488,8 +488,8 @@ void test_ast(test_case_t* this) {
         val_into_number(ret) == 4.0f,
         "#1.2 unexpected return value.");
 
-    gvm_program_destroy(&program);
-    gvm_destroy(&vm);
+    program_destroy(&program);
+    vm_destroy(&vm);
 }
 
 typedef struct toktest_t {
@@ -677,7 +677,7 @@ void test_tokenizer(test_case_t* this) {
 void test_printfn(ffi_hndl_meta_t md, int argcount, val_t* args) {
     (void)(argcount);
     printf(" >    ");
-    gvm_print_val(md.vm, args[0]);
+    vm_print_val(md.vm, args[0]);
 }
 
 #define TEST_MSG(COND, ...) do {   \
@@ -765,7 +765,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
 
     ast_node_t* node = par_extract_node(result);
 
-    gvm_program_t program = gvm_compile(arena, node, &trace, &ffi);
+    vm_program_t program = gvm_compile(arena, node, &trace, &ffi);
     if( trace_get_error_count(&trace) > 0 && is_known_todo == false ) {
         trace_fprint(stdout, &trace);
         ast_dump(node);
@@ -790,20 +790,20 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         return is_known_todo;
     }
 
-    gvm_t vm;
-    gvm_create(&vm, 50, 50);
+    vm_t vm;
+    vm_create(&vm, 50, 50);
     gvm_exec_args_t args = {
         .args = { 0 },
         .cycle_limit = 100
     };
 
-    val_t res = gvm_execute(&vm, &program, &args);
+    val_t res = vm_execute(&vm, &program, &args);
 
     // TODO: FIX VALUE PRINTING AT SOME POINT!
 
     switch(VAL_GET_TYPE(res)) {
         case VAL_ARRAY: {
-            int wlen = gvm_get_string(&vm, res, result_as_text, sizeof(result_as_text));
+            int wlen = vm_get_string(&vm, res, result_as_text, sizeof(result_as_text));
             result_as_text[wlen] = '\0';
         } break;
         case VAL_BOOL: {
@@ -846,13 +846,13 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     
     if( match_ok == false && is_known_todo == false ) {
         ast_dump(node);
-        gvm_program_disassemble(stdout, &program);
+        program_disassemble(stdout, &program);
     }
 
-    gvm_program_destroy(&program);
+    program_destroy(&program);
     pa_destroy(&parser);
     arena_destroy(arena);
-    gvm_destroy(&vm);
+    vm_destroy(&vm);
     trace_destroy(&trace);
     ffi_bundle_destroy(&ffi);
 

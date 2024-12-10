@@ -1,5 +1,5 @@
-#ifndef GVM_VALUE_H_
-#define GVM_VALUE_H_
+#ifndef VM_VALUE_H_
+#define VM_VALUE_H_
 
 #include "sh_types.h"
 #include <stdint.h>
@@ -127,4 +127,4 @@ inline static iter_t val_into_iter(val_t value) {
     };
 }
 
-#endif // GVM_VALUE_H_
+#endif // VM_VALUE_H_

@@ -385,7 +385,7 @@ sstr_t srcref_as_sstr(srcref_t ref) {
     sstr_t sstr = {0};
     if( srcref_is_valid(ref) == false )
         return sstr;
-    size_t len = min(srcref_len(ref), GVM_DEFAULT_STRLEN);
+    size_t len = min(srcref_len(ref), SSTR_MAX_LEN);
     strncpy(sstr.str, srcref_ptr(ref), len);
     return sstr;
 }

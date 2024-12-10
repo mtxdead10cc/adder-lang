@@ -17,7 +17,7 @@
 #include <dlfcn.h>
 #include <unistd.h>
 
-#if GVM_TRACE_LOG_LEVEL > 0
+#if VM_TRACE_LOG_LEVEL > 0
 
 # define TRACE_LOG(...) printf(__VA_ARGS__)
 # define TRACE_OP(C) TRACE_LOG("> %s ", au_get_op_name(C))
@@ -47,7 +47,7 @@ void print_stack(val_t* stack, int stack_size) {
 #endif
 
 val_t* gvm_addr_lookup(void* user, val_addr_t addr) {
-    gvm_t* VM = (gvm_t*) user;
+    vm_t* VM = (vm_t*) user;
     int offset = MEM_ADDR_TO_INDEX(addr);
     if( ADDR_IS_CONST(addr) ) {
         return VM->run.constants + offset;
@@ -56,15 +56,15 @@ val_t* gvm_addr_lookup(void* user, val_addr_t addr) {
     }
 }
 
-void gvm_print_val(gvm_t* vm, val_t val) {
+void vm_print_val(vm_t* vm, val_t val) {
     val_print_lookup(val, &gvm_addr_lookup, vm);
 }
 
-int gvm_get_string(gvm_t* vm, val_t val, char* dest, int dest_len) {
+int vm_get_string(vm_t* vm, val_t val, char* dest, int dest_len) {
     return val_get_string(val, &gvm_addr_lookup, vm, dest, dest_len);
 }
 
-bool gvm_create(gvm_t* vm, int stack_size, int dyn_size) {
+bool vm_create(vm_t* vm, int stack_size, int dyn_size) {
 
     int total_addressable = ( stack_size + dyn_size );
     if( total_addressable > MEM_MAX_ADDRESSABLE ) {
@@ -104,14 +104,14 @@ bool gvm_create(gvm_t* vm, int stack_size, int dyn_size) {
     vm->mem.heap.gc_marks = gc_marks;
 
     // assigend on execution
-    vm->run = (gvm_runtime_t) { 0 };
+    vm->run = (vm_runtime_t) { 0 };
 
     VALIDATION_INIT(vm);
 
     return true;
 }
 
-void gvm_destroy(gvm_t* vm) {
+void vm_destroy(vm_t* vm) {
     if( vm == NULL || vm->mem.membase == 0 ) {
         return;
     }
@@ -119,7 +119,7 @@ void gvm_destroy(gvm_t* vm) {
     VALIDATION_DESTROY(vm);
     free(vm->mem.membase);
     free(vm->mem.heap.gc_marks);
-    memset(vm, 0, sizeof(gvm_t));
+    memset(vm, 0, sizeof(vm_t));
 }
 
 inline static int ffi_get_arg_count(ffi_type_t* type) {
@@ -129,7 +129,7 @@ inline static int ffi_get_arg_count(ffi_type_t* type) {
     }
 }
 
-inline static void ffi_invoke(ffi_bundle_t* bundle, uint32_t index, gvm_t* vm) {
+inline static void ffi_invoke(ffi_bundle_t* bundle, uint32_t index, vm_t* vm) {
     int argcount = ffi_get_arg_count(bundle->type[index]);
     vm->mem.stack.top -= argcount;
     switch(bundle->handle[index].tag) {
@@ -158,7 +158,7 @@ inline static void ffi_invoke(ffi_bundle_t* bundle, uint32_t index, gvm_t* vm) {
     }
 }
 
-val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args) {
+val_t vm_execute(vm_t* vm, vm_program_t* program, gvm_exec_args_t* exec_args) {
 
     assert(sizeof(float) == 4);
     
@@ -166,12 +166,12 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
     val_t* consts = program->cons.buffer;
     uint8_t* instructions = program->inst.buffer;
 
-    gvm_runtime_t* vm_run = &vm->run;
+    vm_runtime_t* vm_run = &vm->run;
     vm_run->constants = consts;
     vm_run->instructions = instructions;
     vm_run->pc = 0;
 
-    gvm_mem_t* vm_mem = &vm->mem;
+    vm_mem_t* vm_mem = &vm->mem;
     memset(vm_mem->stack.values, 0, sizeof(val_t) * vm_mem->stack.size);
 
     // push initial args (if any)
@@ -188,7 +188,7 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
 
     while ( (cycles_remaining--) != 0 ) {
 
-        gvm_op_t opcode = instructions[vm_run->pc++];
+        vm_op_t opcode = instructions[vm_run->pc++];
 
         TRACE_OP(opcode);
 
@@ -452,7 +452,7 @@ val_t gvm_execute(gvm_t* vm, gvm_program_t* program, gvm_exec_args_t* exec_args)
                 }
             } break;
             case OP_PRINT: {
-                gvm_print_val(vm, stack[vm_mem->stack.top--]);
+                vm_print_val(vm, stack[vm_mem->stack.top--]);
             } break;
             case OP_STORE_LOCAL: {
                 uint32_t local_idx = READ_U32(instructions, vm_run->pc);

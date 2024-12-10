@@ -18,8 +18,8 @@ typedef struct op_info_t {
     op_argtype_t op_arg_types[OP_MAX_ARG_COUNT];
 } op_info_t;
 
-char*         get_op_name(gvm_op_t op_code);
-size_t        get_op_arg_count(gvm_op_t op_code);
-op_argtype_t* get_op_arg_types(gvm_op_t op_code);
+char*         get_op_name(vm_op_t op_code);
+size_t        get_op_arg_count(vm_op_t op_code);
+op_argtype_t* get_op_arg_types(vm_op_t op_code);
 
 #endif // GVM_ASMINFO_H_

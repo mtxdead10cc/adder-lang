@@ -17,7 +17,7 @@ inline static void put_mark(uint64_t* marks, int heap_index) {
     marks[mask_index] |= (1UL << mask_bit);
 }
 
-void heap_gc_mark_used(gvm_t* vm, val_t* checkmem, int val_count) {
+void heap_gc_mark_used(vm_t* vm, val_t* checkmem, int val_count) {
     val_addr_t virt_addr_heap = MEM_MK_PROGR_ADDR(vm->mem.stack.size);
     // mark all references
     for(int i = 0; i < val_count; i++) {
@@ -43,14 +43,14 @@ void heap_gc_mark_used(gvm_t* vm, val_t* checkmem, int val_count) {
     }
 }
 
-void heap_gc_collect(gvm_t* vm) {
+void heap_gc_collect(vm_t* vm) {
     // clear all usage bits 
     memset(vm->mem.heap.gc_marks, 0, CALC_GC_MARK_U64_COUNT(vm->mem.heap.size) * sizeof(uint64_t));
     // mark all references from the stack
     heap_gc_mark_used(vm, vm->mem.stack.values, vm->mem.stack.top + 1);
 }
 
-void heap_print_usage(gvm_t* vm) {
+void heap_print_usage(vm_t* vm) {
     int pages = CALC_GC_MARK_U64_COUNT(vm->mem.heap.size);
     int num_bits = sizeof(uint64_t) * CHAR_BIT;
     printf("HEAP USAGE BITS\n");
@@ -65,7 +65,7 @@ void heap_print_usage(gvm_t* vm) {
     }
 }
 
-int heap_find_small_chunk(gvm_t* vm, int value_count) {
+int heap_find_small_chunk(vm_t* vm, int value_count) {
     int num_bits_per_page = sizeof(uint64_t) * CHAR_BIT;
     int num_pages = CALC_GC_MARK_U64_COUNT(vm->mem.heap.size);
     int num_bits = num_bits_per_page - value_count;
@@ -81,7 +81,7 @@ int heap_find_small_chunk(gvm_t* vm, int value_count) {
     return -1;
 }
 
-int heap_count_empty_pages(gvm_t* vm, int page_index, int num_pages) {
+int heap_count_empty_pages(vm_t* vm, int page_index, int num_pages) {
     if( page_index >= num_pages ) {
         return -1;
     }
@@ -96,7 +96,7 @@ int heap_count_empty_pages(gvm_t* vm, int page_index, int num_pages) {
     return count;
 }
 
-int heap_find_large_chunk(gvm_t* vm, int value_count) {
+int heap_find_large_chunk(vm_t* vm, int value_count) {
     
     if( value_count > vm->mem.heap.size ) {
         return -1;
@@ -134,7 +134,7 @@ int heap_find_large_chunk(gvm_t* vm, int value_count) {
     return -1;
 }
 
-int heap_find_free_chunk(gvm_t* vm, int val_count) {
+int heap_find_free_chunk(vm_t* vm, int val_count) {
     int num_bits_per_page = sizeof(uint64_t) * CHAR_BIT;
     if( val_count < num_bits_per_page ) {
         return heap_find_small_chunk(vm, val_count);
@@ -145,7 +145,7 @@ int heap_find_free_chunk(gvm_t* vm, int val_count) {
 
 // TODO: Not checking if too much memory is allocated!
 
-array_t heap_array_alloc(gvm_t* vm, int val_count) {
+array_t heap_array_alloc(vm_t* vm, int val_count) {
 
     int addr = heap_find_free_chunk(vm, val_count);
 
@@ -191,7 +191,7 @@ array_t heap_array_alloc(gvm_t* vm, int val_count) {
     };
 }
 
-int heap_array_copy_to(gvm_t* vm, val_t* src, int length, array_t dest) {
+int heap_array_copy_to(vm_t* vm, val_t* src, int length, array_t dest) {
     int dest_index = MEM_ADDR_TO_INDEX(dest.address);
     val_t* dest_ptr = vm->mem.membase + dest_index;
     int dest_length = (int) dest.length;

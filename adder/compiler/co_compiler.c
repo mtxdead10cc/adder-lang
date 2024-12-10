@@ -7,7 +7,7 @@
 #include <assert.h>
 
 typedef struct ir_inst_t {
-    gvm_op_t opcode;
+    vm_op_t opcode;
     uint32_t args[2];
 } ir_inst_t;
 
@@ -804,7 +804,7 @@ void recalc_index_to_bytecode_adress(ir_list_t* instrs) {
     
 }
 
-gvm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts, ffi_bundle_t* ffi) {
+vm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts, ffi_bundle_t* ffi) {
 
     recalc_index_to_bytecode_adress(instrs);
 
@@ -829,7 +829,7 @@ gvm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts, ffi_bundle_t
     uint8_t* code_buf = (uint8_t*) malloc( sizeof(uint8_t) * bytecode.size );
     memcpy(code_buf, bytecode.data, sizeof(uint8_t) * bytecode.size );
 
-    gvm_program_t result = (gvm_program_t) {
+    vm_program_t result = (vm_program_t) {
         .cons.buffer = const_buf,
         .cons.count = consts->size,
         .inst.buffer = code_buf,
@@ -842,9 +842,9 @@ gvm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts, ffi_bundle_t
 }
 
 
-gvm_program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace, ffi_bundle_t* ffi) {
+vm_program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace, ffi_bundle_t* ffi) {
 
-    gvm_program_t program = { 0 };
+    vm_program_t program = { 0 };
 
     trace_clear(trace);
 

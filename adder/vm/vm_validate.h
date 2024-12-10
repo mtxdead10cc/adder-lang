@@ -1,5 +1,5 @@
-#ifndef GVM_VALIDATE_H_
-#define GVM_VALIDATE_H_
+#ifndef VM_VALIDATE_H_
+#define VM_VALIDATE_H_
 
 #include "sh_types.h"
 #include "sh_config.h"
@@ -15,15 +15,15 @@
 #include <assert.h>
 #include <limits.h>
 
-#if GVM_RUNTIME_VALIDATION > 0
+#if VM_RUNTIME_VALIDATION > 0
 
 typedef struct validation_t {
     char message[257];
-    gvm_op_t last_opcode;
+    vm_op_t last_opcode;
     unsigned int opcntr;
 } validation_t;
 
-inline static bool validation_init(gvm_t* vm) {
+inline static bool validation_init(vm_t* vm) {
     vm->validation = malloc(sizeof(validation_t));
     if( vm->validation != NULL ) {
         memset(vm->validation, 0, sizeof(validation_t));
@@ -32,13 +32,13 @@ inline static bool validation_init(gvm_t* vm) {
     return false;
 }
 
-inline static void validation_destroy(gvm_t* vm) {
+inline static void validation_destroy(vm_t* vm) {
     if( vm->validation != NULL ) {
         free((validation_t*) vm->validation);
     }
 }
 
-inline static bool validation_check_stack_arg_count(gvm_t* vm, char* context, int nargs) {
+inline static bool validation_check_stack_arg_count(vm_t* vm, char* context, int nargs) {
     validation_t* validation = ((validation_t*)vm->validation);
     int stack_top = vm->mem.stack.top;
     if( (stack_top + 1) < nargs ) {
@@ -51,7 +51,7 @@ inline static bool validation_check_stack_arg_count(gvm_t* vm, char* context, in
     return true;
 }
 
-inline static bool validation_check_stack_args(gvm_t* vm, char* context, int arg_count, ...) {
+inline static bool validation_check_stack_args(vm_t* vm, char* context, int arg_count, ...) {
     validation_t* validation = ((validation_t*)vm->validation);
     if( validation_check_stack_arg_count(vm, context, arg_count) == false ) {
         return false;
@@ -77,7 +77,7 @@ inline static bool validation_check_stack_args(gvm_t* vm, char* context, int arg
     return true;
 }
 
-inline static bool validation_check_stack(gvm_t* vm, char* context) {
+inline static bool validation_check_stack(vm_t* vm, char* context) {
     validation_t* validation = ((validation_t*)vm->validation);
     if( vm->mem.stack.top >= vm->mem.stack.size ) {
         snprintf(validation->message, 256,
@@ -109,7 +109,7 @@ inline static bool validation_check_stack(gvm_t* vm, char* context) {
     return true;
 }
 
-inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
+inline static bool validation_pre_exec(vm_t* vm, vm_op_t opcode) {
     validation_t* validation = ((validation_t*)vm->validation);
     char* op_name = get_op_name(opcode);
     bool no_error = true;
@@ -212,7 +212,7 @@ inline static bool validation_pre_exec(gvm_t* vm, gvm_op_t opcode) {
     return true;
 }
 
-inline static bool validation_post_exec(gvm_t* vm, gvm_op_t opcode) {
+inline static bool validation_post_exec(vm_t* vm, vm_op_t opcode) {
     assert(OP_OPCODE_COUNT == 38 && "Opcode count changed.");
     char* op_name = get_op_name(opcode);
     validation_t* validation = ((validation_t*)vm->validation);
@@ -278,4 +278,4 @@ inline static bool validation_post_exec(gvm_t* vm, gvm_op_t opcode) {
 
 #endif
 
-#endif // GVM_VALIDATE_H_
+#endif // VM_VALIDATE_H_
