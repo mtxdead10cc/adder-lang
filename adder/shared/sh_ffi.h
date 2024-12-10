@@ -43,6 +43,7 @@ ffi_type_t* ffi_int(void);
 ffi_type_t* ffi_float(void);
 ffi_type_t* ffi_char(void);
 ffi_type_t* ffi_bool(void);
+ffi_type_t* ffi_custom(char* type_name);
 
 ffi_type_t* ffi_list(ffi_type_t* content_type);
 ffi_type_t* ffi_func(ffi_type_t* return_type);

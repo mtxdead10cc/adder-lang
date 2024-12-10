@@ -57,6 +57,13 @@ ffi_type_t* ffi_char(void) {
     return &ffi_consts[4];
 }
 
+ffi_type_t* ffi_custom(char* type_name) {
+    ffi_type_t* ffi = malloc(sizeof(ffi_type_t));
+    ffi->tag = FFI_TYPE_CONST;
+    ffi->u.cons.type_name = sstr(type_name);
+    return ffi;
+}
+
 ffi_type_t* ffi_list(ffi_type_t* content_type) {
     ffi_type_t* ffi = malloc(sizeof(ffi_type_t));
     ffi->tag = FFI_TYPE_LIST;
@@ -100,14 +107,23 @@ ffi_type_t* ffi_vfunc_nullterm(ffi_type_t* return_type, ...) {
     return func;
 }
 
+bool ffi_is_custom_const(ffi_type_t* t) {
+    if( t->tag != FFI_TYPE_CONST )
+        return false;
+    for(int i = 0; i < NPRE_DEF_CONSTS; i++) {
+        if( t == &ffi_consts[i] )
+            return false;
+    }
+    return true;
+}
+
 void ffi_recfree(ffi_type_t* ffi) {
     if( ffi == NULL )
         return;
     switch(ffi->tag) {
         case FFI_TYPE_CONST: {
-            /* do nothing */
-            /* either statically allocated
-               or allocated by the user */
+            if( ffi_is_custom_const(ffi) )
+                free(ffi);
         } break;
         case FFI_TYPE_LIST: {
             ffi_recfree(ffi->u.list.content_type);

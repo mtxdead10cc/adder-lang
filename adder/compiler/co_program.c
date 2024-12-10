@@ -264,7 +264,7 @@ gvm_program_t gvm_program_compile_source(char* source, size_t source_len, char* 
 
     gvm_program_t program = gvm_compile(arena, program_node, &trace, bundle);
     
-    if( trace_get_error_count(&trace) > 0 ) {
+    if( trace_get_message_count(&trace) > 0 ) {
         trace_fprint(stdout, &trace);
     }
 

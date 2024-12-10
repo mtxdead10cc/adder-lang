@@ -137,14 +137,7 @@ void print_todo_list(todo_item_t* items, size_t count) {
 
 void todo_list() {
     todo_item_t items[] = {        
-        { false, "VM execute must verify that all required " 
-                 "native_funsign_t requirenments are fulfilled." },
-        { true, "Compiler checks return type on funcall." },
-        { false, "Foreach break." },
-        { false, "The parser / compiler should handle char escape codes." },
-        { true, "Typechecker: figure out how to have var declarations without assignments."},
-        { true,  "Improve the typechecking (maybe use ast_annot_t instead of strings)." },
-        { false, "valgrind --tool=memcheck --track-origins=yes --leak-check=full ./adrrun" }
+        { false, "Foreach break." }
     };
     size_t count = sizeof(items) / sizeof(items[0]);
     print_todo_list(items, count);

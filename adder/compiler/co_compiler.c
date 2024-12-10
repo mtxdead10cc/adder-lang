@@ -108,6 +108,7 @@ typedef struct compiler_state_t {
     ir_list_t               instrs;
     valbuffer_t             consts;
     trace_t*                trace;
+    bty_ctx_t*              tyctx;
 } compiler_state_t;
 
 #define ABORT_ON_ERROR(STATE) do { if(trace_get_error_count((STATE)->trace) > 0) return; } while(false)
@@ -372,13 +373,18 @@ void codegen_funcall(ast_funcall_t node, compiler_state_t* state) {
         return;
     }
 
-    //native_funsign_t edecl = mk_native_funsign(node.name, node.args, srcref_const("type"));
-    //int ext_index = funsign_set_find_index(&state->extdecls, &edecl);
-
-    printf("TODO: NOW WE ASSUME FFI IS ALWAYS A FUNCTION\n");
     int ext_index = ffi_bundle_index_of(state->ffi,
         srcref_as_sstr(node.name));
+
     if ( ext_index >= 0 ) {
+
+        ffi_handle_tag_t tag = state->ffi->handle[ext_index].tag;
+        if( tag != FFI_HNDL_ACTION && tag != FFI_HNDL_FUNCTION ) {
+            trace_not_implemented(state->trace,
+                "Value properties (FFI_HNDL_VALUE_READ_ONLY, FFI_HNDL_VALUE)");
+            return;
+        }
+
         irl_add(&state->instrs, (ir_inst_t){
             .opcode = OP_CALL_NATIVE,
             .args = { ext_index, 0 }
@@ -386,11 +392,18 @@ void codegen_funcall(ast_funcall_t node, compiler_state_t* state) {
         return;
     }
 
+    /* 
+       ASSUMPTION: we only end up here if the user
+       is trying to call an extern function that is
+       not present in the FFI bundle.
+       Since a missing "normal" function should have 
+       been caught by the type checker.
+    */
+
     trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, node.name);
-    trace_msg_append_costr(msg, "function '");
+    trace_msg_append_costr(msg, "the function '");
     trace_msg_append_srcref(msg, node.name);
-    trace_msg_append_costr(msg, "' is not declared.");
-    
+    trace_msg_append_costr(msg, "' could not be found.");
 }
 
 void codegen_assignment(ast_assign_t node, compiler_state_t* state) {
@@ -573,6 +586,95 @@ void codegen_return_stmt(ast_return_t stmt, compiler_state_t* state) {
     }
 }
 
+ffi_type_t* bty_to_ffi_type(bty_type_t* t) {
+    if( t == NULL )
+        return NULL;
+    switch(t->tag) {
+        case BTY_VOID:  return ffi_void();
+        case BTY_BOOL:  return ffi_bool();
+        case BTY_INT:   return ffi_int();
+        case BTY_FLOAT: return ffi_float();
+        case BTY_CHAR:  return ffi_char();
+        case BTY_LIST:  return ffi_list(bty_to_ffi_type(t->u.con));
+        case BTY_FUNC:  {
+            ffi_type_t* ot = ffi_func(bty_to_ffi_type(t->u.fun.ret));
+            for(int i = 0; i < t->u.fun.argc; i++) {
+                ffi_func_add_arg(ot, bty_to_ffi_type(t->u.fun.args[i]));
+            }
+            return ot;
+        }
+        default: {
+            printf("error: bty_to_ffi_type unhandled bty_type %d\n", t->tag);
+            return ffi_custom("unknown_type");
+        }
+    }
+}
+
+void verify_funexdecl(ast_funexdecl_t funex, compiler_state_t* state) {
+
+    ABORT_ON_ERROR(state);
+
+    ffi_type_t* ffi_type = ffi_bundle_get_type(state->ffi,
+        srcref_as_sstr(funex.name));
+
+    bty_type_t* bty_type = bty_ctx_lookup(state->tyctx, funex.name);
+    ffi_type_t* lang_type = bty_to_ffi_type(bty_type);
+
+    if( ffi_type == NULL ) {
+
+        /* If the ffi type could not be found
+           chances are that the function is never
+           actually called.
+           If the missing function is called then the 
+           user will get an error at the call site. */
+
+        trace_msg_t* msg = trace_create_message(state->trace,
+            TM_WARNING,
+            funex.name);
+        trace_msg_append_costr(msg,
+            "extern function '");
+        trace_msg_append_srcref(msg, funex.name);
+        if( lang_type != NULL ) {
+            trace_msg_append_ffi_type(msg, lang_type);
+        }
+        trace_msg_append_costr(msg,
+            "' could not be found in the provided FFI bundle.");
+
+    } else {
+
+        if( bty_type == NULL || lang_type == NULL ) {
+
+            trace_msg_t* msg = trace_create_message(state->trace,
+                TM_INTERNAL_ERROR,
+                funex.name);
+            trace_msg_append_costr(msg,
+                "extern function validation failed for '");
+            trace_msg_append_srcref(msg, funex.name);
+            trace_msg_append_ffi_type(msg, ffi_type);
+            trace_msg_append_costr(msg, 
+                "'\nThis is likely an internal error "
+                "in the compiler (or type checker).");
+
+        } else if( ffi_equals(ffi_type, lang_type) == false ) {
+
+            trace_msg_t* msg = trace_create_message(state->trace,
+                TM_ERROR,
+                funex.name);
+            trace_msg_append_costr(msg, "unexpected extern function '");
+            trace_msg_append_srcref(msg, funex.name);
+            trace_msg_append_costr(msg, "' type signature. ");
+            trace_msg_append_costr(msg, "\n\tDefined FFI type: ");
+            trace_msg_append_srcref(msg, funex.name);
+            trace_msg_append_ffi_type(msg, ffi_type);
+            trace_msg_append_costr(msg, "\n\tSource file type: ");
+            trace_msg_append_srcref(msg, funex.name);
+            trace_msg_append_ffi_type(msg, lang_type);
+        }
+    }
+
+    ffi_recfree(lang_type);
+}
+
 void codegen(ast_node_t* node, compiler_state_t* state) {
 
     ABORT_ON_ERROR(state);
@@ -634,6 +736,9 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
         case AST_FUN_CALL: {
             codegen_funcall(node->u.n_funcall, state);
         } break;
+        case AST_FUN_EXDECL: {
+            verify_funexdecl(node->u.n_funexdecl, state);
+        } break;
         case AST_VAR_REF: {
             ir_index_t var_index = state_get_localvar(state, node->u.n_varref.name);
             assert(var_index.tag == IRID_VAR && "variable not found");
@@ -660,18 +765,7 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
         case AST_BREAK: {
             assert(false && "break op is not implemented yet");
         } break;
-        case AST_FUN_EXDECL: {
-            /*funsign_set_add(&state->extdecls,
-                mk_native_funsign(node->u.n_funexdecl.name,
-                           node->u.n_funexdecl.argspec,
-                           srcref_const("type")));*/
-            ffi_type_t* ffi_type = ffi_bundle_get_type(state->ffi,
-                srcref_as_sstr(node->u.n_funexdecl.name));
-            assert(ffi_type != NULL && "missing extern function");
-            printf("TODO: check that ffi type matches bty_type: ");
-            ffi_fprint(stdout, ffi_type);
-            printf("\n");
-        } break;
+
     }
 }
 
@@ -754,15 +848,15 @@ gvm_program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace, ffi_
 
     trace_clear(trace);
 
-    bty_ctx_t* typing_ctx = bty_ctx_create(arena, trace, 16); 
-    if( bty_typecheck(typing_ctx, node) == false ) {
-        return program;
-    }
-
     compiler_state_t state = (compiler_state_t) {
         .trace = trace,
-        .ffi = ffi
+        .ffi = ffi,
+        .tyctx = bty_ctx_create(arena, trace, 16)
     };
+
+    if( bty_typecheck(state.tyctx, node) == false ) {
+        return program;
+    }
 
     if( srcmap_init(&state.functions, 16) == false ) {
         trace_out_of_memory_error(state.trace);
