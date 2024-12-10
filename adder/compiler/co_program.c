@@ -50,12 +50,12 @@ inline static char* sprint_annot(arena_t* a, ast_annot_t* v) {
                 res, sprint_annot(a, v->children[i]));
         }
         return asprintf(a, "%.*s<%s>",
-            srcref_len(v->name),
+            (int) srcref_len(v->name),
             srcref_ptr(v->name),
             res);
     }
     return asprintf(a, "%.*s",
-        srcref_len(v->name),
+        (int) srcref_len(v->name),
         srcref_ptr(v->name));
 }
 
@@ -64,7 +64,7 @@ char* sprint_ast(arena_t* a, int ind, ast_node_t* n) {
         case AST_VAR_REF: {
             ast_varref_t v = n->u.n_varref;
             return asprintf(a, "%.*s",
-                srcref_len(v.name),
+                (int) srcref_len(v.name),
                 srcref_ptr(v.name));
         } break;
         case AST_ASSIGN: {
@@ -87,7 +87,7 @@ char* sprint_ast(arena_t* a, int ind, ast_node_t* n) {
         case AST_FUN_CALL: {
             ast_funcall_t v = n->u.n_funcall;
             return asprintf(a, "%.*s(%s)",
-                srcref_len(v.name), srcref_ptr(v.name),
+                (int) srcref_len(v.name), srcref_ptr(v.name),
                 sprint_ast(a, ind, v.args));
         } break;
         case AST_ARGLIST: {
@@ -110,14 +110,14 @@ char* sprint_ast(arena_t* a, int ind, ast_node_t* n) {
         case AST_FUN_DECL: {
             ast_fundecl_t v = n->u.n_fundecl;
             return asprintf(a, "%.*s(%s) %s",
-                srcref_len(v.name), srcref_ptr(v.name),
+                (int) srcref_len(v.name), srcref_ptr(v.name),
                 sprint_ast(a, ind, v.argspec),
                 sprint_ast(a, ind+1, v.body));
         } break;
         case AST_FUN_EXDECL: {
             ast_funexdecl_t v = n->u.n_funexdecl;
             return asprintf(a, "%.*s(%s)",
-                srcref_len(v.name), srcref_ptr(v.name),
+                (int) srcref_len(v.name), srcref_ptr(v.name),
                 sprint_ast(a, ind, v.argspec));
         } break;
         case AST_BLOCK: {

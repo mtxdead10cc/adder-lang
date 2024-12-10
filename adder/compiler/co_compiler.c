@@ -341,6 +341,8 @@ void codegen_fundecl(ast_fundecl_t node, compiler_state_t* state) {
 
     bool ok = state_add_funcaddr(state, funcname, frame_index);
 
+    (void)(ok); // unused in release builds
+
     assert(ok && "the function already exists");
     
     srcmap_clear(&state->localvars);
@@ -758,6 +760,7 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
             } else {
                 // this is a function annotated with its return type
                 ast_node_t* expr = node->u.n_tyannot.expr;
+                (void)(expr); // unused in release builds
                 assert( expr->type == AST_FUN_DECL || expr->type == AST_FUN_EXDECL );
                 codegen(node->u.n_tyannot.expr, state);
             }

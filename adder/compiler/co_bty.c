@@ -436,7 +436,7 @@ bool bty_ctx_insert(bty_ctx_t* ctx, srcref_t name, bty_type_t* type) {
         bty_ctx_make_room_at(ctx, res.index);
         ctx->kvps[res.index] = (bty_ctx_kvp_t) {
             .name = asprintf(ctx->arena, "%.*s",
-                srcref_len(name), srcref_ptr(name)),
+                (int) srcref_len(name), srcref_ptr(name)),
             .type = type
         };
         return true;
