@@ -63,8 +63,8 @@ void setup_default_env(ffi_bundle_t* bundle) {
             .tag = FFI_HNDL_ACTION,
             .u.action = adr_print,
         },
-        ffi_vfunc(ffi_const("void"),
-            ffi_list(ffi_const("char"))));
+        ffi_vfunc(ffi_void(),
+            ffi_list(ffi_char())));
     if( res == false ) {
         printf("error: failed to register FFI function: print\n");
     }

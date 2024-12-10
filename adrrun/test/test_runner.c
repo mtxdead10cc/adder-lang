@@ -701,8 +701,8 @@ bool test_setup_default_env(ffi_bundle_t* bundle) {
             .tag = FFI_HNDL_ACTION,
             .u.action = test_printfn,
         },
-        ffi_vfunc(ffi_const("void"),
-            ffi_list(ffi_const("char"))));
+        ffi_vfunc(ffi_void(),
+            ffi_list(ffi_char())));
     if( res == false ) {
         printf("error: failed to register FFI function: print\n");
         return false;
@@ -1098,25 +1098,25 @@ void test_ffi_types(test_case_t* this) {
     ffi_bundle_t b = (ffi_bundle_t) { 0 };
     ffi_bundle_init(&b, 1);
 
-    ffi_bundle_add(&b, sstr("test01"), (ffi_handle_t){0}, ffi_const("int"));
-    ffi_bundle_add(&b, sstr("test02"), (ffi_handle_t){0}, ffi_list(ffi_const("int")));
-    ffi_bundle_add(&b, sstr("test03"), (ffi_handle_t){0}, ffi_func(ffi_const("int")));
-    ffi_bundle_add(&b, sstr("test04"), (ffi_handle_t){0}, ffi_vfunc(ffi_const("int"),
-                                            ffi_const("bool"),
-                                            ffi_const("char"),
-                                            ffi_const("int")));
+    ffi_bundle_add(&b, sstr("test01"), (ffi_handle_t){0}, ffi_int());
+    ffi_bundle_add(&b, sstr("test02"), (ffi_handle_t){0}, ffi_list(ffi_int()));
+    ffi_bundle_add(&b, sstr("test03"), (ffi_handle_t){0}, ffi_func(ffi_int()));
+    ffi_bundle_add(&b, sstr("test04"), (ffi_handle_t){0}, ffi_vfunc(ffi_int(),
+                                            ffi_bool(),
+                                            ffi_char(),
+                                            ffi_int()));
 
-    ffi_type_t* check = ffi_vfunc(ffi_const("int"),
-                            ffi_const("bool"),
-                            ffi_const("char"),
-                            ffi_const("int"));
+    ffi_type_t* check = ffi_vfunc(ffi_int(),
+                            ffi_bool(),
+                            ffi_char(),
+                            ffi_int());
 
     TEST_ASSERT_MSG(this,
         ffi_equals(check, ffi_bundle_get_type(&b, sstr("test04"))),
         "#1.1 ffi_bundle_get & ffi_equals");
 
     TEST_ASSERT_MSG(this,
-        ffi_bundle_add(&b, sstr("test04"), (ffi_handle_t){0}, ffi_const("int")) == false,
+        ffi_bundle_add(&b, sstr("test04"), (ffi_handle_t){0}, ffi_int()) == false,
         "#1.2 ffi_bundle_add overwrite");
 
     TEST_ASSERT_MSG(this,

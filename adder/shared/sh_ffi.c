@@ -3,11 +3,58 @@
 #include <stdlib.h>
 #include <assert.h>
 
-ffi_type_t* ffi_const(char* type_name) {
-    ffi_type_t* ffi = malloc(sizeof(ffi_type_t));
-    ffi->tag = FFI_TYPE_CONST;
-    ffi->u.cons.type_name = sstr(type_name);
-    return ffi;
+#define NPRE_DEF_CONSTS 5
+static ffi_type_t ffi_consts[NPRE_DEF_CONSTS] = {
+    {
+        .tag = FFI_TYPE_CONST,
+        .u.cons.type_name.str = "void"
+    },
+    {
+        .tag = FFI_TYPE_CONST,
+        .u.cons.type_name.str = "int"
+    },
+    {
+        .tag = FFI_TYPE_CONST,
+        .u.cons.type_name.str = "float"
+    },
+    {
+        .tag = FFI_TYPE_CONST,
+        .u.cons.type_name.str = "bool"
+    },
+    {
+        .tag = FFI_TYPE_CONST,
+        .u.cons.type_name.str = "char"
+    }
+};
+
+ffi_type_t* ffi_void(void) {
+    assert(NPRE_DEF_CONSTS == (sizeof(ffi_consts)/sizeof(ffi_consts[0])));
+    assert(sstr_equal_str(&ffi_consts[0].u.cons.type_name, "void"));
+    return &ffi_consts[0];
+}
+
+ffi_type_t* ffi_int(void) {
+    assert(NPRE_DEF_CONSTS == (sizeof(ffi_consts)/sizeof(ffi_consts[0])));
+    assert(sstr_equal_str(&ffi_consts[1].u.cons.type_name, "int"));
+    return &ffi_consts[1];
+}
+
+ffi_type_t* ffi_float(void) {
+    assert(NPRE_DEF_CONSTS == (sizeof(ffi_consts)/sizeof(ffi_consts[0])));
+    assert(sstr_equal_str(&ffi_consts[2].u.cons.type_name, "float"));
+    return &ffi_consts[2];
+}
+
+ffi_type_t* ffi_bool(void) {
+    assert(NPRE_DEF_CONSTS == (sizeof(ffi_consts)/sizeof(ffi_consts[0])));
+    assert(sstr_equal_str(&ffi_consts[3].u.cons.type_name, "bool"));
+    return &ffi_consts[3];
+}
+
+ffi_type_t* ffi_char(void) {
+    assert(NPRE_DEF_CONSTS == (sizeof(ffi_consts)/sizeof(ffi_consts[0])));
+    assert(sstr_equal_str(&ffi_consts[4].u.cons.type_name, "char"));
+    return &ffi_consts[4];
 }
 
 ffi_type_t* ffi_list(ffi_type_t* content_type) {
@@ -26,24 +73,19 @@ ffi_type_t* ffi_func(ffi_type_t* return_type) {
     return ffi;
 }
 
-void ffi_func_add_arg(ffi_type_t* func, ffi_type_t* arg_type) {
-    assert(func->tag == FFI_TYPE_FUNC);
-    ffi_type_t** extended = NULL;
-    size_t alloc_size = sizeof(ffi_type_t*) * (1 + func->u.func.arg_count);
-    if( func->u.func.arg_types != NULL ) {
-        assert(func->u.func.arg_count > 0);
-        extended = realloc(func->u.func.arg_types, alloc_size);
+void ffi_func_add_arg(ffi_type_t* ffi_func, ffi_type_t* arg_type) {
+    assert(ffi_func->tag == FFI_TYPE_FUNC);
+    ffi_functor_t* func = &ffi_func->u.func;
+    if(func->arg_types == NULL) {
+        assert(func->arg_count == 0);
+        func->arg_types = (ffi_type_t**) malloc(sizeof(ffi_type_t*));
     } else {
-        assert(func->u.func.arg_count == 0);
-        extended = malloc(alloc_size);
+        assert(func->arg_count > 0);
+        func->arg_types = (ffi_type_t**) realloc((void*) func->arg_types,
+            sizeof(ffi_type_t*) * (func->arg_count + 1));
     }
-    if( extended == NULL ) {
-        printf("error: (ffi_func_add_arg) out of memory\n");
-        return;
-    }
-    func->u.func.arg_types = extended;
-    func->u.func.arg_types[func->u.func.arg_count] = arg_type;
-    func->u.func.arg_count += 1;
+    func->arg_types[func->arg_count] = arg_type;
+    func->arg_count ++;
 }
 
 ffi_type_t* ffi_vfunc_nullterm(ffi_type_t* return_type, ...) {
@@ -63,7 +105,9 @@ void ffi_recfree(ffi_type_t* ffi) {
         return;
     switch(ffi->tag) {
         case FFI_TYPE_CONST: {
-            free(ffi);
+            /* do nothing */
+            /* either statically allocated
+               or allocated by the user */
         } break;
         case FFI_TYPE_LIST: {
             ffi_recfree(ffi->u.list.content_type);
@@ -71,11 +115,16 @@ void ffi_recfree(ffi_type_t* ffi) {
             free(ffi);
         } break;
         case FFI_TYPE_FUNC: {
-            int count = ffi->u.func.arg_count;
-            for(int i = 0; i < count; i++) {
-                ffi_recfree(ffi->u.func.arg_types[i]);
-                ffi->u.func.arg_types[i] = NULL;
+            if( ffi->u.func.arg_types != NULL ) {
+                int count = ffi->u.func.arg_count;
+                for(int i = 0; i < count; i++) {
+                    ffi_recfree(ffi->u.func.arg_types[i]);
+                    ffi->u.func.arg_types[i] = NULL;
+                }
+                free(ffi->u.func.arg_types);
             }
+            ffi->u.func.arg_types = NULL;
+            ffi->u.func.arg_count = 0;
             ffi_recfree(ffi->u.func.return_type);
             ffi->u.func.return_type = NULL;
             free(ffi);
@@ -201,10 +250,6 @@ void ffi_bundle_destroy(ffi_bundle_t* bundle) {
     if(bundle->type != NULL) {
         int count = bundle->count;
         for(int i = 0; i < count; i++) {
-            // note: this will break if types 
-            // are reused (by the user).
-            // should probably fix this at
-            // some point
             ffi_recfree(bundle->type[i]);
             bundle->type[i] = NULL;
         }

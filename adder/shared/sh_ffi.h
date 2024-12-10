@@ -5,6 +5,7 @@
 #include "sh_types.h"
 #include <stdbool.h>
 #include <stdarg.h>
+#include <assert.h>
 
 typedef enum ffi_tag_t {
     FFI_TYPE_CONST,
@@ -37,7 +38,12 @@ typedef struct ffi_type_t {
     } u;
 } ffi_type_t;
 
-ffi_type_t* ffi_const(char* type_name);
+ffi_type_t* ffi_void(void);
+ffi_type_t* ffi_int(void);
+ffi_type_t* ffi_float(void);
+ffi_type_t* ffi_char(void);
+ffi_type_t* ffi_bool(void);
+
 ffi_type_t* ffi_list(ffi_type_t* content_type);
 ffi_type_t* ffi_func(ffi_type_t* return_type);
 void ffi_func_add_arg(ffi_type_t* func, ffi_type_t* arg_type);
