@@ -16,3 +16,4 @@ target_sources(adrcom PRIVATE
 
 target_link_libraries(adrcom PUBLIC m adrsha)
 target_compile_options(adrcom PRIVATE -Wall -Wextra -Wpedantic)
+

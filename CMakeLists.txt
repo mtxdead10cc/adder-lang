@@ -15,3 +15,11 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -march=native -funroll-loops -ftree
 add_subdirectory(adder)
 add_subdirectory(adrrun)
 add_subdirectory(test-app)
+
+# copy build binaries to bin folder
+add_custom_target(install-all ALL
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:adrcom> ${CMAKE_CURRENT_SOURCE_DIR}/bin/$<TARGET_FILE_NAME:adrcom>
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:adrvm> ${CMAKE_CURRENT_SOURCE_DIR}/bin/$<TARGET_FILE_NAME:adrvm>
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:adrsha> ${CMAKE_CURRENT_SOURCE_DIR}/bin/$<TARGET_FILE_NAME:adrsha>
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:adrrun> ${CMAKE_CURRENT_SOURCE_DIR}/bin/$<TARGET_FILE_NAME:adrrun>
+)
