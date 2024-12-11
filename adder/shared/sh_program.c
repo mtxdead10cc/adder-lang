@@ -69,7 +69,6 @@ void fprint_value(FILE* stream, val_t* memory, val_t val) {
 
 void program_disassemble(FILE* stream, vm_program_t* program) {
     int current_byte = 0;
-    int current_instruction = 0;
     val_t* consts = program->cons.buffer;
     uint8_t* instructions = program->inst.buffer;
     int instr_byte_count = program->inst.size;
@@ -96,7 +95,6 @@ void program_disassemble(FILE* stream, vm_program_t* program) {
             }
         }
         fprintf(stream, "\n");
-        current_instruction ++;
     }
 }
 

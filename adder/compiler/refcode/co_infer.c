@@ -74,7 +74,7 @@ bool tyctx_insert(tyctx_t* ctx, srcref_t name, mt_forall_t* scheme) {
     if( res.found == false ) {
         tyctx_make_room_at(ctx, res.index);
         ctx->kvps[res.index] = (tyctx_kvp_t) {
-            .name = asprintf(ctx->arena, "%.*s",
+            .name = asprint(ctx->arena, "%.*s",
                 srcref_len(name), srcref_ptr(name)),
             .scheme = scheme
         };
@@ -246,7 +246,7 @@ static size_t freshcntr = 0;
 
 mt_t* ti_freshvar(tyctx_t* c) {
     return mt_var(c->arena,
-                asprintf(c->arena,
+                asprint(c->arena,
                     "var-%lu", freshcntr++));
 }
 

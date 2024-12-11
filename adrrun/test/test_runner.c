@@ -1129,7 +1129,7 @@ void test_ffi_types(test_case_t* this) {
 }
 
 
-test_results_t run_testcases() {
+test_results_t run_testcases(void) {
 
     test_case_t test_cases[] = {
         {

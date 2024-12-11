@@ -116,7 +116,7 @@ void sweep_discard_token(
     state->cursor = start + len;
 }
 
-srcmap_t create_keyword_token_map() {
+srcmap_t create_keyword_token_map(void) {
     srcmap_t map;
     srcmap_init(&map, 50);
 
@@ -150,7 +150,7 @@ token_t lookup_alpha_token(tokenizer_state_t* state) {
     };
 }
 
-srcmap_t create_symbolic_token_map() {
+srcmap_t create_symbolic_token_map(void) {
     srcmap_t map;
     srcmap_init(&map, 50);
 

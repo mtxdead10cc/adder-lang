@@ -1,4 +1,4 @@
-add_library(adrcom)
+add_library(adrcom STATIC)
 
 target_include_directories(adrcom
 PUBLIC

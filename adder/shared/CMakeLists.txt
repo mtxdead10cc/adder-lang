@@ -1,4 +1,4 @@
-add_library(adrsha)
+add_library(adrsha STATIC)
 
 target_include_directories(adrsha
 PUBLIC

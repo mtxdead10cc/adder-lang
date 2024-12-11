@@ -62,7 +62,7 @@ char* annotation_signature(arena_t* a, ast_annot_t* annot) {
         char* inner = annotation_signature(a, annot->children[0]);
         if( inner == NULL )
             return NULL;
-        return asprintf(a, "[%s]", inner);
+        return asprint(a, "[%s]", inner);
     } else if(srcref_equals_string(annot->name, LANG_TYPENAME_STRING)) {
         return "[c]";
     } else if(srcref_equals_string(annot->name, LANG_TYPENAME_VOID)) {
@@ -98,7 +98,7 @@ char* typing_signature(arena_t* a, ast_node_t* n) {
         } break;
         case AST_VAR_DECL: {
             srcref_t name = n->u.n_vardecl.name;
-            return asprintf(a, "$%.*s",
+            return asprint(a, "$%.*s",
                 srcref_len(name),
                 srcref_ptr(name));
         } break;
@@ -115,19 +115,19 @@ char* typing_signature(arena_t* a, ast_node_t* n) {
             }
             if( inner == NULL )
                 inner = "*";
-            return asprintf(a, "[%s]", inner);
+            return asprint(a, "[%s]", inner);
         } break;
         case AST_BLOCK: {
             char* sign = "";
             for(size_t i = 0; i < n->u.n_block.count; i++) {
                 ast_node_t* inner = n->u.n_block.content[i];
-                sign = asprintf(a, "%s%s", sign, typing_signature(a, inner));
+                sign = asprint(a, "%s%s", sign, typing_signature(a, inner));
             }
             return sign;
         } break;
         case AST_FUN_CALL: {
             srcref_t name = n->u.n_funcall.name;
-            return asprintf(a, "#%.*s:%s",
+            return asprint(a, "#%.*s:%s",
                 srcref_len(name),
                 srcref_ptr(name),
                 typing_signature(a, n->u.n_funcall.args));
@@ -137,19 +137,19 @@ char* typing_signature(arena_t* a, ast_node_t* n) {
         } break;
         case AST_FUN_SIGN: {
             srcref_t name = n->u.n_funsign.name;
-            return asprintf(a, "#%.*s:%s",
+            return asprint(a, "#%.*s:%s",
                 srcref_len(name),
                 srcref_ptr(name),
                 typing_signature(a, n->u.n_funsign.argspec));
         } break;
         case AST_BINOP: {
-            return asprintf(a, "#%s:%s%s",
+            return asprint(a, "#%s:%s%s",
                 binop_name(n->u.n_binop.type),
                 typing_signature(a, n->u.n_binop.left),
                 typing_signature(a, n->u.n_binop.right));
         } break;
         case AST_UNOP: {
-            return asprintf(a, "#%s:%s",
+            return asprint(a, "#%s:%s",
                 unop_name(n->u.n_unop.type),
                 typing_signature(a, n->u.n_unop.inner));
         } break;
@@ -302,7 +302,7 @@ char* infer(trace_t* trace, ast_node_t* node, ctx_t* ctx) {
             srcref_t name = node->u.n_vardecl.name;
             ast_annot_t* annot = node->u.n_vardecl.type;
             char* annot_sign = annotation_signature(ctx->arena, annot);
-            char* var_sign = asprintf(ctx->arena, "$%.*s",
+            char* var_sign = asprint(ctx->arena, "$%.*s",
                 srcref_len(name),
                 srcref_ptr(name));
             if( annot_sign != NULL ) {
@@ -331,7 +331,7 @@ char* infer(trace_t* trace, ast_node_t* node, ctx_t* ctx) {
                 trace_msg_append_costr(msg, "array definition: arrays must contain items of the same type");
                 inner = "*";
             }
-            return asprintf(ctx->arena, "[%s]", inner);
+            return asprint(ctx->arena, "[%s]", inner);
         } break;
         case AST_BLOCK: {
             // expressions generate type signatures
@@ -347,13 +347,13 @@ char* infer(trace_t* trace, ast_node_t* node, ctx_t* ctx) {
                 // (needed to check all statements / expressions
                 //  inside the body)
                 char* tmp = infer(trace, inner, ctx);
-                sign = asprintf(ctx->arena, "%s%s", sign, tmp);
+                sign = asprint(ctx->arena, "%s%s", sign, tmp);
             }
             return sign;
         } break;
         case AST_FUN_CALL: {
             srcref_t name = node->u.n_funcall.name;
-            char* sign = asprintf(ctx->arena, "#%.*s:%s",
+            char* sign = asprint(ctx->arena, "#%.*s:%s",
                 srcref_len(name),
                 srcref_ptr(name),
                 infer(trace, node->u.n_funcall.args, ctx));
@@ -425,7 +425,7 @@ char* infer(trace_t* trace, ast_node_t* node, ctx_t* ctx) {
             ast_annot_t* annot = node->u.n_funsign.return_type;
             char* retsign = annotation_signature(ctx->arena, annot);
             srcref_t name = node->u.n_funsign.name;
-            char* sign = asprintf(ctx->arena, "#%.*s:%s",
+            char* sign = asprint(ctx->arena, "#%.*s:%s",
                 srcref_len(name),
                 srcref_ptr(name),
                 infer(trace, node->u.n_funsign.argspec, ctx));
@@ -442,7 +442,7 @@ char* infer(trace_t* trace, ast_node_t* node, ctx_t* ctx) {
         } break;
         case AST_BINOP: {
             // Lookup global definition and return it's type
-            char* sign = asprintf(ctx->arena, "#%s:%s%s",
+            char* sign = asprint(ctx->arena, "#%s:%s%s",
                 binop_name(node->u.n_binop.type),
                 infer(trace, node->u.n_binop.left, ctx),
                 infer(trace, node->u.n_binop.right, ctx));
@@ -459,7 +459,7 @@ char* infer(trace_t* trace, ast_node_t* node, ctx_t* ctx) {
         } break;
         case AST_UNOP: {
             // Lookup global definition and return it's type
-            char* sign = asprintf(ctx->arena, "#%s:%s",
+            char* sign = asprint(ctx->arena, "#%s:%s",
                 unop_name(node->u.n_unop.type),
                 infer(trace, node->u.n_unop.inner, ctx));
             char* rettype = ctx_infer(ctx, sign);
@@ -496,7 +496,7 @@ char* infer(trace_t* trace, ast_node_t* node, ctx_t* ctx) {
 
             char* bodysign = infer(trace, ifbody, ctx_clone(ctx));
             char* nextsign = infer(trace, next, ctx_clone(ctx));
-            return asprintf(ctx->arena, "%s%s", bodysign, nextsign);
+            return asprint(ctx->arena, "%s%s", bodysign, nextsign);
         } break;
         case AST_ASSIGN: {
             ast_node_t* left = node->u.n_assign.left_var;
@@ -516,7 +516,7 @@ char* infer(trace_t* trace, ast_node_t* node, ctx_t* ctx) {
             srcref_t name = node->u.n_varref.name;
             
             char* sign = ctx_infer(ctx,
-                            asprintf(ctx->arena, "$%.*s",
+                            asprint(ctx->arena, "$%.*s",
                                 srcref_len(name),
                                 srcref_ptr(name)));
             if( sign == NULL ) {
@@ -537,7 +537,7 @@ char* infer(trace_t* trace, ast_node_t* node, ctx_t* ctx) {
         case AST_FOREACH: {
             char* varsign = infer(trace, node->u.n_foreach.vardecl, ctx);
             char* collsign = infer(trace, node->u.n_foreach.collection, ctx);
-            char* collsign_expect = asprintf(ctx->arena, "[%s]", varsign);
+            char* collsign_expect = asprint(ctx->arena, "[%s]", varsign);
             if( strcmp(collsign, collsign_expect) != 0 ) {
                 trace_msg_t* msg = trace_create_message(trace,
                         TM_ERROR, node->u.n_foreach.vardecl->u.n_vardecl.name);

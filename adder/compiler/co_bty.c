@@ -198,43 +198,43 @@ bool bty_is_always(bty_type_t* ty) {
 char* sprint_bty_type(arena_t* a, bty_type_t* ty) {
     switch(ty->tag) {
         case BTY_ERROR: {
-            return asprintf(a, "error (0x%X)", ty->u.err.erc);
+            return asprint(a, "error (0x%X)", ty->u.err.erc);
         } break;
         case BTY_VOID: {
-            return asprintf(a, "void");
+            return asprint(a, "void");
         } break;
         case BTY_FLOAT: {
-            return asprintf(a, "float");
+            return asprint(a, "float");
         } break;
         case BTY_INT: {
-            return asprintf(a, "int");
+            return asprint(a, "int");
         } break;
         case BTY_CHAR: {
-            return asprintf(a, "char");
+            return asprint(a, "char");
         } break;
         case BTY_BOOL: {
-            return asprintf(a, "bool");
+            return asprint(a, "bool");
         } break;
         case BTY_SOMETIMES: {
-            return asprintf(a,
+            return asprint(a,
                 "%s or nothing", 
                 sprint_bty_type(a, 
                     ty->u.con));
         } break;
         case BTY_ALWAYS: {
-            return asprintf(a,
+            return asprint(a,
                 "%s", 
                 sprint_bty_type(a, 
                     ty->u.con));
         } break;
         case BTY_RETURN: {
-            return asprintf(a,
+            return asprint(a,
                 "return type %s", 
                 sprint_bty_type(a, 
                     ty->u.con));
         } break;
         case BTY_LIST: {
-            return asprintf(a,
+            return asprint(a,
                 "list of %s", 
                 sprint_bty_type(a, 
                     ty->u.con));
@@ -243,13 +243,13 @@ char* sprint_bty_type(arena_t* a, bty_type_t* ty) {
             char* text = "";
             for(int i = 0; i < ty->u.fun.argc; i++) {
                 if( i > 0 )
-                    text = asprintf(a, "%s, ", text);
-                text = asprintf(a, 
+                    text = asprint(a, "%s, ", text);
+                text = asprint(a, 
                     "%s%s", text,
                     sprint_bty_type(a,
                         ty->u.fun.args[i]));
             }
-            return asprintf(a, 
+            return asprint(a, 
                 "func (%s) -> %s", text,
                 sprint_bty_type(a, ty->u.fun.ret));
         } break;
@@ -296,6 +296,7 @@ bool bty_is_list_subtype(bty_type_t* child, bty_type_t* parent) {
 bool bty_handle_error_subtype(bty_type_t* child, bty_type_t* parent) {
     assert(child->tag == BTY_ERROR);
     (void)(parent);
+    (void)(child);
     return false;
 }
 
@@ -435,7 +436,7 @@ bool bty_ctx_insert(bty_ctx_t* ctx, srcref_t name, bty_type_t* type) {
     if( res.found == false ) {
         bty_ctx_make_room_at(ctx, res.index);
         ctx->kvps[res.index] = (bty_ctx_kvp_t) {
-            .name = asprintf(ctx->arena, "%.*s",
+            .name = asprint(ctx->arena, "%.*s",
                 (int) srcref_len(name), srcref_ptr(name)),
             .type = type
         };

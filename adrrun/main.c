@@ -71,7 +71,7 @@ void setup_default_env(ffi_bundle_t* bundle) {
 }
 
 bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
-    time_t last_creation_time = 0xFFFFFFFFFFFFFFFF;
+    time_t last_creation_time = 0x8FFFFFFFL;
     bool compile_ok = true;
     ffi_bundle_t bundle = { 0 };
     setup_default_env(&bundle);
@@ -135,7 +135,7 @@ void print_todo_list(todo_item_t* items, size_t count) {
     printf("--------------------------------------\n");
 }
 
-void todo_list() {
+void todo_list(void) {
     todo_item_t items[] = {        
         { false, "Foreach break." }
     };

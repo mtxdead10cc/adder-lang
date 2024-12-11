@@ -28,7 +28,7 @@
 #define VAL_MK_TYPE_ID(T) ( ((val_t)(T) & 0xF) << 60 )
 #define VAL_GET_TYPE(V)     ((val_type_t)(((val_t)(V)) >> 60))
 
-inline static val_t val_none() {
+inline static val_t val_none(void) {
     return VAL_MK_TYPE_ID(VAL_NONE);
 }
 

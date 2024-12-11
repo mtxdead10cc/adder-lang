@@ -1,5 +1,5 @@
 
-add_library(adrvm)
+add_library(adrvm STATIC)
 
 target_include_directories(adrvm
 PUBLIC

@@ -127,7 +127,7 @@ char* astrcopy(arena_t* arena, char* src, size_t len) {
     return dest;
 }
 
-char* asprintf(arena_t* arena, const char* fmt, ...) {
+char* asprint(arena_t* arena, const char* fmt, ...) {
     va_list length_args;
     va_start(length_args, fmt);
     va_list result_args;

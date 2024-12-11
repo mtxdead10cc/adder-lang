@@ -6,6 +6,6 @@ typedef struct test_results_t {
     int npassed;
 } test_results_t;
 
-test_results_t run_testcases();
+test_results_t run_testcases(void);
 
 #endif // TEST_RUNNER_H_
