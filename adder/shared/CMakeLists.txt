@@ -12,5 +12,5 @@ target_sources(adrsha PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/sh_ffi.c
 )
 
-target_link_libraries(adrsha PUBLIC m)
+target_link_libraries(adrsha PRIVATE m)
 target_compile_options(adrsha PRIVATE -Wall -Wextra -Wpedantic)

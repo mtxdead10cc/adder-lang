@@ -11,5 +11,5 @@ target_sources(adrvm PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/vm_value_tools.c
 )
 
-target_link_libraries(adrvm PUBLIC m adrsha adrcom)
+target_link_libraries(adrvm PRIVATE m adrsha adrcom)
 target_compile_options(adrvm PRIVATE -Wall -Wextra -Wpedantic)

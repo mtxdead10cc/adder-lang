@@ -9,7 +9,7 @@ add_executable(adrrun
     ${CMAKE_CURRENT_SOURCE_DIR}/main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/test/test_runner.c)
 
-target_link_libraries(adrrun PUBLIC m adrcom adrvm)
+target_link_libraries(adrrun PUBLIC m adrcom adrvm adrsha)
 target_compile_options(adrrun PRIVATE -Wall -Wpedantic -Wextra) #  -Werror
 add_dependencies(adrrun gen-test-header)
 

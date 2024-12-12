@@ -14,6 +14,6 @@ target_sources(adrcom PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/co_bty.c
 )
 
-target_link_libraries(adrcom PUBLIC m adrsha)
+target_link_libraries(adrcom PRIVATE m adrsha)
 target_compile_options(adrcom PRIVATE -Wall -Wextra -Wpedantic)
 
