@@ -27,7 +27,7 @@ typedef enum keypress_t {
     KEY_UNK
 } keypress_t;
 
-inline static int kb_getch() { 
+inline static int kb_getch(void) { 
     int ch;
     struct termios oldattr;
     struct termios newattr;
@@ -88,3 +88,4 @@ inline static keypress_t _kb_read(bool escaped, bool arrows) {
 #define kb_read() _kb_read(false, false)
 
 #endif // KEYBOARD_H_
+

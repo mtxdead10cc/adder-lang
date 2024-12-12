@@ -40,7 +40,7 @@ inline static void termhax_reserve_lines(int lines) {
     }
 }
 
-inline static void termhax_flush() {
+inline static void termhax_flush(void) {
     fflush(stdout);
 }
 
@@ -60,7 +60,7 @@ inline static void termhax_move_right(int cols) {
     printf("\033[%dC", cols); // Move right X column;
 }
 
-inline static void termhax_clear_screen() {
+inline static void termhax_clear_screen(void) {
     printf("\033[2J");
 }
 
