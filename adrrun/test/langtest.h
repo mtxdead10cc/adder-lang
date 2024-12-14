@@ -190,6 +190,23 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "0",
         .filepath = "basics.txt"
+    },
+    {
+        .category = "verify",
+        .name = "implicit return",
+        .code = 
+        "#extern void print(string arg);\n"
+        "void test() {\n"
+        "    print(\"T\n\");\n"
+        "}\n"
+        "int main() {\n"
+        "    test();\n"
+        "    test();\n"
+        "    test();\n"
+        "    return 0;\n"
+        "}\n",
+        .expect = "0",
+        .filepath = "basics.txt"
     }
 };
 

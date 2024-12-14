@@ -77,6 +77,11 @@ ir_inst_t* irl_get(ir_list_t* list, ir_index_t index) {
     return list->irs + index.idx;
 }
 
+ir_inst_t* irl_get_last(ir_list_t* list) {
+    assert(list->count > 0 && "cant get last instruction (empty instruction list)");
+    return list->irs + (list->count - 1);
+}
+
 void irl_dump(ir_list_t* list) {
     for(uint32_t i = 0; i < list->count; i++) {
         int argcount = get_op_arg_count(list->irs[i].opcode);
@@ -351,6 +356,17 @@ void codegen_fundecl(ast_fundecl_t node, compiler_state_t* state) {
 
     uint32_t arg_count = (uint32_t) state->localvars.count;
     codegen(node.body, state); // adds locals to frame
+
+    // if the last instruction is not a return statement
+    // we insert a value less return at the end.
+    vm_op_t last_op_code = irl_get_last(&state->instrs)->opcode;
+    if( last_op_code != OP_RETURN_VALUE && last_op_code != OP_RETURN_NOTHING ) {
+        irl_add(&state->instrs, (ir_inst_t){
+            .opcode = OP_RETURN_NOTHING,
+            .args = { 0 }
+        });
+    }
+
     uint32_t locals_count = ((uint32_t) state->localvars.count) - arg_count;
     irl_get(&state->instrs, frame_index)->args[0] = arg_count;
     irl_get(&state->instrs, frame_index)->args[1] = locals_count;

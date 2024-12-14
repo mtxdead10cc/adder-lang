@@ -395,7 +395,10 @@ val_t vm_execute(vm_t* vm, vm_program_t* program, gvm_exec_args_t* exec_args) {
                 }
 
                 // update pc to resume at call site
-                vm->run.pc = frame.return_pc; 
+                vm->run.pc = frame.return_pc;
+
+                // hop down to parent call frame - 1
+                vm_mem->stack.top = vm_mem->stack.frame - 1;
 
                 // find index of previous frame
                 // this way of updating current frame may turn out

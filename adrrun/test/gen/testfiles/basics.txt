@@ -125,3 +125,16 @@ int main() {
     return 100 - -100 - 200;
 }
 $VERIFY("0")
+
+$START("implicit return")
+#extern void print(string arg);
+void test() {
+    print("T\n");
+}
+int main() {
+    test();
+    test();
+    test();
+    return 0;
+}
+$VERIFY("0")
