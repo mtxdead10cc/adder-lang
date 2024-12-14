@@ -71,7 +71,7 @@ void setup_default_env(ffi_bundle_t* bundle) {
 }
 
 bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
-    time_t last_creation_time = 0x8FFFFFFFL;
+    time_t last_creation_time = 0x0L;
     bool compile_ok = true;
     ffi_bundle_t bundle = { 0 };
     setup_default_env(&bundle);
