@@ -20,11 +20,11 @@
 #if VM_TRACE_LOG_LEVEL > 0
 
 # define TRACE_LOG(...) printf(__VA_ARGS__)
-# define TRACE_OP(C) TRACE_LOG("> %s ", au_get_op_name(C))
+# define TRACE_OP(C) TRACE_LOG("> %s ", get_op_name(C))
 # define TRACE_INT_ARG(A) TRACE_LOG("%i ", (A))
 # define TRACE_NL() printf("\n");
 
-# if GVM_TRACE_LOG_LEVEL > 1
+# if VM_TRACE_LOG_LEVEL > 1
 void print_stack(val_t* stack, int stack_size) {
     printf(" stack (s:%i) | ", stack_size);
     for(int i = 0; i < stack_size; i++) {
@@ -129,12 +129,12 @@ inline static int ffi_get_arg_count(ffi_type_t* type) {
     }
 }
 
-inline static void ffi_invoke(ffi_bundle_t* bundle, uint32_t index, vm_t* vm) {
+inline static void ffi_invoke(ffi_host_t* bundle, uint32_t index, vm_t* vm) {
     int argcount = ffi_get_arg_count(bundle->type[index]);
     vm->mem.stack.top -= argcount;
     switch(bundle->handle[index].tag) {
-        case FFI_HNDL_ACTION: {
-            bundle->handle[index].u.action(
+        case FFI_HNDL_HOST_ACTION: {
+            bundle->handle[index].u.host_action(
                 (ffi_hndl_meta_t) {
                     .local = bundle->handle[index].local,
                     .vm = vm
@@ -142,8 +142,8 @@ inline static void ffi_invoke(ffi_bundle_t* bundle, uint32_t index, vm_t* vm) {
                 argcount,
                 vm->mem.stack.values + vm->mem.stack.top + 1);
         } break;
-        case FFI_HNDL_FUNCTION: {
-            val_t ret = bundle->handle[index].u.function(
+        case FFI_HNDL_HOST_FUNCTION: {
+            val_t ret = bundle->handle[index].u.host_function(
                 (ffi_hndl_meta_t) {
                     .local = bundle->handle[index].local,
                     .vm = vm
@@ -156,6 +156,27 @@ inline static void ffi_invoke(ffi_bundle_t* bundle, uint32_t index, vm_t* vm) {
             assert(false && "Not implemented");
         }
     }
+}
+
+void vm_select_entry_point(vm_t* vm, vm_program_t* program, int entrypoint) {
+    
+    if( program->eps.count == 0 )
+        return;
+
+    // push negative number as return address
+    vm->mem.stack.values[++vm->mem.stack.top] = val_number(-1.0f);
+
+    if( entrypoint < 0 ) {
+        // default to main
+        entrypoint = program->eps.count - 1;
+    }
+
+    assert( entrypoint < (int) program->eps.count );
+    uint32_t addr = program->eps.addrs[entrypoint];
+    assert( program->inst.size >= addr );
+    assert( program->inst.buffer[addr] == OP_MAKE_FRAME );
+    // jump to label / function
+    vm->run.pc = addr;
 }
 
 val_t vm_execute(vm_t* vm, vm_program_t* program, gvm_exec_args_t* exec_args) {
@@ -186,6 +207,8 @@ val_t vm_execute(vm_t* vm, vm_program_t* program, gvm_exec_args_t* exec_args) {
         cycles_remaining = 0;
     }
 
+    vm_select_entry_point(vm, program, exec_args->entry_point);
+
     while ( (cycles_remaining--) != 0 ) {
 
         vm_op_t opcode = instructions[vm_run->pc++];
@@ -194,7 +217,7 @@ val_t vm_execute(vm_t* vm, vm_program_t* program, gvm_exec_args_t* exec_args) {
 
         VALIDATE_PRE(vm, opcode);
 
-        assert(OP_OPCODE_COUNT == 38 && "Opcode count changed.");
+        assert(OP_OPCODE_COUNT == 37 && "Opcode count changed.");
 
         switch (opcode) {
             case OP_PUSH_VALUE: {
@@ -327,13 +350,6 @@ val_t vm_execute(vm_t* vm, vm_program_t* program, gvm_exec_args_t* exec_args) {
             case OP_CALL: {
                 // push the return address
                 stack[++vm_mem->stack.top] = val_number(vm_run->pc + 4);
-                // jump to label / function
-                vm_run->pc = READ_U32(instructions, vm_run->pc);
-                TRACE_INT_ARG(vm_run->pc);
-            } break;
-            case OP_ENTRY_POINT: {
-                // push negative number as return address
-                stack[++vm_mem->stack.top] = val_number(-1.0f);
                 // jump to label / function
                 vm_run->pc = READ_U32(instructions, vm_run->pc);
                 TRACE_INT_ARG(vm_run->pc);

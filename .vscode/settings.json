@@ -48,7 +48,9 @@
         "sh_utils.h": "c",
         "sh_types.h": "c",
         "langtest.h": "c",
-        "numbers": "c"
+        "numbers": "c",
+        "ostream": "c",
+        "ranges": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

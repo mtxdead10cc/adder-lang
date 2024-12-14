@@ -218,7 +218,7 @@ char* sprint_ast(arena_t* a, int ind, ast_node_t* n) {
 }
 
 
-vm_program_t program_compile_source(char* source, size_t source_len, char* filepath, bool debug_print, ffi_bundle_t* bundle) {
+vm_program_t program_compile_source(char* source, size_t source_len, char* filepath, bool debug_print, ffi_host_t* bundle) {
 
     parser_t parser = { 0 };
     trace_t trace = { 0 };
@@ -273,7 +273,7 @@ vm_program_t program_compile_source(char* source, size_t source_len, char* filep
     return program;
 }
 
-vm_program_t program_read_and_compile(char* path, bool debug_print, ffi_bundle_t* bundle) {
+vm_program_t program_read_and_compile(char* path, bool debug_print, ffi_host_t* bundle) {
 
     FILE* f = fopen(path, "r");
     

@@ -118,14 +118,6 @@ inline static bool validation_pre_exec(vm_t* vm, vm_op_t opcode) {
                 "the OP_CALL instruction must be immediatly followed by OP_MAKE_FRAME.\n");
         validation->message[256] = '\0';
         no_error = false;
-    } else if( opcode == OP_MAKE_FRAME
-            && validation->last_opcode != OP_CALL
-            && validation->last_opcode != OP_ENTRY_POINT )
-    {
-        snprintf(validation->message, 256,
-                "the OP_MAKE_FRAME instruction must be preceeded by OP_CALL or OP_ENTRY_POINT.\n");
-        validation->message[256] = '\0';
-        no_error = false;
     } else {
         switch (opcode) {
             case OP_ADD:
@@ -186,15 +178,6 @@ inline static bool validation_pre_exec(vm_t* vm, vm_op_t opcode) {
                     no_error = false;
                 }
             } break;
-            case OP_ENTRY_POINT: {
-                if( validation->opcntr != 0 ) {
-                    snprintf(validation->message, 256,
-                            "'%s' has to be the first instruction.",
-                             op_name);
-                    validation->message[256] = '\0';
-                    no_error = false;
-                }
-            } break;
             default: {
                 /* nothing */
             } break;
@@ -213,7 +196,7 @@ inline static bool validation_pre_exec(vm_t* vm, vm_op_t opcode) {
 }
 
 inline static bool validation_post_exec(vm_t* vm, vm_op_t opcode) {
-    assert(OP_OPCODE_COUNT == 38 && "Opcode count changed.");
+    assert(OP_OPCODE_COUNT == 37 && "Opcode count changed.");
     char* op_name = get_op_name(opcode);
     validation_t* validation = ((validation_t*)vm->validation);
     bool no_error = true;

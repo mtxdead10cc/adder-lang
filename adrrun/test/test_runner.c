@@ -272,7 +272,8 @@ void test_vm(test_case_t* this) {
 
     gvm_exec_args_t args = {
         .args = { 0 },
-        .cycle_limit = 10
+        .cycle_limit = 10,
+        .entry_point = -1
     };
 
     TEST_ASSERT_MSG(this,
@@ -472,7 +473,8 @@ void test_ast(test_case_t* this) {
     val_t argbuf[] = { val_number(1), val_number(-1) };
     gvm_exec_args_t args = {
         .args = { .buffer = argbuf, .count = 2 },
-        .cycle_limit = 100
+        .cycle_limit = 100,
+        .entry_point = -1
     };
 
     TEST_ASSERT_MSG(this,
@@ -688,18 +690,18 @@ void test_printfn(ffi_hndl_meta_t md, int argcount, val_t* args) {
     }                                                   \
 } while(false)
 
-bool test_setup_default_env(ffi_bundle_t* bundle) {
-    bool res = ffi_bundle_init(bundle, 8);
+bool test_setup_default_env(ffi_host_t* bundle) {
+    bool res = ffi_host_init(bundle, 8);
     if( res == false ) {
         printf("error: failed to init FFI.\n");
         return false;;
     }
-    res = ffi_bundle_add(bundle,
+    res = ffi_host_add(bundle,
         sstr("print"), 
         (ffi_handle_t) {
             .local = 0,
-            .tag = FFI_HNDL_ACTION,
-            .u.action = test_printfn,
+            .tag = FFI_HNDL_HOST_ACTION,
+            .u.host_action = test_printfn,
         },
         ffi_vfunc(ffi_void(),
             ffi_list(ffi_char())));
@@ -710,19 +712,63 @@ bool test_setup_default_env(ffi_bundle_t* bundle) {
     return true;
 }
 
-bool test_compile_and_run(test_case_t* this, char* test_category, char* source_code, char* expected_result, char* tc_name, char* tc_filepath) {
+bool test_setup_required(ffi_host_t* bundle, char* exported) {
+
+    if( exported == NULL )
+        return true;
+
+    if( strlen(exported) == 0 )
+        return true;
+
+    bool res = false;
+
+    if( strcmp(exported, "test_int_1_int") == 0 ) {
+        res = ffi_host_add(bundle,
+            sstr("test_int_1_int"), 
+            (ffi_handle_t) {
+                .local = 0,
+                .tag = FFI_PROGRAM_REQUIREMENT
+            },
+            ffi_vfunc(ffi_int(), ffi_int()));
+    }
+
+    return res;
+}
+
+bool test_set_args(ffi_host_t* bundle, gvm_exec_args_t* args, char* exported) {
+    if( exported == NULL )
+        return true;
+    if( strlen(exported) == 0 )
+        return true;
+    if( strcmp(exported, "test_int_1_int") == 0 ) {
+        int ep = ffi_host_find_entrypoint(bundle, sstr(exported));
+        if( ep < 0 )
+            return false;
+        args->entry_point = ep;
+        args->args.buffer[0] = val_number(1);
+        args->args.count = 1;
+        return true;
+    }
+    return false;
+}
+
+bool test_compile_and_run(test_case_t* this, char* test_category, char* source_code, char* expected_result, char* tc_name, char* tc_filepath, char* tc_exported) {
 
     static char result_as_text[512] = {0};
     arena_t* arena = arena_create(1024);
     parser_t parser;
     trace_t trace;
-    ffi_bundle_t ffi = { 0 };
+    ffi_host_t ffi = { 0 };
 
     trace_init(&trace, 16);
 
     TEST_ASSERT_MSG(this,
         test_setup_default_env(&ffi),
         "failed to setup FFI");
+
+    TEST_ASSERT_MSG(this,
+        test_setup_required(&ffi, tc_exported),
+        "failed to setup FFI required exports");
 
     bool is_known_todo = strcmp(test_category, "todo") == 0;
 
@@ -786,16 +832,28 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         pa_destroy(&parser);
         arena_destroy(arena);
         trace_destroy(&trace);
-        ffi_bundle_destroy(&ffi);
+        ffi_host_destroy(&ffi);
         return is_known_todo;
     }
 
     vm_t vm;
     vm_create(&vm, 50, 50);
+
+    val_t arg_buf[16] = { 0 }; 
+
     gvm_exec_args_t args = {
-        .args = { 0 },
-        .cycle_limit = 100
+        .args = {
+            .buffer = arg_buf,
+            .count = 0
+        },
+        .cycle_limit = 100,
+        .entry_point = -1
     };
+
+    TEST_ASSERT_MSG(this,
+        test_set_args(&ffi, &args, tc_exported),
+        "'%s': failed to set args.",
+        tc_name);
 
     val_t res = vm_execute(&vm, &program, &args);
 
@@ -854,7 +912,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     arena_destroy(arena);
     vm_destroy(&vm);
     trace_destroy(&trace);
-    ffi_bundle_destroy(&ffi);
+    ffi_host_destroy(&ffi);
 
     return true;
 }
@@ -875,7 +933,8 @@ void test_langtest(test_case_t* this) {
         "verify",
         text, "75.0",
         "initial: simple-main",
-        "builtin");
+        "builtin",
+        "");
     if( accepted == false )
         return; 
 
@@ -887,7 +946,8 @@ void test_langtest(test_case_t* this) {
             tc.code,
             tc.expect,
             tc.name,
-            tc.filepath);
+            tc.filepath,
+            tc.export);
         if( accepted == false )
             return; 
     }
@@ -1095,13 +1155,13 @@ void test_inference(test_case_t* this) {
 }
 
 void test_ffi_types(test_case_t* this) {
-    ffi_bundle_t b = (ffi_bundle_t) { 0 };
-    ffi_bundle_init(&b, 1);
+    ffi_host_t b = (ffi_host_t) { 0 };
+    ffi_host_init(&b, 1);
 
-    ffi_bundle_add(&b, sstr("test01"), (ffi_handle_t){0}, ffi_int());
-    ffi_bundle_add(&b, sstr("test02"), (ffi_handle_t){0}, ffi_list(ffi_int()));
-    ffi_bundle_add(&b, sstr("test03"), (ffi_handle_t){0}, ffi_func(ffi_int()));
-    ffi_bundle_add(&b, sstr("test04"), (ffi_handle_t){0}, ffi_vfunc(ffi_int(),
+    ffi_host_add(&b, sstr("test01"), (ffi_handle_t){0}, ffi_int());
+    ffi_host_add(&b, sstr("test02"), (ffi_handle_t){0}, ffi_list(ffi_int()));
+    ffi_host_add(&b, sstr("test03"), (ffi_handle_t){0}, ffi_func(ffi_int()));
+    ffi_host_add(&b, sstr("test04"), (ffi_handle_t){0}, ffi_vfunc(ffi_int(),
                                             ffi_bool(),
                                             ffi_char(),
                                             ffi_int()));
@@ -1112,20 +1172,20 @@ void test_ffi_types(test_case_t* this) {
                             ffi_int());
 
     TEST_ASSERT_MSG(this,
-        ffi_equals(check, ffi_bundle_get_type(&b, sstr("test04"))),
+        ffi_equals(check, ffi_host_get_type(&b, sstr("test04"))),
         "#1.1 ffi_bundle_get & ffi_equals");
 
     TEST_ASSERT_MSG(this,
-        ffi_bundle_add(&b, sstr("test04"), (ffi_handle_t){0}, ffi_int()) == false,
-        "#1.2 ffi_bundle_add overwrite");
+        ffi_host_add(&b, sstr("test04"), (ffi_handle_t){0}, ffi_int()) == false,
+        "#1.2 ffi_host_add overwrite");
 
     TEST_ASSERT_MSG(this,
-        ffi_bundle_add(&b, sstr("test04"), (ffi_handle_t){0}, check),
-        "#1.3 ffi_bundle_add same");
+        ffi_host_add(&b, sstr("test04"), (ffi_handle_t){0}, check),
+        "#1.3 ffi_host_add same");
     
     ffi_recfree(check);
-    //ffi_bundle_fprint(stdout, &b);
-    ffi_bundle_destroy(&b);
+    //ffi_host_fprint(stdout, &b);
+    ffi_host_destroy(&b);
 }
 
 

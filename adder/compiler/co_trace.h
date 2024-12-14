@@ -139,7 +139,8 @@ inline static int trace_msg_append_token_type_name(trace_msg_t* msg, token_type_
         case TT_CMP_NEQ:
         case TT_CMP_GT_EQ:
         case TT_CMP_LT_EQ:      return trace_msg_append_costr(msg, "comparison operator");
-        case TT_PREPROC:        return trace_msg_append_costr(msg, "preprocessor symbol");
+        case TT_IMPORT:         return trace_msg_append_costr(msg, "from host to script import");
+        case TT_EXPORT:         return trace_msg_append_costr(msg, "from script to host export");
         default:                return trace_msg_append_costr(msg, "unknown");
     }
 }

@@ -109,7 +109,7 @@ size_t get_node_content_length(ast_node_t* args) {
 typedef struct compiler_state_t {
     srcmap_t                localvars;
     srcmap_t                functions;
-    ffi_bundle_t*           ffi;
+    ffi_host_t*           ffi;
     ir_list_t               instrs;
     valbuffer_t             consts;
     trace_t*                trace;
@@ -391,13 +391,13 @@ void codegen_funcall(ast_funcall_t node, compiler_state_t* state) {
         return;
     }
 
-    int ext_index = ffi_bundle_index_of(state->ffi,
+    int ext_index = ffi_host_index_of(state->ffi,
         srcref_as_sstr(node.name));
 
     if ( ext_index >= 0 ) {
 
         ffi_handle_tag_t tag = state->ffi->handle[ext_index].tag;
-        if( tag != FFI_HNDL_ACTION && tag != FFI_HNDL_FUNCTION ) {
+        if( tag != FFI_HNDL_HOST_ACTION && tag != FFI_HNDL_HOST_FUNCTION ) {
             trace_not_implemented(state->trace,
                 "Value properties (FFI_HNDL_VALUE_READ_ONLY, FFI_HNDL_VALUE)");
             return;
@@ -632,7 +632,7 @@ void verify_funexdecl(ast_funexdecl_t funex, compiler_state_t* state) {
 
     ABORT_ON_ERROR(state);
 
-    ffi_type_t* ffi_type = ffi_bundle_get_type(state->ffi,
+    ffi_type_t* ffi_type = ffi_host_get_type(state->ffi,
         srcref_as_sstr(funex.name));
 
     bty_type_t* bty_type = bty_ctx_lookup(state->tyctx, funex.name);
@@ -650,7 +650,7 @@ void verify_funexdecl(ast_funexdecl_t funex, compiler_state_t* state) {
             TM_WARNING,
             funex.name);
         trace_msg_append_costr(msg,
-            "extern function '");
+            "external (imported) function '");
         trace_msg_append_srcref(msg, funex.name);
         if( lang_type != NULL ) {
             trace_msg_append_ffi_type(msg, lang_type);
@@ -666,7 +666,7 @@ void verify_funexdecl(ast_funexdecl_t funex, compiler_state_t* state) {
                 TM_INTERNAL_ERROR,
                 funex.name);
             trace_msg_append_costr(msg,
-                "extern function validation failed for '");
+                "external (imported) function validation failed for '");
             trace_msg_append_srcref(msg, funex.name);
             trace_msg_append_ffi_type(msg, ffi_type);
             trace_msg_append_costr(msg, 
@@ -678,7 +678,7 @@ void verify_funexdecl(ast_funexdecl_t funex, compiler_state_t* state) {
             trace_msg_t* msg = trace_create_message(state->trace,
                 TM_ERROR,
                 funex.name);
-            trace_msg_append_costr(msg, "unexpected extern function '");
+            trace_msg_append_costr(msg, "unexpected function import '");
             trace_msg_append_srcref(msg, funex.name);
             trace_msg_append_costr(msg, "' type signature. ");
             trace_msg_append_costr(msg, "\n\tDefined FFI type: ");
@@ -788,44 +788,41 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
     }
 }
 
-void recalc_index_to_bytecode_adress(ir_list_t* instrs) {
-    
-    uint32_t idx2addr[instrs->count+1];
-    uint32_t addr = 0;
-    const uint32_t argbytes = 4; // 32-bit args
-    
-    for (uint32_t i = 0; i < instrs->count; i++) {
-        idx2addr[i] = addr;
-        uint32_t argcount = get_op_arg_count(instrs->irs[i].opcode);
-        addr = addr + (argcount * argbytes) + 1;
-    }
-
-    // needed for jumps landing
-    // after last instruction
-    // happens for if ... else ...
-    idx2addr[instrs->count] = addr; 
-
+void recalc_index_to_bytecode_adress(ir_list_t* instrs, uint32_t* idx2addr) {
+    uint32_t max_addr = idx2addr[instrs->count];
     for (uint32_t i = 0; i < instrs->count; i++) {
         switch(instrs->irs[i].opcode) {
             case OP_CALL:
-            case OP_ENTRY_POINT:
             case OP_ITER_NEXT:
             case OP_JUMP:
             case OP_JUMP_IF_FALSE: {
                 uint32_t index = instrs->irs[i].args[0];
-                assert(idx2addr[index] <= addr);
+                assert(idx2addr[index] <= max_addr);
                 instrs->irs[i].args[0] = idx2addr[index];
             } break;
             default: break;
         }
     }
-
-    
 }
 
-vm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts, ffi_bundle_t* ffi) {
+void create_index_to_addr_map(ir_list_t* instrs, uint32_t* idx2addr, uint32_t size) {
+    uint32_t addr = 0;
+    const uint32_t argbytes = 4; // 32-bit args
+    assert(instrs->count + 1 <= size);
+    for (uint32_t i = 0; i < instrs->count; i++) {
+        idx2addr[i] = addr;
+        uint32_t argcount = get_op_arg_count(instrs->irs[i].opcode);
+        addr = addr + (argcount * argbytes) + 1;
+    }
+    // needed for jumps landing
+    // after last instruction
+    // happens for if ... else ...
+    idx2addr[instrs->count] = addr; 
+}
 
-    recalc_index_to_bytecode_adress(instrs);
+vm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts, ffi_host_t* ffi, uint32_t* idx2addr) {
+
+    recalc_index_to_bytecode_adress(instrs, idx2addr);
 
     u8buffer_t bytecode;
     u8buffer_create(&bytecode, instrs->count);
@@ -860,8 +857,80 @@ vm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts, ffi_bundle_t*
     return result;
 }
 
+bool check_entry_points(compiler_state_t* state) {
 
-vm_program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace, ffi_bundle_t* ffi) {
+    int missing_count = 0;
+
+    ir_index_t index = state_get_funcaddr(state, srcref_const("main"));
+    if(index.tag != IRID_INS) {
+        missing_count ++;
+        trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, trace_no_ref());
+        trace_msg_append_costr(msg, "no main() function found in program.\n");
+    }
+
+    if( state->ffi == NULL ) {
+        // no ffi
+        return missing_count == 0;
+    }
+
+    ffi_host_t* ffi = state->ffi;
+    for(int i = 0; i < ffi->count; i++) {
+
+        if( ffi->handle->tag != FFI_PROGRAM_REQUIREMENT )
+            continue;
+
+        srcref_t name = srcref(
+            sstr_ptr(&ffi->name[i]), 0, 
+            sstr_len(&ffi->name[i]));
+
+        ir_index_t index = state_get_funcaddr(state, name);
+        bty_type_t* script_type_bty = bty_ctx_lookup(state->tyctx, name);
+        ffi_type_t* script_type_ffi = bty_to_ffi_type(script_type_bty);
+
+        bool missing = false;
+
+        if( index.tag != IRID_INS || script_type_bty == NULL || script_type_ffi == NULL ) {
+            missing = true;
+        }
+        
+        if( script_type_bty->tag == BTY_FUNC ) {
+            missing = script_type_bty->u.fun.exported;
+        } else {
+            missing = true;
+        }
+
+        if( missing ) {
+            missing_count ++;
+            trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, trace_no_ref());
+            trace_msg_append_costr(msg, "FFI required function ");
+            trace_msg_append_srcref(msg, name);
+            trace_msg_append_costr(msg, " could not be found.\n");
+            trace_msg_append_costr(msg, "Did you forget to export the function?");
+            continue;
+        }
+
+        if( ffi_equals(ffi->type[i], script_type_ffi) == false ) {
+            missing_count ++;
+            trace_msg_t* msg = trace_create_message(state->trace,
+                TM_ERROR,
+                trace_no_ref());
+            trace_msg_append_costr(msg, "unexpected export function '");
+            trace_msg_append_srcref(msg, name);
+            trace_msg_append_costr(msg, "' type signature. ");
+            trace_msg_append_costr(msg, "\n\tDefined FFI type: ");
+            trace_msg_append_srcref(msg, name);
+            trace_msg_append_ffi_type(msg, ffi->type[i]);
+            trace_msg_append_costr(msg, "\n\tSource file type: ");
+            trace_msg_append_srcref(msg, name);
+            trace_msg_append_ffi_type(msg, script_type_ffi);
+            continue;
+        }
+    }
+
+    return missing_count == 0;
+}
+
+vm_program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace, ffi_host_t* ffi) {
 
     vm_program_t program = { 0 };
 
@@ -903,11 +972,7 @@ vm_program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace, ffi_b
         return program;
     }
 
-    ir_index_t entrypoint = irl_add(&state.instrs, (ir_inst_t) {
-        .opcode = OP_ENTRY_POINT,
-        .args = { 0 }
-    });
-
+    // generate the code
     codegen(node, &state);
 
     // add final halt instruction
@@ -916,15 +981,43 @@ vm_program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace, ffi_b
         .args = { 0 }
     });
 
+    check_entry_points(&state);
+
     if( trace_get_error_count(state.trace) == 0 ) {
-        ir_index_t index = state_get_funcaddr(&state, srcref_const("main"));
-        if(index.tag == IRID_INS) {
-            irl_get(&state.instrs, entrypoint)->args[0] = index.idx;
-            program = write_program(&state.instrs, &state.consts, ffi);
-        } else {
-            trace_msg_t* msg = trace_create_message(state.trace, TM_ERROR, trace_no_ref());
-            trace_msg_append_costr(msg, "no main() function found in program");
+        
+        uint32_t idx2addr_count = state.instrs.count + 1;
+        uint32_t idx2addr[idx2addr_count];
+
+        create_index_to_addr_map(&state.instrs, idx2addr, idx2addr_count);
+
+        program = write_program(&state.instrs, &state.consts, ffi, idx2addr);
+
+        // allocate req_count + 1 in order to include main
+        program.eps.count = 1 + ffi_host_get_count(ffi, FFI_PROGRAM_REQUIREMENT);
+        program.eps.addrs = (uint32_t*) malloc(program.eps.count * sizeof(uint32_t));
+        assert(program.eps.addrs != NULL && "out of memory");
+
+        // write required entrypoints to ffi
+        int ep_index = 0;
+        if( ffi != NULL ) {
+            for( int i = 0; i < ffi->count; i++ ) {
+                if( ffi->handle[i].tag != FFI_PROGRAM_REQUIREMENT )
+                    continue;
+                srcref_t name = srcref(
+                    sstr_ptr(&ffi->name[i]), 0, 
+                    sstr_len(&ffi->name[i]));
+                ir_index_t index = state_get_funcaddr(&state, name);
+                assert( index.tag == IRID_INS );
+                assert( index.idx < idx2addr_count );
+                program.eps.addrs[ep_index++] = idx2addr[index.idx];
+            }
         }
+        
+        // write the main entry point
+        ir_index_t main_index = state_get_funcaddr(&state, srcref_const("main"));
+        assert( main_index.tag == IRID_INS );
+        assert( main_index.idx < idx2addr_count );
+        program.eps.addrs[ep_index] = idx2addr[main_index.idx];
     }
     
     valbuffer_destroy(&state.consts);

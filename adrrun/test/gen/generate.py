@@ -4,6 +4,7 @@ from os.path import isfile, join, dirname, abspath
 
 START_TOKEN = "$START"
 VERIFY_TOKEN = "$VERIFY"
+VERIFY_EXPORT_TOKEN = "$VERIFY_EXPORT"
 TODO_TOKEN = "$TODO"
 OUTFILE = "langtest.h"
 
@@ -11,7 +12,9 @@ def is_test_file(source_dir, name:str):
     return isfile(join(source_dir, name)) and name.endswith("txt")
 
 def parse_testcase_end(line:str) -> str:
-    if line.startswith(VERIFY_TOKEN):
+    if line.startswith(VERIFY_EXPORT_TOKEN):
+        return "verify-export"
+    elif line.startswith(VERIFY_TOKEN):
         return "verify"
     elif line.startswith(TODO_TOKEN):
         return "todo"
@@ -42,15 +45,22 @@ def parse_testcase(lines:list[str]):
                     break
 
             stop_line = lines[0]
-            expected = stop_line            \
-                .replace(VERIFY_TOKEN, "")  \
-                .replace(TODO_TOKEN, "")    \
+            expected = stop_line                    \
+                .replace(VERIFY_EXPORT_TOKEN, "")   \
+                .replace(VERIFY_TOKEN, "")          \
+                .replace(TODO_TOKEN, "")            \
                 .strip()
             expected = expected[1:]
             expected = expected[:-1]
             lines = lines[1:]
-
-            yield (name, code_lines, expected, category)
+            
+            export = ""
+            if category == 'verify-export':
+                exp = expected.split(';')
+                export = exp[0]
+                expected = exp[1]
+                
+            yield (name, code_lines, expected, category, export)
         lines = lines[1:]
 
 def write_file(tests:list[str], outpath:str):
@@ -65,6 +75,7 @@ typedef struct ltc_t {{
     char* code;
     char* expect;
     char* filepath;
+    char* export;
 }} ltc_t;
 
 ltc_t langtest_testcases[] = {{
@@ -77,7 +88,7 @@ ltc_t langtest_testcases[] = {{
     f.write(cont)
     f.close()
 
-def gen_testcase(name, code_lines, expected, category, filepath):
+def gen_testcase(name, code_lines, expected, category, filepath, export):
     code = ""
     for code_line in code_lines:
         code_line = code_line       \
@@ -100,7 +111,8 @@ def gen_testcase(name, code_lines, expected, category, filepath):
     out += f"        .code = \n"
     out += f"{code[:-1]},\n"
     out += f"        .expect = {expected},\n"
-    out += f"        .filepath = \"{filepath}\"\n"
+    out += f"        .filepath = \"{filepath}\",\n"
+    out += f"        .export = \"{export}\",\n"
     out +=  "    }"
 
     return out
@@ -117,8 +129,8 @@ if __name__ == "__main__":
     for tsrc in test_source:
         filename = tsrc.split("/")[-1]
         f = open(tsrc, 'r')
-        for name, code, expected, category in parse_testcase(f.readlines()):
-            test_strings.append(gen_testcase(name, code, expected, category, filename))
+        for name, code, expected, category, export in parse_testcase(f.readlines()):
+            test_strings.append(gen_testcase(name, code, expected, category, filename, export))
         f.close()
     
     write_file(test_strings, outpath)

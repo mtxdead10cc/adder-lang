@@ -132,6 +132,8 @@ srcmap_t create_keyword_token_map(void) {
     srcmap_insert(&map, srcref_const("not"),    sm_val(TT_UNOP_NOT));
     srcmap_insert(&map, srcref_const("and"),    sm_val(TT_BINOP_AND));
     srcmap_insert(&map, srcref_const("or"),     sm_val(TT_BINOP_OR));
+    srcmap_insert(&map, srcref_const("import"), sm_val(TT_IMPORT));
+    srcmap_insert(&map, srcref_const("export"), sm_val(TT_EXPORT));
     
     return map;
 }
@@ -169,7 +171,7 @@ srcmap_t create_symbolic_token_map(void) {
     srcmap_insert(&map, srcref_const("]"),  sm_val(TT_CLOSE_SBRACKET));
     srcmap_insert(&map, srcref_const("="),  sm_val(TT_ASSIGN));
     srcmap_insert(&map, srcref_const(","),  sm_val(TT_SEPARATOR));
-    srcmap_insert(&map, srcref_const("#"),  sm_val(TT_PREPROC));
+    srcmap_insert(&map, srcref_const("#"),  sm_val(TT_HASH_SIGN));
     srcmap_insert(&map, srcref_const(";"),  sm_val(TT_STATEMENT_END));
     srcmap_insert(&map, srcref_const("*"),  sm_val(TT_BINOP_MUL));
     srcmap_insert(&map, srcref_const("/"),  sm_val(TT_BINOP_DIV));

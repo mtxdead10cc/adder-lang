@@ -40,7 +40,8 @@ typedef struct gvm_exec_args_t {
         uint32_t    count; 
         val_t*      buffer;
     } args;
-    uint32_t  cycle_limit;
+    uint32_t        cycle_limit;
+    int             entry_point;
 } gvm_exec_args_t;
 
 typedef struct vm_runtime_t {

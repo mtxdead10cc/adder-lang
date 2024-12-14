@@ -50,18 +50,18 @@ void adr_print(ffi_hndl_meta_t md, int argcount, val_t* args) {
     }
 }
 
-void setup_default_env(ffi_bundle_t* bundle) {
-    bool res = ffi_bundle_init(bundle, 8);
+void setup_default_env(ffi_host_t* bundle) {
+    bool res = ffi_host_init(bundle, 8);
     if( res == false ) {
         printf("error: failed to init FFI.\n");
         return;
     }
-    res = ffi_bundle_add(bundle,
+    res = ffi_host_add(bundle,
         sstr("print"), 
         (ffi_handle_t) {
             .local = 0,
-            .tag = FFI_HNDL_ACTION,
-            .u.action = adr_print,
+            .tag = FFI_HNDL_HOST_ACTION,
+            .u.host_action = adr_print,
         },
         ffi_vfunc(ffi_void(),
             ffi_list(ffi_char())));
@@ -73,7 +73,7 @@ void setup_default_env(ffi_bundle_t* bundle) {
 bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
     time_t last_creation_time = 0x0L;
     bool compile_ok = true;
-    ffi_bundle_t bundle = { 0 };
+    ffi_host_t bundle = { 0 };
     setup_default_env(&bundle);
 
     do {
@@ -114,7 +114,7 @@ bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
 
     } while ( keep_alive );
 
-    ffi_bundle_destroy(&bundle);
+    ffi_host_destroy(&bundle);
 
     return compile_ok;
 }

@@ -80,7 +80,6 @@ typedef enum vm_op_t {
     OP_JUMP_IF_FALSE,
     OP_EXIT,
     OP_CALL,
-    OP_ENTRY_POINT,
     OP_MAKE_FRAME,
     OP_RETURN_NOTHING,
     OP_RETURN_VALUE,
@@ -99,7 +98,7 @@ typedef struct sstr_t {
     char str[VM_DEFAULT_STRLEN];
 } sstr_t;
 
-typedef struct ffi_bundle_t ffi_bundle_t;
+typedef struct ffi_host_t ffi_host_t;
 typedef struct vm_program_t {
     struct {
         uint32_t    size;   // size in bytes
@@ -109,7 +108,11 @@ typedef struct vm_program_t {
         uint32_t    count;  // number of constants (values)
         val_t*      buffer; // values
     } cons;
-    ffi_bundle_t*   ffi;
+    ffi_host_t*     ffi;
+    struct {
+        uint32_t    count;  // entry point count (last index is always main)
+        uint32_t*   addrs;  // instr index of exported functions
+    } eps;
 } vm_program_t;
 
 #endif // GVM_SHARED_TYPES_H_

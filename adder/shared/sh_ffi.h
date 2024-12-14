@@ -61,45 +61,40 @@ typedef struct ffi_hndl_meta_t {
     vm_t* vm;
 } ffi_hndl_meta_t;
 
-typedef val_t (*ffi_value_get_t)(ffi_hndl_meta_t);
-typedef void  (*ffi_value_set_t)(ffi_hndl_meta_t, val_t);
 typedef void  (*ffi_actcall_t)(ffi_hndl_meta_t, int, val_t*);
 typedef val_t (*ffi_funcall_t)(ffi_hndl_meta_t, int, val_t*);
 
 typedef enum ffi_handle_tag_t {
-    FFI_HNDL_VALUE_READ_ONLY,
-    FFI_HNDL_VALUE,
-    FFI_HNDL_ACTION,
-    FFI_HNDL_FUNCTION
+    FFI_HNDL_HOST_ACTION,
+    FFI_HNDL_HOST_FUNCTION,
+    FFI_PROGRAM_REQUIREMENT
 } ffi_handle_tag_t;
 
 typedef struct ffi_handle_t {
     ffi_handle_tag_t tag;
     void*            local;
     union {
-        struct {
-            ffi_value_get_t get;
-            ffi_value_set_t set;
-        } val;
-        ffi_actcall_t action;
-        ffi_funcall_t function;
+        ffi_actcall_t host_action;   // defined by user
+        ffi_funcall_t host_function; // defined by user
     } u;
 } ffi_handle_t;
 
-typedef struct ffi_bundle_t {
+typedef struct ffi_host_t {
     int             capacity;
     int             count;
     sstr_t*         name;
     ffi_type_t**    type;
     ffi_handle_t*   handle;
     void*           shared;
-} ffi_bundle_t;
+} ffi_host_t;
 
-bool ffi_bundle_init(ffi_bundle_t* bundle, int capacity);
-int  ffi_bundle_index_of(ffi_bundle_t* bundle, sstr_t name);
-ffi_type_t* ffi_bundle_get_type(ffi_bundle_t* bundle, sstr_t name);
-bool ffi_bundle_add(ffi_bundle_t* bundle, sstr_t name, ffi_handle_t handle, ffi_type_t* type);
-void ffi_bundle_destroy(ffi_bundle_t* bundle);
-void ffi_bundle_fprint(FILE* f, ffi_bundle_t* bundle);
+bool ffi_host_init(ffi_host_t* host, int capacity);
+int  ffi_host_index_of(ffi_host_t* host, sstr_t name);
+ffi_type_t* ffi_host_get_type(ffi_host_t* host, sstr_t name);
+bool ffi_host_add(ffi_host_t* host, sstr_t name, ffi_handle_t handle, ffi_type_t* type);
+void ffi_host_destroy(ffi_host_t* host);
+void ffi_host_fprint(FILE* f, ffi_host_t* host);
+int  ffi_host_get_count(ffi_host_t* host, ffi_handle_tag_t tag);
+int  ffi_host_find_entrypoint(ffi_host_t* host, sstr_t name);
 
 #endif // SH_FFI

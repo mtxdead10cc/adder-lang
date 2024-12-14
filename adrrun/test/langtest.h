@@ -8,6 +8,7 @@ typedef struct ltc_t {
     char* code;
     char* expect;
     char* filepath;
+    char* export;
 } ltc_t;
 
 ltc_t langtest_testcases[] = {
@@ -19,7 +20,8 @@ ltc_t langtest_testcases[] = {
         "    return 1 + 1;\n"
         "}\n",
         .expect = "2",
-        .filepath = "basics.txt"
+        .filepath = "basics.txt",
+        .export = "",
     },
     {
         .category = "verify",
@@ -33,7 +35,8 @@ ltc_t langtest_testcases[] = {
         "    return \"%HELLO\";\n"
         "}\n",
         .expect = "hello123",
-        .filepath = "basics.txt"
+        .filepath = "basics.txt",
+        .export = "",
     },
     {
         .category = "verify",
@@ -44,7 +47,8 @@ ltc_t langtest_testcases[] = {
         "    return (a >= 6) and (6 <= a) or true;\n"
         "}\n",
         .expect = "false",
-        .filepath = "basics.txt"
+        .filepath = "basics.txt",
+        .export = "",
     },
     {
         .category = "verify",
@@ -58,7 +62,8 @@ ltc_t langtest_testcases[] = {
         "    return add(g, 4);\n"
         "}\n",
         .expect = "7",
-        .filepath = "basics.txt"
+        .filepath = "basics.txt",
+        .export = "",
     },
     {
         .category = "verify",
@@ -79,7 +84,8 @@ ltc_t langtest_testcases[] = {
         "    return loop(a);\n"
         "}\n",
         .expect = "11",
-        .filepath = "basics.txt"
+        .filepath = "basics.txt",
+        .export = "",
     },
     {
         .category = "verify",
@@ -104,7 +110,8 @@ ltc_t langtest_testcases[] = {
         "    return loop();\n"
         "}\n",
         .expect = "4",
-        .filepath = "basics.txt"
+        .filepath = "basics.txt",
+        .export = "",
     },
     {
         .category = "verify",
@@ -115,7 +122,8 @@ ltc_t langtest_testcases[] = {
         "    return -a;\n"
         "}\n",
         .expect = "-100.4",
-        .filepath = "basics.txt"
+        .filepath = "basics.txt",
+        .export = "",
     },
     {
         .category = "verify",
@@ -126,7 +134,8 @@ ltc_t langtest_testcases[] = {
         "    return a / 2;\n"
         "}\n",
         .expect = "0.5",
-        .filepath = "basics.txt"
+        .filepath = "basics.txt",
+        .export = "",
     },
     {
         .category = "verify",
@@ -137,7 +146,8 @@ ltc_t langtest_testcases[] = {
         "    return a % 2;\n"
         "}\n",
         .expect = "1",
-        .filepath = "basics.txt"
+        .filepath = "basics.txt",
+        .export = "",
     },
     {
         .category = "verify",
@@ -148,19 +158,21 @@ ltc_t langtest_testcases[] = {
         "    return not (a == 2);\n"
         "}\n",
         .expect = "true",
-        .filepath = "basics.txt"
+        .filepath = "basics.txt",
+        .export = "",
     },
     {
         .category = "verify",
-        .name = "native-extern",
+        .name = "native-import",
         .code = 
-        "#extern void print(string arg);\n"
+        "import void print(string arg);\n"
         "void main() {\n"
         "    print(\"hello\n\");\n"
         "    return;\n"
         "}\n",
         .expect = "<none>",
-        .filepath = "basics.txt"
+        .filepath = "basics.txt",
+        .export = "",
     },
     {
         .category = "verify",
@@ -179,7 +191,8 @@ ltc_t langtest_testcases[] = {
         "    return true;\n"
         "}\n",
         .expect = "true",
-        .filepath = "basics.txt"
+        .filepath = "basics.txt",
+        .export = "",
     },
     {
         .category = "verify",
@@ -189,13 +202,14 @@ ltc_t langtest_testcases[] = {
         "    return 100 - -100 - 200;\n"
         "}\n",
         .expect = "0",
-        .filepath = "basics.txt"
+        .filepath = "basics.txt",
+        .export = "",
     },
     {
         .category = "verify",
         .name = "implicit return",
         .code = 
-        "#extern void print(string arg);\n"
+        "import void print(string arg);\n"
         "void test() {\n"
         "    print(\"T\n\");\n"
         "}\n"
@@ -206,7 +220,22 @@ ltc_t langtest_testcases[] = {
         "    return 0;\n"
         "}\n",
         .expect = "0",
-        .filepath = "basics.txt"
+        .filepath = "basics.txt",
+        .export = "",
+    },
+    {
+        .category = "verify-export",
+        .name = "export-func-test",
+        .code = 
+        "export int test_int_1_int(int v) {\n"
+        "    return v + 1;\n"
+        "}\n"
+        "int main() {\n"
+        "    return 10000;\n"
+        "}\n",
+        .expect = "2",
+        .filepath = "basics.txt",
+        .export = "test_int_1_int",
     }
 };
 

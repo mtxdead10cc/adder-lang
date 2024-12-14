@@ -60,8 +60,10 @@ inline static char* token_get_type_name(token_type_t type) {
         case TT_BINOP_PLUS: return "TT_BINOP_PLUS";
         case TT_BINOP_MINUS: return "TT_BINOP_MINUS";
         case TT_SEPARATOR: return "TT_SEPARATOR";
-        case TT_PREPROC: return "TT_PREPROC";
+        case TT_HASH_SIGN: return "TT_HASH_SIGN";
         case TT_STATEMENT_END: return "TT_STATEMENT_END";
+        case TT_IMPORT: return "TT_IMPORT";
+        case TT_EXPORT: return "TT_EXPORT";
         case TT_FINAL: return "TT_FINAL";
         default: return "<UNKNOWN-TT>";
     }

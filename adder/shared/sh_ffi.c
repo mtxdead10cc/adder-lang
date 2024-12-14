@@ -215,82 +215,107 @@ bool ffi_equals(ffi_type_t* a, ffi_type_t* b) {
     }
 }
 
-bool ffi_bundle_init(ffi_bundle_t* bundle, int capacity) {
-    bundle->capacity = capacity;
-    bundle->count = 0;
-    bundle->name = malloc( capacity * sizeof(sstr_t) );
-    bundle->type = malloc( capacity * sizeof(ffi_type_t*) );
-    bundle->handle = malloc( capacity * sizeof(ffi_handle_t) );
-    return bundle->name != NULL && bundle->type != NULL;
+bool ffi_host_init(ffi_host_t* host, int capacity) {
+    host->capacity = capacity;
+    host->count = 0;
+    host->name = malloc( capacity * sizeof(sstr_t) );
+    host->type = malloc( capacity * sizeof(ffi_type_t*) );
+    host->handle = malloc( capacity * sizeof(ffi_handle_t) );
+    return host->name != NULL && host->type != NULL;
 }
 
-int ffi_bundle_index_of(ffi_bundle_t* bundle, sstr_t name) {
-    int count = bundle->count;
+int ffi_host_index_of(ffi_host_t* host, sstr_t name) {
+    int count = host->count;
     for(int i = 0; i < count; i++) {
-        if( sstr_equal(&bundle->name[i], &name) )
+        if( sstr_equal(&host->name[i], &name) )
             return i;
     }
     return -1;
 }
 
-bool ffi_bundle_add(ffi_bundle_t* bundle, sstr_t name, ffi_handle_t handle, ffi_type_t* type) {
+bool ffi_host_add(ffi_host_t* host, sstr_t name, ffi_handle_t handle, ffi_type_t* type) {
     // TODO: Verify that handle and type matches
-    int index = ffi_bundle_index_of(bundle, name);
+    int index = ffi_host_index_of(host, name);
     if( index >= 0 )
-        return ffi_equals(bundle->type[index], type);
-    if( bundle->count >= bundle->capacity ) {
-        int new_cap = bundle->count * 2;
-        bundle->name = realloc(bundle->name, new_cap * sizeof(sstr_t));
-        assert(bundle->name != NULL); // todo: handle fail
-        bundle->type = realloc(bundle->type, new_cap * sizeof(ffi_type_t*));
-        assert(bundle->type != NULL); // todo: handle fail
-        bundle->handle = realloc(bundle->handle, new_cap * sizeof(ffi_handle_t));
-        assert(bundle->handle != NULL); // todo: handle fail
+        return ffi_equals(host->type[index], type);
+    if( host->count >= host->capacity ) {
+        int new_cap = host->count * 2;
+        host->name = realloc(host->name, new_cap * sizeof(sstr_t));
+        assert(host->name != NULL); // todo: handle fail
+        host->type = realloc(host->type, new_cap * sizeof(ffi_type_t*));
+        assert(host->type != NULL); // todo: handle fail
+        host->handle = realloc(host->handle, new_cap * sizeof(ffi_handle_t));
+        assert(host->handle != NULL); // todo: handle fail
     }
-    bundle->name[bundle->count] = name;
-    bundle->type[bundle->count] = type;
-    bundle->handle[bundle->count] = handle;
-    bundle->count ++;
+    host->name[host->count] = name;
+    host->type[host->count] = type;
+    host->handle[host->count] = handle;
+    host->count ++;
     return true;
 }
 
-ffi_type_t* ffi_bundle_get_type(ffi_bundle_t* bundle, sstr_t name) {
-    int index = ffi_bundle_index_of(bundle, name);
+ffi_type_t* ffi_host_get_type(ffi_host_t* host, sstr_t name) {
+    int index = ffi_host_index_of(host, name);
     if( index >= 0 )
-        return bundle->type[index];
+        return host->type[index];
     return NULL;
 }
 
-void ffi_bundle_destroy(ffi_bundle_t* bundle) {
+void ffi_host_destroy(ffi_host_t* host) {
     
-    if(bundle->type != NULL) {
-        int count = bundle->count;
+    if(host->type != NULL) {
+        int count = host->count;
         for(int i = 0; i < count; i++) {
-            ffi_recfree(bundle->type[i]);
-            bundle->type[i] = NULL;
+            ffi_recfree(host->type[i]);
+            host->type[i] = NULL;
         }
-        free(bundle->type);
+        free(host->type);
     }
 
-    if(bundle->name != NULL) {
-        free(bundle->name);
+    if(host->name != NULL) {
+        free(host->name);
     }
 
-    if(bundle->handle != NULL) {
-        free(bundle->handle);
+    if(host->handle != NULL) {
+        free(host->handle);
     }
 }
 
-void ffi_bundle_fprint(FILE* f, ffi_bundle_t* bundle) {
-    fprintf(f, "FFI BUNDLE\n");
-    int count = bundle->count;
+void ffi_host_fprint(FILE* f, ffi_host_t* host) {
+    fprintf(f, "FFI host\n");
+    int count = host->count;
     for(int i = 0; i < count; i++) {
         fprintf(f, "\t%.*s: ",
-            sstr_len(&bundle->name[i]),
-            sstr_ptr(&bundle->name[i]));
-        ffi_fprint(f, bundle->type[i]);
+            sstr_len(&host->name[i]),
+            sstr_ptr(&host->name[i]));
+        ffi_fprint(f, host->type[i]);
         fprintf(f, "\n");
     }
+}
+
+int ffi_host_get_count(ffi_host_t* host, ffi_handle_tag_t tag) {
+    int tagged_count = 0;
+    if( host == NULL )
+        return tagged_count;
+    int count = host->count;
+    for(int i = 0; i < count; i++) {
+        if( host->handle[i].tag == tag )
+            tagged_count ++;
+    }
+    return tagged_count;
+}
+
+int ffi_host_find_entrypoint(ffi_host_t* host, sstr_t name) {
+    int count = host->count;
+    int index_cntr = 0;
+    for(int i = 0; i < count; i++) {
+        if( host->handle[i].tag != FFI_PROGRAM_REQUIREMENT )
+            continue;
+        if( sstr_equal(&host->name[i], &name) )
+            return index_cntr;
+        index_cntr ++;
+    }
+    return -1;
 }
 
 

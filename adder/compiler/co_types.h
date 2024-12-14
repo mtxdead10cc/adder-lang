@@ -75,9 +75,11 @@ typedef enum token_type_t {
     TT_BINOP_MOD,
     TT_BINOP_PLUS,
     TT_BINOP_MINUS,
-    TT_PREPROC,
+    TT_HASH_SIGN,
     TT_SEPARATOR,
     TT_STATEMENT_END,
+    TT_IMPORT,
+    TT_EXPORT,
     TT_FINAL
 } token_type_t;
 
@@ -277,6 +279,7 @@ typedef struct ast_fundecl_t {
     srcref_t            name;
     ast_node_t*         argspec;
     ast_node_t*         body;
+    bool                exported;
 } ast_fundecl_t;
 
 typedef struct ast_funcall_t {

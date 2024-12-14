@@ -97,8 +97,8 @@ bool main() {
 }
 $VERIFY("true")
 
-$START("native-extern")
-#extern void print(string arg);
+$START("native-import")
+import void print(string arg);
 void main() {
     print("hello\n");
     return;
@@ -127,7 +127,7 @@ int main() {
 $VERIFY("0")
 
 $START("implicit return")
-#extern void print(string arg);
+import void print(string arg);
 void test() {
     print("T\n");
 }
@@ -138,3 +138,12 @@ int main() {
     return 0;
 }
 $VERIFY("0")
+
+$START("export-func-test")
+export int test_int_1_int(int v) {
+    return v + 1;
+}
+int main() {
+    return 10000;
+}
+$VERIFY_EXPORT(test_int_1_int;2)

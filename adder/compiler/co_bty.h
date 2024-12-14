@@ -36,6 +36,7 @@ typedef struct bty_error_t {
 
 typedef struct bty_fun_t {
     int          argc;
+    bool         exported;
     bty_type_t** args;
     bty_type_t*  ret;
 } bty_fun_t;

@@ -112,4 +112,9 @@ void program_destroy(vm_program_t* prog) {
         prog->inst.size = 0;
         prog->inst.buffer = NULL;
     }
+    if( prog->eps.addrs != NULL ) {
+        free(prog->eps.addrs);
+        prog->eps.addrs = NULL;
+        prog->eps.count = 0;
+    }
 }

@@ -816,7 +816,7 @@ pa_result_t pa_parse_arglist(parser_t* parser) {
     return par_node(argspec, NULL);
 }
 
-pa_result_t pa_parse_funexdecl(parser_t* parser) {
+pa_result_t pa_parse_funimportdecl(parser_t* parser) {
 
     ast_annot_t* retannot;
     pa_result_t result = parse_type_annotation(parser, &retannot);
@@ -881,20 +881,44 @@ pa_result_t pa_try_parse_fundecl(parser_t* parser) {
 }
 
 pa_result_t pa_try_parse_preproc_directive(parser_t* parser) {
-    if( pa_advance_if(parser, TT_PREPROC) == false )
+    token_t token = pa_current_token(parser);
+    if( token.type != TT_IMPORT && token.type != TT_EXPORT )
         return par_nothing();
+
     token_t directive = pa_current_token(parser);
-    pa_result_t result = pa_consume(parser, TT_SYMBOL);
-    if( par_is_error(result) )
+
+    pa_advance(parser);
+
+    if( token.type == TT_IMPORT ) {
+
+        pa_result_t result = pa_parse_funimportdecl(parser);
+        if( par_is_error(result) )
+            return result;
+
+        pa_advance_if(parser, TT_STATEMENT_END); // optional end of statement
+
         return result;
-    if( srcref_equals_string(directive.ref, "extern") == false ) {
-        return pa_error_invalid_statement(parser, directive, " expected 'extern'.");
+
+    } else if ( token.type == TT_EXPORT ) {
+
+        pa_result_t result = pa_try_parse_fundecl(parser);
+        if( par_is_error(result) )
+            return result;
+
+        ast_node_t* tyannot = par_extract_node(result);
+        assert(tyannot != NULL && tyannot->type == AST_TYANNOT);
+        ast_fundecl_set_exported(tyannot->u.n_tyannot.expr); // set the exported flag
+        pa_advance_if(parser, TT_STATEMENT_END); // optional end of statement
+        srcref_t ref = ast_extract_srcref(tyannot);
+        srcref_combine(ref, token.ref);
+        return par_node(tyannot, &ref);
     }
-    result = pa_parse_funexdecl(parser);
-    if( par_is_error(result) )
-        return result;
-    pa_advance_if(parser, TT_STATEMENT_END); // optional end of statement
-    return result;
+    
+    return pa_error_invalid_statement(parser,
+        directive,
+        "\n  Expected"
+        "\n  - import (from host) declaration"
+        "\n  - export (to host) declaration");
 }
 
 pa_result_t pa_parse_toplevel_statement(parser_t* parser) {
@@ -905,8 +929,10 @@ pa_result_t pa_parse_toplevel_statement(parser_t* parser) {
         return result;
     return pa_error_invalid_statement(parser,
         pa_current_token(parser),
-        " expected top-level statement (function "
-        "declaration or preprocessor directive).");
+        "\n  Expected top-level statement such as"
+        "\n  - function declaration"
+        "\n  - import (from host) declaration"
+        "\n  - export (to host) declaration");
 }
 
 pa_result_t pa_parse_program(parser_t* parser) {

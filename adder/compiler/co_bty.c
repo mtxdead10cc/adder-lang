@@ -90,6 +90,7 @@ bty_type_t* bty_func(arena_t* a) {
     fun->u.fun.argc = 0;
     fun->u.fun.args = NULL;
     fun->u.fun.ret = bty_void();
+    fun->u.fun.exported = false;
     return fun;
 }
 
@@ -113,6 +114,11 @@ void bty_func_add_arg(arena_t* a, bty_type_t* fun, bty_type_t* arg) {
 void bty_func_set_return_type(bty_type_t* fun, bty_type_t* ret) {
     assert(fun->tag == BTY_FUNC);
     fun->u.fun.ret = ret;
+}
+
+void bty_func_set_exported(bty_type_t* fun) {
+    assert(fun->tag == BTY_FUNC);
+    fun->u.fun.exported = true;
 }
 
 bty_type_t* bty_list(arena_t* a, bty_type_t* content_type) {
@@ -515,10 +521,14 @@ bty_type_t* bty_extract_type(arena_t* a, trace_t* t, ast_node_t* n) {
     switch(expr->type) {
         case AST_VAR_REF: return bty_from_ast_annot(a, t, annot);
         case AST_FUN_DECL: {
+
             bty_type_t* ft = bty_func(a);
+
             bty_func_set_return_type(ft,
                 bty_from_ast_annot(a, t, annot));
+
             assert(expr->u.n_fundecl.argspec->type == AST_ARGLIST);
+
             ast_arglist_t args = expr->u.n_fundecl.argspec->u.n_args;
             for(size_t i = 0; i < args.count; i++) {
                 bty_type_t* at = bty_extract_type(a,t,args.content[i]);
@@ -526,13 +536,24 @@ bty_type_t* bty_extract_type(arena_t* a, trace_t* t, ast_node_t* n) {
                     return NULL;
                 bty_func_add_arg(a, ft, at);
             }
+
+            if( expr->u.n_fundecl.exported ) {
+                bty_func_set_exported(ft);
+            } else if( srcref_equals_string(expr->u.n_fundecl.name, "main") ) {
+                bty_func_set_exported(ft);
+            }
+
             return ft;
         }
         case AST_FUN_EXDECL: {
+
             bty_type_t* ft = bty_func(a);
+
             bty_func_set_return_type(ft,
                 bty_from_ast_annot(a, t, annot));
+
             assert(expr->u.n_funexdecl.argspec->type == AST_ARGLIST);
+
             ast_arglist_t args = expr->u.n_funexdecl.argspec->u.n_args;
             for(size_t i = 0; i < args.count; i++) {
                 bty_type_t* at = bty_extract_type(a,t,args.content[i]);
@@ -540,6 +561,7 @@ bty_type_t* bty_extract_type(arena_t* a, trace_t* t, ast_node_t* n) {
                     return NULL;
                 bty_func_add_arg(a, ft, at);
             }
+
             return ft;
         }
         default: return NULL;
@@ -1002,6 +1024,18 @@ bool is_toplevel_definition(ast_node_t* n) {
     return false;
 }
 
+int bty_count_entrypoints(bty_ctx_t* ctx) {
+    int export_count = 0;
+    for(int i = 0; i < ctx->size; i++) {
+        bty_type_t* ty = ctx->kvps[i].type;
+        if( ty->tag != BTY_FUNC )
+            continue;
+        if( ty->u.fun.exported )
+            export_count ++;
+    }
+    return export_count;
+}
+
 bool bty_typecheck(bty_ctx_t* ctx, ast_node_t* program) {
 
     assert(program->type == AST_BLOCK);
@@ -1012,7 +1046,7 @@ bool bty_typecheck(bty_ctx_t* ctx, ast_node_t* program) {
         if( is_toplevel_definition(def) == false ) {
             trace_msg_t* m = trace_create_message(ctx->trace, TM_ERROR, def->ref);
             trace_msg_append_fmt(m,
-                "type-error: invalid top-level definition:\n ****** \n%.*s\n ****** \n",
+                "type-error: invalid top-level definition:\n ****** \n > %.*s\n ****** \n",
                 srcref_len(def->ref),
                 srcref_ptr(def->ref));
         } else {
@@ -1031,16 +1065,16 @@ bool bty_typecheck(bty_ctx_t* ctx, ast_node_t* program) {
     if( trace_get_error_count(ctx->trace) > 0 )
         return false;
 
-    bty_type_t* main_type = bty_ctx_lookup(ctx, srcref_const("main"));
+    int num_exported = bty_count_entrypoints(ctx);
 
-    bool has_main = false;
-    if( main_type != NULL ) 
-        has_main = main_type->tag == BTY_FUNC;
-
-    if( has_main == false ) {
+    if( num_exported == 0 ) {
         trace_msg_t* m = trace_create_message(ctx->trace, TM_ERROR, program->ref);
         trace_msg_append_fmt(m,
-            "type-error: the program is missing the main function (entrypoint)\n");
+            "type-error: the program has no entry points"
+            "\n  Fix this by"
+            "\n  - adding a main function"
+            "\n  - exportin a function (optional)");
+        return false;
     }
 
     return true;
