@@ -50,7 +50,8 @@
         "langtest.h": "c",
         "numbers": "c",
         "ostream": "c",
-        "ranges": "c"
+        "ranges": "c",
+        "span": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

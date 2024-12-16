@@ -109,7 +109,7 @@ size_t get_node_content_length(ast_node_t* args) {
 typedef struct compiler_state_t {
     srcmap_t                localvars;
     srcmap_t                functions;
-    ffi_host_t*           ffi;
+    ffi_t*                  ffi;
     ir_list_t               instrs;
     valbuffer_t             consts;
     trace_t*                trace;
@@ -391,12 +391,12 @@ void codegen_funcall(ast_funcall_t node, compiler_state_t* state) {
         return;
     }
 
-    int ext_index = ffi_host_index_of(state->ffi,
+    int ext_index = ffi_host_index_of(&state->ffi->host,
         srcref_as_sstr(node.name));
 
     if ( ext_index >= 0 ) {
 
-        ffi_handle_tag_t tag = state->ffi->handle[ext_index].tag;
+        ffi_handle_tag_t tag = state->ffi->host.handle[ext_index].tag;
         if( tag != FFI_HNDL_HOST_ACTION && tag != FFI_HNDL_HOST_FUNCTION ) {
             trace_not_implemented(state->trace,
                 "Value properties (FFI_HNDL_VALUE_READ_ONLY, FFI_HNDL_VALUE)");
@@ -632,7 +632,7 @@ void verify_funexdecl(ast_funexdecl_t funex, compiler_state_t* state) {
 
     ABORT_ON_ERROR(state);
 
-    ffi_type_t* ffi_type = ffi_host_get_type(state->ffi,
+    ffi_type_t* ffi_type = ffi_host_get_type(&state->ffi->host,
         srcref_as_sstr(funex.name));
 
     bty_type_t* bty_type = bty_ctx_lookup(state->tyctx, funex.name);
@@ -673,7 +673,7 @@ void verify_funexdecl(ast_funexdecl_t funex, compiler_state_t* state) {
                 "'\nThis is likely an internal error "
                 "in the compiler (or type checker).");
 
-        } else if( ffi_equals(ffi_type, lang_type) == false ) {
+        } else if( ffi_type_equals(ffi_type, lang_type) == false ) {
 
             trace_msg_t* msg = trace_create_message(state->trace,
                 TM_ERROR,
@@ -690,7 +690,7 @@ void verify_funexdecl(ast_funexdecl_t funex, compiler_state_t* state) {
         }
     }
 
-    ffi_recfree(lang_type);
+    ffi_type_recfree(lang_type);
 }
 
 void codegen(ast_node_t* node, compiler_state_t* state) {
@@ -820,18 +820,46 @@ void create_index_to_addr_map(ir_list_t* instrs, uint32_t* idx2addr, uint32_t si
     idx2addr[instrs->count] = addr; 
 }
 
-vm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts, ffi_host_t* ffi, uint32_t* idx2addr) {
+void set_entrypoints(compiler_state_t* state, vm_program_t* program, uint32_t* idx2addr) {
+    
+    ir_index_t main_index = state_get_funcaddr(state, srcref_const("main"));
+    if( main_index.tag == IRID_INS ) {
+        int tmp_index = (int) program->eps.count - 1;
+        assert(tmp_index >= 0);
+        program->eps.addrs[tmp_index] = idx2addr[main_index.idx];
+    }
 
-    recalc_index_to_bytecode_adress(instrs, idx2addr);
+    if( state->ffi == NULL ) {
+        assert( program->eps.count <= 1 );
+        return;
+    }
+
+    int ep_index = 0;
+    // write required entrypoints to ffi
+    for( int i = 0; i < state->ffi->exe.count; i++ ) {
+        srcref_t name = srcref(
+            sstr_ptr(&state->ffi->exe.name[i]), 0, 
+            sstr_len(&state->ffi->exe.name[i]));
+        ir_index_t index = state_get_funcaddr(state, name);
+        assert( index.tag == IRID_INS );
+        program->eps.addrs[ep_index++] = idx2addr[index.idx];
+    }
+
+    assert(ep_index == ((int) program->eps.count - 1));
+}
+
+vm_program_t write_program(compiler_state_t* state, int endpoint_count, uint32_t* idx2addr) {
+
+    recalc_index_to_bytecode_adress(&state->instrs, idx2addr);
 
     u8buffer_t bytecode;
-    u8buffer_create(&bytecode, instrs->count);
+    u8buffer_create(&bytecode, state->instrs.count);
 
-    for (uint32_t i = 0; i < instrs->count; i++) {
-        u8buffer_write(&bytecode, (uint8_t) instrs->irs[i].opcode);
-        uint32_t argcount = get_op_arg_count(instrs->irs[i].opcode);
+    for (uint32_t i = 0; i < state->instrs.count; i++) {
+        u8buffer_write(&bytecode, (uint8_t) state->instrs.irs[i].opcode);
+        uint32_t argcount = get_op_arg_count(state->instrs.irs[i].opcode);
         for (uint32_t j = 0; j < argcount; j++) {
-            uint32_t value = instrs->irs[i].args[j];
+            uint32_t value = state->instrs.irs[i].args[j];
             u8buffer_write(&bytecode, (uint8_t) ((value >> (8*0)) & 0xFF));
             u8buffer_write(&bytecode, (uint8_t) ((value >> (8*1)) & 0xFF));
             u8buffer_write(&bytecode, (uint8_t) ((value >> (8*2)) & 0xFF));
@@ -839,49 +867,53 @@ vm_program_t write_program(ir_list_t* instrs, valbuffer_t* consts, ffi_host_t* f
         }
     }
 
-    val_t* const_buf = (val_t*) malloc( sizeof(val_t) * consts->size );
-    memcpy(const_buf, consts->values, sizeof(val_t) * consts->size);
+    val_t* const_buf = (val_t*) malloc( sizeof(val_t) * state->consts.size );
+    memcpy(const_buf, state->consts.values, sizeof(val_t) * state->consts.size);
 
     uint8_t* code_buf = (uint8_t*) malloc( sizeof(uint8_t) * bytecode.size );
     memcpy(code_buf, bytecode.data, sizeof(uint8_t) * bytecode.size );
 
+    uint32_t* eps = (uint32_t*) malloc(endpoint_count * sizeof(uint32_t));
+
     vm_program_t result = (vm_program_t) {
         .cons.buffer = const_buf,
-        .cons.count = consts->size,
+        .cons.count = state->consts.size,
         .inst.buffer = code_buf,
         .inst.size = bytecode.size,
-        .ffi = ffi
+        .ffi = state->ffi,
+        .eps.count = endpoint_count,
+        .eps.addrs = eps
     };
+
+    set_entrypoints(state, &result, idx2addr);
 
     u8buffer_destroy(&bytecode);
     return result;
 }
 
-bool check_entry_points(compiler_state_t* state) {
+int check_entrypoints(compiler_state_t* state) {
 
-    int missing_count = 0;
+    int ep_count = 0;
 
     ir_index_t index = state_get_funcaddr(state, srcref_const("main"));
-    if(index.tag != IRID_INS) {
-        missing_count ++;
+    if( index.tag != IRID_INS ) {
         trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, trace_no_ref());
         trace_msg_append_costr(msg, "no main() function found in program.\n");
+    } else {
+        ep_count ++;
     }
 
     if( state->ffi == NULL ) {
         // no ffi
-        return missing_count == 0;
+        return ep_count;
     }
 
-    ffi_host_t* ffi = state->ffi;
-    for(int i = 0; i < ffi->count; i++) {
-
-        if( ffi->handle->tag != FFI_PROGRAM_REQUIREMENT )
-            continue;
+    ffi_exe_if_t* exe_if = &state->ffi->exe;
+    for(int i = 0; i < exe_if->count; i++) {
 
         srcref_t name = srcref(
-            sstr_ptr(&ffi->name[i]), 0, 
-            sstr_len(&ffi->name[i]));
+            sstr_ptr(&exe_if->name[i]), 0, 
+            sstr_len(&exe_if->name[i]));
 
         ir_index_t index = state_get_funcaddr(state, name);
         bty_type_t* script_type_bty = bty_ctx_lookup(state->tyctx, name);
@@ -894,13 +926,12 @@ bool check_entry_points(compiler_state_t* state) {
         }
         
         if( script_type_bty->tag == BTY_FUNC ) {
-            missing = script_type_bty->u.fun.exported;
+            missing = !script_type_bty->u.fun.exported;
         } else {
             missing = true;
         }
 
         if( missing ) {
-            missing_count ++;
             trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, trace_no_ref());
             trace_msg_append_costr(msg, "FFI required function ");
             trace_msg_append_srcref(msg, name);
@@ -909,8 +940,7 @@ bool check_entry_points(compiler_state_t* state) {
             continue;
         }
 
-        if( ffi_equals(ffi->type[i], script_type_ffi) == false ) {
-            missing_count ++;
+        if( ffi_type_equals(exe_if->type[i], script_type_ffi) == false ) {
             trace_msg_t* msg = trace_create_message(state->trace,
                 TM_ERROR,
                 trace_no_ref());
@@ -919,18 +949,22 @@ bool check_entry_points(compiler_state_t* state) {
             trace_msg_append_costr(msg, "' type signature. ");
             trace_msg_append_costr(msg, "\n\tDefined FFI type: ");
             trace_msg_append_srcref(msg, name);
-            trace_msg_append_ffi_type(msg, ffi->type[i]);
+            trace_msg_append_ffi_type(msg, exe_if->type[i]);
             trace_msg_append_costr(msg, "\n\tSource file type: ");
             trace_msg_append_srcref(msg, name);
             trace_msg_append_ffi_type(msg, script_type_ffi);
             continue;
         }
+
+        ep_count ++;
     }
 
-    return missing_count == 0;
+    return ep_count;
 }
 
-vm_program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace, ffi_host_t* ffi) {
+
+
+vm_program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace, ffi_t* ffi) {
 
     vm_program_t program = { 0 };
 
@@ -981,43 +1015,14 @@ vm_program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace, ffi_h
         .args = { 0 }
     });
 
-    check_entry_points(&state);
+    int ep_count = check_entrypoints(&state);
 
     if( trace_get_error_count(state.trace) == 0 ) {
-        
         uint32_t idx2addr_count = state.instrs.count + 1;
         uint32_t idx2addr[idx2addr_count];
 
         create_index_to_addr_map(&state.instrs, idx2addr, idx2addr_count);
-
-        program = write_program(&state.instrs, &state.consts, ffi, idx2addr);
-
-        // allocate req_count + 1 in order to include main
-        program.eps.count = 1 + ffi_host_get_count(ffi, FFI_PROGRAM_REQUIREMENT);
-        program.eps.addrs = (uint32_t*) malloc(program.eps.count * sizeof(uint32_t));
-        assert(program.eps.addrs != NULL && "out of memory");
-
-        // write required entrypoints to ffi
-        int ep_index = 0;
-        if( ffi != NULL ) {
-            for( int i = 0; i < ffi->count; i++ ) {
-                if( ffi->handle[i].tag != FFI_PROGRAM_REQUIREMENT )
-                    continue;
-                srcref_t name = srcref(
-                    sstr_ptr(&ffi->name[i]), 0, 
-                    sstr_len(&ffi->name[i]));
-                ir_index_t index = state_get_funcaddr(&state, name);
-                assert( index.tag == IRID_INS );
-                assert( index.idx < idx2addr_count );
-                program.eps.addrs[ep_index++] = idx2addr[index.idx];
-            }
-        }
-        
-        // write the main entry point
-        ir_index_t main_index = state_get_funcaddr(&state, srcref_const("main"));
-        assert( main_index.tag == IRID_INS );
-        assert( main_index.idx < idx2addr_count );
-        program.eps.addrs[ep_index] = idx2addr[main_index.idx];
+        program = write_program(&state, ep_count, idx2addr);
     }
     
     valbuffer_destroy(&state.consts);

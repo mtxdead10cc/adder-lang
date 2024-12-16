@@ -50,13 +50,13 @@ void adr_print(ffi_hndl_meta_t md, int argcount, val_t* args) {
     }
 }
 
-void setup_default_env(ffi_host_t* bundle) {
-    bool res = ffi_host_init(bundle, 8);
+void setup_default_env(ffi_t* ffi) {
+    bool res = ffi_init(ffi);
     if( res == false ) {
         printf("error: failed to init FFI.\n");
         return;
     }
-    res = ffi_host_add(bundle,
+    res = ffi_host_define(&ffi->host,
         sstr("print"), 
         (ffi_handle_t) {
             .local = 0,
@@ -73,8 +73,8 @@ void setup_default_env(ffi_host_t* bundle) {
 bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
     time_t last_creation_time = 0x0L;
     bool compile_ok = true;
-    ffi_host_t bundle = { 0 };
-    setup_default_env(&bundle);
+    ffi_t ffi = { 0 };
+    setup_default_env(&ffi);
 
     do {
 
@@ -86,7 +86,7 @@ bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
         }
 
         last_creation_time = creation_time;
-        vm_program_t program = program_read_and_compile(path, show_ast, &bundle);
+        vm_program_t program = program_read_and_compile(path, show_ast, &ffi);
         compile_ok = program.inst.size > 0;
         printf("%s [%s]\n", path, compile_ok ? "OK" : "FAILED");
         
@@ -114,7 +114,7 @@ bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
 
     } while ( keep_alive );
 
-    ffi_host_destroy(&bundle);
+    ffi_destroy(&ffi);
 
     return compile_ok;
 }
@@ -137,7 +137,10 @@ void print_todo_list(todo_item_t* items, size_t count) {
 
 void todo_list(void) {
     todo_item_t items[] = {        
-        { false, "Foreach break." }
+        { false, "Foreach break." },
+        { false, "FFI check separation\n"
+                 "\t- the compiler should only set information about imports and exports to vm_program.\n"
+                 "\t- additional check-pass is needed before executing VM to verify that the env supports the program.\n"}
     };
     size_t count = sizeof(items) / sizeof(items[0]);
     print_todo_list(items, count);

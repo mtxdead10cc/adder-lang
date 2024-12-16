@@ -690,13 +690,13 @@ void test_printfn(ffi_hndl_meta_t md, int argcount, val_t* args) {
     }                                                   \
 } while(false)
 
-bool test_setup_default_env(ffi_host_t* bundle) {
-    bool res = ffi_host_init(bundle, 8);
+bool test_setup_default_env(ffi_t* ffi) {
+    bool res = ffi_init(ffi);
     if( res == false ) {
         printf("error: failed to init FFI.\n");
         return false;;
     }
-    res = ffi_host_add(bundle,
+    res = ffi_host_define(&ffi->host,
         sstr("print"), 
         (ffi_handle_t) {
             .local = 0,
@@ -712,7 +712,7 @@ bool test_setup_default_env(ffi_host_t* bundle) {
     return true;
 }
 
-bool test_setup_required(ffi_host_t* bundle, char* exported) {
+bool test_setup_required(ffi_t* ffi, char* exported) {
 
     if( exported == NULL )
         return true;
@@ -723,25 +723,21 @@ bool test_setup_required(ffi_host_t* bundle, char* exported) {
     bool res = false;
 
     if( strcmp(exported, "test_int_1_int") == 0 ) {
-        res = ffi_host_add(bundle,
-            sstr("test_int_1_int"), 
-            (ffi_handle_t) {
-                .local = 0,
-                .tag = FFI_PROGRAM_REQUIREMENT
-            },
+        res = ffi_exe_set_required_by_host(&ffi->exe,
+            sstr("test_int_1_int"),
             ffi_vfunc(ffi_int(), ffi_int()));
     }
 
     return res;
 }
 
-bool test_set_args(ffi_host_t* bundle, gvm_exec_args_t* args, char* exported) {
+bool test_set_args(ffi_t* ffi, gvm_exec_args_t* args, char* exported) {
     if( exported == NULL )
         return true;
     if( strlen(exported) == 0 )
         return true;
     if( strcmp(exported, "test_int_1_int") == 0 ) {
-        int ep = ffi_host_find_entrypoint(bundle, sstr(exported));
+        int ep = ffi_exe_index_of(&ffi->exe, sstr(exported));
         if( ep < 0 )
             return false;
         args->entry_point = ep;
@@ -758,7 +754,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     arena_t* arena = arena_create(1024);
     parser_t parser;
     trace_t trace;
-    ffi_host_t ffi = { 0 };
+    ffi_t ffi = { 0 };
 
     trace_init(&trace, 16);
 
@@ -832,7 +828,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         pa_destroy(&parser);
         arena_destroy(arena);
         trace_destroy(&trace);
-        ffi_host_destroy(&ffi);
+        ffi_destroy(&ffi);
         return is_known_todo;
     }
 
@@ -912,7 +908,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     arena_destroy(arena);
     vm_destroy(&vm);
     trace_destroy(&trace);
-    ffi_host_destroy(&ffi);
+    ffi_destroy(&ffi);
 
     return true;
 }
@@ -1155,13 +1151,13 @@ void test_inference(test_case_t* this) {
 }
 
 void test_ffi_types(test_case_t* this) {
-    ffi_host_t b = (ffi_host_t) { 0 };
-    ffi_host_init(&b, 1);
+    ffi_t b = (ffi_t) { 0 };
+    ffi_init(&b);
 
-    ffi_host_add(&b, sstr("test01"), (ffi_handle_t){0}, ffi_int());
-    ffi_host_add(&b, sstr("test02"), (ffi_handle_t){0}, ffi_list(ffi_int()));
-    ffi_host_add(&b, sstr("test03"), (ffi_handle_t){0}, ffi_func(ffi_int()));
-    ffi_host_add(&b, sstr("test04"), (ffi_handle_t){0}, ffi_vfunc(ffi_int(),
+    ffi_host_define(&b.host, sstr("test01"), (ffi_handle_t){0}, ffi_int());
+    ffi_host_define(&b.host, sstr("test02"), (ffi_handle_t){0}, ffi_list(ffi_int()));
+    ffi_host_define(&b.host, sstr("test03"), (ffi_handle_t){0}, ffi_func(ffi_int()));
+    ffi_host_define(&b.host, sstr("test04"), (ffi_handle_t){0}, ffi_vfunc(ffi_int(),
                                             ffi_bool(),
                                             ffi_char(),
                                             ffi_int()));
@@ -1172,20 +1168,20 @@ void test_ffi_types(test_case_t* this) {
                             ffi_int());
 
     TEST_ASSERT_MSG(this,
-        ffi_equals(check, ffi_host_get_type(&b, sstr("test04"))),
+        ffi_type_equals(check, ffi_host_get_type(&b.host, sstr("test04"))),
         "#1.1 ffi_bundle_get & ffi_equals");
 
     TEST_ASSERT_MSG(this,
-        ffi_host_add(&b, sstr("test04"), (ffi_handle_t){0}, ffi_int()) == false,
-        "#1.2 ffi_host_add overwrite");
+        ffi_host_define(&b.host, sstr("test04"), (ffi_handle_t){0}, ffi_int()) == false,
+        "#1.2 ffi_host_define overwrite");
 
     TEST_ASSERT_MSG(this,
-        ffi_host_add(&b, sstr("test04"), (ffi_handle_t){0}, check),
-        "#1.3 ffi_host_add same");
+        ffi_host_define(&b.host, sstr("test04"), (ffi_handle_t){0}, check),
+        "#1.3 ffi_host_define same");
     
-    ffi_recfree(check);
-    //ffi_host_fprint(stdout, &b);
-    ffi_host_destroy(&b);
+    ffi_type_recfree(check);
+    //ffi_fprint(stdout, &b);
+    ffi_destroy(&b);
 }
 
 

@@ -48,9 +48,9 @@ ffi_type_t* ffi_custom(char* type_name);
 ffi_type_t* ffi_list(ffi_type_t* content_type);
 ffi_type_t* ffi_func(ffi_type_t* return_type);
 void ffi_func_add_arg(ffi_type_t* func, ffi_type_t* arg_type);
-void ffi_recfree(ffi_type_t* ffi);
-void ffi_fprint(FILE* f, ffi_type_t* ffi);
-bool ffi_equals(ffi_type_t* a, ffi_type_t* b);
+void ffi_type_recfree(ffi_type_t* ffi);
+void ffi_type_fprint(FILE* f, ffi_type_t* ffi);
+bool ffi_type_equals(ffi_type_t* a, ffi_type_t* b);
 
 ffi_type_t* ffi_vfunc_nullterm(ffi_type_t* return_type, ...);
 #define ffi_vfunc(R, ...) ffi_vfunc_nullterm((R), __VA_ARGS__, NULL)
@@ -66,8 +66,7 @@ typedef val_t (*ffi_funcall_t)(ffi_hndl_meta_t, int, val_t*);
 
 typedef enum ffi_handle_tag_t {
     FFI_HNDL_HOST_ACTION,
-    FFI_HNDL_HOST_FUNCTION,
-    FFI_PROGRAM_REQUIREMENT
+    FFI_HNDL_HOST_FUNCTION
 } ffi_handle_tag_t;
 
 typedef struct ffi_handle_t {
@@ -79,22 +78,38 @@ typedef struct ffi_handle_t {
     } u;
 } ffi_handle_t;
 
-typedef struct ffi_host_t {
+
+typedef struct ffi_host_if_t {
     int             capacity;
     int             count;
     sstr_t*         name;
     ffi_type_t**    type;
     ffi_handle_t*   handle;
     void*           shared;
-} ffi_host_t;
+} ffi_host_if_t;
 
-bool ffi_host_init(ffi_host_t* host, int capacity);
-int  ffi_host_index_of(ffi_host_t* host, sstr_t name);
-ffi_type_t* ffi_host_get_type(ffi_host_t* host, sstr_t name);
-bool ffi_host_add(ffi_host_t* host, sstr_t name, ffi_handle_t handle, ffi_type_t* type);
-void ffi_host_destroy(ffi_host_t* host);
-void ffi_host_fprint(FILE* f, ffi_host_t* host);
-int  ffi_host_get_count(ffi_host_t* host, ffi_handle_tag_t tag);
-int  ffi_host_find_entrypoint(ffi_host_t* host, sstr_t name);
+typedef struct ffi_exe_if_t {
+    int             capacity;
+    int             count;
+    sstr_t*         name;
+    ffi_type_t**    type;
+} ffi_exe_if_t;
+
+typedef struct ffi_t {
+    ffi_host_if_t host;
+    ffi_exe_if_t exe;
+} ffi_t;
+
+bool ffi_init(ffi_t* ffi);
+void ffi_destroy(ffi_t* ffi);
+void ffi_fprint(FILE* f, ffi_t* ffi);
+
+int         ffi_host_index_of(ffi_host_if_t* hostif, sstr_t name);
+ffi_type_t* ffi_host_get_type(ffi_host_if_t* hostif, sstr_t name);
+bool        ffi_host_define(ffi_host_if_t* hostif, sstr_t name, ffi_handle_t handle, ffi_type_t* type);
+
+int         ffi_exe_index_of(ffi_exe_if_t* exeif, sstr_t name);
+ffi_type_t* ffi_exe_get_type(ffi_exe_if_t* exeif, sstr_t name);
+bool        ffi_exe_set_required_by_host(ffi_exe_if_t* exeif, sstr_t name, ffi_type_t* type);
 
 #endif // SH_FFI

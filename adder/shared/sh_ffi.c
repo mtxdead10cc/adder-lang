@@ -117,7 +117,7 @@ bool ffi_is_custom_const(ffi_type_t* t) {
     return true;
 }
 
-void ffi_recfree(ffi_type_t* ffi) {
+void ffi_type_recfree(ffi_type_t* ffi) {
     if( ffi == NULL )
         return;
     switch(ffi->tag) {
@@ -126,7 +126,7 @@ void ffi_recfree(ffi_type_t* ffi) {
                 free(ffi);
         } break;
         case FFI_TYPE_LIST: {
-            ffi_recfree(ffi->u.list.content_type);
+            ffi_type_recfree(ffi->u.list.content_type);
             ffi->u.list.content_type = NULL;
             free(ffi);
         } break;
@@ -134,21 +134,21 @@ void ffi_recfree(ffi_type_t* ffi) {
             if( ffi->u.func.arg_types != NULL ) {
                 int count = ffi->u.func.arg_count;
                 for(int i = 0; i < count; i++) {
-                    ffi_recfree(ffi->u.func.arg_types[i]);
+                    ffi_type_recfree(ffi->u.func.arg_types[i]);
                     ffi->u.func.arg_types[i] = NULL;
                 }
                 free(ffi->u.func.arg_types);
             }
             ffi->u.func.arg_types = NULL;
             ffi->u.func.arg_count = 0;
-            ffi_recfree(ffi->u.func.return_type);
+            ffi_type_recfree(ffi->u.func.return_type);
             ffi->u.func.return_type = NULL;
             free(ffi);
         } break;
     }
 }
 
-void ffi_fprint(FILE* f, ffi_type_t* ffi) {
+void ffi_type_fprint(FILE* f, ffi_type_t* ffi) {
     if( ffi == NULL ) {
         fprintf(f, "NULL");
         return;
@@ -161,7 +161,7 @@ void ffi_fprint(FILE* f, ffi_type_t* ffi) {
         } break;
         case FFI_TYPE_LIST: {
             fprintf(f, "array<");
-            ffi_fprint(f, ffi->u.list.content_type);
+            ffi_type_fprint(f, ffi->u.list.content_type);
             fprintf(f, ">");
         } break;
         case FFI_TYPE_FUNC: {
@@ -170,15 +170,15 @@ void ffi_fprint(FILE* f, ffi_type_t* ffi) {
             for(int i = 0; i < count; i++) {
                 if( i > 0 )
                     fprintf(f, ", ");
-                ffi_fprint(f, ffi->u.func.arg_types[i]);
+                ffi_type_fprint(f, ffi->u.func.arg_types[i]);
             }
             fprintf(f, ") -> ");
-            ffi_fprint(f, ffi->u.func.return_type);
+            ffi_type_fprint(f, ffi->u.func.return_type);
         } break;
     }
 }
 
-bool ffi_equals(ffi_type_t* a, ffi_type_t* b) {
+bool ffi_type_equals(ffi_type_t* a, ffi_type_t* b) {
     if( a == NULL || b == NULL )
         return false;
     if( a->tag != b->tag )
@@ -192,7 +192,7 @@ bool ffi_equals(ffi_type_t* a, ffi_type_t* b) {
         case FFI_TYPE_LIST: {
             ffi_type_t* a_list_content = a->u.list.content_type;
             ffi_type_t* b_list_content = b->u.list.content_type;
-            return ffi_equals(a_list_content, b_list_content);
+            return ffi_type_equals(a_list_content, b_list_content);
         } break;
         case FFI_TYPE_FUNC: {
             int count = a->u.func.arg_count;
@@ -201,12 +201,12 @@ bool ffi_equals(ffi_type_t* a, ffi_type_t* b) {
             for(int i = 0; i < count; i++) {
                 ffi_type_t* a_arg_type = a->u.func.arg_types[i];
                 ffi_type_t* b_arg_type = b->u.func.arg_types[i];
-                if( ffi_equals(a_arg_type, b_arg_type) == false )
+                if( ffi_type_equals(a_arg_type, b_arg_type) == false )
                     return false;
             }
             ffi_type_t* a_return_type = a->u.func.return_type;
             ffi_type_t* b_return_type = b->u.func.return_type;
-            return ffi_equals(a_return_type, b_return_type);
+            return ffi_type_equals(a_return_type, b_return_type);
         } break;
         default: {
             printf("unknown FFI type %d\n", a->tag);
@@ -215,16 +215,31 @@ bool ffi_equals(ffi_type_t* a, ffi_type_t* b) {
     }
 }
 
-bool ffi_host_init(ffi_host_t* host, int capacity) {
-    host->capacity = capacity;
-    host->count = 0;
-    host->name = malloc( capacity * sizeof(sstr_t) );
-    host->type = malloc( capacity * sizeof(ffi_type_t*) );
-    host->handle = malloc( capacity * sizeof(ffi_handle_t) );
-    return host->name != NULL && host->type != NULL;
+bool ffi_init(ffi_t* ffi) {
+
+    const int capacity = 8;
+
+    // HOST
+    ffi->host.capacity = capacity;
+    ffi->host.count = 0;
+    ffi->host.name = malloc( capacity * sizeof(sstr_t) );
+    ffi->host.type = malloc( capacity * sizeof(ffi_type_t*) );
+    ffi->host.handle = malloc( capacity * sizeof(ffi_handle_t) );
+
+    // EXE
+    ffi->exe.capacity = capacity;
+    ffi->exe.count = 0;
+    ffi->exe.name = malloc( capacity * sizeof(sstr_t) );
+    ffi->exe.type = malloc( capacity * sizeof(ffi_type_t*) );
+
+    return ffi->host.name != NULL
+        && ffi->host.type != NULL
+        && ffi->host.handle != NULL
+        && ffi->exe.name != NULL
+        && ffi->exe.type != NULL;
 }
 
-int ffi_host_index_of(ffi_host_t* host, sstr_t name) {
+int ffi_host_index_of(ffi_host_if_t* host, sstr_t name) {
     int count = host->count;
     for(int i = 0; i < count; i++) {
         if( sstr_equal(&host->name[i], &name) )
@@ -233,11 +248,11 @@ int ffi_host_index_of(ffi_host_t* host, sstr_t name) {
     return -1;
 }
 
-bool ffi_host_add(ffi_host_t* host, sstr_t name, ffi_handle_t handle, ffi_type_t* type) {
+bool ffi_host_define(ffi_host_if_t* host, sstr_t name, ffi_handle_t handle, ffi_type_t* type) {
     // TODO: Verify that handle and type matches
     int index = ffi_host_index_of(host, name);
     if( index >= 0 )
-        return ffi_equals(host->type[index], type);
+        return ffi_type_equals(host->type[index], type);
     if( host->count >= host->capacity ) {
         int new_cap = host->count * 2;
         host->name = realloc(host->name, new_cap * sizeof(sstr_t));
@@ -254,68 +269,102 @@ bool ffi_host_add(ffi_host_t* host, sstr_t name, ffi_handle_t handle, ffi_type_t
     return true;
 }
 
-ffi_type_t* ffi_host_get_type(ffi_host_t* host, sstr_t name) {
+ffi_type_t* ffi_host_get_type(ffi_host_if_t* host, sstr_t name) {
     int index = ffi_host_index_of(host, name);
     if( index >= 0 )
         return host->type[index];
     return NULL;
 }
 
-void ffi_host_destroy(ffi_host_t* host) {
-    
-    if(host->type != NULL) {
-        int count = host->count;
-        for(int i = 0; i < count; i++) {
-            ffi_recfree(host->type[i]);
-            host->type[i] = NULL;
-        }
-        free(host->type);
-    }
-
-    if(host->name != NULL) {
-        free(host->name);
-    }
-
-    if(host->handle != NULL) {
-        free(host->handle);
-    }
-}
-
-void ffi_host_fprint(FILE* f, ffi_host_t* host) {
-    fprintf(f, "FFI host\n");
-    int count = host->count;
+int ffi_exe_index_of(ffi_exe_if_t* exe, sstr_t name) {
+    int count = exe->count;
     for(int i = 0; i < count; i++) {
-        fprintf(f, "\t%.*s: ",
-            sstr_len(&host->name[i]),
-            sstr_ptr(&host->name[i]));
-        ffi_fprint(f, host->type[i]);
-        fprintf(f, "\n");
-    }
-}
-
-int ffi_host_get_count(ffi_host_t* host, ffi_handle_tag_t tag) {
-    int tagged_count = 0;
-    if( host == NULL )
-        return tagged_count;
-    int count = host->count;
-    for(int i = 0; i < count; i++) {
-        if( host->handle[i].tag == tag )
-            tagged_count ++;
-    }
-    return tagged_count;
-}
-
-int ffi_host_find_entrypoint(ffi_host_t* host, sstr_t name) {
-    int count = host->count;
-    int index_cntr = 0;
-    for(int i = 0; i < count; i++) {
-        if( host->handle[i].tag != FFI_PROGRAM_REQUIREMENT )
-            continue;
-        if( sstr_equal(&host->name[i], &name) )
-            return index_cntr;
-        index_cntr ++;
+        if( sstr_equal(&exe->name[i], &name) )
+            return i;
     }
     return -1;
 }
 
+bool ffi_exe_set_required_by_host(ffi_exe_if_t* exe, sstr_t name, ffi_type_t* type) {
+    // TODO: Verify that handle and type matches
+    int index = ffi_exe_index_of(exe, name);
+    if( index >= 0 )
+        return ffi_type_equals(exe->type[index], type);
+    if( exe->count >= exe->capacity ) {
+        int new_cap = exe->count * 2;
+        exe->name = realloc(exe->name, new_cap * sizeof(sstr_t));
+        assert(exe->name != NULL); // todo: handle fail
+        exe->type = realloc(exe->type, new_cap * sizeof(ffi_type_t*));
+        assert(exe->type != NULL); // todo: handle fail
+    }
+    exe->name[exe->count] = name;
+    exe->type[exe->count] = type;
+    exe->count ++;
+    return true;
+}
 
+ffi_type_t* ffi_exe_get_type(ffi_exe_if_t* exe, sstr_t name) {
+    int index = ffi_exe_index_of(exe, name);
+    if( index >= 0 )
+        return exe->type[index];
+    return NULL;
+}
+
+void ffi_destroy(ffi_t* ffi) {
+    
+    if(ffi->host.type != NULL) {
+        int count = ffi->host.count;
+        for(int i = 0; i < count; i++) {
+            ffi_type_recfree(ffi->host.type[i]);
+            ffi->host.type[i] = NULL;
+        }
+        free(ffi->host.type);
+        ffi->host.type = NULL;
+    }
+
+    if(ffi->host.name != NULL) {
+        free(ffi->host.name);
+        ffi->host.name = NULL;
+    }
+
+    if(ffi->host.handle != NULL) {
+        free(ffi->host.handle);
+        ffi->host.handle = NULL;
+    }
+
+    if( ffi->exe.type != NULL ) {
+        int count = ffi->exe.count;
+        for(int i = 0; i < count; i++) {
+            ffi_type_recfree(ffi->exe.type[i]);
+            ffi->exe.type[i] = NULL;
+        }
+        free(ffi->exe.type);
+        ffi->exe.type = NULL;
+    }
+
+    if(ffi->exe.name != NULL) {
+        free(ffi->exe.name);
+        ffi->exe.name = NULL;
+    }
+
+}
+
+void ffi_fprint(FILE* f, ffi_t* ffi) {
+    fprintf(f, "FFI\n");
+    fprintf(f, " Host\n");
+    for(int i = 0; i < ffi->host.count; i++) {
+        fprintf(f, "\t%.*s: ",
+            sstr_len(&ffi->host.name[i]),
+            sstr_ptr(&ffi->host.name[i]));
+        ffi_type_fprint(f, ffi->host.type[i]);
+        fprintf(f, "\n");
+    }
+    fprintf(f, " Executable\n");
+    for(int i = 0; i < ffi->exe.count; i++) {
+        fprintf(f, "\t%.*s: ",
+            sstr_len(&ffi->exe.name[i]),
+            sstr_ptr(&ffi->exe.name[i]));
+        ffi_type_fprint(f, ffi->exe.type[i]);
+        fprintf(f, "\n");
+    }
+}

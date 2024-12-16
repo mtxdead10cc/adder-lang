@@ -129,23 +129,23 @@ inline static int ffi_get_arg_count(ffi_type_t* type) {
     }
 }
 
-inline static void ffi_invoke(ffi_host_t* bundle, uint32_t index, vm_t* vm) {
-    int argcount = ffi_get_arg_count(bundle->type[index]);
+inline static void ffi_invoke(ffi_host_if_t* host, uint32_t index, vm_t* vm) {
+    int argcount = ffi_get_arg_count(host->type[index]);
     vm->mem.stack.top -= argcount;
-    switch(bundle->handle[index].tag) {
+    switch(host->handle[index].tag) {
         case FFI_HNDL_HOST_ACTION: {
-            bundle->handle[index].u.host_action(
+            host->handle[index].u.host_action(
                 (ffi_hndl_meta_t) {
-                    .local = bundle->handle[index].local,
+                    .local = host->handle[index].local,
                     .vm = vm
                 },
                 argcount,
                 vm->mem.stack.values + vm->mem.stack.top + 1);
         } break;
         case FFI_HNDL_HOST_FUNCTION: {
-            val_t ret = bundle->handle[index].u.host_function(
+            val_t ret = host->handle[index].u.host_function(
                 (ffi_hndl_meta_t) {
-                    .local = bundle->handle[index].local,
+                    .local = host->handle[index].local,
                     .vm = vm
                 },
                 argcount,
@@ -168,7 +168,7 @@ void vm_select_entry_point(vm_t* vm, vm_program_t* program, int entrypoint) {
 
     if( entrypoint < 0 ) {
         // default to main
-        entrypoint = program->eps.count - 1;
+        entrypoint = 0;
     }
 
     assert( entrypoint < (int) program->eps.count );
@@ -537,7 +537,7 @@ val_t vm_execute(vm_t* vm, vm_program_t* program, gvm_exec_args_t* exec_args) {
             case OP_CALL_NATIVE: {
                 uint32_t findex = READ_U32(instructions, vm_run->pc);
                 TRACE_INT_ARG(findex);
-                ffi_invoke(program->ffi, findex, vm);
+                ffi_invoke(&program->ffi->host, findex, vm);
                 vm_run->pc += 4;
             } break;
             default: {
