@@ -539,8 +539,6 @@ bty_type_t* bty_extract_type(arena_t* a, trace_t* t, ast_node_t* n) {
 
             if( expr->u.n_fundecl.exported ) {
                 bty_func_set_exported(ft);
-            } else if( srcref_equals_string(expr->u.n_fundecl.name, "main") ) {
-                bty_func_set_exported(ft);
             }
 
             return ft;
@@ -964,6 +962,19 @@ void bty_check_fundecl(bty_ctx_t* c, ast_node_t* n, bty_type_t* et) {
             "internal-error: fundecl unexpected node type %s",
             ast_node_type_as_string(n->type));
         return;
+    }
+
+    if( srcref_equals_string(n->u.n_fundecl.name, "main") ) {
+        if( n->u.n_fundecl.exported == false ) {
+            trace_msg_t* m = trace_create_message(c->trace,
+            TM_ERROR, 
+            ast_extract_srcref(n));
+            trace_msg_append_costr(m,
+                "type-error: the main function ast"
+                " node should have been marked as"
+                " exported, but it was not.");
+            return;
+        }
     }
 
     bty_fun_t ft = et->u.fun;

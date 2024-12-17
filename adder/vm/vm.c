@@ -4,6 +4,9 @@
 #include "sh_value.h"
 #include "sh_utils.h"
 #include "sh_config.h"
+#include "sh_program.h"
+#include "vm_call.h"
+#include "vm_env.h"
 #include "vm_heap.h"
 #include "vm_validate.h"
 
@@ -122,33 +125,25 @@ void vm_destroy(vm_t* vm) {
     memset(vm, 0, sizeof(vm_t));
 }
 
-inline static int ffi_get_arg_count(ffi_type_t* type) {
-    switch(type->tag) {
-        case FFI_TYPE_FUNC: return type->u.func.arg_count;
-        default: return 0;
-    }
-}
-
-inline static void ffi_invoke(ffi_host_if_t* host, uint32_t index, vm_t* vm) {
-    int argcount = ffi_get_arg_count(host->type[index]);
-    vm->mem.stack.top -= argcount;
-    switch(host->handle[index].tag) {
+inline static void ffi_invoke(ffi_handle_t* hndl, int arg_count, vm_t* vm) {
+    vm->mem.stack.top -= arg_count;
+    switch(hndl->tag) {
         case FFI_HNDL_HOST_ACTION: {
-            host->handle[index].u.host_action(
+            hndl->u.host_action(
                 (ffi_hndl_meta_t) {
-                    .local = host->handle[index].local,
+                    .local = hndl->local,
                     .vm = vm
                 },
-                argcount,
+                arg_count,
                 vm->mem.stack.values + vm->mem.stack.top + 1);
         } break;
         case FFI_HNDL_HOST_FUNCTION: {
-            val_t ret = host->handle[index].u.host_function(
+            val_t ret = hndl->u.host_function(
                 (ffi_hndl_meta_t) {
-                    .local = host->handle[index].local,
+                    .local = hndl->local,
                     .vm = vm
                 },
-                argcount,
+                arg_count,
                 vm->mem.stack.values + vm->mem.stack.top + 1);
             vm->mem.stack.values[++vm->mem.stack.top] = ret;
         } break;
@@ -158,30 +153,23 @@ inline static void ffi_invoke(ffi_host_if_t* host, uint32_t index, vm_t* vm) {
     }
 }
 
-void vm_select_entry_point(vm_t* vm, vm_program_t* program, int entrypoint) {
-    
-    if( program->eps.count == 0 )
-        return;
-
-    // push negative number as return address
-    vm->mem.stack.values[++vm->mem.stack.top] = val_number(-1.0f);
-
-    if( entrypoint < 0 ) {
-        // default to main
-        entrypoint = 0;
+void vm_select_entry_point(vm_t* vm, vm_program_t* program, uint32_t address) {
+    assert( program->inst.size >= address );
+    if( program->inst.buffer[address] == OP_MAKE_FRAME ) {
+        // push negative number as return address
+        vm->mem.stack.values[++vm->mem.stack.top] = val_number(-1.0f);
     }
-
-    assert( entrypoint < (int) program->eps.count );
-    uint32_t addr = program->eps.addrs[entrypoint];
-    assert( program->inst.size >= addr );
-    assert( program->inst.buffer[addr] == OP_MAKE_FRAME );
     // jump to label / function
-    vm->run.pc = addr;
+    vm->run.pc = address;
 }
 
-val_t vm_execute(vm_t* vm, vm_program_t* program, gvm_exec_args_t* exec_args) {
+val_t vm_execute(vm_t* vm, vm_env_t* env, vm_call_t* inv) {
 
     assert(sizeof(float) == 4);
+
+    vm_program_t* program = inv->program;
+
+    assert(program != NULL);
     
     val_t* stack = vm->mem.stack.values;
     val_t* consts = program->cons.buffer;
@@ -198,16 +186,17 @@ val_t vm_execute(vm_t* vm, vm_program_t* program, gvm_exec_args_t* exec_args) {
     // push initial args (if any)
     vm_mem->stack.frame = -1;
     vm_mem->stack.top = -1;
-    for(uint32_t i = 0; i < exec_args->args.count; i++) {
-        stack[++vm_mem->stack.top] = exec_args->args.buffer[i];
+    for(int i = 0; i < inv->args.count; i++) {
+        stack[++vm_mem->stack.top] = inv->args.vals[i];
     }
     
-    uint32_t cycles_remaining = exec_args->cycle_limit;
+    uint32_t cycles_remaining = (uint32_t) 1000000;
     if (program->inst.size == 0) {
         cycles_remaining = 0;
     }
 
-    vm_select_entry_point(vm, program, exec_args->entry_point);
+    assert(inv->ep.address >= 0);
+    vm_select_entry_point(vm, program, inv->ep.address);
 
     while ( (cycles_remaining--) != 0 ) {
 
@@ -537,7 +526,9 @@ val_t vm_execute(vm_t* vm, vm_program_t* program, gvm_exec_args_t* exec_args) {
             case OP_CALL_NATIVE: {
                 uint32_t findex = READ_U32(instructions, vm_run->pc);
                 TRACE_INT_ARG(findex);
-                ffi_invoke(&program->ffi->host, findex, vm);
+                ffi_handle_t* handle = &env->handles[findex];
+                int arg_count = env->argcounts[findex];
+                ffi_invoke(handle, arg_count, vm);
                 vm_run->pc += 4;
             } break;
             default: {

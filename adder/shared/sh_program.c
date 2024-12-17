@@ -2,6 +2,7 @@
 #include "sh_value.h"
 #include "sh_asminfo.h"
 #include "sh_utils.h"
+#include "sh_ffi.h"
 #include <stdlib.h>
 
 void fprint_value(FILE* stream, val_t* memory, val_t val) {
@@ -98,23 +99,47 @@ void program_disassemble(FILE* stream, vm_program_t* program) {
     }
 }
 
+int program_find_entrypoint(vm_program_t* prog, sstr_t name, ffi_type_t* expected) {
+    if( prog == NULL )
+        return -1;
+    for(int i = 0; i < prog->exports.count; i++) {
+        ffi_definition_t def = prog->exports.def[i];
+        if( sstr_equal(&name, &def.name) == false )
+            continue;
+        if( expected != NULL ) {
+            if( ffi_type_equals(expected, def.type) == false )
+                return -2;
+        }
+        return prog->expaddr[i];
+    }
+    return -1;
+}
+
 void program_destroy(vm_program_t* prog) {
+
     if( prog == NULL ) {
         return;
     }
+
     if( prog->cons.buffer != NULL ) {
         free(prog->cons.buffer);
         prog->cons.count = 0;
         prog->cons.buffer = NULL;
     }
+
     if( prog->inst.buffer != NULL ) {
         free(prog->inst.buffer);
         prog->inst.size = 0;
         prog->inst.buffer = NULL;
     }
-    if( prog->eps.addrs != NULL ) {
-        free(prog->eps.addrs);
-        prog->eps.addrs = NULL;
-        prog->eps.count = 0;
+
+    ffi_definition_set_destroy(&prog->exports);
+    ffi_definition_set_destroy(&prog->imports);
+
+    if( prog->expaddr != NULL ) {
+        free(prog->expaddr);
+        prog->expaddr = NULL;
     }
 }
+
+

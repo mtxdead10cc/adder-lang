@@ -282,6 +282,15 @@ inline static void ast_fundecl_set_exported(ast_node_t* node) {
     node->u.n_fundecl.exported = true;
 }
 
+inline static ast_node_t* ast_exported_fundecl( arena_t* a, srcref_t name,
+                                       ast_node_t* args,
+                                       ast_node_t* body ) 
+{
+    ast_node_t* node = ast_fundecl(a, name, args, body);
+    ast_fundecl_set_exported(node);
+    return node;
+}
+
 inline static ast_node_t* ast_funcall( arena_t* a, srcref_t name,
                                        ast_node_t* args ) 
 {

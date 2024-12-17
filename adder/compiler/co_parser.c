@@ -870,14 +870,20 @@ pa_result_t pa_try_parse_fundecl(parser_t* parser) {
 
     ast_node_t* body = par_extract_node(result);
 
+    ast_node_t* fun = ast_fundecl(
+        parser->arena,
+        funname.ref,
+        arglist,
+        body);
+
+    if( srcref_equals_string(funname.ref, "main") )
+        ast_fundecl_set_exported(fun);
+
     return par_node(
         ast_tyannot(parser->arena,
             retannot,
-            ast_fundecl(parser->arena,
-                funname.ref,
-                arglist,
-                body)),
-            &funname.ref);
+            fun),
+        &funname.ref);
 }
 
 pa_result_t pa_try_parse_preproc_directive(parser_t* parser) {

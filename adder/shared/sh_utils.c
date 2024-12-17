@@ -43,8 +43,12 @@ char* sstr_ptr(sstr_t* sstr) {
     return sstr->str;
 }
 
-void sstr_printf(sstr_t* sstr) {
+void sstr_print(sstr_t* sstr) {
     printf("%.*s", (int)sstr_len(sstr), sstr->str);
+}
+
+void sstr_fprint(FILE* file, sstr_t* sstr) {
+    fprintf(file, "%.*s", (int)sstr_len(sstr), sstr->str);
 }
 
 void sstr_copy(sstr_t* dest, sstr_t* src) {

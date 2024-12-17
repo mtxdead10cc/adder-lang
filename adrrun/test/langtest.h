@@ -8,7 +8,6 @@ typedef struct ltc_t {
     char* code;
     char* expect;
     char* filepath;
-    char* export;
 } ltc_t;
 
 ltc_t langtest_testcases[] = {
@@ -21,7 +20,6 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "2",
         .filepath = "basics.txt",
-        .export = "",
     },
     {
         .category = "verify",
@@ -36,7 +34,6 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "hello123",
         .filepath = "basics.txt",
-        .export = "",
     },
     {
         .category = "verify",
@@ -48,7 +45,6 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "false",
         .filepath = "basics.txt",
-        .export = "",
     },
     {
         .category = "verify",
@@ -63,7 +59,6 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "7",
         .filepath = "basics.txt",
-        .export = "",
     },
     {
         .category = "verify",
@@ -85,7 +80,6 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "11",
         .filepath = "basics.txt",
-        .export = "",
     },
     {
         .category = "verify",
@@ -111,7 +105,6 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "4",
         .filepath = "basics.txt",
-        .export = "",
     },
     {
         .category = "verify",
@@ -123,7 +116,6 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "-100.4",
         .filepath = "basics.txt",
-        .export = "",
     },
     {
         .category = "verify",
@@ -135,7 +127,6 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "0.5",
         .filepath = "basics.txt",
-        .export = "",
     },
     {
         .category = "verify",
@@ -147,7 +138,6 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "1",
         .filepath = "basics.txt",
-        .export = "",
     },
     {
         .category = "verify",
@@ -159,7 +149,6 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "true",
         .filepath = "basics.txt",
-        .export = "",
     },
     {
         .category = "verify",
@@ -172,7 +161,6 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "<none>",
         .filepath = "basics.txt",
-        .export = "",
     },
     {
         .category = "verify",
@@ -192,7 +180,6 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "true",
         .filepath = "basics.txt",
-        .export = "",
     },
     {
         .category = "verify",
@@ -203,7 +190,6 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "0",
         .filepath = "basics.txt",
-        .export = "",
     },
     {
         .category = "verify",
@@ -221,10 +207,9 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "0",
         .filepath = "basics.txt",
-        .export = "",
     },
     {
-        .category = "verify-export",
+        .category = "verify",
         .name = "export-func-test",
         .code = 
         "export int test_int_1_int(int v) {\n"
@@ -233,9 +218,8 @@ ltc_t langtest_testcases[] = {
         "int main() {\n"
         "    return 10000;\n"
         "}\n",
-        .expect = "2",
+        .expect = "EXPORT(test_int_1_int;2",
         .filepath = "basics.txt",
-        .export = "test_int_1_int",
     }
 };
 

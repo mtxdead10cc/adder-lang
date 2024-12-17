@@ -3,7 +3,10 @@
 #include <sh_value.h>
 #include <sh_ffi.h>
 #include <vm_value_tools.h>
+#include <vm_msg_buffer.h>
 #include <vm_heap.h>
+#include <vm_call.h>
+#include <vm_env.h>
 #include <co_program.h>
 #include <co_ast.h>
 #include <stdbool.h>
@@ -56,7 +59,7 @@ void setup_default_env(ffi_t* ffi) {
         printf("error: failed to init FFI.\n");
         return;
     }
-    res = ffi_host_define(&ffi->host,
+    res = ffi_native_exports_define(&ffi->supplied,
         sstr("print"), 
         (ffi_handle_t) {
             .local = 0,
@@ -68,6 +71,18 @@ void setup_default_env(ffi_t* ffi) {
     if( res == false ) {
         printf("error: failed to register FFI function: print\n");
     }
+}
+
+bool check_call_setup(vm_env_t* env, vm_call_t* inv) {
+    if( env->msgbuf.count > 0 ) {
+        vm_msg_buffer_fprint(&env->msgbuf, stdout);
+        return false;
+    }
+    if( inv->msgbuf.count > 0 ) {
+        vm_msg_buffer_fprint(&inv->msgbuf, stdout);
+        return false;
+    }
+    return true;
 }
 
 bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
@@ -86,7 +101,7 @@ bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
         }
 
         last_creation_time = creation_time;
-        vm_program_t program = program_read_and_compile(path, show_ast, &ffi);
+        vm_program_t program = program_read_and_compile(path, show_ast);
         compile_ok = program.inst.size > 0;
         printf("%s [%s]\n", path, compile_ok ? "OK" : "FAILED");
         
@@ -96,21 +111,35 @@ bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
                 program_disassemble(stdout, &program);
             }
 
+            vm_env_t env = { 0 };
+            vm_env_init(&env);
+
+            vm_env_setup(&env, &program, &ffi);
+
+            vm_call_t inv = { 0 };
+            vm_call_init(&inv, &program);
+
+            vm_call_lookup_entry(&inv,
+                "main", NULL);
+
             vm_t vm = { 0 };
             vm_create(&vm, 128, 128);
 
-            // execute script
-            gvm_exec_args_t args = { 0 };
-            args.cycle_limit = 500;
-            val_t result = vm_execute(&vm, &program, &args);
+            if( check_call_setup(&env, &inv) ) {
+                // execute script
+                val_t result = vm_execute(&vm, &env, &inv);
 
-            printf("> ");
-            vm_print_val(&vm, result);
-            printf("\n");
+                printf("> ");
+                vm_print_val(&vm, result);
+                printf("\n");
+            }
 
+            vm_env_destroy(&env);
             program_destroy(&program);
             vm_destroy(&vm);
         }
+
+        
 
     } while ( keep_alive );
 

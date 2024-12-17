@@ -64,6 +64,13 @@ ffi_type_t* ffi_custom(char* type_name) {
     return ffi;
 }
 
+ffi_type_t* ffi_custom_sstr(sstr_t type_name) {
+    ffi_type_t* ffi = malloc(sizeof(ffi_type_t));
+    ffi->tag = FFI_TYPE_CONST;
+    ffi->u.cons.type_name = type_name;
+    return ffi;
+}
+
 ffi_type_t* ffi_list(ffi_type_t* content_type) {
     ffi_type_t* ffi = malloc(sizeof(ffi_type_t));
     ffi->tag = FFI_TYPE_LIST;
@@ -115,6 +122,12 @@ bool ffi_is_custom_const(ffi_type_t* t) {
             return false;
     }
     return true;
+}
+
+int ffi_get_func_arg_count(ffi_type_t* type) {
+    if( type->tag != FFI_TYPE_FUNC )
+        return 0;
+    return type->u.func.arg_count;
 }
 
 void ffi_type_recfree(ffi_type_t* ffi) {
@@ -178,6 +191,45 @@ void ffi_type_fprint(FILE* f, ffi_type_t* ffi) {
     }
 }
 
+int ffi_type_snprint(char* buf, int len, ffi_type_t* ffi) {
+    if( ffi == NULL ) {
+        return snprintf(buf, len, "NULL");
+    }
+    switch(ffi->tag) {
+        case FFI_TYPE_CONST: {
+            return snprintf(buf, len, "%.*s",
+                sstr_len(&ffi->u.cons.type_name),
+                sstr_ptr(&ffi->u.cons.type_name));
+        } break;
+        case FFI_TYPE_LIST: {
+            int w = snprintf(buf, len, "array<");
+            w += ffi_type_snprint(buf + w, len-w, ffi->u.list.content_type);
+            w += snprintf(buf + w, len-w, ">");
+            return w;
+        } break;
+        case FFI_TYPE_FUNC: {
+            int w = snprintf(buf, len, "(");
+            int count = ffi->u.func.arg_count;
+            for(int i = 0; i < count; i++) {
+                if( i > 0 )
+                    w += snprintf(buf + w, len-w, ", ");
+                w += ffi_type_snprint(buf + w, len-w, ffi->u.func.arg_types[i]);
+            }
+            w += snprintf(buf + w, len, ") -> ");
+            w += ffi_type_snprint(buf + w, len-w, ffi->u.func.return_type);
+            return w;
+        } break;
+    }
+    return 0;
+}
+
+sstr_t ffi_type_to_sstr(ffi_type_t* ffi) {
+    char buf[SSTR_MAX_LEN] = { 0 };
+    ffi_type_snprint(buf, SSTR_MAX_LEN, ffi);
+    return sstr(buf);
+}
+
+
 bool ffi_type_equals(ffi_type_t* a, ffi_type_t* b) {
     if( a == NULL || b == NULL )
         return false;
@@ -215,156 +267,179 @@ bool ffi_type_equals(ffi_type_t* a, ffi_type_t* b) {
     }
 }
 
+ffi_type_t* ffi_type_clone(ffi_type_t* type) {
+    if( type == NULL )
+        return NULL;
+
+    switch (type->tag) {
+        case FFI_TYPE_CONST: {
+            return ffi_custom_sstr(type->u.cons.type_name);
+        } break;
+        case FFI_TYPE_LIST: {
+            return ffi_list(ffi_type_clone(type->u.list.content_type));
+        } break;
+        case FFI_TYPE_FUNC: {
+            int count = type->u.func.arg_count;
+            ffi_type_t* res = ffi_func(ffi_type_clone(type->u.func.return_type));
+            for(int i = 0; i < count; i++) {
+                ffi_func_add_arg(res,
+                    ffi_type_clone(type->u.func.arg_types[i]));
+            }
+            return res;
+        } break;
+        default: {
+            printf("unknown FFI type %d\n", type->tag);
+            return NULL;
+        }
+    }
+}
+
+bool ffi_native_exports_init(ffi_native_exports_t* hosted, int capacity) {
+    hosted->capacity = capacity;
+    hosted->count = 0;
+    hosted->def = malloc( capacity * sizeof(ffi_definition_t) );
+    hosted->handle = malloc( capacity * sizeof(ffi_handle_t) );
+    return hosted->handle != NULL && hosted->def != NULL;
+}
+
+bool ffi_definition_set_init(ffi_definition_set_t* set, int capacity) {
+    set->capacity = capacity;
+    set->count = 0;
+    set->def = malloc( capacity * sizeof(ffi_definition_t) );
+    return set->def != NULL;
+}
+
 bool ffi_init(ffi_t* ffi) {
 
     const int capacity = 8;
 
-    // HOST
-    ffi->host.capacity = capacity;
-    ffi->host.count = 0;
-    ffi->host.name = malloc( capacity * sizeof(sstr_t) );
-    ffi->host.type = malloc( capacity * sizeof(ffi_type_t*) );
-    ffi->host.handle = malloc( capacity * sizeof(ffi_handle_t) );
+    if(ffi_native_exports_init(&ffi->supplied, capacity) == false ) {
+        ffi_native_exports_destroy(&ffi->supplied);
+        return false;
+    }
 
-    // EXE
-    ffi->exe.capacity = capacity;
-    ffi->exe.count = 0;
-    ffi->exe.name = malloc( capacity * sizeof(sstr_t) );
-    ffi->exe.type = malloc( capacity * sizeof(ffi_type_t*) );
-
-    return ffi->host.name != NULL
-        && ffi->host.type != NULL
-        && ffi->host.handle != NULL
-        && ffi->exe.name != NULL
-        && ffi->exe.type != NULL;
+    return true;
 }
 
-int ffi_host_index_of(ffi_host_if_t* host, sstr_t name) {
+int ffi_native_exports_index_of(ffi_native_exports_t* host, sstr_t name) {
     int count = host->count;
     for(int i = 0; i < count; i++) {
-        if( sstr_equal(&host->name[i], &name) )
+        if( sstr_equal(&host->def[i].name, &name) )
             return i;
     }
     return -1;
 }
 
-bool ffi_host_define(ffi_host_if_t* host, sstr_t name, ffi_handle_t handle, ffi_type_t* type) {
+bool ffi_native_exports_define(ffi_native_exports_t* hosted, sstr_t name, ffi_handle_t handle, ffi_type_t* type) {
     // TODO: Verify that handle and type matches
-    int index = ffi_host_index_of(host, name);
+    int index = ffi_native_exports_index_of(hosted, name);
+
     if( index >= 0 )
-        return ffi_type_equals(host->type[index], type);
-    if( host->count >= host->capacity ) {
-        int new_cap = host->count * 2;
-        host->name = realloc(host->name, new_cap * sizeof(sstr_t));
-        assert(host->name != NULL); // todo: handle fail
-        host->type = realloc(host->type, new_cap * sizeof(ffi_type_t*));
-        assert(host->type != NULL); // todo: handle fail
-        host->handle = realloc(host->handle, new_cap * sizeof(ffi_handle_t));
-        assert(host->handle != NULL); // todo: handle fail
+        return false;
+
+    if( hosted->count >= hosted->capacity ) {
+        int new_cap = hosted->count * 2;
+        hosted->def = realloc(hosted->def, new_cap * sizeof(ffi_definition_t) );
+        assert(hosted->handle != NULL); // todo: handle fail
+        hosted->handle = realloc(hosted->handle, new_cap * sizeof(ffi_handle_t));
+        assert(hosted->handle != NULL); // todo: handle fail
     }
-    host->name[host->count] = name;
-    host->type[host->count] = type;
-    host->handle[host->count] = handle;
-    host->count ++;
+
+    hosted->def[hosted->count] = (ffi_definition_t) {
+        .name = name,
+        .type = type
+    };
+
+    hosted->handle[hosted->count] = handle;
+    hosted->count ++;
     return true;
 }
 
-ffi_type_t* ffi_host_get_type(ffi_host_if_t* host, sstr_t name) {
-    int index = ffi_host_index_of(host, name);
+ffi_type_t* ffi_native_exports_get_type(ffi_native_exports_t* host, sstr_t name) {
+    int index = ffi_native_exports_index_of(host, name);
     if( index >= 0 )
-        return host->type[index];
+        return host->def[index].type;
     return NULL;
 }
 
-int ffi_exe_index_of(ffi_exe_if_t* exe, sstr_t name) {
-    int count = exe->count;
+int ffi_definition_set_index_of(ffi_definition_set_t* set, sstr_t name) {
+    int count = set->count;
     for(int i = 0; i < count; i++) {
-        if( sstr_equal(&exe->name[i], &name) )
+        if( sstr_equal(&set->def[i].name, &name) )
             return i;
     }
     return -1;
 }
 
-bool ffi_exe_set_required_by_host(ffi_exe_if_t* exe, sstr_t name, ffi_type_t* type) {
+bool ffi_definition_set_add(ffi_definition_set_t* set, sstr_t name, ffi_type_t* type) {
     // TODO: Verify that handle and type matches
-    int index = ffi_exe_index_of(exe, name);
+    int index = ffi_definition_set_index_of(set, name);
     if( index >= 0 )
-        return ffi_type_equals(exe->type[index], type);
-    if( exe->count >= exe->capacity ) {
-        int new_cap = exe->count * 2;
-        exe->name = realloc(exe->name, new_cap * sizeof(sstr_t));
-        assert(exe->name != NULL); // todo: handle fail
-        exe->type = realloc(exe->type, new_cap * sizeof(ffi_type_t*));
-        assert(exe->type != NULL); // todo: handle fail
+        return false;
+
+    if( set->count >= set->capacity ) {
+        int new_cap = set->count * 2;
+        set->def = realloc(set->def, new_cap * sizeof(ffi_definition_t));
+        assert(set->def != NULL); // todo: handle fail
     }
-    exe->name[exe->count] = name;
-    exe->type[exe->count] = type;
-    exe->count ++;
+
+    set->def[set->count] = (ffi_definition_t) {
+        .name = name,
+        .type = type
+    };
+
+    set->count ++;
     return true;
 }
 
-ffi_type_t* ffi_exe_get_type(ffi_exe_if_t* exe, sstr_t name) {
-    int index = ffi_exe_index_of(exe, name);
+ffi_type_t* ffi_definition_set_get_type(ffi_definition_set_t* set, sstr_t name) {
+    int index = ffi_definition_set_index_of(set, name);
     if( index >= 0 )
-        return exe->type[index];
+        return set->def[index].type;
     return NULL;
+}
+
+void ffi_native_exports_destroy(ffi_native_exports_t* hosted) {
+    if(hosted->def != NULL) {
+        int count = hosted->count;
+        for(int i = 0; i < count; i++) {
+            ffi_type_recfree(hosted->def[i].type);
+            hosted->def[i].type = NULL;
+        }
+        free(hosted->def);
+        hosted->def = NULL;
+    }
+
+    if( hosted->handle != NULL ) {
+        free(hosted->handle);
+        hosted->handle = NULL;
+    }
+}
+
+void ffi_definition_set_destroy(ffi_definition_set_t* set) {
+    if(set->def != NULL) {
+        int count = set->count;
+        for(int i = 0; i < count; i++) {
+            ffi_type_recfree(set->def[i].type);
+            set->def[i].type = NULL;
+        }
+        free(set->def);
+        set->def = NULL;
+    }
 }
 
 void ffi_destroy(ffi_t* ffi) {
-    
-    if(ffi->host.type != NULL) {
-        int count = ffi->host.count;
-        for(int i = 0; i < count; i++) {
-            ffi_type_recfree(ffi->host.type[i]);
-            ffi->host.type[i] = NULL;
-        }
-        free(ffi->host.type);
-        ffi->host.type = NULL;
-    }
-
-    if(ffi->host.name != NULL) {
-        free(ffi->host.name);
-        ffi->host.name = NULL;
-    }
-
-    if(ffi->host.handle != NULL) {
-        free(ffi->host.handle);
-        ffi->host.handle = NULL;
-    }
-
-    if( ffi->exe.type != NULL ) {
-        int count = ffi->exe.count;
-        for(int i = 0; i < count; i++) {
-            ffi_type_recfree(ffi->exe.type[i]);
-            ffi->exe.type[i] = NULL;
-        }
-        free(ffi->exe.type);
-        ffi->exe.type = NULL;
-    }
-
-    if(ffi->exe.name != NULL) {
-        free(ffi->exe.name);
-        ffi->exe.name = NULL;
-    }
-
+    ffi_native_exports_destroy(&ffi->supplied);
 }
 
 void ffi_fprint(FILE* f, ffi_t* ffi) {
     fprintf(f, "FFI\n");
-    fprintf(f, " Host\n");
-    for(int i = 0; i < ffi->host.count; i++) {
+    fprintf(f, " Supplied (by host)\n");
+    for(int i = 0; i < ffi->supplied.count; i++) {
         fprintf(f, "\t%.*s: ",
-            sstr_len(&ffi->host.name[i]),
-            sstr_ptr(&ffi->host.name[i]));
-        ffi_type_fprint(f, ffi->host.type[i]);
-        fprintf(f, "\n");
-    }
-    fprintf(f, " Executable\n");
-    for(int i = 0; i < ffi->exe.count; i++) {
-        fprintf(f, "\t%.*s: ",
-            sstr_len(&ffi->exe.name[i]),
-            sstr_ptr(&ffi->exe.name[i]));
-        ffi_type_fprint(f, ffi->exe.type[i]);
+            sstr_len(&ffi->supplied.def[i].name),
+            sstr_ptr(&ffi->supplied.def[i].name));
+        ffi_type_fprint(f, ffi->supplied.def[i].type);
         fprintf(f, "\n");
     }
 }

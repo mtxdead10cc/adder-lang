@@ -4,12 +4,6 @@
 #include "sh_types.h"
 #include "sh_ffi.h"
 
-typedef struct grid_t {
-    int width;
-    int height;
-    type_id_t* data;
-} grid_t;
-
 typedef struct vm_stack_t {
     val_t* values;  // pointer to the stack
     int top;        // the index of the top element on the stack
@@ -35,15 +29,6 @@ typedef val_t* (*addr_lookup_fn)(void* user, val_addr_t addr);
 
 typedef struct vm_t vm_t;
 
-typedef struct gvm_exec_args_t {
-    struct {
-        uint32_t    count; 
-        val_t*      buffer;
-    } args;
-    uint32_t        cycle_limit;
-    int             entry_point;
-} gvm_exec_args_t;
-
 typedef struct vm_runtime_t {
     val_t*      constants;
     uint8_t*    instructions;
@@ -53,7 +38,36 @@ typedef struct vm_runtime_t {
 typedef struct vm_t {
     vm_mem_t       mem;
     vm_runtime_t   run;
-    void*           validation; // validation data (NULL if no validation)
+    void*          validation; // validation data (NULL if no validation)
 } vm_t;
+
+#define VM_MSG_BUFFER_MSG_MAX_COUNT 8
+
+typedef struct vm_msg_buffer_t {
+    sstr_t title;
+    int count;
+    sstr_t messages[VM_MSG_BUFFER_MSG_MAX_COUNT];
+} vm_msg_buffer_t;
+
+typedef struct vm_env_t {
+    int             count;
+    ffi_handle_t*   handles;
+    int*            argcounts;
+    vm_msg_buffer_t msgbuf;
+} vm_env_t;
+
+typedef struct vm_call_t {
+    struct {
+        int                 count;
+        val_t               vals[16];
+    } args;
+    struct {
+        int                 argcount;
+        int                 address;
+    } ep;
+    vm_program_t*       program;
+    vm_msg_buffer_t     msgbuf;
+} vm_call_t;
+
 
 #endif // VM_VM_TYPES_H_

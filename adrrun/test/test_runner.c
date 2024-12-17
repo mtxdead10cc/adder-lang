@@ -10,6 +10,9 @@
 #include <co_program.h>
 #include <co_bty.h>
 #include <sh_program.h>
+#include <vm_msg_buffer.h>
+#include <vm_env.h>
+#include <vm_call.h>
 #include <sh_ffi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,6 +40,7 @@ typedef struct test_case_t {
         printf("\n");                           \
     }                                           \
 } while(false)
+
 
 void test_heap_memory(test_case_t* this) {
     vm_t vm;
@@ -264,17 +268,28 @@ void test_utils(test_case_t* this) {
         "#4.10 sstr append fmt remaining failed");
 }
 
+void test_check_call_setup(test_case_t* this, vm_env_t* env, vm_call_t* inv) {
+    if( env->msgbuf.count > 0 ) {
+        TEST_ASSERT_MSG(this,
+            false,
+            "test_check_call_setup vm_env_t error(s)");
+        vm_msg_buffer_fprint(&env->msgbuf, stdout);
+        fflush(stdout);
+    }
+    if( inv->msgbuf.count > 0 ) {
+        TEST_ASSERT_MSG(this,
+            false,
+            "test_check_call_setup vm_call_t error(s)");
+        vm_msg_buffer_fprint(&inv->msgbuf, stdout);
+        fflush(stdout);
+    }
+}
+
 void test_vm(test_case_t* this) {
 
     vm_t vm;
 
     vm_program_t program = { 0 };
-
-    gvm_exec_args_t args = {
-        .args = { 0 },
-        .cycle_limit = 10,
-        .entry_point = -1
-    };
 
     TEST_ASSERT_MSG(this,
         vm_create(&vm, 16, 16),
@@ -332,7 +347,19 @@ void test_vm(test_case_t* this) {
     program.inst.size = instr_buf.size;
     program.inst.buffer = instr_buf.data;
 
-    val_t ret = vm_execute(&vm, &program, &args);
+    vm_env_t env = { 0 };
+    vm_env_init(&env);
+
+    vm_call_t inv = { 0 };
+    vm_call_init(&inv, &program);
+
+    vm_call_set_entry_unchecked(&inv, 0, 0);
+
+    TEST_ASSERT_MSG(this, vm_call_validate(&inv), "vm_call_validate");
+
+    test_check_call_setup(this, &env, &inv);
+
+    val_t ret = vm_execute(&vm, &env, &inv);
 
     TEST_ASSERT_MSG(this,
         VAL_GET_TYPE(ret) == VAL_NUMBER,
@@ -365,16 +392,25 @@ void test_vm(test_case_t* this) {
 
     // PROGRAM -- END
 
-    val_t num = val_number(10);
-    args.args.buffer = &num;
-    args.args.count = 1;
+    vm_env_destroy(&env);
+
+    vm_env_init(&env);
+
+    vm_call_init(&inv, &program);
+
+    vm_call_set_arg_count(&inv, 1);
+    vm_call_set_arg(&inv, 0, val_number(10));
 
     program.cons.buffer = const_buf.values;
     program.cons.count = const_buf.size;
     program.inst.size = instr_buf.size;
     program.inst.buffer = instr_buf.data;
 
-    ret = vm_execute(&vm, &program, &args);
+    vm_call_set_entry_unchecked(&inv, 0, 1);
+
+    test_check_call_setup(this, &env, &inv);
+
+    ret = vm_execute(&vm, &env, &inv);
 
     TEST_ASSERT_MSG(this,
         VAL_GET_TYPE(ret) == VAL_NUMBER,
@@ -387,6 +423,7 @@ void test_vm(test_case_t* this) {
     vm_destroy(&vm);
     u8buffer_destroy(&instr_buf);
     valbuffer_destroy(&const_buf);
+    vm_env_destroy(&env);
 }
 
 void test_ast(test_case_t* this) {
@@ -453,7 +490,7 @@ void test_ast(test_case_t* this) {
 
     ast_node_t* fun = ast_tyannot(arena,
         ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT)),
-        ast_fundecl(arena,
+        ast_exported_fundecl(arena,
             srcref(buf, 0, 4),
             decl_args,
             body));
@@ -461,7 +498,7 @@ void test_ast(test_case_t* this) {
     trace_t trace = { 0 };
     trace_init(&trace, 16);
 
-    vm_program_t program = gvm_compile(arena, ast_block_with(arena, fun), &trace, NULL);
+    vm_program_t program = gvm_compile(arena, ast_block_with(arena, fun), &trace);
     if( trace_get_error_count(&trace) > 0 ) {
         trace_fprint(stdout, &trace);
     }
@@ -470,19 +507,28 @@ void test_ast(test_case_t* this) {
     trace_destroy(&trace);
 
     vm_t vm;
-    val_t argbuf[] = { val_number(1), val_number(-1) };
-    gvm_exec_args_t args = {
-        .args = { .buffer = argbuf, .count = 2 },
-        .cycle_limit = 100,
-        .entry_point = -1
-    };
 
     TEST_ASSERT_MSG(this,
         vm_create(&vm, 16, 16),
         "#1.0 failed to create VM.");
 
-    val_t ret = vm_execute(&vm, &program, &args);
-     TEST_ASSERT_MSG(this,
+    vm_env_t env = { 0 };
+    vm_env_init(&env);
+
+    vm_call_t inv = { 0 };
+    vm_call_init(&inv, &program);
+
+    TEST_ASSERT_MSG(this, vm_call_lookup_entry(&inv, "main", NULL), "vm_call_lookup_entry main");
+    TEST_ASSERT_MSG(this, vm_call_set_arg_count(&inv, 2), "vm_call_set_arg_count"); 
+    TEST_ASSERT_MSG(this, vm_call_set_arg(&inv, 0, val_number(1)), "vm_call_set_arg #0");
+    TEST_ASSERT_MSG(this, vm_call_set_arg(&inv, 1, val_number(-1)), "vm_call_set_arg #1");
+    TEST_ASSERT_MSG(this, vm_call_validate(&inv), "vm_call_validate");
+
+    test_check_call_setup(this, &env, &inv);
+    
+    val_t ret = vm_execute(&vm, &env, &inv);
+
+    TEST_ASSERT_MSG(this,
         VAL_GET_TYPE(ret) == VAL_NUMBER,
         "#1.1 unexpected return type.");
 
@@ -492,6 +538,7 @@ void test_ast(test_case_t* this) {
 
     program_destroy(&program);
     vm_destroy(&vm);
+    vm_env_destroy(&env);
 }
 
 typedef struct toktest_t {
@@ -696,7 +743,7 @@ bool test_setup_default_env(ffi_t* ffi) {
         printf("error: failed to init FFI.\n");
         return false;;
     }
-    res = ffi_host_define(&ffi->host,
+    res = ffi_native_exports_define(&ffi->supplied,
         sstr("print"), 
         (ffi_handle_t) {
             .local = 0,
@@ -712,43 +759,8 @@ bool test_setup_default_env(ffi_t* ffi) {
     return true;
 }
 
-bool test_setup_required(ffi_t* ffi, char* exported) {
 
-    if( exported == NULL )
-        return true;
-
-    if( strlen(exported) == 0 )
-        return true;
-
-    bool res = false;
-
-    if( strcmp(exported, "test_int_1_int") == 0 ) {
-        res = ffi_exe_set_required_by_host(&ffi->exe,
-            sstr("test_int_1_int"),
-            ffi_vfunc(ffi_int(), ffi_int()));
-    }
-
-    return res;
-}
-
-bool test_set_args(ffi_t* ffi, gvm_exec_args_t* args, char* exported) {
-    if( exported == NULL )
-        return true;
-    if( strlen(exported) == 0 )
-        return true;
-    if( strcmp(exported, "test_int_1_int") == 0 ) {
-        int ep = ffi_exe_index_of(&ffi->exe, sstr(exported));
-        if( ep < 0 )
-            return false;
-        args->entry_point = ep;
-        args->args.buffer[0] = val_number(1);
-        args->args.count = 1;
-        return true;
-    }
-    return false;
-}
-
-bool test_compile_and_run(test_case_t* this, char* test_category, char* source_code, char* expected_result, char* tc_name, char* tc_filepath, char* tc_exported) {
+bool test_compile_and_run(test_case_t* this, char* test_category, char* source_code, char* expected_result, char* tc_name, char* tc_filepath) {
 
     static char result_as_text[512] = {0};
     arena_t* arena = arena_create(1024);
@@ -761,10 +773,6 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     TEST_ASSERT_MSG(this,
         test_setup_default_env(&ffi),
         "failed to setup FFI");
-
-    TEST_ASSERT_MSG(this,
-        test_setup_required(&ffi, tc_exported),
-        "failed to setup FFI required exports");
 
     bool is_known_todo = strcmp(test_category, "todo") == 0;
 
@@ -807,7 +815,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
 
     ast_node_t* node = par_extract_node(result);
 
-    vm_program_t program = gvm_compile(arena, node, &trace, &ffi);
+    vm_program_t program = gvm_compile(arena, node, &trace);
     if( trace_get_error_count(&trace) > 0 && is_known_todo == false ) {
         trace_fprint(stdout, &trace);
         ast_dump(node);
@@ -835,23 +843,24 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     vm_t vm;
     vm_create(&vm, 50, 50);
 
-    val_t arg_buf[16] = { 0 }; 
-
-    gvm_exec_args_t args = {
-        .args = {
-            .buffer = arg_buf,
-            .count = 0
-        },
-        .cycle_limit = 100,
-        .entry_point = -1
-    };
+    vm_env_t env = { 0 };
+    vm_env_init(&env);
 
     TEST_ASSERT_MSG(this,
-        test_set_args(&ffi, &args, tc_exported),
-        "'%s': failed to set args.",
-        tc_name);
+        vm_env_setup(&env, &program, &ffi),
+        "'%s': failed set up env.",
+                tc_name);
 
-    val_t res = vm_execute(&vm, &program, &args);
+    vm_call_t inv = { 0 };
+    vm_call_init(&inv, &program);
+
+    vm_call_set_entry(&inv, 0);
+
+    vm_call_validate(&inv);
+
+    test_check_call_setup(this, &env, &inv);
+
+    val_t res = vm_execute(&vm, &env, &inv);
 
     // TODO: FIX VALUE PRINTING AT SOME POINT!
 
@@ -909,6 +918,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     vm_destroy(&vm);
     trace_destroy(&trace);
     ffi_destroy(&ffi);
+    vm_env_destroy(&env);
 
     return true;
 }
@@ -929,8 +939,7 @@ void test_langtest(test_case_t* this) {
         "verify",
         text, "75.0",
         "initial: simple-main",
-        "builtin",
-        "");
+        "builtin");
     if( accepted == false )
         return; 
 
@@ -942,8 +951,7 @@ void test_langtest(test_case_t* this) {
             tc.code,
             tc.expect,
             tc.name,
-            tc.filepath,
-            tc.export);
+            tc.filepath);
         if( accepted == false )
             return; 
     }
@@ -1152,12 +1160,13 @@ void test_inference(test_case_t* this) {
 
 void test_ffi_types(test_case_t* this) {
     ffi_t b = (ffi_t) { 0 };
-    ffi_init(&b);
 
-    ffi_host_define(&b.host, sstr("test01"), (ffi_handle_t){0}, ffi_int());
-    ffi_host_define(&b.host, sstr("test02"), (ffi_handle_t){0}, ffi_list(ffi_int()));
-    ffi_host_define(&b.host, sstr("test03"), (ffi_handle_t){0}, ffi_func(ffi_int()));
-    ffi_host_define(&b.host, sstr("test04"), (ffi_handle_t){0}, ffi_vfunc(ffi_int(),
+    TEST_ASSERT_MSG(this, ffi_init(&b), "#1.0 ffi init");
+
+    ffi_native_exports_define(&b.supplied, sstr("test01"), (ffi_handle_t){0}, ffi_int());
+    ffi_native_exports_define(&b.supplied, sstr("test02"), (ffi_handle_t){0}, ffi_list(ffi_int()));
+    ffi_native_exports_define(&b.supplied, sstr("test03"), (ffi_handle_t){0}, ffi_func(ffi_int()));
+    ffi_native_exports_define(&b.supplied, sstr("test04"), (ffi_handle_t){0}, ffi_vfunc(ffi_int(),
                                             ffi_bool(),
                                             ffi_char(),
                                             ffi_int()));
@@ -1168,16 +1177,16 @@ void test_ffi_types(test_case_t* this) {
                             ffi_int());
 
     TEST_ASSERT_MSG(this,
-        ffi_type_equals(check, ffi_host_get_type(&b.host, sstr("test04"))),
+        ffi_type_equals(check, ffi_native_exports_get_type(&b.supplied, sstr("test04"))),
         "#1.1 ffi_bundle_get & ffi_equals");
 
     TEST_ASSERT_MSG(this,
-        ffi_host_define(&b.host, sstr("test04"), (ffi_handle_t){0}, ffi_int()) == false,
-        "#1.2 ffi_host_define overwrite");
+        ffi_native_exports_define(&b.supplied, sstr("test04"), (ffi_handle_t){0}, ffi_int()) == false,
+        "#1.2 ffi_native_exports_define overwrite");
 
     TEST_ASSERT_MSG(this,
-        ffi_host_define(&b.host, sstr("test04"), (ffi_handle_t){0}, check),
-        "#1.3 ffi_host_define same");
+        ffi_native_exports_define(&b.supplied, sstr("test04"), (ffi_handle_t){0}, check) == false,
+        "#1.3 ffi_native_exports_define same");
     
     ffi_type_recfree(check);
     //ffi_fprint(stdout, &b);

@@ -218,7 +218,7 @@ char* sprint_ast(arena_t* a, int ind, ast_node_t* n) {
 }
 
 
-vm_program_t program_compile_source(char* source, size_t source_len, char* filepath, bool debug_print, ffi_t* ffi) {
+vm_program_t program_compile_source(char* source, size_t source_len, char* filepath, bool debug_print) {
 
     parser_t parser = { 0 };
     trace_t trace = { 0 };
@@ -262,7 +262,7 @@ vm_program_t program_compile_source(char* source, size_t source_len, char* filep
         arena_destroy(arena);
     }
 
-    vm_program_t program = gvm_compile(arena, program_node, &trace, ffi);
+    vm_program_t program = gvm_compile(arena, program_node, &trace);
     
     if( trace_get_message_count(&trace) > 0 ) {
         trace_fprint(stdout, &trace);
@@ -273,7 +273,7 @@ vm_program_t program_compile_source(char* source, size_t source_len, char* filep
     return program;
 }
 
-vm_program_t program_read_and_compile(char* path, bool debug_print, ffi_t* ffi) {
+vm_program_t program_read_and_compile(char* path, bool debug_print) {
 
     FILE* f = fopen(path, "r");
     
@@ -308,8 +308,7 @@ vm_program_t program_read_and_compile(char* path, bool debug_print, ffi_t* ffi) 
         source_text,
         strlen(source_text),
         path,
-        debug_print,
-        ffi);
+        debug_print);
 
     free(source_text);
 

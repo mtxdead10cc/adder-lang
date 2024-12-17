@@ -98,7 +98,83 @@ typedef struct sstr_t {
     char str[VM_DEFAULT_STRLEN];
 } sstr_t;
 
-typedef struct ffi_t ffi_t;
+typedef enum ffi_tag_t {
+    FFI_TYPE_CONST,
+    FFI_TYPE_FUNC,
+    FFI_TYPE_LIST
+} ffi_tag_t;
+
+typedef struct ffi_type_t ffi_type_t;
+
+typedef struct ffi_constant_t {
+    sstr_t type_name;
+} ffi_constant_t;
+
+typedef struct ffi_list_t {
+    ffi_type_t* content_type;
+} ffi_list_t;
+
+typedef struct ffi_functor_t {
+    int arg_count;
+    ffi_type_t** arg_types;
+    ffi_type_t* return_type;
+} ffi_functor_t;
+
+typedef struct ffi_type_t {
+    ffi_tag_t tag;
+    union {
+        ffi_constant_t  cons;
+        ffi_list_t      list;
+        ffi_functor_t   func;
+    } u;
+} ffi_type_t;
+
+typedef struct vm_t vm_t;
+typedef struct ffi_hndl_meta_t {
+    void* local;
+    vm_t* vm;
+} ffi_hndl_meta_t;
+
+typedef void  (*ffi_actcall_t)(ffi_hndl_meta_t, int, val_t*);
+typedef val_t (*ffi_funcall_t)(ffi_hndl_meta_t, int, val_t*);
+
+typedef enum ffi_handle_tag_t {
+    FFI_HNDL_HOST_ACTION,
+    FFI_HNDL_HOST_FUNCTION
+} ffi_handle_tag_t;
+
+typedef struct ffi_handle_t {
+    ffi_handle_tag_t tag;
+    void*            local;
+    union {
+        ffi_actcall_t host_action;   // defined by user
+        ffi_funcall_t host_function; // defined by user
+    } u;
+} ffi_handle_t;
+
+typedef struct ffi_definition_t {
+    sstr_t      name;
+    ffi_type_t* type;
+} ffi_definition_t;
+
+typedef struct ffi_native_exports_t {
+    int                 capacity;
+    int                 count;
+    ffi_definition_t*   def;
+    ffi_handle_t*       handle;
+    void*               shared;
+} ffi_native_exports_t;
+
+typedef struct ffi_definition_set_t {
+    int                 capacity;
+    int                 count;
+    ffi_definition_t*   def;
+} ffi_definition_set_t;
+
+typedef struct ffi_t {
+    ffi_native_exports_t supplied;
+} ffi_t;
+
 typedef struct vm_program_t {
     struct {
         uint32_t    size;   // size in bytes
@@ -108,11 +184,9 @@ typedef struct vm_program_t {
         uint32_t    count;  // number of constants (values)
         val_t*      buffer; // values
     } cons;
-    struct {
-        uint32_t    count;  // entry point count (last index is always main)
-        uint32_t*   addrs;  // instr index of exported functions
-    } eps;
-    ffi_t*          ffi;
+    ffi_definition_set_t imports;   // required by program
+    ffi_definition_set_t exports;   // supplied by program
+    uint32_t*            expaddr;   // entry point addrs
 } vm_program_t;
 
 #endif // GVM_SHARED_TYPES_H_

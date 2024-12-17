@@ -5,7 +5,7 @@
 #include "vm_types.h"
 
 bool vm_create(vm_t* vm, int stack_size, int dyn_size);
-val_t vm_execute(vm_t* vm, vm_program_t* code_obj, gvm_exec_args_t* args);
+val_t vm_execute(vm_t* vm, vm_env_t* env, vm_call_t* inv);
 void  vm_destroy(vm_t* vm);
 
 void vm_print_val(vm_t* vm, val_t val);
