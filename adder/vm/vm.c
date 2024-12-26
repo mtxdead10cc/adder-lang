@@ -5,7 +5,6 @@
 #include "sh_utils.h"
 #include "sh_config.h"
 #include "sh_program.h"
-#include "vm_call.h"
 #include "vm_env.h"
 #include "vm_heap.h"
 #include "vm_validate.h"
@@ -153,7 +152,7 @@ inline static void ffi_invoke(ffi_handle_t* hndl, int arg_count, vm_t* vm) {
     }
 }
 
-void vm_select_entry_point(vm_t* vm, vm_program_t* program, uint32_t address) {
+void vm_select_entry_point(vm_t* vm, program_t* program, uint32_t address) {
     assert( program->inst.size >= address );
     if( program->inst.buffer[address] == OP_MAKE_FRAME ) {
         // push negative number as return address
@@ -163,11 +162,9 @@ void vm_select_entry_point(vm_t* vm, vm_program_t* program, uint32_t address) {
     vm->run.pc = address;
 }
 
-val_t vm_execute(vm_t* vm, vm_env_t* env, vm_call_t* inv) {
+val_t vm_execute(vm_t* vm, vm_env_t* env, entry_point_t* ep, program_t* program) {
 
     assert(sizeof(float) == 4);
-
-    vm_program_t* program = inv->program;
 
     assert(program != NULL);
     
@@ -186,8 +183,8 @@ val_t vm_execute(vm_t* vm, vm_env_t* env, vm_call_t* inv) {
     // push initial args (if any)
     vm_mem->stack.frame = -1;
     vm_mem->stack.top = -1;
-    for(int i = 0; i < inv->args.count; i++) {
-        stack[++vm_mem->stack.top] = inv->args.vals[i];
+    for(int i = 0; i < ep->argcount; i++) {
+        stack[++vm_mem->stack.top] = ep->argvals[i];
     }
     
     uint32_t cycles_remaining = (uint32_t) 1000000;
@@ -195,8 +192,8 @@ val_t vm_execute(vm_t* vm, vm_env_t* env, vm_call_t* inv) {
         cycles_remaining = 0;
     }
 
-    assert(inv->ep.address >= 0);
-    vm_select_entry_point(vm, program, inv->ep.address);
+    assert(ep->address >= 0);
+    vm_select_entry_point(vm, program, ep->address);
 
     while ( (cycles_remaining--) != 0 ) {
 

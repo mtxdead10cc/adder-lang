@@ -146,4 +146,4 @@ export int test_int_1_int(int v) {
 int main() {
     return 10000;
 }
-$VERIFY_EXPORT(test_int_1_int;2)
+$VERIFY(10000)

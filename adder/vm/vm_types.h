@@ -41,33 +41,11 @@ typedef struct vm_t {
     void*          validation; // validation data (NULL if no validation)
 } vm_t;
 
-#define VM_MSG_BUFFER_MSG_MAX_COUNT 8
-
-typedef struct vm_msg_buffer_t {
-    sstr_t title;
-    int count;
-    sstr_t messages[VM_MSG_BUFFER_MSG_MAX_COUNT];
-} vm_msg_buffer_t;
-
 typedef struct vm_env_t {
     int             count;
     ffi_handle_t*   handles;
     int*            argcounts;
-    vm_msg_buffer_t msgbuf;
+    sh_msg_buffer_t msgbuf;
 } vm_env_t;
-
-typedef struct vm_call_t {
-    struct {
-        int                 count;
-        val_t               vals[16];
-    } args;
-    struct {
-        int                 argcount;
-        int                 address;
-    } ep;
-    vm_program_t*       program;
-    vm_msg_buffer_t     msgbuf;
-} vm_call_t;
-
 
 #endif // VM_VM_TYPES_H_

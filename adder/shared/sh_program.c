@@ -4,6 +4,9 @@
 #include "sh_utils.h"
 #include "sh_ffi.h"
 #include <stdlib.h>
+#include <string.h>
+#include "sh_msg_buffer.h"
+#include "sh_program.h"
 
 void fprint_value(FILE* stream, val_t* memory, val_t val) {
 
@@ -68,7 +71,7 @@ void fprint_value(FILE* stream, val_t* memory, val_t val) {
     }
 }
 
-void program_disassemble(FILE* stream, vm_program_t* program) {
+void program_disassemble(FILE* stream, program_t* program) {
     int current_byte = 0;
     val_t* consts = program->cons.buffer;
     uint8_t* instructions = program->inst.buffer;
@@ -99,7 +102,7 @@ void program_disassemble(FILE* stream, vm_program_t* program) {
     }
 }
 
-int program_find_entrypoint(vm_program_t* prog, sstr_t name, ffi_type_t* expected) {
+int program_find_entrypoint(program_t* prog, sstr_t name, ffi_type_t* expected) {
     if( prog == NULL )
         return -1;
     for(int i = 0; i < prog->exports.count; i++) {
@@ -110,12 +113,12 @@ int program_find_entrypoint(vm_program_t* prog, sstr_t name, ffi_type_t* expecte
             if( ffi_type_equals(expected, def.type) == false )
                 return -2;
         }
-        return prog->expaddr[i];
+        return i;
     }
     return -1;
 }
 
-void program_destroy(vm_program_t* prog) {
+void program_destroy(program_t* prog) {
 
     if( prog == NULL ) {
         return;
@@ -141,5 +144,106 @@ void program_destroy(vm_program_t* prog) {
         prog->expaddr = NULL;
     }
 }
+
+entry_point_t program_get_entry_point(program_t* prog, char* name, ffi_type_t* type, sh_msg_buffer_t* msgbuf) {
+    
+    entry_point_t ep = {
+        .argvals = { 0 },
+        .argcount = -1,
+        .address = -1
+    };
+
+    sh_msg_buffer_init(msgbuf, "[program - get entry point]");
+
+    if( prog == NULL ) {
+        sh_msg_buffer_append(msgbuf, sstr("get_entry_point: program was NULL"));
+        return ep;
+    }
+
+    int max_args = sizeof(ep.argvals) / sizeof(ep.argvals[0]);
+
+    if( name == NULL ) {
+        // default entry point addr = 0
+        int argc = 0;
+        if( type != NULL )
+            argc = ffi_get_func_arg_count(type);
+        if( argc > max_args ) {
+            sh_msg_buffer_append(msgbuf, sstr("get_entry_point: program requires unsupported arg count"));
+            return ep;
+        }
+        ep.address = 0;
+        ep.argcount = argc;
+        return ep;
+    }
+
+    if( prog->exports.count <= 0 ) {
+        sh_msg_buffer_append(msgbuf, sstr("get_entry_point: invalid program."));
+        return ep;
+    }
+
+    int ep_index = program_find_entrypoint(prog, sstr(name), type);
+
+    if( ep_index == -1 ) {
+        sstr_t s = {0};
+        sstr_append_fmt(&s, "'%s' not found", name);
+        sh_msg_buffer_append(msgbuf, s);
+        return ep;
+    }
+    
+    if ( ep_index == -2 ) {
+        sstr_t s = sstr("no match for type ");
+        sstr_append_fmt(&s, "%s ", name);
+        if( type != NULL ) {
+            sstr_t t = ffi_type_to_sstr(type);
+            sstr_append(&s, &t);
+        }
+        sh_msg_buffer_append(msgbuf, s);
+        return ep;
+    }
+
+    uint32_t uaddress = prog->expaddr[ep_index];
+    
+    if( uaddress >= prog->inst.size ) {
+        sstr_t s = {0};
+        sstr_append_fmt(&s, "invalid entry point address %d", uaddress);
+        sh_msg_buffer_append(msgbuf, s);
+        return ep;
+    }
+
+    if( prog->inst.buffer[uaddress] != OP_MAKE_FRAME ) {
+        sh_msg_buffer_append(msgbuf,
+            sstr("entry point address is not pointing to a frame"));
+        return ep;
+    }
+
+    int argc = 0;
+    if( type != NULL )
+        argc = ffi_get_func_arg_count(type);
+    if( argc > max_args ) {
+        sh_msg_buffer_append(msgbuf, sstr("get_entry_point: program requires unsupported arg count"));
+        return ep;
+    }
+
+    ffi_type_t* t = prog->exports.def[ep_index].type;
+    ep.address = uaddress;
+    ep.argcount = ffi_get_func_arg_count(t);
+    return ep;
+}
+
+bool entry_point_set_arg(entry_point_t* ep, int index, val_t arg) {
+    if( index >= ep->argcount ) {
+        printf("entry_point_set_arg: unsupported arg index %d (max %d)\n",
+            index, ep->argcount-1);
+        return false;
+    }
+    ep->argvals[index] = arg;
+    return true;
+}
+
+void entry_point_set_arg_unsafe(entry_point_t* ep, int index, val_t arg) {
+    ep->argvals[index] = arg;
+    ep->argcount = max(ep->argcount, index + 1);
+}
+
 
 

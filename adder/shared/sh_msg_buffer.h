@@ -6,19 +6,26 @@
 #include <stdio.h>
 #include <string.h>
 
-inline static void vm_msg_buffer_init(vm_msg_buffer_t* buf, char* title) {
+inline static void sh_msg_buffer_init(sh_msg_buffer_t* buf, char* title) {
+    if( buf == NULL )
+        return;
     buf->title = sstr(title);
     buf->count = 0;
     memset(buf->messages, 0, sizeof(buf->messages));
 }
 
-inline static void vm_msg_buffer_append(vm_msg_buffer_t* buf, sstr_t msg) {
+inline static void sh_msg_buffer_append(sh_msg_buffer_t* buf, sstr_t msg) {
+    if( buf == NULL )
+        return;
     if( buf->count >= VM_MSG_BUFFER_MSG_MAX_COUNT )
         return;
     buf->messages[buf->count++] = msg;
 }
 
-inline static void vm_msg_buffer_fprint(vm_msg_buffer_t* buf, FILE* file) {
+inline static void sh_msg_buffer_fprint(sh_msg_buffer_t* buf, FILE* file) {
+    if( buf == NULL )
+        return;
+
     fprintf(file, "Message buffer: ");
     sstr_fprint(file, &buf->title);
 
@@ -30,7 +37,9 @@ inline static void vm_msg_buffer_fprint(vm_msg_buffer_t* buf, FILE* file) {
     fprintf(file, "\n");
 }
 
-inline static void vm_msg_buffer_clear(vm_msg_buffer_t* buf) {
+inline static void sh_msg_buffer_clear(sh_msg_buffer_t* buf) {
+    if( buf == NULL )
+        return;
     buf->count = 0;
 }
 

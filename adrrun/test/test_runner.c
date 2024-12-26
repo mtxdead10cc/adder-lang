@@ -10,9 +10,8 @@
 #include <co_program.h>
 #include <co_bty.h>
 #include <sh_program.h>
-#include <vm_msg_buffer.h>
+#include <sh_msg_buffer.h>
 #include <vm_env.h>
-#include <vm_call.h>
 #include <sh_ffi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -268,28 +267,23 @@ void test_utils(test_case_t* this) {
         "#4.10 sstr append fmt remaining failed");
 }
 
-void test_check_call_setup(test_case_t* this, vm_env_t* env, vm_call_t* inv) {
+bool test_check_call_setup(test_case_t* this, vm_env_t* env) {
     if( env->msgbuf.count > 0 ) {
         TEST_ASSERT_MSG(this,
             false,
-            "test_check_call_setup vm_env_t error(s)");
-        vm_msg_buffer_fprint(&env->msgbuf, stdout);
+            "test_check_call_setup error(s)");
+        sh_msg_buffer_fprint(&env->msgbuf, stdout);
         fflush(stdout);
+        return false;
     }
-    if( inv->msgbuf.count > 0 ) {
-        TEST_ASSERT_MSG(this,
-            false,
-            "test_check_call_setup vm_call_t error(s)");
-        vm_msg_buffer_fprint(&inv->msgbuf, stdout);
-        fflush(stdout);
-    }
+    return true;
 }
 
 void test_vm(test_case_t* this) {
 
     vm_t vm;
 
-    vm_program_t program = { 0 };
+    program_t program = { 0 };
 
     TEST_ASSERT_MSG(this,
         vm_create(&vm, 16, 16),
@@ -350,16 +344,13 @@ void test_vm(test_case_t* this) {
     vm_env_t env = { 0 };
     vm_env_init(&env);
 
-    vm_call_t inv = { 0 };
-    vm_call_init(&inv, &program);
+    entry_point_t ep = program_get_entry_point(&program, NULL, NULL, &env.msgbuf);
 
-    vm_call_set_entry_unchecked(&inv, 0, 0);
+    TEST_ASSERT_MSG(this,
+        test_check_call_setup(this, &env),
+        "#3.0 call check failed");
 
-    TEST_ASSERT_MSG(this, vm_call_validate(&inv), "vm_call_validate");
-
-    test_check_call_setup(this, &env, &inv);
-
-    val_t ret = vm_execute(&vm, &env, &inv);
+    val_t ret = vm_execute(&vm, &env, &ep, &program);
 
     TEST_ASSERT_MSG(this,
         VAL_GET_TYPE(ret) == VAL_NUMBER,
@@ -396,21 +387,20 @@ void test_vm(test_case_t* this) {
 
     vm_env_init(&env);
 
-    vm_call_init(&inv, &program);
-
-    vm_call_set_arg_count(&inv, 1);
-    vm_call_set_arg(&inv, 0, val_number(10));
-
     program.cons.buffer = const_buf.values;
     program.cons.count = const_buf.size;
     program.inst.size = instr_buf.size;
     program.inst.buffer = instr_buf.data;
 
-    vm_call_set_entry_unchecked(&inv, 0, 1);
+    ep = program_get_entry_point(&program, NULL, NULL, &env.msgbuf);
 
-    test_check_call_setup(this, &env, &inv);
+    TEST_ASSERT_MSG(this,
+        test_check_call_setup(this, &env),
+        "#4.0 call check failed");
 
-    ret = vm_execute(&vm, &env, &inv);
+    entry_point_set_arg_unsafe(&ep, 0, val_number(10));
+
+    ret = vm_execute(&vm, &env, &ep, &program);
 
     TEST_ASSERT_MSG(this,
         VAL_GET_TYPE(ret) == VAL_NUMBER,
@@ -498,7 +488,7 @@ void test_ast(test_case_t* this) {
     trace_t trace = { 0 };
     trace_init(&trace, 16);
 
-    vm_program_t program = gvm_compile(arena, ast_block_with(arena, fun), &trace);
+    program_t program = gvm_compile(arena, ast_block_with(arena, fun), &trace);
     if( trace_get_error_count(&trace) > 0 ) {
         trace_fprint(stdout, &trace);
     }
@@ -515,18 +505,14 @@ void test_ast(test_case_t* this) {
     vm_env_t env = { 0 };
     vm_env_init(&env);
 
-    vm_call_t inv = { 0 };
-    vm_call_init(&inv, &program);
+    entry_point_t ep = program_get_entry_point(&program, "main", NULL, &env.msgbuf);
 
-    TEST_ASSERT_MSG(this, vm_call_lookup_entry(&inv, "main", NULL), "vm_call_lookup_entry main");
-    TEST_ASSERT_MSG(this, vm_call_set_arg_count(&inv, 2), "vm_call_set_arg_count"); 
-    TEST_ASSERT_MSG(this, vm_call_set_arg(&inv, 0, val_number(1)), "vm_call_set_arg #0");
-    TEST_ASSERT_MSG(this, vm_call_set_arg(&inv, 1, val_number(-1)), "vm_call_set_arg #1");
-    TEST_ASSERT_MSG(this, vm_call_validate(&inv), "vm_call_validate");
+    entry_point_set_arg(&ep, 0, val_number(1));
+    entry_point_set_arg(&ep, 1, val_number(-1));
 
-    test_check_call_setup(this, &env, &inv);
+    test_check_call_setup(this, &env);
     
-    val_t ret = vm_execute(&vm, &env, &inv);
+    val_t ret = vm_execute(&vm, &env, &ep, &program);
 
     TEST_ASSERT_MSG(this,
         VAL_GET_TYPE(ret) == VAL_NUMBER,
@@ -815,7 +801,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
 
     ast_node_t* node = par_extract_node(result);
 
-    vm_program_t program = gvm_compile(arena, node, &trace);
+    program_t program = gvm_compile(arena, node, &trace);
     if( trace_get_error_count(&trace) > 0 && is_known_todo == false ) {
         trace_fprint(stdout, &trace);
         ast_dump(node);
@@ -851,16 +837,10 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         "'%s': failed set up env.",
                 tc_name);
 
-    vm_call_t inv = { 0 };
-    vm_call_init(&inv, &program);
+    entry_point_t ep = program_get_entry_point(&program, "main", NULL, &env.msgbuf);
+    test_check_call_setup(this, &env);
 
-    vm_call_set_entry(&inv, 0);
-
-    vm_call_validate(&inv);
-
-    test_check_call_setup(this, &env, &inv);
-
-    val_t res = vm_execute(&vm, &env, &inv);
+    val_t res = vm_execute(&vm, &env, &ep, &program);
 
     // TODO: FIX VALUE PRINTING AT SOME POINT!
 

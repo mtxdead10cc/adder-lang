@@ -829,7 +829,7 @@ void set_entrypoints(compiler_state_t* state, uint32_t* idx2addr, uint32_t* dest
     }
 }
 
-vm_program_t write_program(compiler_state_t* state, uint32_t* idx2addr) {
+program_t write_program(compiler_state_t* state, uint32_t* idx2addr) {
 
     recalc_index_to_bytecode_adress(&state->instrs, idx2addr);
 
@@ -857,7 +857,7 @@ vm_program_t write_program(compiler_state_t* state, uint32_t* idx2addr) {
     uint32_t* expaddrs = (uint32_t*) malloc( sizeof(uint32_t) * state->program_supplied.count );
     set_entrypoints(state, idx2addr, expaddrs);
 
-    vm_program_t result = (vm_program_t) {
+    program_t result = (program_t) {
         .cons.buffer = const_buf,
         .cons.count = state->consts.size,
         .inst.buffer = code_buf,
@@ -872,9 +872,9 @@ vm_program_t write_program(compiler_state_t* state, uint32_t* idx2addr) {
 }
 
 
-vm_program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace) {
+program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace) {
 
-    vm_program_t program = { 0 };
+    program_t program = { 0 };
 
     trace_clear(trace);
 

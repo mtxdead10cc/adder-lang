@@ -175,7 +175,21 @@ typedef struct ffi_t {
     ffi_native_exports_t supplied;
 } ffi_t;
 
-typedef struct vm_program_t {
+#define VM_MSG_BUFFER_MSG_MAX_COUNT 8
+
+typedef struct sh_msg_buffer_t {
+    sstr_t title;
+    int count;
+    sstr_t messages[VM_MSG_BUFFER_MSG_MAX_COUNT];
+} sh_msg_buffer_t;
+
+typedef struct entry_point_t {
+    val_t argvals[16];
+    int   argcount;
+    int   address;
+} entry_point_t;
+
+typedef struct program_t {
     struct {
         uint32_t    size;   // size in bytes
         uint8_t*    buffer; // instructions
@@ -187,6 +201,6 @@ typedef struct vm_program_t {
     ffi_definition_set_t imports;   // required by program
     ffi_definition_set_t exports;   // supplied by program
     uint32_t*            expaddr;   // entry point addrs
-} vm_program_t;
+} program_t;
 
 #endif // GVM_SHARED_TYPES_H_

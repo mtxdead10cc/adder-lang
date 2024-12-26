@@ -218,13 +218,13 @@ char* sprint_ast(arena_t* a, int ind, ast_node_t* n) {
 }
 
 
-vm_program_t program_compile_source(char* source, size_t source_len, char* filepath, bool debug_print) {
+program_t program_compile_source(char* source, size_t source_len, char* filepath, bool debug_print) {
 
     parser_t parser = { 0 };
     trace_t trace = { 0 };
 
     if( trace_init(&trace, 16) == false ) {
-        return (vm_program_t) { 0 };
+        return (program_t) { 0 };
     }
 
     trace_set_current_source_path(&trace, filepath);
@@ -235,7 +235,7 @@ vm_program_t program_compile_source(char* source, size_t source_len, char* filep
         trace_fprint(stdout, &trace);
         trace_destroy(&trace);
         pa_destroy(&parser);
-        return (vm_program_t) { 0 };
+        return (program_t) { 0 };
     }
     result = pa_parse_program(&parser);
 
@@ -243,7 +243,7 @@ vm_program_t program_compile_source(char* source, size_t source_len, char* filep
         trace_fprint(stdout, &trace);
         trace_destroy(&trace);
         pa_destroy(&parser);
-        return (vm_program_t) { 0 };
+        return (program_t) { 0 };
     }
 
     if( par_is_nothing(result) ) {
@@ -251,7 +251,7 @@ vm_program_t program_compile_source(char* source, size_t source_len, char* filep
         trace_fprint(stdout, &trace);
         pa_destroy(&parser);
         trace_destroy(&trace);
-        return (vm_program_t) { 0 };
+        return (program_t) { 0 };
     }
 
     ast_node_t* program_node = par_extract_node(result);
@@ -262,7 +262,7 @@ vm_program_t program_compile_source(char* source, size_t source_len, char* filep
         arena_destroy(arena);
     }
 
-    vm_program_t program = gvm_compile(arena, program_node, &trace);
+    program_t program = gvm_compile(arena, program_node, &trace);
     
     if( trace_get_message_count(&trace) > 0 ) {
         trace_fprint(stdout, &trace);
@@ -273,13 +273,13 @@ vm_program_t program_compile_source(char* source, size_t source_len, char* filep
     return program;
 }
 
-vm_program_t program_read_and_compile(char* path, bool debug_print) {
+program_t program_read_and_compile(char* path, bool debug_print) {
 
     FILE* f = fopen(path, "r");
     
     if( f == NULL ) {
         printf("error: %s not found.\n", path);
-        return (vm_program_t) { 0 };
+        return (program_t) { 0 };
     }
 
     char *source_text = malloc(1);
@@ -304,7 +304,7 @@ vm_program_t program_read_and_compile(char* path, bool debug_print) {
         printf("error: failed to read file: %s\n", path);
     }
 
-    vm_program_t program = program_compile_source(
+    program_t program = program_compile_source(
         source_text,
         strlen(source_text),
         path,

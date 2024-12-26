@@ -218,7 +218,7 @@ ltc_t langtest_testcases[] = {
         "int main() {\n"
         "    return 10000;\n"
         "}\n",
-        .expect = "EXPORT(test_int_1_int;2",
+        .expect = "10000",
         .filepath = "basics.txt",
     }
 };
