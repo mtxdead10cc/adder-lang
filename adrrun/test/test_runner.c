@@ -20,6 +20,7 @@
 #include <stdarg.h>
 #include "termhax.h"
 #include "langtest.h"
+#include <sh_ift.h>
 
 typedef struct test_case_t test_case_t;
 
@@ -1173,10 +1174,118 @@ void test_ffi_types(test_case_t* this) {
     ffi_destroy(&b);
 }
 
+void test_ift_types(test_case_t* this) {
+
+    ift_t t = ift_unknown();
+    TEST_ASSERT_MSG(this, t.count == 1 && t.tags[0] == IFT_UNK, "#1.1 ift type error");
+    t = ift_void();
+    TEST_ASSERT_MSG(this, t.count == 1 && t.tags[0] == IFT_VOID, "#1.2 ift type error");
+    t = ift_bool();
+    TEST_ASSERT_MSG(this, t.count == 1 && t.tags[0] == IFT_BOOL, "#1.3 ift type error");
+    t = ift_char();
+    TEST_ASSERT_MSG(this, t.count == 1 && t.tags[0] == IFT_CHAR, "#1.4 ift type error");
+    t = ift_int();
+    TEST_ASSERT_MSG(this, t.count == 1 && t.tags[0] == IFT_I32, "#1.5 ift type error");
+    t = ift_float();
+    TEST_ASSERT_MSG(this, t.count == 1 && t.tags[0] == IFT_F32, "#1.6 ift type error");
+
+    t = ift_func(ift_bool());
+    TEST_ASSERT_MSG(this,
+        t.count == 3
+        && t.tags[0] == IFT_FUN
+        && t.tags[1] == IFT_BOOL
+        && t.tags[2] == IFT_ENDFUN,
+        "#2.1 ift func type error");
+
+    TEST_ASSERT_MSG(this,
+        ift_func_arg_count(t) == 0,
+        "#2.2 ift func type error");
+
+    TEST_ASSERT_MSG(this,
+        ift_func_get_arg(t, 0).tags[0] == IFT_UNK,
+        "#2.3 ift func type error");
+
+    t = ift_func_add_arg(t, ift_float());
+    t = ift_func_add_arg(t, ift_float());
+    t = ift_func_add_arg(t, ift_float());
+    t = ift_func_add_arg(t, ift_char());
+
+    TEST_ASSERT_MSG(this,
+        ift_func_arg_count(t) == 4,
+        "#2.4 ift func type error");
+
+    TEST_ASSERT_MSG(this,
+        ift_func_get_arg(t, 0).tags[0] == IFT_F32,
+        "#2.5 ift func type error");
+    
+    TEST_ASSERT_MSG(this,
+        ift_func_get_arg(t, 1).tags[0] == IFT_F32,
+        "#2.6 ift func type error");
+    
+    TEST_ASSERT_MSG(this,
+        ift_func_get_arg(t, 2).tags[0] == IFT_F32,
+        "#2.7 ift func type error");
+
+    TEST_ASSERT_MSG(this,
+        ift_func_get_arg(t, 3).tags[0] == IFT_CHAR,
+        "#2.8 ift func type error");
+
+    TEST_ASSERT_MSG(this,
+        ift_func_get_return_type(t).tags[0] == IFT_BOOL,
+        "#2.9 ift func type error");
+
+    t = ift_list(ift_int());
+
+    TEST_ASSERT_MSG(this,
+        t.tags[0] == IFT_LST && t.tags[1] == IFT_I32,
+        "#3.1 ift list type error");
+
+    TEST_ASSERT_MSG(this,
+        ift_list_get_content_type(t).tags[0] == IFT_I32,
+        "#3.2 ift list type error");
+
+    t = ift_list(ift_list(ift_list(ift_int())));
+    TEST_ASSERT_MSG(this,
+        ift_list_get_content_type(t).tags[0] == IFT_LST,
+        "#3.3 ift list type error");
+
+    t = ift_list_get_content_type(t);
+    t = ift_list_get_content_type(t);
+    t = ift_list_get_content_type(t);
+
+    TEST_ASSERT_MSG(this,
+        t.tags[0] == IFT_I32,
+        "#3.4 ift list type error");
+
+    t = ift_list_get_content_type(t);
+    TEST_ASSERT_MSG(this,
+        t.tags[0] == IFT_UNK,
+        "#3.4 ift list type error");
+
+    ift_t f = ift_func(ift_int());
+    f = ift_func_add_arg(f, ift_int());
+
+    t = ift_list(f);
+    t = ift_list_get_content_type(t);
+
+    TEST_ASSERT_MSG(this,
+        t.count == 4
+        && t.tags[0] == IFT_FUN
+        && t.tags[1] == IFT_I32
+        && t.tags[2] == IFT_I32
+        && t.tags[3] == IFT_ENDFUN,
+        "#3.5 ift list type error");
+}
+
 
 test_results_t run_testcases(void) {
 
     test_case_t test_cases[] = {
+        {
+            .name = "ift types",
+            .test = test_ift_types,
+            .nfailed = 0
+        },
         {
             .name = "ffi types",
             .test = test_ffi_types,

@@ -10,6 +10,7 @@ target_sources(adrsha PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/sh_program.c
     ${CMAKE_CURRENT_SOURCE_DIR}/sh_arena.c
     ${CMAKE_CURRENT_SOURCE_DIR}/sh_ffi.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/sh_ift.c
 )
 
 target_link_libraries(adrsha PRIVATE m)

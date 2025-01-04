@@ -120,6 +120,8 @@ typedef struct ffi_functor_t {
     ffi_type_t* return_type;
 } ffi_functor_t;
 
+// REMAKE FFI TYPES TO STATIC MEMORY BASED
+
 typedef struct ffi_type_t {
     ffi_tag_t tag;
     union {
