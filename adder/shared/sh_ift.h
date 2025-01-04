@@ -2,6 +2,8 @@
 #define IFT_H_
 
 #include <sh_types.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 #define IFTYPE_MAX_TAGS 32
 
@@ -36,8 +38,9 @@ ift_t ift_func_add_arg(ift_t func, ift_t arg);
 ift_t ift_func_get_arg(ift_t func, int index);
 ift_t ift_func_get_return_type(ift_t func);
 int   ift_func_arg_count(ift_t func);
+bool ift_type_equals(ift_t* a, ift_t* b);
 
-//sstr_t ift_type_to_sstr(ift_t type);
-//ift_t ift_from_string(char* description);
+sstr_t ift_type_to_sstr(ift_t type);
+bool ift_type_equals(ift_t* a, ift_t* b);
 
 #endif // IFT_H_

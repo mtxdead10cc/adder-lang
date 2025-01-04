@@ -1,6 +1,8 @@
 #include "sh_ift.h"
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
+#include "sh_utils.h"
 
 ift_t ift_void(void) {
     ift_t type = { 0 };
@@ -191,7 +193,43 @@ ift_t ift_func_get_return_type(ift_t func) {
     return ift_extract(func.tags + 1, chunk_size);
 }
 
+bool ift_type_equals(ift_t* a, ift_t* b) {
+    if( a->count != b->count )
+        return false;
+    return memcmp(a->tags, b->tags, a->count) == 0;
+}
 
-
-//sstr_t ift_type_to_sstr(ift_t type);
-//ift_t ift_from_string(char* description);
+sstr_t ift_type_to_sstr(ift_t type) {
+    if( type.count == 0 )
+        return sstr("<empty>");
+    switch(type.tags[0]) {
+        case IFT_UNK: return sstr("<unknown>");
+        case IFT_VOID: return sstr("void");
+        case IFT_BOOL: return sstr("bool");
+        case IFT_CHAR: return sstr("char");
+        case IFT_I32: return sstr("int");
+        case IFT_F32: return sstr("float");
+        case IFT_LST: {
+            sstr_t s = sstr("array");
+            sstr_t c = ift_type_to_sstr(ift_list_get_content_type(type));
+            sstr_append_fmt(&s, "<%.*s>",
+                sstr_len(&c), sstr_ptr(&c));
+            return s;
+        } break;
+        case IFT_FUN: {
+            sstr_t s = sstr("fun(");
+            int nargs = ift_func_arg_count(type);
+            for(int i = 0; i < nargs; i++) {
+                if( i > 0 )
+                    sstr_append_str(&s, ", ");
+                sstr_t at = ift_type_to_sstr(ift_func_get_arg(type, i));
+                sstr_append(&s, &at);
+            }
+            sstr_append_str(&s, ") -> ");
+            sstr_t rt = ift_type_to_sstr(ift_func_get_return_type(type));
+            sstr_append(&s, &rt);
+            return s;
+        }
+    }
+    return sstr("");
+}

@@ -1275,6 +1275,16 @@ void test_ift_types(test_case_t* this) {
         && t.tags[2] == IFT_I32
         && t.tags[3] == IFT_ENDFUN,
         "#3.5 ift list type error");
+
+    TEST_ASSERT_MSG(this,
+        ift_type_equals(&t, &f),
+        "#4.0 ift type error");
+
+    f = ift_func(ift_bool());
+    TEST_ASSERT_MSG(this,
+        ift_type_equals(&t, &f) == false,
+        "#4.1 ift type error");
+
 }
 
 
