@@ -1,12 +1,13 @@
 #include "vm_env.h"
 #include "sh_msg_buffer.h"
 #include "sh_program.h"
+#include "sh_ift.h"
 #include <stdlib.h>
 #include <string.h>
 
 void vm_env_init(vm_env_t* env) {
     *env = (vm_env_t) { 0 };
-    sh_msg_buffer_init(&env->msgbuf, "env_t");
+    sh_msg_buffer_init(&env->msgbuf);
 }
 
 void vm_env_destroy(vm_env_t* env) {
@@ -44,14 +45,14 @@ bool vm_env_setup(vm_env_t* env, program_t* program, ffi_t* ffi) {
             continue;
         }
 
-        if( ffi_type_equals(def.type, ffi->supplied.def[i].type) == false ) {
+        if( ift_type_equals(&def.type, &ffi->supplied.def[i].type) == false ) {
             sstr_t s = sstr("type not matching for '");
             sstr_append(&s, &def.name);
             sstr_append_str(&s, "' FFI: '");
-            sstr_t tmp = ffi_type_to_sstr(ffi->supplied.def[i].type);
+            sstr_t tmp = ift_type_to_sstr(ffi->supplied.def[i].type);
             sstr_append(&s, &tmp);
             sstr_append_str(&s, "' program: '");
-            tmp = ffi_type_to_sstr(def.type);
+            tmp = ift_type_to_sstr(def.type);
             sstr_append(&s, &tmp);
             sstr_append_str(&s, "'");
             sh_msg_buffer_append(&env->msgbuf, s);
@@ -85,7 +86,7 @@ bool vm_env_setup(vm_env_t* env, program_t* program, ffi_t* ffi) {
         int supp_index = ffi_native_exports_index_of(&ffi->supplied, def.name);
         assert( supp_index >= 0 );
         mapping[i] = ffi->supplied.handle[supp_index];
-        argc[i] = ffi_get_func_arg_count(ffi->supplied.def[i].type);
+        argc[i] = ift_func_arg_count(ffi->supplied.def[i].type);
     }
 
     env->count = program->imports.count;

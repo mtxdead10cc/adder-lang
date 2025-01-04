@@ -98,38 +98,24 @@ typedef struct sstr_t {
     char str[VM_DEFAULT_STRLEN];
 } sstr_t;
 
-typedef enum ffi_tag_t {
-    FFI_TYPE_CONST,
-    FFI_TYPE_FUNC,
-    FFI_TYPE_LIST
-} ffi_tag_t;
+#define IFTYPE_MAX_TAGS 32
 
-typedef struct ffi_type_t ffi_type_t;
+typedef enum ift_tag_t {
+    IFT_UNK,
+    IFT_VOID = 'v',
+    IFT_BOOL = 'b',
+    IFT_CHAR = 'c',
+    IFT_I32 = 'i',
+    IFT_F32 = 'f',
+    IFT_LST = 'l',
+    IFT_FUN = 'P',
+    IFT_ENDFUN = 'p'
+} ift_tag_t;
 
-typedef struct ffi_constant_t {
-    sstr_t type_name;
-} ffi_constant_t;
-
-typedef struct ffi_list_t {
-    ffi_type_t* content_type;
-} ffi_list_t;
-
-typedef struct ffi_functor_t {
-    int arg_count;
-    ffi_type_t** arg_types;
-    ffi_type_t* return_type;
-} ffi_functor_t;
-
-// REMAKE FFI TYPES TO STATIC MEMORY BASED
-
-typedef struct ffi_type_t {
-    ffi_tag_t tag;
-    union {
-        ffi_constant_t  cons;
-        ffi_list_t      list;
-        ffi_functor_t   func;
-    } u;
-} ffi_type_t;
+typedef struct ift_t {
+    uint8_t count;
+    uint8_t tags[IFTYPE_MAX_TAGS];
+} ift_t;
 
 typedef struct vm_t vm_t;
 typedef struct ffi_hndl_meta_t {
@@ -156,7 +142,7 @@ typedef struct ffi_handle_t {
 
 typedef struct ffi_definition_t {
     sstr_t      name;
-    ffi_type_t* type;
+    ift_t       type;
 } ffi_definition_t;
 
 typedef struct ffi_native_exports_t {
@@ -180,7 +166,6 @@ typedef struct ffi_t {
 #define VM_MSG_BUFFER_MSG_MAX_COUNT 8
 
 typedef struct sh_msg_buffer_t {
-    sstr_t title;
     int count;
     sstr_t messages[VM_MSG_BUFFER_MSG_MAX_COUNT];
 } sh_msg_buffer_t;

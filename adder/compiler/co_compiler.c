@@ -326,26 +326,26 @@ void codegen_value(ast_value_t node, compiler_state_t* state) {
     });
 }
 
-ffi_type_t* bty_to_ffi_type(bty_type_t* t) {
+ift_t bty_to_ffi_type(bty_type_t* t) {
     if( t == NULL )
-        return NULL;
+        return ift_unknown();
     switch(t->tag) {
-        case BTY_VOID:  return ffi_void();
-        case BTY_BOOL:  return ffi_bool();
-        case BTY_INT:   return ffi_int();
-        case BTY_FLOAT: return ffi_float();
-        case BTY_CHAR:  return ffi_char();
-        case BTY_LIST:  return ffi_list(bty_to_ffi_type(t->u.con));
+        case BTY_VOID:  return ift_void();
+        case BTY_BOOL:  return ift_bool();
+        case BTY_INT:   return ift_int();
+        case BTY_FLOAT: return ift_float();
+        case BTY_CHAR:  return ift_char();
+        case BTY_LIST:  return ift_list(bty_to_ffi_type(t->u.con));
         case BTY_FUNC:  {
-            ffi_type_t* ot = ffi_func(bty_to_ffi_type(t->u.fun.ret));
+            ift_t ot = ift_func(bty_to_ffi_type(t->u.fun.ret));
             for(int i = 0; i < t->u.fun.argc; i++) {
-                ffi_func_add_arg(ot, bty_to_ffi_type(t->u.fun.args[i]));
+                ot = ift_func_add_arg(ot, bty_to_ffi_type(t->u.fun.args[i]));
             }
             return ot;
         }
         default: {
             printf("error: bty_to_ffi_type unhandled bty_type %d\n", t->tag);
-            return ffi_custom("unknown_type");
+            return ift_unknown();
         }
     }
 }
@@ -355,9 +355,9 @@ void add_host_provided_function_definition(srcref_t name, compiler_state_t* stat
     ABORT_ON_ERROR(state);
 
     bty_type_t* bty_type = bty_ctx_lookup(state->tyctx, name);
-    ffi_type_t* lang_type = bty_to_ffi_type(bty_type);
+    ift_t lang_type = bty_to_ffi_type(bty_type);
 
-    if( bty_type == NULL || lang_type == NULL ) {
+    if( bty_type == NULL || ift_is_unknown(lang_type) ) {
         trace_msg_t* msg = trace_create_message(state->trace,
             TM_INTERNAL_ERROR,
             name);
@@ -375,7 +375,6 @@ void add_host_provided_function_definition(srcref_t name, compiler_state_t* stat
         lang_type);
 
     if( ok == false ) {
-        ffi_type_recfree(lang_type);
         trace_msg_t* msg = trace_create_message(state->trace,
             TM_INTERNAL_ERROR,
             name);
@@ -391,9 +390,9 @@ void add_program_provided_function_definition(srcref_t name, compiler_state_t* s
     ABORT_ON_ERROR(state);
 
     bty_type_t* bty_type = bty_ctx_lookup(state->tyctx, name);
-    ffi_type_t* lang_type = bty_to_ffi_type(bty_type);
+    ift_t lang_type = bty_to_ffi_type(bty_type);
 
-    if( bty_type == NULL || lang_type == NULL ) {
+    if( bty_type == NULL || ift_is_unknown(lang_type) ) {
         trace_msg_t* msg = trace_create_message(state->trace,
             TM_INTERNAL_ERROR,
             name);
@@ -412,7 +411,6 @@ void add_program_provided_function_definition(srcref_t name, compiler_state_t* s
         lang_type);
 
     if( ok == false ) {
-        ffi_type_recfree(lang_type);
         trace_msg_t* msg = trace_create_message(state->trace,
             TM_INTERNAL_ERROR,
             name);

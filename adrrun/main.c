@@ -21,6 +21,7 @@
 #include <sh_program.h>
 #include "test/test_runner.h"
 #include <sh_arena.h>
+#include <sh_ift.h>
 
 time_t get_creation_time(char *path) {
     struct stat attr;
@@ -65,8 +66,8 @@ void setup_default_env(ffi_t* ffi) {
             .tag = FFI_HNDL_HOST_ACTION,
             .u.host_action = adr_print,
         },
-        ffi_vfunc(ffi_void(),
-            ffi_list(ffi_char())));
+        ift_func_1(ift_void(),
+            ift_list(ift_char())));
     if( res == false ) {
         printf("error: failed to register FFI function: print\n");
     }

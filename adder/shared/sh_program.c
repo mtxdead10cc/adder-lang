@@ -3,6 +3,7 @@
 #include "sh_asminfo.h"
 #include "sh_utils.h"
 #include "sh_ffi.h"
+#include "sh_ift.h"
 #include <stdlib.h>
 #include <string.h>
 #include "sh_msg_buffer.h"
@@ -102,7 +103,7 @@ void program_disassemble(FILE* stream, program_t* program) {
     }
 }
 
-int program_find_entrypoint(program_t* prog, sstr_t name, ffi_type_t* expected) {
+int program_find_entrypoint(program_t* prog, sstr_t name, ift_t* expected) {
     if( prog == NULL )
         return -1;
     for(int i = 0; i < prog->exports.count; i++) {
@@ -110,7 +111,7 @@ int program_find_entrypoint(program_t* prog, sstr_t name, ffi_type_t* expected) 
         if( sstr_equal(&name, &def.name) == false )
             continue;
         if( expected != NULL ) {
-            if( ffi_type_equals(expected, def.type) == false )
+            if( ift_type_equals(expected, &def.type) == false )
                 return -2;
         }
         return i;
@@ -145,15 +146,13 @@ void program_destroy(program_t* prog) {
     }
 }
 
-entry_point_t program_get_entry_point(program_t* prog, char* name, ffi_type_t* type, sh_msg_buffer_t* msgbuf) {
+entry_point_t program_get_entry_point(program_t* prog, char* name, ift_t* type, sh_msg_buffer_t* msgbuf) {
     
     entry_point_t ep = {
         .argvals = { 0 },
         .argcount = -1,
         .address = -1
     };
-
-    sh_msg_buffer_init(msgbuf, "[program - get entry point]");
 
     if( prog == NULL ) {
         sh_msg_buffer_append(msgbuf, sstr("get_entry_point: program was NULL"));
@@ -166,7 +165,7 @@ entry_point_t program_get_entry_point(program_t* prog, char* name, ffi_type_t* t
         // default entry point addr = 0
         int argc = 0;
         if( type != NULL )
-            argc = ffi_get_func_arg_count(type);
+            argc = ift_func_arg_count(*type);
         if( argc > max_args ) {
             sh_msg_buffer_append(msgbuf, sstr("get_entry_point: program requires unsupported arg count"));
             return ep;
@@ -194,7 +193,7 @@ entry_point_t program_get_entry_point(program_t* prog, char* name, ffi_type_t* t
         sstr_t s = sstr("no match for type ");
         sstr_append_fmt(&s, "%s ", name);
         if( type != NULL ) {
-            sstr_t t = ffi_type_to_sstr(type);
+            sstr_t t = ift_type_to_sstr(*type);
             sstr_append(&s, &t);
         }
         sh_msg_buffer_append(msgbuf, s);
@@ -218,15 +217,15 @@ entry_point_t program_get_entry_point(program_t* prog, char* name, ffi_type_t* t
 
     int argc = 0;
     if( type != NULL )
-        argc = ffi_get_func_arg_count(type);
+        argc = ift_func_arg_count(*type);
     if( argc > max_args ) {
         sh_msg_buffer_append(msgbuf, sstr("get_entry_point: program requires unsupported arg count"));
         return ep;
     }
 
-    ffi_type_t* t = prog->exports.def[ep_index].type;
+    ift_t t = prog->exports.def[ep_index].type;
     ep.address = uaddress;
-    ep.argcount = ffi_get_func_arg_count(t);
+    ep.argcount = ift_func_arg_count(t);
     return ep;
 }
 

@@ -6,10 +6,9 @@
 #include <stdio.h>
 #include <string.h>
 
-inline static void sh_msg_buffer_init(sh_msg_buffer_t* buf, char* title) {
+inline static void sh_msg_buffer_init(sh_msg_buffer_t* buf) {
     if( buf == NULL )
         return;
-    buf->title = sstr(title);
     buf->count = 0;
     memset(buf->messages, 0, sizeof(buf->messages));
 }
@@ -27,8 +26,6 @@ inline static void sh_msg_buffer_fprint(sh_msg_buffer_t* buf, FILE* file) {
         return;
 
     fprintf(file, "Message buffer: ");
-    sstr_fprint(file, &buf->title);
-
     for(int i = 0; i < buf->count; i++) {
         fprintf(file, "\n  ");
         sstr_fprint(file, &buf->messages[i]);

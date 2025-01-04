@@ -11,6 +11,7 @@
 #include "co_types.h"
 #include "sh_utils.h"
 #include "sh_ffi.h"
+#include "sh_ift.h"
 
 inline static bool trace_init(trace_t* trace, size_t capacity) {
     trace_msg_t* messages = (trace_msg_t*) malloc( sizeof(trace_msg_t) * capacity );
@@ -163,36 +164,9 @@ inline static int trace_msg_append_sstr(trace_msg_t* msg, sstr_t* sstr) {
         sstr_len(sstr));
 }
 
-inline static int trace_msg_append_ffi_type(trace_msg_t* msg, ffi_type_t* ffi) {
-    if( ffi == NULL ) {
-        return trace_msg_append_costr(msg, "NULL");
-    }
-    switch(ffi->tag) {
-        case FFI_TYPE_CONST: {
-            return trace_msg_append_sstr(msg, &ffi->u.cons.type_name);
-        } break;
-        case FFI_TYPE_LIST: {
-            int write_len = trace_msg_append_costr(msg, "array<");
-            write_len += trace_msg_append_ffi_type(msg, ffi->u.list.content_type);
-            write_len += trace_msg_append_costr(msg, ">");
-            return write_len;
-        } break;
-        case FFI_TYPE_FUNC: {
-            int write_len = trace_msg_append_costr(msg, "(");
-            int count = ffi->u.func.arg_count;
-            for(int i = 0; i < count; i++) {
-                if( i > 0 )
-                    write_len += trace_msg_append_costr(msg, ", ");
-                write_len += trace_msg_append_ffi_type(msg, ffi->u.func.arg_types[i]);
-            }
-            write_len += trace_msg_append_costr(msg, ") -> ");
-            write_len += trace_msg_append_ffi_type(msg, ffi->u.func.return_type);
-            return write_len;
-        } break;
-        default: {
-            return 0;
-        } break;
-    }
+inline static int trace_msg_append_ift_type(trace_msg_t* msg, ift_t type) {
+    sstr_t s = ift_type_to_sstr(type);
+    return trace_msg_append_sstr(msg, &s);
 }
 
 inline static int trace_fprint_location(FILE* stream, srcref_t ref, char* filepath) {

@@ -123,6 +123,36 @@ ift_t ift_func_add_arg(ift_t func, ift_t arg) {
     return ift_append_tag(func, IFT_ENDFUN);
 }
 
+ift_t ift_func_1(ift_t return_type, ift_t arg1) {
+    ift_t type = { 0 };
+    type.count = 1;
+    type.tags[0] = IFT_FUN;
+    type = ift_combine(type, return_type);
+    type = ift_combine(type, arg1);
+    return ift_append_tag(type, IFT_ENDFUN);
+}
+
+ift_t ift_func_2(ift_t return_type, ift_t arg1, ift_t arg2) {
+    ift_t type = { 0 };
+    type.count = 1;
+    type.tags[0] = IFT_FUN;
+    type = ift_combine(type, return_type);
+    type = ift_combine(type, arg1);
+    type = ift_combine(type, arg2);
+    return ift_append_tag(type, IFT_ENDFUN);
+}
+
+ift_t ift_func_3(ift_t return_type, ift_t arg1, ift_t arg2, ift_t arg3) {
+    ift_t type = { 0 };
+    type.count = 1;
+    type.tags[0] = IFT_FUN;
+    type = ift_combine(type, return_type);
+    type = ift_combine(type, arg1);
+    type = ift_combine(type, arg2);
+    type = ift_combine(type, arg3);
+    return ift_append_tag(type, IFT_ENDFUN);
+}
+
 int ift_get_flat_size(uint8_t* tags, int len) {
     if( len <= 0 )
         return 0;
@@ -232,4 +262,10 @@ sstr_t ift_type_to_sstr(ift_t type) {
         }
     }
     return sstr("");
+}
+
+bool ift_is_unknown(ift_t type) {
+    if( type.count == 0 )
+        return true;
+    return type.tags[0] == IFT_UNK;
 }

@@ -737,8 +737,8 @@ bool test_setup_default_env(ffi_t* ffi) {
             .tag = FFI_HNDL_HOST_ACTION,
             .u.host_action = test_printfn,
         },
-        ffi_vfunc(ffi_void(),
-            ffi_list(ffi_char())));
+        ift_func_1(ift_void(),
+            ift_list(ift_char())));
     if( res == false ) {
         printf("error: failed to register FFI function: print\n");
         return false;
@@ -839,9 +839,10 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
                 tc_name);
 
     entry_point_t ep = program_get_entry_point(&program, "main", NULL, &env.msgbuf);
-    test_check_call_setup(this, &env);
-
-    val_t res = vm_execute(&vm, &env, &ep, &program);
+    val_t res = val_none();
+    if( test_check_call_setup(this, &env) ) {
+        res = vm_execute(&vm, &env, &ep, &program);
+    }
 
     // TODO: FIX VALUE PRINTING AT SOME POINT!
 
@@ -1139,41 +1140,6 @@ void test_inference(test_case_t* this) {
     arena_destroy(a);
 }
 
-void test_ffi_types(test_case_t* this) {
-    ffi_t b = (ffi_t) { 0 };
-
-    TEST_ASSERT_MSG(this, ffi_init(&b), "#1.0 ffi init");
-
-    ffi_native_exports_define(&b.supplied, sstr("test01"), (ffi_handle_t){0}, ffi_int());
-    ffi_native_exports_define(&b.supplied, sstr("test02"), (ffi_handle_t){0}, ffi_list(ffi_int()));
-    ffi_native_exports_define(&b.supplied, sstr("test03"), (ffi_handle_t){0}, ffi_func(ffi_int()));
-    ffi_native_exports_define(&b.supplied, sstr("test04"), (ffi_handle_t){0}, ffi_vfunc(ffi_int(),
-                                            ffi_bool(),
-                                            ffi_char(),
-                                            ffi_int()));
-
-    ffi_type_t* check = ffi_vfunc(ffi_int(),
-                            ffi_bool(),
-                            ffi_char(),
-                            ffi_int());
-
-    TEST_ASSERT_MSG(this,
-        ffi_type_equals(check, ffi_native_exports_get_type(&b.supplied, sstr("test04"))),
-        "#1.1 ffi_bundle_get & ffi_equals");
-
-    TEST_ASSERT_MSG(this,
-        ffi_native_exports_define(&b.supplied, sstr("test04"), (ffi_handle_t){0}, ffi_int()) == false,
-        "#1.2 ffi_native_exports_define overwrite");
-
-    TEST_ASSERT_MSG(this,
-        ffi_native_exports_define(&b.supplied, sstr("test04"), (ffi_handle_t){0}, check) == false,
-        "#1.3 ffi_native_exports_define same");
-    
-    ffi_type_recfree(check);
-    //ffi_fprint(stdout, &b);
-    ffi_destroy(&b);
-}
-
 void test_ift_types(test_case_t* this) {
 
     ift_t t = ift_unknown();
@@ -1294,11 +1260,6 @@ test_results_t run_testcases(void) {
         {
             .name = "ift types",
             .test = test_ift_types,
-            .nfailed = 0
-        },
-        {
-            .name = "ffi types",
-            .test = test_ffi_types,
             .nfailed = 0
         },
         {
