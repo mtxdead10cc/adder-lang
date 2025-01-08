@@ -21,6 +21,7 @@
 #include "termhax.h"
 #include "langtest.h"
 #include <sh_ift.h>
+#include <xu_lib.h>
 
 typedef struct test_case_t test_case_t;
 

@@ -41,18 +41,26 @@ int ffi_native_exports_index_of(ffi_native_exports_t* host, sstr_t name) {
 }
 
 bool ffi_native_exports_define(ffi_native_exports_t* hosted, sstr_t name, ffi_handle_t handle, ift_t type) {
-    // TODO: Verify that handle and type matches
+    
     int index = ffi_native_exports_index_of(hosted, name);
-
     if( index >= 0 )
-        return false;
+        return false; // already defined
 
     if( hosted->count >= hosted->capacity ) {
         int new_cap = hosted->count * 2;
-        hosted->def = realloc(hosted->def, new_cap * sizeof(ffi_definition_t) );
-        assert(hosted->handle != NULL); // todo: handle fail
-        hosted->handle = realloc(hosted->handle, new_cap * sizeof(ffi_handle_t));
-        assert(hosted->handle != NULL); // todo: handle fail
+        ffi_definition_t* defs = (ffi_definition_t*) realloc(hosted->def, new_cap * sizeof(ffi_definition_t) );
+        ffi_handle_t* handles = (ffi_handle_t*) realloc(hosted->handle, new_cap * sizeof(ffi_handle_t));
+        
+        if( defs != NULL )
+            hosted->def = defs;
+        
+        if( handles != NULL )
+            hosted->handle = handles;
+
+        if( defs == NULL || handles == NULL)
+            return false;
+        
+        hosted->capacity = new_cap;
     }
 
     hosted->def[hosted->count] = (ffi_definition_t) {
@@ -89,8 +97,13 @@ bool ffi_definition_set_add(ffi_definition_set_t* set, sstr_t name, ift_t type) 
 
     if( set->count >= set->capacity ) {
         int new_cap = set->count * 2;
-        set->def = realloc(set->def, new_cap * sizeof(ffi_definition_t));
-        assert(set->def != NULL); // todo: handle fail
+        ffi_definition_t* defs = realloc(set->def, new_cap * sizeof(ffi_definition_t));
+        if( defs != NULL ) {
+            set->capacity = new_cap;
+            set->def = defs;
+        } else {
+            return false;
+        }
     }
 
     set->def[set->count] = (ffi_definition_t) {

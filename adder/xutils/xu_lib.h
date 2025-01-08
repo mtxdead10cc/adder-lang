@@ -45,10 +45,10 @@ typedef struct xu_runtime_t {
 } xu_runtime_t;
 
 typedef enum xu_stage_t {
-    UNINITIALIZED,
-    DEFINED,
-    COMPILED,
-    READY
+    XU_CLASS_UNINITIALIZED,
+    XU_CLASS_DEFINED,
+    XU_CLASS_COMPILED,
+    XU_CLASS_READY
 } xu_stage_t;
 
 typedef struct xu_classlist_t xu_classlist_t;
@@ -67,9 +67,8 @@ typedef struct xu_classlist_t {
 } xu_classlist_t;
 
 typedef struct xu_caller_t {
-    int             classref;
+    xu_class_t      class;
     entry_point_t   entrypoint;
-    xu_classlist_t* classes;
 } xu_caller_t;
 
 /*
@@ -91,13 +90,10 @@ xu_class_t xu_class_create(xu_classlist_t* classes, char* source_path);
 bool xu_class_is_defined(xu_class_t class);
 bool xu_class_is_compiled(xu_class_t class);
 
-void xu_class_extract(xu_class_t class, char* name, ift_t type);
-void xu_class_inject(xu_class_t class, char* name, ift_t type, ffi_handle_t handle);
+xu_caller_t xu_class_extract(xu_class_t class, char* name, ift_t type);
+bool xu_class_inject(xu_class_t class, char* name, ift_t type, ffi_handle_t handle);
 
 bool xu_class_compile(xu_class_t class);
-
-xu_caller_t xu_class_find(xu_class_t class, char* name);
-
 void xu_cleanup(xu_classlist_t* classes);
 
 typedef struct xu_quickopts_t {
