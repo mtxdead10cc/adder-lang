@@ -217,7 +217,6 @@ char* sprint_ast(arena_t* a, int ind, ast_node_t* n) {
     }
 }
 
-
 program_t program_compile_source(char* source, size_t source_len, char* filepath, bool debug_print) {
 
     parser_t parser = { 0 };

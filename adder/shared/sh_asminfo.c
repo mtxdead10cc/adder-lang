@@ -39,7 +39,7 @@ static op_info_t opinfo[OP_OPCODE_COUNT] = {
     { "array-length",       0, { OP_ARG_NONE, OP_ARG_NONE }          },
     { "make-iter",          0, { OP_ARG_NONE, OP_ARG_NONE }          },
     { "iter-next",          1, { OP_ARG_ADDRESS, OP_ARG_NONE  }      },
-    { "call-native",        1, { OP_ARG_CONSTANT, OP_ARG_NONE  }     }
+    { "call-native",        1, { OP_ARG_ADDRESS, OP_ARG_NONE  }      }
 };
 
 #define _OP_CODE_COUNT_VALIDATION 37

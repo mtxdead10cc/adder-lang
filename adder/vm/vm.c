@@ -8,6 +8,7 @@
 #include "vm_env.h"
 #include "vm_heap.h"
 #include "vm_validate.h"
+#include <sh_log.h>
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -58,26 +59,28 @@ val_t* gvm_addr_lookup(void* user, val_addr_t addr) {
     }
 }
 
-void vm_print_val(vm_t* vm, val_t val) {
-    val_print_lookup(val, &gvm_addr_lookup, vm);
+void vm_sprint_val(char* strbuf, int maxlen, vm_t* vm, val_t val) {
+    val_sprint_lookup(strbuf, maxlen, val, &gvm_addr_lookup, vm);
 }
 
 int vm_get_string(vm_t* vm, val_t val, char* dest, int dest_len) {
     return val_get_string(val, &gvm_addr_lookup, vm, dest, dest_len);
 }
 
-bool vm_create(vm_t* vm, int stack_size, int dyn_size) {
+bool vm_create(vm_t* vm, int memory_size) {
 
-    int total_addressable = ( stack_size + dyn_size );
-    if( total_addressable > MEM_MAX_ADDRESSABLE ) {
+    if( memory_size > MEM_MAX_ADDRESSABLE ) {
         printf(  "warning: the requested VM memory size %i is too large.\n"
                 "\tmaximum addressable memory is %i.\n",
-                total_addressable,
+                memory_size,
                 MEM_MAX_ADDRESSABLE);
         return false;
     }
 
-    int memsize = total_addressable * sizeof(val_t);
+    int dyn_size = memory_size / 2;
+    int stack_size = memory_size / 2;
+
+    int memsize = memory_size * sizeof(val_t);
     val_t* mem = (val_t*) malloc( memsize );
     if( mem == NULL ) {
         printf("error: could'nt allocate VM memory.\n");
@@ -94,15 +97,15 @@ bool vm_create(vm_t* vm, int stack_size, int dyn_size) {
     memset(gc_marks, 0, CALC_GC_MARK_U64_COUNT(dyn_size) * sizeof(uint64_t));
     
     vm->mem.membase = mem;
-    vm->mem.memsize = total_addressable;
+    vm->mem.memsize = memory_size;
     
     vm->mem.stack.values = vm->mem.membase;
-    vm->mem.stack.size = (int) stack_size;
+    vm->mem.stack.size = stack_size;
     vm->mem.stack.top = -1;
 
     // heap & GC
-    vm->mem.heap.values = vm->mem.membase + (int) stack_size;
-    vm->mem.heap.size = (int) dyn_size;
+    vm->mem.heap.values = vm->mem.membase + stack_size;
+    vm->mem.heap.size = dyn_size;
     vm->mem.heap.gc_marks = gc_marks;
 
     // assigend on execution
@@ -167,6 +170,11 @@ val_t vm_execute(vm_t* vm, vm_env_t* env, entry_point_t* ep, program_t* program)
     assert(sizeof(float) == 4);
 
     assert(program != NULL);
+
+    if( vm_env_is_ready(env) == false ) {
+        sh_log_error("incomplete vm env, cannot start execution");
+        return val_number(-1099);
+    }
     
     val_t* stack = vm->mem.stack.values;
     val_t* consts = program->cons.buffer;
@@ -455,9 +463,6 @@ val_t vm_execute(vm_t* vm, vm_env_t* env, entry_point_t* ep, program_t* program)
                         break;
                     }
                 }
-            } break;
-            case OP_PRINT: {
-                vm_print_val(vm, stack[vm_mem->stack.top--]);
             } break;
             case OP_STORE_LOCAL: {
                 uint32_t local_idx = READ_U32(instructions, vm_run->pc);

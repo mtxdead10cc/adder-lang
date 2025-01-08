@@ -5,78 +5,78 @@
 #include <stdlib.h>
 
 
-void val_print(val_t val) {
+void val_sprint(char* buf, int maxlen, val_t val) {
     switch (VAL_GET_TYPE(val))
     {
     case VAL_NUMBER:
-        printf("%f", val_into_number(val));
+        cstr_append_fmt(buf, maxlen, "%f", val_into_number(val));
         break;
     case VAL_CHAR:
-        printf("%c", val_into_char(val));
+        cstr_append_fmt(buf, maxlen, "%c", val_into_char(val));
         break;
     case VAL_BOOL:
-        printf("%s", val_into_bool(val) ? "TRUE" : "FALSE");
+        cstr_append_fmt(buf, maxlen, "%s", val_into_bool(val) ? "TRUE" : "FALSE");
         break;
     case VAL_IVEC2: {
         ivec2_t v = val_into_ivec2(val);
-        printf("(%i, %i)", v.x, v.y);
+        cstr_append_fmt(buf, maxlen, "(%i, %i)", v.x, v.y);
     } break;
     case VAL_ITER: {
         iter_t v = val_into_iter(val);
-        printf("{curr:0x%08X, rem:%i}", v.current, v.remaining);
+        cstr_append_fmt(buf, maxlen, "{curr:0x%08X, rem:%i}", v.current, v.remaining);
     } break;
     case VAL_FRAME: {
         frame_t frame = val_into_frame(val);
-        printf("<pc: %i, nargs: %i, nlocals: %i>",
+        cstr_append_fmt(buf, maxlen, "<pc: %i, nargs: %i, nlocals: %i>",
             frame.return_pc,
             frame.num_args,
             frame.num_locals);
     } break;
     case VAL_ARRAY: {
         array_t a = val_into_array(val);
-        printf("[addr: 0x%08X, len: %d]",
+        cstr_append_fmt(buf, maxlen, "[addr: 0x%08X, len: %d]",
             a.address, a.length);
         break;
     } break;
     default:
-        printf("<unk>");
+        cstr_append_fmt(buf, maxlen, "<unk>");
         break;
     }
 }
 
-void val_print_string(val_t* buffer, int length) {
-    char* cbuf = malloc(length + 1);
-    for(int i = 0; i < length; i++) {
-        cbuf[i] = val_into_char(buffer[i]);
+void val_sprint_string(char* strbuf, int strmaxlen, val_t* valbuf, int valbuf_length) {
+    char* cbuf = malloc(valbuf_length + 1);
+    for(int i = 0; i < valbuf_length; i++) {
+        cbuf[i] = val_into_char(valbuf[i]);
     }
-    cbuf[length] = '\0';
-    printf("%s", cbuf);
+    cbuf[valbuf_length] = '\0';
+    cstr_append_fmt(strbuf, strmaxlen, "%s", cbuf);
 }
 
-void val_print_lookup(val_t val, addr_lookup_fn lookup, void* user) {
+void val_sprint_lookup(char* strbuf, int strmaxlen, val_t val, addr_lookup_fn lookup, void* user) {
     if( VAL_GET_TYPE(val) == VAL_ARRAY && lookup != NULL && user != NULL ) {
         array_t array = val_into_array(val);
         val_t* buffer = lookup(user, array.address);
         if( buffer == NULL ) {
-            printf("<null buffer>");
+            cstr_append_fmt(strbuf, strmaxlen, "<null buffer>");
             return;
         }
         int length = array.length;
         bool is_list = VAL_GET_TYPE(buffer[0]) != VAL_CHAR;
         if(is_list) {
-            printf("[ ");
+            cstr_append_fmt(strbuf, strmaxlen, "[ ");
             for(int i = 0; i < length; i++) {
-                val_print_lookup(buffer[i], lookup, user);
-                printf(" ");
+                val_sprint_lookup(strbuf, strmaxlen, buffer[i], lookup, user);
+                cstr_append_fmt(strbuf, strmaxlen, " ");
             }
-            printf("]");
+            cstr_append_fmt(strbuf, strmaxlen, "]");
         } else { // string
             for(int i = 0; i < length; i++) {
-                val_print_lookup(buffer[i], lookup, user);
+                val_sprint_lookup(strbuf, strmaxlen, buffer[i], lookup, user);
             }
         }
     } else {
-        val_print(val);
+        val_sprint(strbuf, strmaxlen, val);
     }
 }
 
@@ -104,14 +104,6 @@ val_t* lookup_single_buffer(void* user, val_addr_t addr) {
     val_t* base = (val_t*) user;
     int offset = MEM_ADDR_TO_INDEX(addr);
     return base + offset;
-}
-
-void val_print_lookup_val_array(val_t* lookup_buffer, val_t val) {
-    val_print_lookup(val, &lookup_single_buffer, lookup_buffer);
-}
-
-int val_get_string_val_array(val_t* lookup_buffer, val_t val, char* dest, int dest_len) {
-    return val_get_string(val, &lookup_single_buffer, lookup_buffer, dest, dest_len);
 }
 
 char* val_get_type_name(val_type_t type) {

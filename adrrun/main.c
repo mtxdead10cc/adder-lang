@@ -3,7 +3,7 @@
 #include <sh_value.h>
 #include <sh_ffi.h>
 #include <vm_value_tools.h>
-#include <sh_msg_buffer.h>
+#include <sh_log.h>
 #include <vm_heap.h>
 #include <vm_env.h>
 #include <co_program.h>
@@ -11,23 +11,14 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dlfcn.h>
-#include <unistd.h>
-#include <time.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <string.h>
 #include <assert.h>
 #include <sh_program.h>
 #include "test/test_runner.h"
 #include <sh_arena.h>
 #include <sh_ift.h>
+#include <xu_lib.h>
 
-time_t get_creation_time(char *path) {
-    struct stat attr;
-    stat(path, &attr);
-    return attr.st_mtim.tv_sec;
-}
 
 #define DEFAULT_PATH "resources/test.gvm"
 
@@ -43,101 +34,6 @@ val_t test(vm_t* vm, size_t argcount, val_t* args) {
         ptr[i] = val_number(a + i);
     }
     return val_array(array);
-}
-
-void adr_print(ffi_hndl_meta_t md, int argcount, val_t* args) {
-    for(int i = 0; i < argcount; i++) {
-        if( i > 0 )
-            printf(" ");
-        vm_print_val(md.vm, args[i]);
-    }
-}
-
-void setup_default_env(ffi_t* ffi) {
-    bool res = ffi_init(ffi);
-    if( res == false ) {
-        printf("error: failed to init FFI.\n");
-        return;
-    }
-    res = ffi_native_exports_define(&ffi->supplied,
-        sstr("print"), 
-        (ffi_handle_t) {
-            .local = 0,
-            .tag = FFI_HNDL_HOST_ACTION,
-            .u.host_action = adr_print,
-        },
-        ift_func_1(ift_void(),
-            ift_list(ift_char())));
-    if( res == false ) {
-        printf("error: failed to register FFI function: print\n");
-    }
-}
-
-bool check_call_setup(vm_env_t* env) {
-    if( env->msgbuf.count > 0 ) {
-        sh_msg_buffer_fprint(&env->msgbuf, stdout);
-        return false;
-    }
-    return true;
-}
-
-bool run(char* path, bool disassemble, bool show_ast, bool keep_alive) {
-    time_t last_creation_time = 0x0L;
-    bool compile_ok = true;
-    ffi_t ffi = { 0 };
-    setup_default_env(&ffi);
-
-    do {
-
-        time_t creation_time = get_creation_time(path);
-
-        if( creation_time <= last_creation_time ) {
-            usleep(100);
-            continue;
-        }
-
-        last_creation_time = creation_time;
-        program_t program = program_read_and_compile(path, show_ast);
-        compile_ok = program.inst.size > 0;
-        printf("%s [%s]\n", path, compile_ok ? "OK" : "FAILED");
-        
-        if( compile_ok ) {
-
-            if( disassemble ) {
-                program_disassemble(stdout, &program);
-            }
-
-            vm_env_t env = { 0 };
-            vm_env_init(&env);
-
-            vm_env_setup(&env, &program, &ffi);
-
-            entry_point_t ep = program_get_entry_point(&program, "main", NULL, &env.msgbuf);
-
-            vm_t vm = { 0 };
-            vm_create(&vm, 128, 128);
-
-            if( check_call_setup(&env) ) {
-                // execute script
-                val_t result = vm_execute(&vm, &env, &ep, &program);
-
-                printf("> ");
-                vm_print_val(&vm, result);
-                printf("\n");
-            }
-
-            vm_env_destroy(&env);
-            program_destroy(&program);
-            vm_destroy(&vm);
-        }
-
-        
-
-    } while ( keep_alive );
-
-    ffi_destroy(&ffi);
-
-    return compile_ok;
 }
 
 typedef struct todo_item_t {
@@ -200,7 +96,9 @@ int main(int argv, char** argc) {
     }
 
     if( path != NULL ) {
-        bool compile_ok = run(path, disassemble, print_ast, keep_alive);
+        bool compile_ok = xu_quick_run(path, (xu_quickopts_t){
+            disassemble, print_ast, keep_alive
+        });
         print_help = print_help || (compile_ok == false && keep_alive == false);
     }
 

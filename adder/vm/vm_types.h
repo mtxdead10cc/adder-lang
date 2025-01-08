@@ -45,7 +45,7 @@ typedef struct vm_env_t {
     int             count;
     ffi_handle_t*   handles;
     int*            argcounts;
-    sh_msg_buffer_t msgbuf;
+    bool            isready;
 } vm_env_t;
 
 #endif // VM_VM_TYPES_H_

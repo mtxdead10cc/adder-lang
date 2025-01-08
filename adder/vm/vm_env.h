@@ -6,6 +6,7 @@
 
 void vm_env_init(vm_env_t* env);
 bool vm_env_setup(vm_env_t* env, program_t* program, ffi_t* ffi);
+bool vm_env_is_ready(vm_env_t* env);
 void vm_env_destroy(vm_env_t* env);
 
 #endif // VM_RUNCFG_H_ 

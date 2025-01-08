@@ -113,3 +113,11 @@ int sstr_append_fmt(sstr_t* on, const char* fmt, ...) {
     va_end(args);
     return remaining;
 }
+
+void cstr_append_fmt(char* on, int maxlen, const char* fmt, ...) {
+    int len = strnlen(on, maxlen);
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(on + len, maxlen-len, fmt, args);
+    va_end(args);
+}

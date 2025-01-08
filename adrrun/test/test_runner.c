@@ -10,7 +10,7 @@
 #include <co_program.h>
 #include <co_bty.h>
 #include <sh_program.h>
-#include <sh_msg_buffer.h>
+#include <sh_log.h>
 #include <vm_env.h>
 #include <sh_ffi.h>
 #include <stdio.h>
@@ -45,7 +45,7 @@ typedef struct test_case_t {
 void test_heap_memory(test_case_t* this) {
     vm_t vm;
 
-    TEST_ASSERT_MSG(this, vm_create(&vm, 16, 256), "failed to create gvm\n");
+    TEST_ASSERT_MSG(this, vm_create(&vm, 512), "failed to create gvm\n");
 
     vm.mem.stack.top = -1;
 
@@ -268,17 +268,6 @@ void test_utils(test_case_t* this) {
         "#4.10 sstr append fmt remaining failed");
 }
 
-bool test_check_call_setup(test_case_t* this, vm_env_t* env) {
-    if( env->msgbuf.count > 0 ) {
-        TEST_ASSERT_MSG(this,
-            false,
-            "test_check_call_setup error(s)");
-        sh_msg_buffer_fprint(&env->msgbuf, stdout);
-        fflush(stdout);
-        return false;
-    }
-    return true;
-}
 
 void test_vm(test_case_t* this) {
 
@@ -287,7 +276,7 @@ void test_vm(test_case_t* this) {
     program_t program = { 0 };
 
     TEST_ASSERT_MSG(this,
-        vm_create(&vm, 16, 16),
+        vm_create(&vm, 32),
         "#1.0 failed to create VM.");
     
     u8buffer_t instr_buf;
@@ -345,10 +334,10 @@ void test_vm(test_case_t* this) {
     vm_env_t env = { 0 };
     vm_env_init(&env);
 
-    entry_point_t ep = program_get_entry_point(&program, NULL, NULL, &env.msgbuf);
+    entry_point_t ep = program_get_entry_point(&program, NULL, NULL);
 
     TEST_ASSERT_MSG(this,
-        test_check_call_setup(this, &env),
+        vm_env_is_ready(&env),
         "#3.0 call check failed");
 
     val_t ret = vm_execute(&vm, &env, &ep, &program);
@@ -393,10 +382,10 @@ void test_vm(test_case_t* this) {
     program.inst.size = instr_buf.size;
     program.inst.buffer = instr_buf.data;
 
-    ep = program_get_entry_point(&program, NULL, NULL, &env.msgbuf);
+    ep = program_get_entry_point(&program, NULL, NULL);
 
     TEST_ASSERT_MSG(this,
-        test_check_call_setup(this, &env),
+        vm_env_is_ready(&env),
         "#4.0 call check failed");
 
     entry_point_set_arg_unsafe(&ep, 0, val_number(10));
@@ -500,18 +489,16 @@ void test_ast(test_case_t* this) {
     vm_t vm;
 
     TEST_ASSERT_MSG(this,
-        vm_create(&vm, 16, 16),
+        vm_create(&vm, 32),
         "#1.0 failed to create VM.");
 
     vm_env_t env = { 0 };
     vm_env_init(&env);
 
-    entry_point_t ep = program_get_entry_point(&program, "main", NULL, &env.msgbuf);
+    entry_point_t ep = program_get_entry_point(&program, "main", NULL);
 
     entry_point_set_arg(&ep, 0, val_number(1));
     entry_point_set_arg(&ep, 1, val_number(-1));
-
-    test_check_call_setup(this, &env);
     
     val_t ret = vm_execute(&vm, &env, &ep, &program);
 
@@ -712,8 +699,9 @@ void test_tokenizer(test_case_t* this) {
 
 void test_printfn(ffi_hndl_meta_t md, int argcount, val_t* args) {
     (void)(argcount);
-    printf(" >    ");
-    vm_print_val(md.vm, args[0]);
+    char buf[512] = {0};
+    vm_sprint_val(buf, 512, md.vm, args[0]);
+    printf("> %s", buf);
 }
 
 #define TEST_MSG(COND, ...) do {   \
@@ -828,7 +816,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     }
 
     vm_t vm;
-    vm_create(&vm, 50, 50);
+    vm_create(&vm, 100);
 
     vm_env_t env = { 0 };
     vm_env_init(&env);
@@ -838,9 +826,9 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         "'%s': failed set up env.",
                 tc_name);
 
-    entry_point_t ep = program_get_entry_point(&program, "main", NULL, &env.msgbuf);
+    entry_point_t ep = program_get_entry_point(&program, "main", NULL);
     val_t res = val_none();
-    if( test_check_call_setup(this, &env) ) {
+    if( vm_env_is_ready(&env) ) {
         res = vm_execute(&vm, &env, &ep, &program);
     }
 
@@ -891,7 +879,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     
     if( match_ok == false && is_known_todo == false ) {
         ast_dump(node);
-        program_disassemble(stdout, &program);
+        program_disassemble(&program);
     }
 
     program_destroy(&program);

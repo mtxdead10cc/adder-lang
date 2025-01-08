@@ -6,73 +6,79 @@
 #include "sh_ift.h"
 #include <stdlib.h>
 #include <string.h>
-#include "sh_msg_buffer.h"
+#include "sh_log.h"
 #include "sh_program.h"
 
-void fprint_value(FILE* stream, val_t* memory, val_t val) {
+void sprint_value(char* buf, int maxlen, val_t* memory, val_t val) {
 
     if( VAL_GET_TYPE(val) == VAL_ARRAY ) {
         array_t array = val_into_array(val);
         val_t* buffer = memory + MEM_ADDR_TO_INDEX(array.address);
         if( buffer == NULL ) {
-            fprintf(stream, "<null buffer>");
+            cstr_append_fmt(buf, maxlen, "<null buffer>");
             return;
         }
         int length = array.length;
         bool is_list = VAL_GET_TYPE(buffer[0]) != VAL_CHAR;
         if(is_list) {
-            fprintf(stream, "[ ");
+            cstr_append_fmt(buf, maxlen, "[ ");
             for(int i = 0; i < length; i++) {
-                fprint_value(stream, memory, buffer[i]);
-                fprintf(stream, " ");
+                sprint_value(buf, maxlen, memory, buffer[i]);
+                cstr_append_fmt(buf, maxlen, " ");
             }
-            fprintf(stream, "]");
+            cstr_append_fmt(buf, maxlen, "]");
         } else { // string
             for(int i = 0; i < length; i++) {
-                fprint_value(stream, memory, buffer[i]);
+                sprint_value(buf, maxlen, memory, buffer[i]);
             }
         }
     } else {
         switch (VAL_GET_TYPE(val))
         {
         case VAL_NUMBER:
-            fprintf(stream, "%f", val_into_number(val));
+            cstr_append_fmt(buf, maxlen, "%f", val_into_number(val));
             break;
         case VAL_CHAR:
-            fprintf(stream, "%c", val_into_char(val));
+            cstr_append_fmt(buf, maxlen, "%c", val_into_char(val));
             break;
         case VAL_BOOL:
-            fprintf(stream, "%s", val_into_bool(val) ? "TRUE" : "FALSE");
+            cstr_append_fmt(buf, maxlen, "%s", val_into_bool(val) ? "TRUE" : "FALSE");
             break;
         case VAL_IVEC2: {
             ivec2_t v = val_into_ivec2(val);
-            fprintf(stream, "(%i, %i)", v.x, v.y);
+            cstr_append_fmt(buf, maxlen, "(%i, %i)", v.x, v.y);
         } break;
         case VAL_ITER: {
             iter_t v = val_into_iter(val);
-            fprintf(stream, "{curr:0x%08X, rem:%i}", v.current, v.remaining);
+            cstr_append_fmt(buf, maxlen, "{curr:0x%08X, rem:%i}", v.current, v.remaining);
         } break;
         case VAL_FRAME: {
             frame_t frame = val_into_frame(val);
-            fprintf(stream, "<pc: %i, nargs: %i, nlocals: %i>",
+            cstr_append_fmt(buf, maxlen, "<pc: %i, nargs: %i, nlocals: %i>",
                 frame.return_pc,
                 frame.num_args,
                 frame.num_locals);
         } break;
         case VAL_ARRAY: {
             array_t a = val_into_array(val);
-            fprintf(stream, "[addr: 0x%08X, len: %d]",
+            cstr_append_fmt(buf, maxlen, "[addr: 0x%08X, len: %d]",
                 a.address, a.length);
             break;
         } break;
         default:
-            fprintf(stream, "<unk>");
+            cstr_append_fmt(buf, maxlen, "<unk>");
             break;
         }
     }
 }
 
-void program_disassemble(FILE* stream, program_t* program) {
+#define DASM_LEN (2048*2)
+
+void program_disassemble(program_t* program) {
+    
+    char resbuf[DASM_LEN] = {0};
+    cstr_append_fmt(resbuf, DASM_LEN, "[DISASSEMBLY]\n");
+
     int current_byte = 0;
     val_t* consts = program->cons.buffer;
     uint8_t* instructions = program->inst.buffer;
@@ -81,26 +87,28 @@ void program_disassemble(FILE* stream, program_t* program) {
         vm_op_t opcode = instructions[current_byte];
         int arg_count = get_op_arg_count(opcode);
         if( arg_count < 0 ) {
-            fprintf(stream, "<op %i not found>", opcode);
+            cstr_append_fmt(resbuf, DASM_LEN, "<op %i not found>", opcode);
             current_byte ++;
             continue;
         }
         char* name = get_op_name(opcode);
         op_argtype_t* argtypes = get_op_arg_types(opcode);
-        fprintf(stream, "#%5i| %-16s", current_byte, name);
+        cstr_append_fmt(resbuf, DASM_LEN, "#%5i| %-16s", current_byte, name);
         current_byte ++;
         for (int i = 0; i < arg_count; i++) {
             int val = (int) READ_U32(instructions, current_byte);
-            fprintf(stream, " %-9i", val);
+            cstr_append_fmt(resbuf, DASM_LEN, " %-9i", val);
             current_byte += 4;
             if( argtypes[i] == OP_ARG_CONSTANT ) {
-                fprintf(stream, " (");
-                fprint_value(stream, consts, consts[val]);
-                fprintf(stream, ")");
+                cstr_append_fmt(resbuf, DASM_LEN, " (");
+                sprint_value(resbuf, DASM_LEN, consts, consts[val]);
+                cstr_append_fmt(resbuf, DASM_LEN, ")");
             }
         }
-        fprintf(stream, "\n");
+        cstr_append_fmt(resbuf, DASM_LEN, "\n");
     }
+
+    sh_log_info(resbuf);
 }
 
 int program_find_entrypoint(program_t* prog, sstr_t name, ift_t* expected) {
@@ -146,7 +154,7 @@ void program_destroy(program_t* prog) {
     }
 }
 
-entry_point_t program_get_entry_point(program_t* prog, char* name, ift_t* type, sh_msg_buffer_t* msgbuf) {
+entry_point_t program_get_entry_point(program_t* prog, char* name, ift_t* type) {
     
     entry_point_t ep = {
         .argvals = { 0 },
@@ -155,7 +163,7 @@ entry_point_t program_get_entry_point(program_t* prog, char* name, ift_t* type, 
     };
 
     if( prog == NULL ) {
-        sh_msg_buffer_append(msgbuf, sstr("get_entry_point: program was NULL"));
+        sh_log_error("get_entry_point: program was NULL");
         return ep;
     }
 
@@ -167,7 +175,7 @@ entry_point_t program_get_entry_point(program_t* prog, char* name, ift_t* type, 
         if( type != NULL )
             argc = ift_func_arg_count(*type);
         if( argc > max_args ) {
-            sh_msg_buffer_append(msgbuf, sstr("get_entry_point: program requires unsupported arg count"));
+            sh_log_error("get_entry_point: program requires unsupported arg count");
             return ep;
         }
         ep.address = 0;
@@ -176,42 +184,37 @@ entry_point_t program_get_entry_point(program_t* prog, char* name, ift_t* type, 
     }
 
     if( prog->exports.count <= 0 ) {
-        sh_msg_buffer_append(msgbuf, sstr("get_entry_point: invalid program."));
+        sh_log_error("get_entry_point: invalid program.");
         return ep;
     }
 
     int ep_index = program_find_entrypoint(prog, sstr(name), type);
 
     if( ep_index == -1 ) {
-        sstr_t s = {0};
-        sstr_append_fmt(&s, "'%s' not found", name);
-        sh_msg_buffer_append(msgbuf, s);
+        sh_log_error("'%s' not found", name);
         return ep;
     }
     
     if ( ep_index == -2 ) {
-        sstr_t s = sstr("no match for type ");
+        sstr_t s = sstr("");
         sstr_append_fmt(&s, "%s ", name);
         if( type != NULL ) {
             sstr_t t = ift_type_to_sstr(*type);
             sstr_append(&s, &t);
         }
-        sh_msg_buffer_append(msgbuf, s);
+        sh_log_error("no match for type %.*s", sstr_len(&s), sstr_ptr(&s));
         return ep;
     }
 
     uint32_t uaddress = prog->expaddr[ep_index];
     
     if( uaddress >= prog->inst.size ) {
-        sstr_t s = {0};
-        sstr_append_fmt(&s, "invalid entry point address %d", uaddress);
-        sh_msg_buffer_append(msgbuf, s);
+        sh_log_error("invalid entry point address %d", uaddress);
         return ep;
     }
 
     if( prog->inst.buffer[uaddress] != OP_MAKE_FRAME ) {
-        sh_msg_buffer_append(msgbuf,
-            sstr("entry point address is not pointing to a frame"));
+        sh_log_error("entry point address is not pointing to a frame");
         return ep;
     }
 
@@ -219,7 +222,7 @@ entry_point_t program_get_entry_point(program_t* prog, char* name, ift_t* type, 
     if( type != NULL )
         argc = ift_func_arg_count(*type);
     if( argc > max_args ) {
-        sh_msg_buffer_append(msgbuf, sstr("get_entry_point: program requires unsupported arg count"));
+        sh_log_error("get_entry_point: program requires unsupported arg count");
         return ep;
     }
 
@@ -231,7 +234,7 @@ entry_point_t program_get_entry_point(program_t* prog, char* name, ift_t* type, 
 
 bool entry_point_set_arg(entry_point_t* ep, int index, val_t arg) {
     if( index >= ep->argcount ) {
-        printf("entry_point_set_arg: unsupported arg index %d (max %d)\n",
+        sh_log_error("entry_point_set_arg: unsupported arg index %d (max %d)\n",
             index, ep->argcount-1);
         return false;
     }

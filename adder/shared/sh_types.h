@@ -163,13 +163,6 @@ typedef struct ffi_t {
     ffi_native_exports_t supplied;
 } ffi_t;
 
-#define VM_MSG_BUFFER_MSG_MAX_COUNT 8
-
-typedef struct sh_msg_buffer_t {
-    int count;
-    sstr_t messages[VM_MSG_BUFFER_MSG_MAX_COUNT];
-} sh_msg_buffer_t;
-
 typedef struct entry_point_t {
     val_t argvals[16];
     int   argcount;
