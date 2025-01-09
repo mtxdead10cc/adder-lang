@@ -30,27 +30,6 @@
 
 #define XU_COUNT 16
 
-typedef struct xu_source_t {
-    char*       source_path;
-    time_t      creation_time;
-} xu_source_t;
-
-typedef struct xu_interface_t {
-    ffi_t       ffi;
-} xu_interface_t;
-
-typedef struct xu_runtime_t {
-    program_t   program;
-    vm_env_t    env;
-} xu_runtime_t;
-
-typedef enum xu_stage_t {
-    XU_CLASS_UNINITIALIZED,
-    XU_CLASS_DEFINED,
-    XU_CLASS_COMPILED,
-    XU_CLASS_READY
-} xu_stage_t;
-
 typedef struct xu_classlist_t xu_classlist_t;
 
 typedef struct xu_class_t {
@@ -60,10 +39,11 @@ typedef struct xu_class_t {
 
 typedef struct xu_classlist_t {
     int             count;
-    xu_stage_t      stages[XU_COUNT];
-    xu_source_t     sources[XU_COUNT];
-    xu_interface_t  interfaces[XU_COUNT];
-    xu_runtime_t    runtimes[XU_COUNT];
+    char*           paths[XU_COUNT];
+    time_t          modtimes[XU_COUNT];
+    program_t       programs[XU_COUNT];
+    ffi_t           interfaces[XU_COUNT];
+    vm_env_t        envs[XU_COUNT];
 } xu_classlist_t;
 
 typedef struct xu_caller_t {
@@ -85,15 +65,19 @@ typedef struct xu_caller_t {
 ffi_handle_t xu_ffi_action(ffi_actcall_t action, void* user);
 ffi_handle_t xu_ffi_function(ffi_funcall_t function, void* user);
 
-xu_class_t xu_class_create(xu_classlist_t* classes, char* source_path);
+xu_class_t xu_class_read_and_create(xu_classlist_t* classes, char* file_path);
+xu_class_t xu_class_create(xu_classlist_t* classes, source_code_t* code);
 
-bool xu_class_is_defined(xu_class_t class);
+bool xu_class_is_ready(xu_class_t class);
 bool xu_class_is_compiled(xu_class_t class);
 
 xu_caller_t xu_class_extract(xu_class_t class, char* name, ift_t type);
+bool xu_class_caller_is_valid(xu_caller_t caller);
 bool xu_class_inject(xu_class_t class, char* name, ift_t type, ffi_handle_t handle);
 
-bool xu_class_compile(xu_class_t class);
+bool xu_class_finalize(xu_class_t class);
+
+bool xu_finalize(xu_classlist_t* classes);
 void xu_cleanup(xu_classlist_t* classes);
 
 typedef struct xu_quickopts_t {
@@ -103,5 +87,8 @@ typedef struct xu_quickopts_t {
 } xu_quickopts_t;
 
 bool xu_quick_run(char* filepath, xu_quickopts_t opts);
+
+int xu_calli(vm_t* vm, xu_caller_t* c);
+bool xu_callib(vm_t* vm, xu_caller_t* c, int arg);
 
 #endif // XUTILS_H_

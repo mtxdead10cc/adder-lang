@@ -133,16 +133,6 @@ typedef enum ast_unop_type_t {
     AST_UN_NEG
 } ast_unop_type_t;
 
-typedef enum cres_code_t {
-    R_OK,
-    R_ERR_TOKEN,
-    R_ERR_EXPR,
-    R_ERR_STATEMENT,
-    R_ERR_COMPILATION,
-    R_ERR_OUT_OF_MEMORY,
-    R_ERR_INTERNAL
-} cres_code_t;
-
 typedef struct srcref_t {
     char*   source;
     size_t  idx_start;

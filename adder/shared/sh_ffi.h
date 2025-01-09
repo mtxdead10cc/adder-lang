@@ -9,7 +9,7 @@
 
 bool ffi_init(ffi_t* ffi);
 void ffi_destroy(ffi_t* ffi);
-void ffi_fprint(FILE* f, ffi_t* ffi);
+void ffi_print(ffi_t* ffi);
 
 bool        ffi_definition_set_init(ffi_definition_set_t* set, int capacity);
 int         ffi_definition_set_index_of(ffi_definition_set_t* set, sstr_t name);

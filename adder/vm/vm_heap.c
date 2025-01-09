@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
+#include <sh_log.h>
 
 #define _MAX(A,B) ((A) > (B) ? (A) : (B))
 #define _MIN(A,B) ((A) < (B) ? (A) : (B))
@@ -157,7 +158,7 @@ array_t heap_array_alloc(vm_t* vm, int val_count) {
 
     // if GC did not free up memory we fail
     if( addr < 0 ) {
-        printf("error: VM heap memory is full.\n");
+        sh_log_error("VM heap memory is full.\n");
         return (array_t) { 0 }; // null address makes this invalid
     }
 

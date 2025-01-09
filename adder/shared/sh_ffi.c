@@ -1,5 +1,6 @@
 #include "sh_ffi.h"
 #include "sh_ift.h"
+#include "sh_log.h"
 #include <stdarg.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -144,12 +145,12 @@ void ffi_destroy(ffi_t* ffi) {
     ffi_native_exports_destroy(&ffi->supplied);
 }
 
-void ffi_fprint(FILE* f, ffi_t* ffi) {
-    fprintf(f, "FFI\n");
-    fprintf(f, " Supplied (by host)\n");
+void ffi_print(ffi_t* ffi) {
+    sh_log_info("FFI\n");
+    sh_log_info(" Supplied (by host)\n");
     for(int i = 0; i < ffi->supplied.count; i++) {
         sstr_t v = ift_type_to_sstr(ffi->supplied.def[i].type);
-        fprintf(f, "\t%.*s: %.*s\n",
+        sh_log_info("\t%.*s: %.*s\n",
             sstr_len(&ffi->supplied.def[i].name),
             sstr_ptr(&ffi->supplied.def[i].name),
             sstr_len(&v),

@@ -6,6 +6,12 @@
 #include "sh_types.h"
 #include "sh_value.h"
 #include <unistd.h>
+#include "sh_log.h"
+
+#include <dlfcn.h>
+#include <time.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 char* unop_name(ast_unop_type_t type) {
     // TODO:
@@ -217,71 +223,48 @@ char* sprint_ast(arena_t* a, int ind, ast_node_t* n) {
     }
 }
 
-program_t program_compile_source(char* source, size_t source_len, char* filepath, bool debug_print) {
-
-    parser_t parser = { 0 };
-    trace_t trace = { 0 };
-
-    if( trace_init(&trace, 16) == false ) {
-        return (program_t) { 0 };
+bool program_file_exists(char *path) {
+    if( path == NULL )
+        return false;
+    FILE *file;   
+    if ((file = fopen(path, "r"))) {
+        fclose(file);
+        return true;
     }
-
-    trace_set_current_source_path(&trace, filepath);
-
-    arena_t* arena = arena_create(1024 * 500);
-    pa_result_t result = pa_init(&parser, arena, &trace, source, source_len, filepath);
-    if( par_is_error(result) ) {
-        trace_fprint(stdout, &trace);
-        trace_destroy(&trace);
-        pa_destroy(&parser);
-        return (program_t) { 0 };
-    }
-    result = pa_parse_program(&parser);
-
-    if( par_is_error(result) ) {
-        trace_fprint(stdout, &trace);
-        trace_destroy(&trace);
-        pa_destroy(&parser);
-        return (program_t) { 0 };
-    }
-
-    if( par_is_nothing(result) ) {
-        printf("error: empty program.\n");
-        trace_fprint(stdout, &trace);
-        pa_destroy(&parser);
-        trace_destroy(&trace);
-        return (program_t) { 0 };
-    }
-
-    ast_node_t* program_node = par_extract_node(result);
-    
-    if( debug_print ) {
-        arena_t* arena = arena_create(512);
-        printf("%s\n", sprint_ast(arena, 0, program_node));
-        arena_destroy(arena);
-    }
-
-    program_t program = gvm_compile(arena, program_node, &trace);
-    
-    if( trace_get_message_count(&trace) > 0 ) {
-        trace_fprint(stdout, &trace);
-    }
-
-    pa_destroy(&parser);
-    arena_destroy(arena);
-    return program;
+    return false;
 }
 
-program_t program_read_and_compile(char* path, bool debug_print) {
 
-    FILE* f = fopen(path, "r");
+time_t program_file_get_modtime(char *file_path) {
+    struct stat attr;
+    stat(file_path, &attr);
+    return attr.st_mtim.tv_sec;
+}
+
+source_code_t program_source_from_memory(char* source_code, int length) {
+    source_code_t src = (source_code_t) {
+        .file_path = "xutils-memory-buffer",
+        .modtime = 0UL,
+        .source_code = (char*) malloc( length * sizeof(char) ),
+        .source_length = length   
+    };
+    if( src.source_code == NULL )
+        return (source_code_t) {0};
+    strncpy(src.source_code, source_code, length);
+    return src;
+}
+
+source_code_t program_source_read_from_file(char* file_path) {
+
+    FILE* f = fopen(file_path, "r");
     
     if( f == NULL ) {
-        printf("error: %s not found.\n", path);
-        return (program_t) { 0 };
+        sh_log_error("program_source_read_from_file: file not found\n\t%s", file_path);
+        return (source_code_t) { 0 };
     }
 
     char *source_text = malloc(1);
+    long source_length = 0L;
     int retry_counter = 100; 
     while( retry_counter > 0 ) {
         fseek(f, 0, SEEK_END);
@@ -291,6 +274,7 @@ program_t program_read_and_compile(char* path, bool debug_print) {
         if( fread(source_text, fsize, 1, f) > 0 ) {
             retry_counter = -10;
             source_text[fsize] = '\0';
+            source_length = fsize;
         } else {
             usleep(100000);
             retry_counter --;
@@ -300,16 +284,116 @@ program_t program_read_and_compile(char* path, bool debug_print) {
     fclose(f);
 
     if( retry_counter == 0 ) {
-        printf("error: failed to read file: %s\n", path);
+        sh_log_error("program_source_read_from_file: failed to read file\n\t%s", file_path);
+        if( source_text != NULL )
+            free(source_text);
+        return (source_code_t) { 0 };
     }
 
-    program_t program = program_compile_source(
-        source_text,
-        strlen(source_text),
-        path,
-        debug_print);
+    if( source_length <= 0 || source_length > INT32_MAX ) {
+        sh_log_error("program_source_read_from_file: the file was too large "
+            "(todo: fix source_code_t etc.)\n\t%s",
+            file_path);
+        return (source_code_t) { 0 };
+    }
 
-    free(source_text);
+    return (source_code_t) {
+        .file_path = file_path,
+        .modtime = program_file_get_modtime(file_path),
+        .source_code = source_text,
+        .source_length = (int) source_length
+    };
+}
 
+bool program_source_is_valid(source_code_t* code) {
+    if( code == NULL )
+        return false;
+    if( code->source_length <= 0 )
+        return false;
+    if( code->source_code == NULL )
+        return false;
+    return true;
+}
+
+void program_source_free(source_code_t* code) {
+    if( code == NULL )
+        return;
+    if( code->source_code != NULL )
+        free(code->source_code);
+    code->source_code = NULL;
+}
+
+program_t program_compile(source_code_t* code, bool print_ast) {
+
+    parser_t parser = { 0 };
+    trace_t trace = { 0 };
+
+    if( program_source_is_valid(code) == false ) {
+        sh_log_error("program_compile: received invalid source data");
+        return (program_t) { 0 };
+    }
+
+    if( trace_init(&trace, 16) == false ) {
+        sh_log_error("program_compile: failed to initialize trace");
+        return (program_t) { 0 };
+    }
+
+    arena_t* arena = arena_create(1024 * 500);
+    pa_result_t result = pa_init(&parser,
+        arena,
+        &trace,
+        code->source_code,
+        code->source_length,
+        code->file_path);
+
+    if( par_is_error(result) ) {
+        char buf[2048] = {0};
+        trace_sprint(buf, 2048, &trace);
+        sh_log_error("PARSER\n%s", buf);
+        trace_destroy(&trace);
+        pa_destroy(&parser);
+        return (program_t) { 0 };
+    }
+
+    result = pa_parse_program(&parser);
+
+    if( par_is_error(result) ) {
+        char buf[2048] = {0};
+        trace_sprint(buf, 2048, &trace);
+        sh_log_error("PARSER\n%s", buf);
+        trace_destroy(&trace);
+        pa_destroy(&parser);
+        return (program_t) { 0 };
+    }
+
+    if( par_is_nothing(result) ) {
+        char buf[2048] = {0};
+        trace_sprint(buf, 2048, &trace);
+        sh_log_error("PARSER\n%s", buf);
+        sh_log_error("the parser did not produce anything.");
+        pa_destroy(&parser);
+        trace_destroy(&trace);
+        return (program_t) { 0 };
+    }
+
+    ast_node_t* program_node = par_extract_node(result);
+    
+    if( print_ast ) {
+        arena_t* arena = arena_create(512);
+        sh_log_info("DEBUG - AST\n%s\n",
+            sprint_ast(arena, 0, program_node));
+        arena_destroy(arena);
+    }
+
+    program_t program = gvm_compile(arena, program_node, &trace);
+    
+    if( trace_get_message_count(&trace) > 0 ) {
+        char buf[2048] = {0};
+        trace_sprint(buf, 2048, &trace);
+        sh_log_error("COMPILER\n%s", buf);
+    }
+
+    pa_destroy(&parser);
+    arena_destroy(arena);
     return program;
 }

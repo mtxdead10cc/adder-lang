@@ -34,6 +34,6 @@ int sstr_append_str(sstr_t* on, char* addition);
 int sstr_append_nstr(sstr_t* on, char* addition, int len);
 int sstr_append_fmt(sstr_t* on, const char* fmt, ...);
 
-void cstr_append_fmt(char* on, int maxlen, const char* fmt, ...);
+int cstr_append_fmt(char* on, int maxlen, const char* fmt, ...);
 
 #endif // VM_UTILS_H_

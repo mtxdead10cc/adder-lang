@@ -18,22 +18,13 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <sh_ift.h>
+#include <vm_value_tools.h>
 
-#include <dlfcn.h>
-#include <unistd.h>
-#include <time.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 #include "sh_program.h"
 
 #include "xu_lib.h"
 
-time_t get_creation_time(char *path) {
-    struct stat attr;
-    stat(path, &attr);
-    return attr.st_mtim.tv_sec;
-}
 
 void xu_ffi_print(ffi_hndl_meta_t md, int argcount, val_t* args) {
     char buf[512] = {0};
@@ -45,14 +36,31 @@ void xu_ffi_print(ffi_hndl_meta_t md, int argcount, val_t* args) {
     sh_log_info("> %s", buf);
 }
 
-bool xu_setup_default_env(ffi_t* ffi) {
-    bool res = ffi_init(ffi);
-    if( res == false ) {
+
+val_t xu_ffi_to_string(ffi_hndl_meta_t md, int argcount, val_t* args) {
+    char buf[512] = {0};
+    for(int i = 0; i < argcount; i++) {
+        if( i > 0 )
+            cstr_append_fmt(buf, 512, " ");
+        vm_sprint_val(buf, 512, md.vm, args[i]);
+    }
+    int len = strlen(buf);
+    array_t arr = heap_array_alloc(md.vm, len);
+    val_t* ptr = array_get_ptr(md.vm, arr, 0);
+    for(int i = 0; i < len; i++) {
+        ptr[i] = val_char(buf[i]);
+    }
+    return val_array(arr);
+}
+
+bool xu_setup_default_interface(ffi_t* ffi) {
+    
+    if( ffi_init(ffi) == false ) {
         sh_log_error("error: failed to init FFI.\n");
         return false;
     }
 
-    res = ffi_native_exports_define(&ffi->supplied,
+    int res = ffi_native_exports_define(&ffi->supplied,
         sstr("print"), 
         (ffi_handle_t) {
             .local = 0,
@@ -62,24 +70,39 @@ bool xu_setup_default_env(ffi_t* ffi) {
         ift_func_1(ift_void(),
             ift_list(ift_char())));
 
-    if( res == false ) {
-        sh_log_error("error: failed to register FFI function: print\n");
-    }
+    res += ffi_native_exports_define(&ffi->supplied,
+        sstr("itos"), 
+        (ffi_handle_t) {
+            .local = 0,
+            .tag = FFI_HNDL_HOST_FUNCTION,
+            .u.host_function = xu_ffi_to_string,
+        },
+        ift_func_1(ift_list(ift_char()), ift_int()));
+
+    res += ffi_native_exports_define(&ffi->supplied,
+        sstr("ftos"), 
+        (ffi_handle_t) {
+            .local = 0,
+            .tag = FFI_HNDL_HOST_FUNCTION,
+            .u.host_function = xu_ffi_to_string,
+        },
+        ift_func_1(ift_list(ift_char()), ift_float()));
+
+    res += ffi_native_exports_define(&ffi->supplied,
+        sstr("btos"), 
+        (ffi_handle_t) {
+            .local = 0,
+            .tag = FFI_HNDL_HOST_FUNCTION,
+            .u.host_function = xu_ffi_to_string,
+        },
+        ift_func_1(ift_list(ift_char()), ift_bool()));
+
+    if( res < 4 )
+        sh_log_error("error: failed to register FFI function");
+    
+    // ffi_print(ffi);
 
     return res;
-}
-
-bool file_exists(char *path) {
-
-    FILE *file;
-    
-    if ((file = fopen(path, "r")))
-    {
-        fclose(file);
-        return true;
-    }
-
-    return false;
 }
 
 
@@ -89,18 +112,18 @@ bool xu_quick_run(char* filepath, xu_quickopts_t opts) {
     bool compile_ok = true;
     ffi_t ffi = { 0 };
 
-    if( file_exists(filepath) == false ) {
+    if( program_file_exists(filepath) == false ) {
         sh_log_error("file not found: %s", filepath);
         return false;
     }
 
-    if( xu_setup_default_env(&ffi) == false ) {
+    if( xu_setup_default_interface(&ffi) == false ) {
         return false;
     }
 
     do {
 
-        time_t creation_time = get_creation_time(filepath);
+        time_t creation_time = program_file_get_modtime(filepath);
 
         if( creation_time <= last_creation_time ) {
             usleep(100);
@@ -108,8 +131,9 @@ bool xu_quick_run(char* filepath, xu_quickopts_t opts) {
         }
 
         last_creation_time = creation_time;
-        program_t program = program_read_and_compile(filepath, opts.show_ast);
-        compile_ok = program.inst.size > 0;
+        source_code_t code = program_source_read_from_file(filepath);
+        program_t program = program_compile(&code, opts.show_ast);
+        compile_ok = program_is_valid(&program);
         sh_log_info("%s [%s]\n", filepath, compile_ok ? "OK" : "FAILED");
         
         if( compile_ok ) {
@@ -119,11 +143,9 @@ bool xu_quick_run(char* filepath, xu_quickopts_t opts) {
             }
 
             vm_env_t env = { 0 };
-            vm_env_init(&env);
-
             vm_env_setup(&env, &program, &ffi);
 
-            entry_point_t ep = program_get_entry_point(&program, "main", NULL);
+            entry_point_t ep = program_entry_point_find(&program, "main", NULL);
 
             vm_t vm = { 0 };
             vm_create(&vm, 256);
@@ -173,10 +195,11 @@ xu_class_t mk_invalid_class(void) {
     };
 }
 
-xu_class_t xu_class_create(xu_classlist_t* classes, char* source_path) {
 
-    if( file_exists(source_path) == false ) {
-        sh_log_error("xu_class_create: file not found\n\t%s", source_path);
+xu_class_t xu_class_create(xu_classlist_t* classes, source_code_t* code) {
+
+    if( program_source_is_valid(code) == false ) {
+        sh_log_error("xu_class_create: received invalid source code");
         return mk_invalid_class();
     }
 
@@ -187,22 +210,34 @@ xu_class_t xu_class_create(xu_classlist_t* classes, char* source_path) {
     }
 
     int ref = classes->count;
-    ffi_t* ffi = &classes->interfaces[ref].ffi;
-    if(ffi_init(ffi) == false) {
+    ffi_t* ffi = &classes->interfaces[ref];
+    if( xu_setup_default_interface(ffi) == false ) {
         sh_log_error("xu_class_create: failed to initialize FFI.");
         return mk_invalid_class();
     }
 
+    if( program_is_valid(&classes->programs[ref]) ) { // destroy the old program
+        program_destroy(&classes->programs[ref]);
+        classes->programs[ref] = (program_t) { 0 };
+    }
+
+    classes->programs[ref] = program_compile(code, false);
+    if( program_is_valid(&classes->programs[ref]) == false )
+        return mk_invalid_class();
+
+    //program_disassemble(&classes->programs[ref]);
+
+    if( program_file_exists(code->file_path) ) {
+        // check if source from a real file
+        classes->paths[ref] = code->file_path;
+    } else {
+        // or memory buffer
+        classes->paths[ref] = NULL;
+    }
+
+    classes->modtimes[ref] = code->modtime;
+    classes->envs[ref] = (vm_env_t) {0};
     classes->count ++;
-
-    classes->sources[ref] = (xu_source_t) {
-        .creation_time = get_creation_time(source_path),
-        .source_path = source_path
-    };
-
-    classes->runtimes[ref] = (xu_runtime_t) { 0 }; 
-
-    classes->stages[ref] = XU_CLASS_DEFINED;
 
     return (xu_class_t) {
         .classlist = classes,
@@ -218,16 +253,11 @@ bool xu_class_is_valid(xu_class_t class) {
     return true;
 }
 
-bool xu_class_is_defined(xu_class_t class) {
-    if(xu_class_is_valid(class) == false)
-        return false;
-    return class.classlist->stages[class.classref] >= XU_CLASS_DEFINED;
-}
-
 bool xu_class_is_compiled(xu_class_t class) {
     if(xu_class_is_valid(class) == false)
         return false;
-    return class.classlist->stages[class.classref] == XU_CLASS_COMPILED;
+    program_t* program = &class.classlist->programs[class.classref];
+    return program_is_valid(program);
 }
 
 xu_caller_t mk_invalid_caller(void) {
@@ -252,13 +282,14 @@ xu_caller_t xu_class_extract(xu_class_t class, char* name, ift_t type) {
 
     xu_classlist_t* list = class.classlist;
     if(xu_class_is_compiled(class) == false) {
-        sh_log_error("xu_class_extract: the class has not been compiled.\n\t%s",
-            list->sources[class.classref].source_path);
+        char* path = list->paths[class.classref];
+        sh_log_error("xu_class_extract: the class has not been compiled: %s",
+            (path != NULL) ? path : "(from memory buffer)");
         return mk_invalid_caller();
     }
 
-    program_t* program = &list->runtimes[class.classref].program;
-    entry_point_t ep = program_get_entry_point(program, name, &type);
+    program_t* program = &list->programs[class.classref];
+    entry_point_t ep = program_entry_point_find(program, name, &type);
 
     if( ep.address < 0 || ep.argcount < 0 ) {
         sh_log_error("xu_class_extract: entrypoint '%s' was not found", name);
@@ -269,6 +300,11 @@ xu_caller_t xu_class_extract(xu_class_t class, char* name, ift_t type) {
         .class = class,
         .entrypoint = ep
     };
+}
+
+bool xu_class_caller_is_valid(xu_caller_t caller) {
+    return xu_class_is_compiled(caller.class)
+        && program_entry_point_is_valid(caller.entrypoint);
 }
 
 bool xu_class_inject(xu_class_t class, char* name, ift_t type, ffi_handle_t handle) {
@@ -282,12 +318,13 @@ bool xu_class_inject(xu_class_t class, char* name, ift_t type, ffi_handle_t hand
 
     xu_classlist_t* list = class.classlist;
     if(xu_class_is_compiled(class) == false) {
-        sh_log_error("xu_class_inject: the class has not been compiled.\n\t%s",
-            list->sources[class.classref].source_path);
+        char* path = list->paths[class.classref];
+        sh_log_error("xu_class_inject: the class has not been compiled: %s",
+            (path != NULL) ? path : "(from memory buffer)");
         return false;
     }
 
-    ffi_t* ffi = &list->interfaces[class.classref].ffi;
+    ffi_t* ffi = &list->interfaces[class.classref];
     if(ffi_native_exports_define(&ffi->supplied, sstr(name), handle, type) == false) {
         sh_log_error("xu_class_inject: failed to add native handler '%s'", name);
         return false;
@@ -296,36 +333,23 @@ bool xu_class_inject(xu_class_t class, char* name, ift_t type, ffi_handle_t hand
     return true;
 }
 
-bool xu_class_compile(xu_class_t class) {
+bool xu_class_finalize(xu_class_t class) {
     
     if(xu_class_is_valid(class) == false) {
         sh_log_error("xu_class_compile: received invalid class data");
         return false;
     }
 
-    if(xu_class_is_defined(class) == false) {
-        sh_log_error("xu_class_compile: class not defined");
+    if(xu_class_is_compiled(class) == false) {
+        sh_log_error("xu_class_compile: class not compiled");
         return false;
     }
 
     xu_classlist_t* list = class.classlist;
-    program_t* program = &list->runtimes[class.classref].program;
-    if( program->inst.size > 0 ) { // destroy the old program
-        program_destroy(program);
-        list->runtimes[class.classref].program = (program_t) { 0 };
-    }
 
-    (*program) = program_read_and_compile(list->sources->source_path, false);
-
-    if( program->inst.size == 0 ) {
-        list->stages[class.classref] = XU_CLASS_DEFINED;
-        return false;
-    }
-
-    list->stages[class.classref] = XU_CLASS_COMPILED;
-
-    ffi_t* ffi = &list->interfaces[class.classref].ffi;
-    vm_env_t* env = &list->runtimes[class.classref].env;
+    ffi_t* ffi = &list->interfaces[class.classref];
+    vm_env_t* env = &list->envs[class.classref];
+    program_t* program = &list->programs[class.classref];
 
     if(vm_env_setup(env, program, ffi) == false) {
         vm_env_destroy(env);
@@ -333,18 +357,17 @@ bool xu_class_compile(xu_class_t class) {
         return false;
     }
 
-    list->stages[class.classref] = XU_CLASS_READY;
     return true;
 }
 
-bool xu_compile(xu_classlist_t* classes) {
+bool xu_finalize(xu_classlist_t* classes) {
     int failed_count = 0;
     for(int i = 0; i < classes->count; i++) {
         xu_class_t class = (xu_class_t) {
             .classlist = classes,
             .classref = i
         };
-        if(xu_class_compile(class) == false)
+        if(xu_class_finalize(class) == false)
             failed_count ++;
     }
     return failed_count == 0;
@@ -352,6 +375,35 @@ bool xu_compile(xu_classlist_t* classes) {
 
 void xu_cleanup(xu_classlist_t* classes) {
     for(int i = 0; i < classes->count; i++) {
-        // destroy
+        ffi_destroy(&classes->interfaces[i]);
+        program_destroy(&classes->programs[i]);
+        vm_env_destroy(&classes->envs[i]);
+        classes->modtimes[i] = 0UL;
+        classes->paths[i] = NULL;
+        classes->programs[i] = (program_t) {0};
+        classes->interfaces[i] = (ffi_t) {0};
+        classes->envs[i] = (vm_env_t) {0};
     }
+    classes->count = 0;
+}
+
+int xu_calli(vm_t* vm, xu_caller_t* c) {
+    assert(c->entrypoint.argcount == 0);
+    xu_classlist_t* list = c->class.classlist;
+    int ref = c->class.classref;
+    vm_env_t* env = &list->envs[ref];
+    program_t* program = &list->programs[ref];
+    val_t result = vm_execute(vm, env, &c->entrypoint, program);
+    return val_into_number(result);
+}
+
+bool xu_callib(vm_t* vm, xu_caller_t* c, int arg) {
+    assert(c->entrypoint.argcount == 1);
+    xu_classlist_t* list = c->class.classlist;
+    int ref = c->class.classref;
+    vm_env_t* env = &list->envs[ref];
+    program_t* program = &list->programs[ref];
+    program_entry_point_set_arg(&c->entrypoint, 0, val_number(arg));
+    val_t result = vm_execute(vm, env, &c->entrypoint, program);
+    return val_into_bool(result);
 }

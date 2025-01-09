@@ -333,9 +333,9 @@ void test_vm(test_case_t* this) {
     program.inst.buffer = instr_buf.data;
 
     vm_env_t env = { 0 };
-    vm_env_init(&env);
+    vm_env_setup(&env, &program, NULL);
 
-    entry_point_t ep = program_get_entry_point(&program, NULL, NULL);
+    entry_point_t ep = program_entry_point_find(&program, NULL, NULL);
 
     TEST_ASSERT_MSG(this,
         vm_env_is_ready(&env),
@@ -374,22 +374,20 @@ void test_vm(test_case_t* this) {
 
     // PROGRAM -- END
 
-    vm_env_destroy(&env);
-
-    vm_env_init(&env);
+    vm_env_setup(&env, &program, NULL);
 
     program.cons.buffer = const_buf.values;
     program.cons.count = const_buf.size;
     program.inst.size = instr_buf.size;
     program.inst.buffer = instr_buf.data;
 
-    ep = program_get_entry_point(&program, NULL, NULL);
+    ep = program_entry_point_find(&program, NULL, NULL);
 
     TEST_ASSERT_MSG(this,
         vm_env_is_ready(&env),
         "#4.0 call check failed");
 
-    entry_point_set_arg_unsafe(&ep, 0, val_number(10));
+    program_entry_point_set_arg_unsafe(&ep, 0, val_number(10));
 
     ret = vm_execute(&vm, &env, &ep, &program);
 
@@ -481,7 +479,9 @@ void test_ast(test_case_t* this) {
 
     program_t program = gvm_compile(arena, ast_block_with(arena, fun), &trace);
     if( trace_get_error_count(&trace) > 0 ) {
-        trace_fprint(stdout, &trace);
+        char buf[2048] = {0};
+        trace_sprint(buf, 2048, &trace);
+        sh_log_error("COMPILER\n%s", buf);
     }
 
     arena_destroy(arena);
@@ -494,12 +494,12 @@ void test_ast(test_case_t* this) {
         "#1.0 failed to create VM.");
 
     vm_env_t env = { 0 };
-    vm_env_init(&env);
+    vm_env_setup(&env, &program, NULL);
 
-    entry_point_t ep = program_get_entry_point(&program, "main", NULL);
+    entry_point_t ep = program_entry_point_find(&program, "main", NULL);
 
-    entry_point_set_arg(&ep, 0, val_number(1));
-    entry_point_set_arg(&ep, 1, val_number(-1));
+    program_entry_point_set_arg(&ep, 0, val_number(1));
+    program_entry_point_set_arg(&ep, 1, val_number(-1));
     
     val_t ret = vm_execute(&vm, &env, &ep, &program);
 
@@ -692,7 +692,10 @@ void test_tokenizer(test_case_t* this) {
 
         tokens_destroy(&coll);
 
-        trace_fprint(stdout, &trace);
+        char buf[2048] = {0};
+        trace_sprint(buf, 2048, &trace);
+        if( strlen(buf) > 0 )
+            sh_log_error("%s", buf);
     }
 
     trace_destroy(&trace);
@@ -780,7 +783,9 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
 
     if( parsing_ok == false ) {
         if( is_known_todo == false ) {
-            trace_fprint(stdout, &trace);
+            char buf[2048] = {0};
+            trace_sprint(buf, 2048, &trace);
+            sh_log_error("PARSER\n%s", buf);
             tokens_print(&parser.collection);
         }
         arena_destroy(arena);
@@ -793,7 +798,9 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
 
     program_t program = gvm_compile(arena, node, &trace);
     if( trace_get_error_count(&trace) > 0 && is_known_todo == false ) {
-        trace_fprint(stdout, &trace);
+        char buf[2048] = {0};
+        trace_sprint(buf, 2048, &trace);
+        sh_log_error("COMPILER\n%s", buf);
         ast_dump(node);
     }
 
@@ -820,14 +827,14 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     vm_create(&vm, 100);
 
     vm_env_t env = { 0 };
-    vm_env_init(&env);
+    vm_env_setup(&env, &program, &ffi);
 
     TEST_ASSERT_MSG(this,
         vm_env_setup(&env, &program, &ffi),
         "'%s': failed set up env.",
                 tc_name);
 
-    entry_point_t ep = program_get_entry_point(&program, "main", NULL);
+    entry_point_t ep = program_entry_point_find(&program, "main", NULL);
     val_t res = val_none();
     if( vm_env_is_ready(&env) ) {
         res = vm_execute(&vm, &env, &ep, &program);
@@ -1122,7 +1129,9 @@ void test_inference(test_case_t* this) {
         "#1.1 synth error");
 
     if( trace_get_error_count(&trace) > 0 ) {
-        trace_fprint(stdout, &trace);
+        char buf[2048] = {0};
+        trace_sprint(buf, 2048, &trace);
+        sh_log_error("TYPECHECKING\n%s", buf);
     }
 
     trace_destroy(&trace);
@@ -1242,6 +1251,59 @@ void test_ift_types(test_case_t* this) {
 
 }
 
+void test_xu_classes(test_case_t* this) {
+    char* src_class = 
+    "export int A() {\n"
+    "   return 0;\n"
+    "}\n"
+    "export bool B(int v) {\n" 
+    "   return (v%2) == 1;\n" 
+    "}\n";
+    
+    xu_classlist_t list = {0};
+    source_code_t code = program_source_from_memory(src_class, strlen(src_class));
+    xu_class_t class = xu_class_create(&list, &code);
+
+    TEST_ASSERT_MSG(this,
+        xu_class_is_compiled(class),
+        "#1.1 class");
+    
+    program_source_free(&code);
+
+    xu_caller_t A = xu_class_extract(class, "A", ift_func(ift_int()));
+    xu_caller_t B = xu_class_extract(class, "B", ift_func_1(ift_bool(), ift_int()));
+
+    TEST_ASSERT_MSG(this,
+        xu_class_caller_is_valid(A),
+        "#2.1 entry point A");
+
+    TEST_ASSERT_MSG(this,
+        xu_class_caller_is_valid(B),
+        "#2.1 entry point B");
+
+    TEST_ASSERT_MSG(this,
+        xu_finalize(&list),
+        "#3.1 finalize");
+
+    vm_t vm = {0};
+    vm_create(&vm, 16);
+
+    TEST_ASSERT_MSG(this,
+        xu_calli(&vm, &A) == 0,
+        "#4.1 call A");
+
+    TEST_ASSERT_MSG(this,
+        xu_callib(&vm, &B, 0) == false,
+        "#4.2 call B #1");
+
+    TEST_ASSERT_MSG(this,
+        xu_callib(&vm, &B, 11) == true,
+        "#4.2 call B #2");
+
+    vm_destroy(&vm);
+    xu_cleanup(&list);
+}
+
 
 test_results_t run_testcases(void) {
 
@@ -1294,6 +1356,11 @@ test_results_t run_testcases(void) {
         {
             .name = "language test",
             .test = test_langtest,
+            .nfailed = 0
+        },
+        {
+            .name = "xutils classes",
+            .test = test_xu_classes,
             .nfailed = 0
         }
     };

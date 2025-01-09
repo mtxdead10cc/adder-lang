@@ -72,6 +72,10 @@ void sprint_value(char* buf, int maxlen, val_t* memory, val_t val) {
     }
 }
 
+bool program_is_valid(program_t* prog) {
+    return prog->inst.size > 0;
+}
+
 #define DASM_LEN (2048*2)
 
 void program_disassemble(program_t* program) {
@@ -154,7 +158,11 @@ void program_destroy(program_t* prog) {
     }
 }
 
-entry_point_t program_get_entry_point(program_t* prog, char* name, ift_t* type) {
+bool program_entry_point_is_valid(entry_point_t entry_point) {
+    return entry_point.address >= 0 && entry_point.argcount >= 0;
+}
+
+entry_point_t program_entry_point_find(program_t* prog, char* name, ift_t* type) {
     
     entry_point_t ep = {
         .argvals = { 0 },
@@ -232,9 +240,9 @@ entry_point_t program_get_entry_point(program_t* prog, char* name, ift_t* type) 
     return ep;
 }
 
-bool entry_point_set_arg(entry_point_t* ep, int index, val_t arg) {
+bool program_entry_point_set_arg(entry_point_t* ep, int index, val_t arg) {
     if( index >= ep->argcount ) {
-        sh_log_error("entry_point_set_arg: unsupported arg index %d (max %d)\n",
+        sh_log_error("program_entry_point_set_arg: unsupported arg index %d (max %d)\n",
             index, ep->argcount-1);
         return false;
     }
@@ -242,7 +250,7 @@ bool entry_point_set_arg(entry_point_t* ep, int index, val_t arg) {
     return true;
 }
 
-void entry_point_set_arg_unsafe(entry_point_t* ep, int index, val_t arg) {
+void program_entry_point_set_arg_unsafe(entry_point_t* ep, int index, val_t arg) {
     ep->argvals[index] = arg;
     ep->argcount = max(ep->argcount, index + 1);
 }

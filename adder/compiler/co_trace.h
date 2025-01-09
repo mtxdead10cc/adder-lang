@@ -12,6 +12,7 @@
 #include "sh_utils.h"
 #include "sh_ffi.h"
 #include "sh_ift.h"
+#include "sh_utils.h"
 
 inline static bool trace_init(trace_t* trace, size_t capacity) {
     trace_msg_t* messages = (trace_msg_t*) malloc( sizeof(trace_msg_t) * capacity );
@@ -169,7 +170,7 @@ inline static int trace_msg_append_ift_type(trace_msg_t* msg, ift_t type) {
     return trace_msg_append_sstr(msg, &s);
 }
 
-inline static int trace_fprint_location(FILE* stream, srcref_t ref, char* filepath) {
+inline static int trace_sprint_location(char* buf, int buflen, srcref_t ref, char* filepath) {
 
     if( ref.source == NULL ) {
         return 0;
@@ -197,50 +198,50 @@ inline static int trace_fprint_location(FILE* stream, srcref_t ref, char* filepa
     column += 1;
 
     if( filepath != NULL ) {
-        return fprintf(stream, "%s:%d:%d: ",
+        return cstr_append_fmt(buf, buflen, "%s:%d:%d: ",
             filepath,
             (uint32_t) line,
             (uint32_t) column);
     } else {
-        return fprintf(stream, "<unknown file>:%d:%d: ",
+        return cstr_append_fmt(buf, buflen, "<unknown file>:%d:%d: ",
             (uint32_t) line,
             (uint32_t) column);
     }
 }
 
-inline static int trace_fprint_prefix(FILE* stream, trace_msg_t* msg) {
+inline static int trace_sprint_prefix(char* buf, int buflen, trace_msg_t* msg) {
     switch(msg->type) {
         case TM_NONE:           return 0;
-        case TM_OUT_OF_MEMORY:  return fprintf(stream, "ERROR: OUT OF SYSTEM MEMORY ");
-        case TM_INTERNAL_ERROR: return fprintf(stream, "ERROR (INTERNAL PANIC): ");
-        case TM_WARNING:        return fprintf(stream, "WARNING: ");
-        case TM_INFO:           return fprintf(stream, "INFO: ");
-        default:                return fprintf(stream, "ERROR: ");
+        case TM_OUT_OF_MEMORY:  return cstr_append_fmt(buf, buflen, "ERROR: OUT OF SYSTEM MEMORY ");
+        case TM_INTERNAL_ERROR: return cstr_append_fmt(buf, buflen, "ERROR (INTERNAL PANIC): ");
+        case TM_WARNING:        return cstr_append_fmt(buf, buflen, "WARNING: ");
+        case TM_INFO:           return cstr_append_fmt(buf, buflen, "INFO: ");
+        default:                return cstr_append_fmt(buf, buflen, "ERROR: ");
     }
 }
 
-inline static int trace_fprint_msg(FILE* stream, trace_msg_t* msg) {
+inline static int trace_sprint_msg(char* buf, int buflen, trace_msg_t* msg) {
 
-    int pres = trace_fprint_prefix(stream, msg);
+    int pres = trace_sprint_prefix(buf, buflen, msg);
     if( pres < 0 )
         return pres;
 
-    pres = trace_fprint_location(stream, msg->source_location, msg->source_path);
+    pres = trace_sprint_location(buf, buflen, msg->source_location, msg->source_path);
     if( pres < 0 )
         return pres;
     
     if( msg->length >= TRACE_MSG_MAX_LEN ) {
-        return fprintf(stream, "%.*s\n", TRACE_MSG_MAX_LEN, msg->message);
+        return cstr_append_fmt(buf, buflen, "%.*s\n", TRACE_MSG_MAX_LEN, msg->message);
     } else if (msg->length > 0) {
-        return fprintf(stream, "%.*s\n", (int) msg->length, msg->message);
+        return cstr_append_fmt(buf, buflen, "%.*s\n", (int) msg->length, msg->message);
     }
 
     return 0;
 }
 
-inline static void trace_fprint(FILE* stream, trace_t* trace) {
+inline static void trace_sprint(char* buf, int buflen, trace_t* trace) {
     for (size_t i = 0; i < trace->message_count; i++) {
-        trace_fprint_msg(stream, &trace->messages[i]);
+        trace_sprint_msg(buf, buflen, &trace->messages[i]);
     }
 }
 

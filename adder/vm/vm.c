@@ -191,6 +191,7 @@ val_t vm_execute(vm_t* vm, vm_env_t* env, entry_point_t* ep, program_t* program)
     // push initial args (if any)
     vm_mem->stack.frame = -1;
     vm_mem->stack.top = -1;
+
     for(int i = 0; i < ep->argcount; i++) {
         stack[++vm_mem->stack.top] = ep->argvals[i];
     }
