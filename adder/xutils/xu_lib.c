@@ -19,6 +19,7 @@
 #include <stdarg.h>
 #include <sh_ift.h>
 #include <vm_value_tools.h>
+#include <vm_heap.h>
 
 
 #include "sh_program.h"
@@ -28,7 +29,6 @@
 
 void xu_ffi_print(ffi_hndl_meta_t md, int argcount, val_t* args) {
     define_cstr(str, 512);
-
     for(int i = 0; i < argcount; i++) {
         if( i > 0 )
             cstr_append_fmt(str, " ");
@@ -390,6 +390,30 @@ void xu_cleanup(xu_classlist_t* classes) {
     classes->count = 0;
 }
 
+val_t xu_string_to_val(vm_t* vm, char* val) {
+    int len = strnlen(val, 2048);
+    assert(len < 2048);
+    array_t array = heap_array_alloc(vm, len);
+    val_t* ptr = array_get_ptr(vm, array, 0);
+    for(int i = 0; i < len; i++) {
+        ptr[i] = val_char(val[i]);
+    }
+    return val_array(array);
+}
+
+char* xu_val_to_string(vm_t* vm, val_t val) {
+    // note: this will get messy if 
+    // called from multiple threads
+    static char buf[2048];
+    buf[0] = '\n'; // reset previous
+    cstr_t str = {
+        .maxlen = 2048,
+        .ptr = &buf
+    };
+    vm_sprint_val(str, vm, val);
+    return buf;
+}
+
 int xu_calli(vm_t* vm, xu_caller_t* c) {
     assert(c->entrypoint.argcount == 0);
     xu_classlist_t* list = c->class.classlist;
@@ -402,10 +426,10 @@ int xu_calli(vm_t* vm, xu_caller_t* c) {
 
 bool xu_callib(vm_t* vm, xu_caller_t* c, int arg) {
     assert(c->entrypoint.argcount == 1);
-    xu_classlist_t* list = c->class.classlist;
+    xu_classlist_t* classes = c->class.classlist;
     int ref = c->class.classref;
-    vm_env_t* env = &list->envs[ref];
-    program_t* program = &list->programs[ref];
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
     program_entry_point_set_arg(&c->entrypoint, 0, val_number(arg));
     val_t result = vm_execute(vm, env, &c->entrypoint, program);
     return val_into_bool(result);
