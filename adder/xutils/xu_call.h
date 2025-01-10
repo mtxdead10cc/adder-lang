@@ -5,10 +5,8 @@
 
 #include <stdbool.h>
 
-
 typedef struct vm_t vm_t;
 typedef struct xu_caller_t xu_caller_t;
-
 
 bool xu_callb(vm_t* vm, xu_caller_t* c);
 bool xu_callb_b(vm_t* vm, xu_caller_t* c, bool arg0);
