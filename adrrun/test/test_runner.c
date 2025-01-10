@@ -22,7 +22,7 @@
 #include "langtest.h"
 #include <sh_ift.h>
 #include <xu_lib.h>
-#include <xu_call.h>
+#include <xu_invoke.h>
 
 typedef struct test_case_t test_case_t;
 
@@ -1288,7 +1288,7 @@ void test_xu_classes(test_case_t* this) {
     vm_create(&vm, 16);
 
     TEST_ASSERT_MSG(this,
-        xu_calli(&vm, &A) == 0,
+        xu_callb(&vm, &A) == 0,
         "#4.1 call A");
 
     TEST_ASSERT_MSG(this,
