@@ -14,6 +14,7 @@
 #include <math.h>
 #include <assert.h>
 #include <limits.h>
+#include <sh_log.h>
 
 #if VM_RUNTIME_VALIDATION > 0
 
@@ -188,7 +189,7 @@ inline static bool validation_pre_exec(vm_t* vm, vm_op_t opcode) {
     validation->opcntr ++;
 
     if( no_error == false ) {
-        printf("ERROR: %s\n",
+        sh_log_error("%s\n",
             validation->message);
         return false;
     }
@@ -240,7 +241,7 @@ inline static bool validation_post_exec(vm_t* vm, vm_op_t opcode) {
             } break;
     }
     if( no_error == false ) {
-        printf("ERROR: %s\n",
+        sh_log_error("%s\n",
             validation->message);
         return false;
     }

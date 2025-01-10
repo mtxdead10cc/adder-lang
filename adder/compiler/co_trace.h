@@ -7,12 +7,14 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "sh_types.h"
+#include <sh_types.h>
+#include <sh_utils.h>
+#include <sh_ffi.h>
+#include <sh_ift.h>
+#include <sh_utils.h>
+#include <sh_log.h>
+
 #include "co_types.h"
-#include "sh_utils.h"
-#include "sh_ffi.h"
-#include "sh_ift.h"
-#include "sh_utils.h"
 
 inline static bool trace_init(trace_t* trace, size_t capacity) {
     trace_msg_t* messages = (trace_msg_t*) malloc( sizeof(trace_msg_t) * capacity );
@@ -64,7 +66,7 @@ inline static void trace_out_of_memory_error(trace_t* trace) {
     if( trace->message_count + 1 < trace->message_capacity ) {
         trace_create_message(trace, TM_OUT_OF_MEMORY, trace_no_ref());
     } else {
-        printf("out of system memory: overwriting last trace message.\n");
+        sh_log_error("out of system memory: overwriting last trace message.\n");
         trace->messages[trace->message_count].type = TM_OUT_OF_MEMORY;
         trace->messages[trace->message_count].length = 0;
         trace->error_count ++;
@@ -170,7 +172,7 @@ inline static int trace_msg_append_ift_type(trace_msg_t* msg, ift_t type) {
     return trace_msg_append_sstr(msg, &s);
 }
 
-inline static int trace_sprint_location(char* buf, int buflen, srcref_t ref, char* filepath) {
+inline static int trace_sprint_location(cstr_t cstr, srcref_t ref, char* filepath) {
 
     if( ref.source == NULL ) {
         return 0;
@@ -198,50 +200,50 @@ inline static int trace_sprint_location(char* buf, int buflen, srcref_t ref, cha
     column += 1;
 
     if( filepath != NULL ) {
-        return cstr_append_fmt(buf, buflen, "%s:%d:%d: ",
+        return cstr_append_fmt(cstr, "%s:%d:%d: ",
             filepath,
             (uint32_t) line,
             (uint32_t) column);
     } else {
-        return cstr_append_fmt(buf, buflen, "<unknown file>:%d:%d: ",
+        return cstr_append_fmt(cstr, "<unknown file>:%d:%d: ",
             (uint32_t) line,
             (uint32_t) column);
     }
 }
 
-inline static int trace_sprint_prefix(char* buf, int buflen, trace_msg_t* msg) {
+inline static int trace_sprint_prefix(cstr_t cstr, trace_msg_t* msg) {
     switch(msg->type) {
         case TM_NONE:           return 0;
-        case TM_OUT_OF_MEMORY:  return cstr_append_fmt(buf, buflen, "ERROR: OUT OF SYSTEM MEMORY ");
-        case TM_INTERNAL_ERROR: return cstr_append_fmt(buf, buflen, "ERROR (INTERNAL PANIC): ");
-        case TM_WARNING:        return cstr_append_fmt(buf, buflen, "WARNING: ");
-        case TM_INFO:           return cstr_append_fmt(buf, buflen, "INFO: ");
-        default:                return cstr_append_fmt(buf, buflen, "ERROR: ");
+        case TM_OUT_OF_MEMORY:  return cstr_append_fmt(cstr, "ERROR: OUT OF SYSTEM MEMORY ");
+        case TM_INTERNAL_ERROR: return cstr_append_fmt(cstr, "ERROR (INTERNAL PANIC): ");
+        case TM_WARNING:        return cstr_append_fmt(cstr, "WARNING: ");
+        case TM_INFO:           return cstr_append_fmt(cstr, "INFO: ");
+        default:                return cstr_append_fmt(cstr, "ERROR: ");
     }
 }
 
-inline static int trace_sprint_msg(char* buf, int buflen, trace_msg_t* msg) {
+inline static int trace_sprint_msg(cstr_t cstr, trace_msg_t* msg) {
 
-    int pres = trace_sprint_prefix(buf, buflen, msg);
+    int pres = trace_sprint_prefix(cstr, msg);
     if( pres < 0 )
         return pres;
 
-    pres = trace_sprint_location(buf, buflen, msg->source_location, msg->source_path);
+    pres = trace_sprint_location(cstr, msg->source_location, msg->source_path);
     if( pres < 0 )
         return pres;
     
     if( msg->length >= TRACE_MSG_MAX_LEN ) {
-        return cstr_append_fmt(buf, buflen, "%.*s\n", TRACE_MSG_MAX_LEN, msg->message);
+        return cstr_append_fmt(cstr, "%.*s\n", TRACE_MSG_MAX_LEN, msg->message);
     } else if (msg->length > 0) {
-        return cstr_append_fmt(buf, buflen, "%.*s\n", (int) msg->length, msg->message);
+        return cstr_append_fmt(cstr, "%.*s\n", (int) msg->length, msg->message);
     }
 
     return 0;
 }
 
-inline static void trace_sprint(char* buf, int buflen, trace_t* trace) {
+inline static void trace_sprint(cstr_t cstr, trace_t* trace) {
     for (size_t i = 0; i < trace->message_count; i++) {
-        trace_sprint_msg(buf, buflen, &trace->messages[i]);
+        trace_sprint_msg(cstr, &trace->messages[i]);
     }
 }
 

@@ -71,9 +71,9 @@ srcref_t srcref_trim_left(srcref_t a, size_t len);
 srcref_t srcref_trim_right(srcref_t a, size_t len);
 
 
-void     srcref_print(srcref_t ref);
+void     srcref_sprint(cstr_t str, srcref_t ref);
 int      srcref_snprint(char* str, size_t slen, srcref_t ref);
-int      srcref_fprint(FILE* stream, srcref_t ref);
+//int      srcref_fprint(FILE* stream, srcref_t ref);
 sstr_t   srcref_as_sstr(srcref_t ref);
 
 #endif // CO_UTILS_H_

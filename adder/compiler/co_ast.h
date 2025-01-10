@@ -11,6 +11,7 @@
 #include "co_types.h"
 #include "co_utils.h"
 #include "sh_arena.h"
+#include <sh_log.h>
 
 inline static ast_annot_t* ast_annot(arena_t* a, srcref_t name) {
     ast_annot_t* annot = (ast_annot_t*) aalloc(a, sizeof(ast_annot_t));
@@ -559,76 +560,76 @@ inline static char* ast_value_type_string(ast_value_type_t type) {
     }
 }
 
-inline static void ast_dump_value(ast_value_t val) {
+inline static void ast_dump_value(cstr_t str, ast_value_t val) {
     switch(val.type) {
-        case AST_VALUE_BOOL:    printf("%s", val.u._bool ? "true" : "false");   break;
-        case AST_VALUE_CHAR:    printf("'%c'", val.u._char);                    break;
-        case AST_VALUE_INT:     printf("%i", val.u._int);                       break;
-        case AST_VALUE_FLOAT:   printf("%f", val.u._float);                     break;
-        case AST_VALUE_NONE:    printf("none");                                 break;
-        default: printf("<UNKNOWN-VALUE>");                                     break;
+        case AST_VALUE_BOOL:    cstr_append_fmt(str, "%s", val.u._bool ? "true" : "false");   break;
+        case AST_VALUE_CHAR:    cstr_append_fmt(str, "'%c'", val.u._char);                    break;
+        case AST_VALUE_INT:     cstr_append_fmt(str, "%i", val.u._int);                       break;
+        case AST_VALUE_FLOAT:   cstr_append_fmt(str, "%f", val.u._float);                     break;
+        case AST_VALUE_NONE:    cstr_append_fmt(str, "none");                                 break;
+        default: cstr_append_fmt(str, "<UNKNOWN-VALUE>");                                     break;
     }
 }
 
-inline static void _ast_nl(int indent) {
-    printf("\n%*s", (indent * 4), "");
+inline static void _ast_nl(cstr_t str, int indent) {
+    cstr_append_fmt(str,"\n%*s", (indent * 4), "");
 }
 
-inline static void _ast_dump_annot(ast_annot_t* a) {
-    printf("(");
-    srcref_print(a->name); 
-    printf(" (");
+inline static void _ast_dump_annot(cstr_t str, ast_annot_t* a) {
+    cstr_append_fmt(str, "(");
+    srcref_sprint(str, a->name); 
+    cstr_append_fmt(str, " (");
     for(size_t i = 0; i < a->childcount; i++) {
-        _ast_dump_annot(a->children[i]);
+        _ast_dump_annot(str, a->children[i]);
     }
-    printf("))");
+    cstr_append_fmt(str, "))");
 }
 
-inline static void _ast_dump(ast_node_t* node, int indent) {
-    printf("[");
-    printf("%s ", ast_node_type_as_string(node->type));
+inline static void _ast_dump(cstr_t str, ast_node_t* node, int indent) {
+    cstr_append_fmt(str, "[");
+    cstr_append_fmt(str, "%s ", ast_node_type_as_string(node->type));
     switch(node->type) {
         case AST_VAR_REF: {
-            srcref_print(node->u.n_varref.name);
+            srcref_sprint(str, node->u.n_varref.name);
         } break;
         case AST_VALUE: {
-            printf("%s ", ast_value_type_string(node->u.n_value.type));
-            ast_dump_value(node->u.n_value);
+            cstr_append_fmt(str, "%s ", ast_value_type_string(node->u.n_value.type));
+            ast_dump_value(str, node->u.n_value);
         } break;
         case AST_BINOP: {
-            printf("%s ", ast_binop_type_as_string(node->u.n_binop.type));
-            _ast_dump(node->u.n_binop.left, indent);
-            printf(" ");
-            _ast_dump(node->u.n_binop.right, indent);
+            cstr_append_fmt(str, "%s ", ast_binop_type_as_string(node->u.n_binop.type));
+            _ast_dump(str, node->u.n_binop.left, indent);
+            cstr_append_fmt(str, " ");
+            _ast_dump(str, node->u.n_binop.right, indent);
         } break;
         case AST_UNOP: {
-            printf("%s ", ast_unop_type_as_string(node->u.n_unop.type));
-            _ast_dump(node->u.n_unop.inner, indent);
+            cstr_append_fmt(str, "%s ", ast_unop_type_as_string(node->u.n_unop.type));
+            _ast_dump(str, node->u.n_unop.inner, indent);
         } break;
         case AST_ASSIGN: {
-            _ast_dump(node->u.n_assign.left_var, indent);
-            printf(" ");
-            _ast_dump(node->u.n_assign.right_value, indent);
+            _ast_dump(str, node->u.n_assign.left_var, indent);
+            cstr_append_fmt(str, " ");
+            _ast_dump(str, node->u.n_assign.right_value, indent);
         } break;
         case AST_ARRAY: {
             size_t count = node->u.n_array.count;
             if(count == 0)
                 break;
-            _ast_nl(indent + 1);
+            _ast_nl(str, indent + 1);
             for(size_t i = 0; i < count; i++) {
-                _ast_dump(node->u.n_array.content[i], indent + 1);
+                _ast_dump(str, node->u.n_array.content[i], indent + 1);
                 if( i < (count - 1) ) {
-                    _ast_nl(indent + 1);
+                    _ast_nl(str, indent + 1);
                 }
             }
         } break;
         case AST_RETURN: {
-            _ast_dump(node->u.n_return.result, indent);
+            _ast_dump(str, node->u.n_return.result, indent);
         } break;
         case AST_TYANNOT: {
-            _ast_dump(node->u.n_tyannot.expr, indent);
-            printf(": ");
-            _ast_dump_annot(node->u.n_tyannot.type);
+            _ast_dump(str, node->u.n_tyannot.expr, indent);
+            cstr_append_fmt(str, ": ");
+            _ast_dump_annot(str, node->u.n_tyannot.type);
         } break;
         case AST_BREAK: {
             /* nothing */
@@ -636,58 +637,60 @@ inline static void _ast_dump(ast_node_t* node, int indent) {
         case AST_BLOCK: {
             size_t count = node->u.n_block.count;
             if( count > 0 )
-                _ast_nl(indent + 1);
+                _ast_nl(str, indent + 1);
             for(size_t i = 0; i < count; i++) {
-                _ast_dump(node->u.n_block.content[i], indent+1);
+                _ast_dump(str, node->u.n_block.content[i], indent+1);
                 if( i < (count - 1) ) {
-                    _ast_nl(indent + 1);
+                    _ast_nl(str, indent + 1);
                 }
             }
         } break;
         case AST_ARGLIST: {
             size_t count = node->u.n_args.count;
             if( count > 0 )
-                _ast_nl(indent + 1);
+                _ast_nl(str, indent + 1);
             for(size_t i = 0; i < count; i++) {
-                _ast_dump(node->u.n_args.content[i], indent+1);
+                _ast_dump(str, node->u.n_args.content[i], indent+1);
                 if( i < (count - 1) ) {
-                    _ast_nl(indent + 1);
+                    _ast_nl(str, indent + 1);
                 }
             }
         } break;
         case AST_IF_CHAIN: {
-            _ast_dump(node->u.n_if.cond, indent);
-            printf(" ");
-            _ast_dump(node->u.n_if.iftrue, indent);
+            _ast_dump(str, node->u.n_if.cond, indent);
+            cstr_append_fmt(str, " ");
+            _ast_dump(str, node->u.n_if.iftrue, indent);
         } break;
         case AST_FOREACH: {
-            _ast_dump(node->u.n_foreach.vardecl, indent);
-            printf(" ");
-            _ast_dump(node->u.n_foreach.collection, indent);
-            _ast_nl(indent + 1);
-            _ast_dump(node->u.n_foreach.during, indent);
+            _ast_dump(str, node->u.n_foreach.vardecl, indent);
+            cstr_append_fmt(str, " ");
+            _ast_dump(str, node->u.n_foreach.collection, indent);
+            _ast_nl(str, indent + 1);
+            _ast_dump(str, node->u.n_foreach.during, indent);
         } break;
         case AST_FUN_DECL: {
-            srcref_print(node->u.n_fundecl.name);
-            _ast_dump(node->u.n_fundecl.argspec, indent + 1);
-            printf(" body: "); _ast_dump(node->u.n_fundecl.body, indent + 2); _ast_nl(indent);
+            srcref_sprint(str, node->u.n_fundecl.name);
+            _ast_dump(str, node->u.n_fundecl.argspec, indent + 1);
+            cstr_append_fmt(str, " body: "); _ast_dump(str, node->u.n_fundecl.body, indent + 2); _ast_nl(str, indent);
         } break;
         case AST_FUN_EXDECL: {
-            srcref_print(node->u.n_funexdecl.name);
-            _ast_dump(node->u.n_funexdecl.argspec, indent + 1);
+            srcref_sprint(str, node->u.n_funexdecl.name);
+            _ast_dump(str, node->u.n_funexdecl.argspec, indent + 1);
         } break;
         case AST_FUN_CALL: {
-            srcref_print(node->u.n_funcall.name);
-            printf(" ");
-            _ast_dump(node->u.n_funcall.args, indent);
+            srcref_sprint(str, node->u.n_funcall.name);
+            cstr_append_fmt(str, " ");
+            _ast_dump(str, node->u.n_funcall.args, indent);
         } break;
     }
-    printf("]");
+    cstr_append_fmt(str, "]");
 }
 
 inline static void ast_dump(ast_node_t* node) {
-    _ast_dump(node, 0);
-    printf("\n");
+    define_cstr(str, 1024 * 4);
+    _ast_dump(str, node, 0);
+    cstr_append_fmt(str, "\n");
+    sh_log_info(str.ptr);
 }
 
 #endif // GVM_AST_H_

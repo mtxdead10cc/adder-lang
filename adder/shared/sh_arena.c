@@ -1,4 +1,5 @@
 #include "sh_arena.h"
+#include "sh_log.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,10 +38,10 @@ void arena_dump(arena_t* arena) {
     arena_t* current = arena;
     int indent = 1;
     while( current != NULL ) {
-        printf("%*sarena\n", indent, " ");
-        printf("%*s size:     %li\n", indent, " ", current->size);
-        printf("%*s capacity: %li\n", indent, " ", current->capacity);
-        printf("%*s next:     %p\n", indent, " ", (void*) current->next);
+        sh_log("%*sarena\n", indent, " ");
+        sh_log("%*s size:     %li\n", indent, " ", current->size);
+        sh_log("%*s capacity: %li\n", indent, " ", current->capacity);
+        sh_log("%*s next:     %p\n", indent, " ", (void*) current->next);
         current = current->next;
         indent ++;
     }

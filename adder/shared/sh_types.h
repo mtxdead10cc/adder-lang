@@ -98,6 +98,11 @@ typedef struct sstr_t {
     char str[VM_DEFAULT_STRLEN];
 } sstr_t;
 
+typedef struct cstr_t {
+    char* ptr;
+    int maxlen;
+} cstr_t;
+
 #define IFTYPE_MAX_TAGS 32
 
 typedef enum ift_tag_t {

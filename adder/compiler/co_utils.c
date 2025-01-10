@@ -1,7 +1,9 @@
 #include "co_utils.h"
-#include "sh_utils.h"
-#include "sh_config.h"
-#include "sh_value.h"
+#include <sh_utils.h>
+#include <sh_config.h>
+#include <sh_value.h>
+#include <sh_log.h>
+
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -199,7 +201,7 @@ size_t string_count_until(char* text, char stopchar) {
 size_t valbuffer_sequence_from_qouted_string(char* text, val_t* result, size_t result_capacity) {
 
     if( text[0] != '"' ) {
-        printf("error: expected \" at start of string.\n");
+        sh_log_error("error: expected \" at start of string.\n");
     }
 
     text = text + 1;
@@ -229,7 +231,7 @@ size_t valbuffer_sequence_from_qouted_string(char* text, val_t* result, size_t r
                     tmp_buffer[w_count++] = '\\';
                     continue; // continue next while-iteration
                 default:
-                    printf("unhandled escaped character '\\%c'", next);
+                    sh_log_error("unhandled escaped character '\\%c'", next);
                     break;
             }
         }
@@ -295,15 +297,16 @@ char* srcref_ptr(srcref_t ref) {
     return ref.source + ref.idx_start;
 }
 
-void srcref_print(srcref_t ref) {
+
+void srcref_sprint(cstr_t str, srcref_t ref) {
     if( srcref_is_valid(ref) ) { 
         size_t len = srcref_len(ref);
         char buf[len + 1];
         strncpy(buf, srcref_ptr(ref), len);
         buf[len] = '\0';
-        printf("%s", buf);
+        cstr_append_fmt(str, "%s", buf);
     } else {
-        printf("<invalid-srcref>");
+        cstr_append_fmt(str, "<invalid-srcref>");
     }
 }
 
@@ -372,13 +375,6 @@ int srcref_snprint(char* str, size_t slen, srcref_t ref) {
         return snprintf(str, slen, "%.*s", (int) srcref_len(ref), srcref_ptr(ref));
     else
         return snprintf(str, slen, "<invalid-srcref>");
-}
-
-int srcref_fprint(FILE* stream, srcref_t ref) {
-    if( srcref_is_valid(ref) )
-        return fprintf(stream, "%.*s", (int) srcref_len(ref), srcref_ptr(ref));
-    else
-        return fprintf(stream, "<invalid-srcref>");
 }
 
 sstr_t srcref_as_sstr(srcref_t ref) {

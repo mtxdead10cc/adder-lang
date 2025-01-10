@@ -3,6 +3,7 @@
 
 #include "sh_arena.h"
 #include "co_types.h"
+#include <sh_types.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -93,7 +94,7 @@ bool bty_ctx_insert(bty_ctx_t* ctx, srcref_t name, bty_type_t* type);
 bty_type_t* bty_ctx_lookup(bty_ctx_t* ctx, srcref_t name);
 bty_ctx_t* bty_ctx_clone(bty_ctx_t* src);
 
-void bty_ctx_dump(bty_ctx_t* ctx);
+void bty_ctx_dump(cstr_t str, bty_ctx_t* ctx);
 bty_type_t* bty_synthesize(bty_ctx_t* c, ast_node_t* n);
 bool bty_typecheck(bty_ctx_t* ctx, ast_node_t* program);
 

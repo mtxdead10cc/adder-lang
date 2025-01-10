@@ -22,21 +22,22 @@
 
 #if VM_TRACE_LOG_LEVEL > 0
 
-# define TRACE_LOG(...) printf(__VA_ARGS__)
+# define TRACE_LOG(...) sh_log_info(__VA_ARGS__)
 # define TRACE_OP(C) TRACE_LOG("> %s ", get_op_name(C))
 # define TRACE_INT_ARG(A) TRACE_LOG("%i ", (A))
-# define TRACE_NL() printf("\n");
+# define TRACE_NL() sh_log_info("\n");
 
 # if VM_TRACE_LOG_LEVEL > 1
-void print_stack(val_t* stack, int stack_size) {
-    printf(" stack (s:%i) | ", stack_size);
+void sprint_stack(val_t* stack, int stack_size) {
+    sh_log_info(" stack (s:%i) | ", stack_size);
+    define_cstr(str, 32);
     for(int i = 0; i < stack_size; i++) {
-        val_print(stack[i]);
-        printf(" ");
+        val_sprint(str, stack[i]);
+        cstr_append_fmt(str, " ");
     }
-    printf("\n");
+    sh_log_info("%s\n");
 }
-#  define TRACE_PRINT_STACK(S, TOP) print_stack((S), (TOP) + 1)
+#  define TRACE_PRINT_STACK(S, TOP) sprint_stack((S), (TOP) + 1)
 # else
 #  define TRACE_PRINT_STACK(S, TOP)
 # endif
@@ -59,8 +60,8 @@ val_t* gvm_addr_lookup(void* user, val_addr_t addr) {
     }
 }
 
-void vm_sprint_val(char* strbuf, int maxlen, vm_t* vm, val_t val) {
-    val_sprint_lookup(strbuf, maxlen, val, &gvm_addr_lookup, vm);
+void vm_sprint_val(cstr_t str, vm_t* vm, val_t val) {
+    val_sprint_lookup(str, val, &gvm_addr_lookup, vm);
 }
 
 int vm_get_string(vm_t* vm, val_t val, char* dest, int dest_len) {
@@ -70,7 +71,7 @@ int vm_get_string(vm_t* vm, val_t val, char* dest, int dest_len) {
 bool vm_create(vm_t* vm, int memory_size) {
 
     if( memory_size > MEM_MAX_ADDRESSABLE ) {
-        printf(  "warning: the requested VM memory size %i is too large.\n"
+        sh_log_warning("warning: the requested VM memory size %i is too large.\n"
                 "\tmaximum addressable memory is %i.\n",
                 memory_size,
                 MEM_MAX_ADDRESSABLE);
@@ -83,14 +84,14 @@ bool vm_create(vm_t* vm, int memory_size) {
     int memsize = memory_size * sizeof(val_t);
     val_t* mem = (val_t*) malloc( memsize );
     if( mem == NULL ) {
-        printf("error: could'nt allocate VM memory.\n");
+        sh_log_error("could'nt allocate VM memory.\n");
         return false;
     }
 
     // size: one bit per val_t
     uint64_t* gc_marks = (uint64_t*) malloc(CALC_GC_MARK_U64_COUNT(dyn_size) * sizeof(uint64_t));
     if( gc_marks == NULL ) {
-        printf("error: could'nt allocate GC mark region.\n");
+        sh_log_error("could'nt allocate GC mark region.\n");
         free(mem);
         return false;
     }
@@ -484,7 +485,7 @@ val_t vm_execute(vm_t* vm, vm_env_t* env, entry_point_t* ep, program_t* program)
                 // allocate array
                 array_t array = heap_array_alloc(vm, count);
                 if( ADDR_IS_NULL(array.address) ) {
-                    printf("\nheap alloc failed\n");
+                    sh_log_error("\nheap alloc failed\n");
                     return val_number(-1005);
                 }
                 // copy all data to the array
@@ -536,7 +537,7 @@ val_t vm_execute(vm_t* vm, vm_env_t* env, entry_point_t* ep, program_t* program)
             } break;
             default: {
                 char* op_str = get_op_name(opcode);
-                printf("\nunhandled operatioin %i (%s)\n", opcode, op_str);
+                sh_log_error("\nunhandled operatioin %i (%s)\n", opcode, op_str);
                 return val_number(-1003);
             } break;
         }

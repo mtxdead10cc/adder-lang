@@ -7,8 +7,8 @@
 #include <stdbool.h>
 #include <assert.h>
 
-void val_sprint(char* strbuf, int strmaxlen, val_t val);
-void val_sprint_lookup(char* strbuf, int strmaxlen, val_t val, addr_lookup_fn lookup, void* user);
+void val_sprint(cstr_t str, val_t val);
+void val_sprint_lookup(cstr_t str, val_t val, addr_lookup_fn lookup, void* user);
 int  val_get_string(val_t val, addr_lookup_fn lookup, void* user, char* dest, int dest_len);
 char* val_get_type_name(val_type_t type);
 

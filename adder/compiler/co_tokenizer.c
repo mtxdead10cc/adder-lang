@@ -2,6 +2,7 @@
 #include "co_srcmap.h"
 #include "co_trace.h"
 #include <stdio.h>
+#include <sh_utils.h>
 
 bool tokens_init(token_collection_t* collection, size_t capacity) {
     collection->count = 0;
@@ -32,11 +33,11 @@ bool tokens_append(token_collection_t* collection, token_t token) {
     return true;
 }
 
-void tokens_print(token_collection_t* collection) {
+void tokens_sprint(cstr_t str, token_collection_t* collection) {
     for(size_t i = 0; i < collection->count; i++) {
-        printf("(%s '", token_get_type_name(collection->tokens[i].type));
-        srcref_print(collection->tokens[i].ref);
-        printf("')\n");
+        cstr_append_fmt(str, "(%s '", token_get_type_name(collection->tokens[i].type));
+        srcref_sprint(str, collection->tokens[i].ref);
+        cstr_append_fmt(str, "')\n");
     }
 }
 

@@ -27,28 +27,31 @@
 
 
 void xu_ffi_print(ffi_hndl_meta_t md, int argcount, val_t* args) {
-    char buf[512] = {0};
+    define_cstr(str, 512);
+
     for(int i = 0; i < argcount; i++) {
         if( i > 0 )
-            cstr_append_fmt(buf, 512, " ");
-        vm_sprint_val(buf, 512, md.vm, args[i]);
+            cstr_append_fmt(str, " ");
+        vm_sprint_val(str, md.vm, args[i]);
     }
-    sh_log_info("> %s", buf);
+    sh_log_info("> %s", str.ptr);
 }
 
 
 val_t xu_ffi_to_string(ffi_hndl_meta_t md, int argcount, val_t* args) {
-    char buf[512] = {0};
+    define_cstr(str, 512);
+
     for(int i = 0; i < argcount; i++) {
         if( i > 0 )
-            cstr_append_fmt(buf, 512, " ");
-        vm_sprint_val(buf, 512, md.vm, args[i]);
+            cstr_append_fmt(str, " ");
+        vm_sprint_val(str, md.vm, args[i]);
     }
-    int len = strlen(buf);
+
+    int len = strlen(str.ptr);
     array_t arr = heap_array_alloc(md.vm, len);
     val_t* ptr = array_get_ptr(md.vm, arr, 0);
     for(int i = 0; i < len; i++) {
-        ptr[i] = val_char(buf[i]);
+        ptr[i] = val_char(str.ptr[i]);
     }
     return val_array(arr);
 }
@@ -151,11 +154,11 @@ bool xu_quick_run(char* filepath, xu_quickopts_t opts) {
             vm_create(&vm, 256);
 
             if( vm_env_is_ready(&env) ) {
-                char buf[2048] = {0};
+                define_cstr(str, 2048);
                 // execute script
                 val_t result = vm_execute(&vm, &env, &ep, &program);
-                vm_sprint_val(buf, 2048, &vm, result);
-                sh_log_info(" => %s", buf);
+                vm_sprint_val(str, &vm, result);
+                sh_log_info(" => %s", str.ptr);
             }
 
             vm_env_destroy(&env);

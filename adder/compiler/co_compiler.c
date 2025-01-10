@@ -4,6 +4,7 @@
 #include "co_srcmap.h"
 #include "co_trace.h"
 #include "co_bty.h"
+#include <sh_log.h>
 #include <assert.h>
 
 typedef struct ir_inst_t {
@@ -62,7 +63,7 @@ bool irl_reserve(ir_list_t* list, uint32_t additional) {
 
 ir_index_t irl_add(ir_list_t* list, ir_inst_t instr) {
     if( irl_reserve(list, 1) == false ) {
-        printf("error: out of memory, can't realloc.");
+        sh_log_error("out of memory, can't realloc.");
         return (ir_index_t) {0};
     }
     list->irs[list->count++] = instr;
@@ -82,14 +83,14 @@ ir_inst_t* irl_get_last(ir_list_t* list) {
     return list->irs + (list->count - 1);
 }
 
-void irl_dump(ir_list_t* list) {
+void irl_dump(cstr_t str, ir_list_t* list) {
     for(uint32_t i = 0; i < list->count; i++) {
         int argcount = get_op_arg_count(list->irs[i].opcode);
-        printf("%03d #  ('%s'", i, get_op_name(list->irs[i].opcode));
+        cstr_append_fmt(str, "%03d #  ('%s'", i, get_op_name(list->irs[i].opcode));
         for (int j = 0; j < argcount; j++) {
-            printf(" %d", list->irs[i].args[j]);
+            cstr_append_fmt(str, " %d", list->irs[i].args[j]);
         }
-        printf(")\n");
+        cstr_append_fmt(str, ")\n");
     }
 }
 
@@ -344,7 +345,7 @@ ift_t bty_to_ffi_type(bty_type_t* t) {
             return ot;
         }
         default: {
-            printf("error: bty_to_ffi_type unhandled bty_type %d\n", t->tag);
+            sh_log_error("bty_to_ffi_type unhandled bty_type %d\n", t->tag);
             return ift_unknown();
         }
     }

@@ -100,7 +100,7 @@ $VERIFY("true")
 $START("native-import")
 import void print(string arg);
 void main() {
-    print("hello\n");
+    print("hello");
     return;
 }
 $VERIFY("<none>")
@@ -129,7 +129,7 @@ $VERIFY("0")
 $START("implicit return")
 import void print(string arg);
 void test() {
-    print("T\n");
+    print("T");
 }
 int main() {
     test();

@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <sh_utils.h>
 
 void srcmap_destroy(srcmap_t* map) {
     if( map == NULL ) {
@@ -118,16 +119,16 @@ void srcmap_clear(srcmap_t* map) {
     map->count = 0;
 }
 
-void srcmap_print(srcmap_t* map) {
-    printf("[srcmap_t (size=%d)]\n", (uint32_t) map->count);
+void srcmap_print(cstr_t str, srcmap_t* map) {
+    cstr_append_fmt(str, "[srcmap_t (size=%d)]\n", (uint32_t) map->count);
     for(size_t i = 0; i < map->capacity; i++) {
-        printf("%i > ", (uint32_t) i);
+        cstr_append_fmt(str, "%i > ", (uint32_t) i);
         if( map->keys[i].source == NULL ) {
-            printf("<empty>");
+            cstr_append_fmt(str, "<empty>");
         } else {
-            srcref_print(map->keys[i]);
+            srcref_sprint(str, map->keys[i]);
         }
-        printf("\n");
+        cstr_append_fmt(str, "\n");
     }
 }
 

@@ -85,7 +85,7 @@ inline static bool token_is_binary_operation(token_type_t type) {
 bool tokens_init(token_collection_t* collection, size_t capacity);
 void tokens_clear(token_collection_t* collection);
 bool tokens_append(token_collection_t* collection, token_t token);
-void tokens_print(token_collection_t* collection);
+void tokens_sprint(cstr_t str, token_collection_t* collection);
 void tokens_destroy(token_collection_t* collection);
 
 typedef struct tokenizer_args_t {

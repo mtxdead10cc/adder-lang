@@ -23,8 +23,6 @@ bool   sstr_equal_str(sstr_t* sstr, char* str);
 bool   sstr_equal(sstr_t* a, sstr_t* b);
 int    sstr_len(sstr_t* sstr);
 char*  sstr_ptr(sstr_t* sstr);
-void   sstr_print(sstr_t sstr);
-void   sstr_fprint(FILE* file, sstr_t* sstr);
 void   sstr_copy(sstr_t* dest, sstr_t* src);
 void   sstr_replace(sstr_t* sstr, char* text);
 void   sstr_clear(sstr_t* sstr);
@@ -34,6 +32,11 @@ int sstr_append_str(sstr_t* on, char* addition);
 int sstr_append_nstr(sstr_t* on, char* addition, int len);
 int sstr_append_fmt(sstr_t* on, const char* fmt, ...);
 
-int cstr_append_fmt(char* on, int maxlen, const char* fmt, ...);
+#define define_cstr(name, size)  \
+    char   name##buf[size] = {0};\
+    cstr_t name = (cstr_t){.ptr=name##buf, .maxlen=size};
+
+int cstr_append_fmt(cstr_t str, const char* fmt, ...);
+
 
 #endif // VM_UTILS_H_

@@ -43,14 +43,6 @@ char* sstr_ptr(sstr_t* sstr) {
     return sstr->str;
 }
 
-void sstr_print(sstr_t sstr) {
-    printf("%.*s\n", (int)sstr_len(&sstr), sstr.str);
-}
-
-void sstr_fprint(FILE* file, sstr_t* sstr) {
-    fprintf(file, "%.*s", (int)sstr_len(sstr), sstr->str);
-}
-
 void sstr_copy(sstr_t* dest, sstr_t* src) {
     memcpy(dest->str, src->str, SSTR_MAX_LEN);
 }
@@ -114,11 +106,11 @@ int sstr_append_fmt(sstr_t* on, const char* fmt, ...) {
     return remaining;
 }
 
-int cstr_append_fmt(char* on, int maxlen, const char* fmt, ...) {
-    int len = strnlen(on, maxlen);
+int cstr_append_fmt(cstr_t str, const char* fmt, ...) {
+    int len = strnlen(str.ptr, str.maxlen);
     va_list args;
     va_start(args, fmt);
-    int w = vsnprintf(on + len, maxlen-len, fmt, args);
+    int w = vsnprintf(str.ptr + len, str.maxlen-len, fmt, args);
     va_end(args);
     return w;
 }

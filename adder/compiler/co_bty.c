@@ -5,6 +5,8 @@
 #include "co_utils.h"
 #include "co_trace.h"
 #include "co_ast.h"
+#include <sh_log.h>
+#include <sh_utils.h>
 
 static bty_type_t bty_base_types[] = {
     { BTY_VOID,         {{0}} },
@@ -337,7 +339,7 @@ bool bty_is_subtype(bty_type_t* child, bty_type_t* parent) {
         case BTY_FUNC:      return bty_is_func_subtype(child, parent);
         case BTY_ERROR:     return bty_handle_error_subtype(child, parent);
         default: {
-            printf("bty_is_subtype: unknown type\n");
+            sh_log_error("bty_is_subtype: unknown type\n");
             return false;
         }
     }
@@ -460,11 +462,11 @@ bty_type_t* bty_ctx_lookup(bty_ctx_t* ctx, srcref_t name) {
     return NULL;
 }
 
-void bty_ctx_dump(bty_ctx_t* ctx) {
-    printf("ctx_dump (size=%d, capacity=%d)\n",
+void bty_ctx_dump(cstr_t str, bty_ctx_t* ctx) {
+    cstr_append_fmt(str, "ctx_dump (size=%d, capacity=%d)\n",
         ctx->size, ctx->capacity);
     for(int i = 0; i < ctx->size; i++) {
-        printf("  \"%s\": %s\n",
+        cstr_append_fmt(str, "  \"%s\": %s\n",
             ctx->kvps[i].name,
             sprint_bty_type(ctx->arena,
                 ctx->kvps[i].type));
@@ -870,7 +872,7 @@ bty_type_t* bty_synth_body(bty_ctx_t* c, ast_node_t* n) {
         bool always_returns = bty_synth_aggregate(&agg, c, blk.content[i], false);
         if( always_returns ) {
             if( i < (count - 1) ) {
-                printf("todo: error - unreachable code (following return statement).\n");
+                sh_log_error("todo: error - unreachable code (following return statement).\n");
             }
             return bty_always(c->arena, agg.type);
         }

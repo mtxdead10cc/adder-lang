@@ -347,9 +347,9 @@ program_t program_compile(source_code_t* code, bool print_ast) {
         code->file_path);
 
     if( par_is_error(result) ) {
-        char buf[2048] = {0};
-        trace_sprint(buf, 2048, &trace);
-        sh_log_error("PARSER\n%s", buf);
+        define_cstr(str, 2048);
+        trace_sprint(str, &trace);
+        sh_log_error("PARSER\n%s", str);
         trace_destroy(&trace);
         pa_destroy(&parser);
         return (program_t) { 0 };
@@ -358,18 +358,18 @@ program_t program_compile(source_code_t* code, bool print_ast) {
     result = pa_parse_program(&parser);
 
     if( par_is_error(result) ) {
-        char buf[2048] = {0};
-        trace_sprint(buf, 2048, &trace);
-        sh_log_error("PARSER\n%s", buf);
+        define_cstr(str, 2048);
+        trace_sprint(str, &trace);
+        sh_log_error("PARSER\n%s", str);
         trace_destroy(&trace);
         pa_destroy(&parser);
         return (program_t) { 0 };
     }
 
     if( par_is_nothing(result) ) {
-        char buf[2048] = {0};
-        trace_sprint(buf, 2048, &trace);
-        sh_log_error("PARSER\n%s", buf);
+        define_cstr(str, 2048);
+        trace_sprint(str, &trace);
+        sh_log_error("PARSER\n%s", str);
         sh_log_error("the parser did not produce anything.");
         pa_destroy(&parser);
         trace_destroy(&trace);
@@ -388,9 +388,9 @@ program_t program_compile(source_code_t* code, bool print_ast) {
     program_t program = gvm_compile(arena, program_node, &trace);
     
     if( trace_get_message_count(&trace) > 0 ) {
-        char buf[2048] = {0};
-        trace_sprint(buf, 2048, &trace);
-        sh_log_error("COMPILER\n%s", buf);
+        define_cstr(str, 2048);
+        trace_sprint(str, &trace);
+        sh_log_error("COMPILER\n%s", str);
     }
 
     pa_destroy(&parser);

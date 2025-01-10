@@ -156,7 +156,7 @@ ltc_t langtest_testcases[] = {
         .code = 
         "import void print(string arg);\n"
         "void main() {\n"
-        "    print(\"hello\n\");\n"
+        "    print(\"hello\");\n"
         "    return;\n"
         "}\n",
         .expect = "<none>",
@@ -197,7 +197,7 @@ ltc_t langtest_testcases[] = {
         .code = 
         "import void print(string arg);\n"
         "void test() {\n"
-        "    print(\"T\n\");\n"
+        "    print(\"T\");\n"
         "}\n"
         "int main() {\n"
         "    test();\n"

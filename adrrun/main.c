@@ -42,22 +42,19 @@ typedef struct todo_item_t {
 } todo_item_t;
 
 void print_todo_list(todo_item_t* items, size_t count) {
-    printf("TODO LIST\n");
-    printf("--------------------------------------\n");
+    sh_log_info("TODO LIST\n");
+    sh_log_info("--------------------------------------\n");
     for(size_t i = 0; i < count; i++) {
-        printf(" [%s] %s\n",
+        sh_log_info(" [%s] %s\n",
             items[i].is_done ? "X" : " ",
             items[i].descr);
     }
-    printf("--------------------------------------\n");
+    sh_log_info("--------------------------------------\n");
 }
 
 void todo_list(void) {
     todo_item_t items[] = {        
-        { false, "Foreach break." },
-        { false, "FFI check separation\n"
-                 "\t- the compiler should only set information about imports and exports to vm_program.\n"
-                 "\t- additional check-pass is needed before executing VM to verify that the env supports the program.\n"}
+        { false, "Foreach break." }
     };
     size_t count = sizeof(items) / sizeof(items[0]);
     print_todo_list(items, count);
@@ -103,14 +100,14 @@ int main(int argv, char** argc) {
     }
 
     if( run_tests || path == NULL ) {
-        printf("RUNNING TESTS\n");
+        sh_log_info("RUNNING TESTS\n");
         test_results_t result = run_testcases();
         int total = result.nfailed + result.npassed;
-        printf("[%i / %i TESTS PASSED]\n", result.npassed, total);
+        sh_log_info("[%i / %i TESTS PASSED]\n", result.npassed, total);
     }
 
     if( print_help ) {
-        printf( "usage: test-app <filename>"
+        sh_log_info( "usage: test-app <filename>"
         "\n\toptions:"
         "\n\t\t -v : verbose output"
         "\n\t\t -h : show this help message"

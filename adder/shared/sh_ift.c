@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "sh_utils.h"
+#include "sh_log.h"
 
 ift_t ift_void(void) {
     ift_t type = { 0 };
@@ -49,7 +50,7 @@ ift_t ift_unknown(void) {
 ift_t ift_combine(ift_t first, ift_t last) {
     int total = (int) first.count + (int) last.count;
     if( total > IFTYPE_MAX_TAGS ) {
-        printf( "IFT ERROR: IFTYPE_MAX_TAGS reached "
+        sh_log_info( "IFT ERROR: IFTYPE_MAX_TAGS reached "
                 "when combining types.");
         total = IFTYPE_MAX_TAGS;
     }
@@ -93,7 +94,7 @@ ift_t ift_append_tag(ift_t type, ift_tag_t tag) {
     if( type.count < (IFTYPE_MAX_TAGS - 1) ) {
         type.tags[type.count++] = tag;
     } else {
-        printf( "IFT ERROR: IFTYPE_MAX_TAGS reached "
+        sh_log_info( "IFT ERROR: IFTYPE_MAX_TAGS reached "
                 "when combining types.");
     }
     return type;
@@ -103,7 +104,7 @@ ift_t ift_pop_last_tag(ift_t type) {
     if( type.count > 0 ) {
         type.count --;
     } else {
-        printf("IFT ERROR: tried to remove from empty tag list.");
+        sh_log_info("IFT ERROR: tried to remove from empty tag list.");
     }
     return type;
 }

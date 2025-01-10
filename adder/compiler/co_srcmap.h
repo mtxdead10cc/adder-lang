@@ -27,7 +27,7 @@ bool srcmap_init(srcmap_t* map, size_t initial_capacity);
 void srcmap_destroy(srcmap_t* map);
 bool srcmap_insert(srcmap_t* map, srcref_t key, srcmap_value_t val);
 void srcmap_clear(srcmap_t* map);
-void srcmap_print(srcmap_t* map);
+void srcmap_print(cstr_t str, srcmap_t* map);
 srcmap_value_t* srcmap_lookup(srcmap_t* map, srcref_t key);
 
 #endif // GVM_SRCMAP_H_

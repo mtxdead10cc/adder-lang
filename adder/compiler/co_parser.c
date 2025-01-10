@@ -4,6 +4,7 @@
 #include "co_ast.h"
 #include "sh_types.h"
 #include "sh_utils.h"
+#include <sh_log.h>
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -67,20 +68,8 @@ bool pa_advance(parser_t* parser) {
     if( pa_is_at_end(parser) == false ) {
 
         parser->cursor ++;
-
-#if PA_DEBUG > 1
-        printf(">> advancing to %s ", token_get_type_name(pa_current_token(parser).type));
-        srcref_print(pa_current_token(parser).ref);
-        printf("\n");
-#endif
-
         return true;
     }
-
-#if PA_DEBUG > 1
-    printf(">> parser is at end\n");
-#endif
-
     return false;
 }
 

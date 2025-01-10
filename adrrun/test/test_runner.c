@@ -35,10 +35,8 @@ typedef struct test_case_t {
 
 #define TEST_ASSERT_MSG(TC, COND, ...) do {     \
     if(!(COND)) {                               \
-        printf("  \u2193 test assert | ");      \
-        printf(__VA_ARGS__);                    \
+        sh_log_error("  \u2193 test assert | " __VA_ARGS__); \
         (TC)->nfailed++;                        \
-        printf("\n");                           \
     }                                           \
 } while(false)
 
@@ -479,9 +477,9 @@ void test_ast(test_case_t* this) {
 
     program_t program = gvm_compile(arena, ast_block_with(arena, fun), &trace);
     if( trace_get_error_count(&trace) > 0 ) {
-        char buf[2048] = {0};
-        trace_sprint(buf, 2048, &trace);
-        sh_log_error("COMPILER\n%s", buf);
+        define_cstr(str, 2048);
+        trace_sprint(str, &trace);
+        sh_log_error("COMPILER\n%s", str.ptr);
     }
 
     arena_destroy(arena);
@@ -692,10 +690,10 @@ void test_tokenizer(test_case_t* this) {
 
         tokens_destroy(&coll);
 
-        char buf[2048] = {0};
-        trace_sprint(buf, 2048, &trace);
-        if( strlen(buf) > 0 )
-            sh_log_error("%s", buf);
+        define_cstr(str, 2048);
+        trace_sprint(str, &trace);
+        if( strlen(str.ptr) > 0 )
+            sh_log_error("%s", str.ptr);
     }
 
     trace_destroy(&trace);
@@ -703,23 +701,21 @@ void test_tokenizer(test_case_t* this) {
 
 void test_printfn(ffi_hndl_meta_t md, int argcount, val_t* args) {
     (void)(argcount);
-    char buf[512] = {0};
-    vm_sprint_val(buf, 512, md.vm, args[0]);
-    printf("> %s", buf);
+    define_cstr(str, 512);
+    vm_sprint_val(str, md.vm, args[0]);
+    sh_log("> %s", str.ptr);
 }
 
 #define TEST_MSG(COND, ...) do {   \
-    if((COND) == false ) {                              \
-        printf("  \u2193 test todo assert | ");         \
-        printf(__VA_ARGS__);                            \
-        printf("\n");                                   \
-    }                                                   \
+    if((COND) == false ) {                                       \
+        sh_log_info("  \u2193 test todo assert | " __VA_ARGS__); \
+    }                                                            \
 } while(false)
 
 bool test_setup_default_env(ffi_t* ffi) {
     bool res = ffi_init(ffi);
     if( res == false ) {
-        printf("error: failed to init FFI.\n");
+        sh_log_error("failed to init FFI.\n");
         return false;;
     }
     res = ffi_native_exports_define(&ffi->supplied,
@@ -732,7 +728,7 @@ bool test_setup_default_env(ffi_t* ffi) {
         ift_func_1(ift_void(),
             ift_list(ift_char())));
     if( res == false ) {
-        printf("error: failed to register FFI function: print\n");
+        sh_log_error("failed to register FFI function: print\n");
         return false;
     }
     return true;
@@ -783,10 +779,12 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
 
     if( parsing_ok == false ) {
         if( is_known_todo == false ) {
-            char buf[2048] = {0};
-            trace_sprint(buf, 2048, &trace);
-            sh_log_error("PARSER\n%s", buf);
-            tokens_print(&parser.collection);
+            define_cstr(str, 2048);
+            cstr_append_fmt(str, "[trace]\n");
+            trace_sprint(str, &trace);
+            cstr_append_fmt(str, "[tokens]\n");
+            tokens_sprint(str, &parser.collection);
+            sh_log_error("PARSER\n%s", str.ptr);
         }
         arena_destroy(arena);
         pa_destroy(&parser);
@@ -798,9 +796,9 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
 
     program_t program = gvm_compile(arena, node, &trace);
     if( trace_get_error_count(&trace) > 0 && is_known_todo == false ) {
-        char buf[2048] = {0};
-        trace_sprint(buf, 2048, &trace);
-        sh_log_error("COMPILER\n%s", buf);
+        define_cstr(str, 2048);
+        trace_sprint(str, &trace);
+        sh_log_error("COMPILER\n%s", str.ptr);
         ast_dump(node);
     }
 
@@ -1012,7 +1010,7 @@ void test_arena_alloc(test_case_t* this) {
 
     aalloc(a, 100);
 
-    arena_dump(a);
+    // arena_dump(a);
 
     arena_destroy(a);
 }
@@ -1100,7 +1098,7 @@ void test_inference(test_case_t* this) {
     bty_ctx_t* ctx = bty_ctx_create(a, &trace, 16);
     bty_synthesize(ctx, n);
 
-    //printf("Type: %s\n", sprint_bty_type(a, t));
+    //sh_log_info("Type: %s\n", sprint_bty_type(a, t));
 
     TEST_ASSERT_MSG(this,
         trace_get_error_count(&trace) == 0,
@@ -1122,16 +1120,16 @@ void test_inference(test_case_t* this) {
 
     bty_synthesize(ctx, n);
 
-    //printf("Type: %s\n", sprint_bty_type(a, t));
+    //sh_log_info("Type: %s\n", sprint_bty_type(a, t));
 
     TEST_ASSERT_MSG(this,
         trace_get_error_count(&trace) == 0,
         "#1.1 synth error");
 
     if( trace_get_error_count(&trace) > 0 ) {
-        char buf[2048] = {0};
-        trace_sprint(buf, 2048, &trace);
-        sh_log_error("TYPECHECKING\n%s", buf);
+        define_cstr(str, 2048);
+        trace_sprint(str, &trace);
+        sh_log_error("TYPECHECKING\n%s", str.ptr);
     }
 
     trace_destroy(&trace);
@@ -1370,17 +1368,12 @@ test_results_t run_testcases(void) {
     for(int i = 0; i < test_case_count; i++) {
         test_cases[i].test(&test_cases[i]);
         if( test_cases[i].nfailed != 0 ) {
-            printf("[");
-            termhax_print_color("FAILED", COL_FG_RED);
-            printf("]");
+            sh_log("\033[%dm%s\033[0m test case '%s'\n", 31, "FAILED", test_cases[i].name);
             result.nfailed ++;
         } else {
-            printf("[");
-            termhax_print_color("PASSED", COL_FG_GREEN);
-            printf("]");
+            sh_log("\033[%dm%s\033[0m test case '%s'\n", 32, "PASSED", test_cases[i].name);
             result.npassed ++;
         }
-        printf(" test case '%s'\n", test_cases[i].name);
     }
 
     return result;

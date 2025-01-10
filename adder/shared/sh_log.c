@@ -12,6 +12,7 @@ static sh_log_data_t logobj = { .print = NULL };
 
 const char* sh_log_preabmle(sh_log_tag_t tag) {
     switch(tag) {
+        case SH_LOG_DEFAULT: return "";
         case SH_LOG_ERROR: return "\033[31mERROR\033[0m: "; // RED
         case SH_LOG_WARNING: return "\033[33mWARNING\033[0m: "; // YELLOW
         case SH_LOG_INFO: return "\033[32mINFO\033[0m: "; // GREEN
@@ -32,11 +33,18 @@ void print_wrapper(sh_log_tag_t tag, char* fmt, va_list args) {
     char buf[len + 2];
     strncpy(buf, pre, pre_len);
     strncpy(buf + pre_len, fmt, fmt_len);
+
+    int last = len - 1;
+    if( len == 0 )
+        return;
     
-    int append = len-1;
-    if( buf[append] != '\n' )
-        buf[++append] = '\n';
-    buf[++append] = '\0';
+    while (last > 0) {
+        if( buf[last] != '\n' )
+            break;
+        last --;
+    }
+    buf[++last] = '\n';
+    buf[++last] = '\0';
 
     if( logobj.print != NULL )
         logobj.print(tag, buf, args);
