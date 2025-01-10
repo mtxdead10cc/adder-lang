@@ -80,7 +80,4 @@ bool xu_quick_run(char* filepath, xu_quickopts_t opts);
 char* xu_val_to_string(vm_t* vm, val_t val);
 val_t xu_string_to_val(vm_t* vm, char* val);
 
-int xu_calli(vm_t* vm, xu_caller_t* c);
-bool xu_callib(vm_t* vm, xu_caller_t* c, int arg);
-
 #endif // XUTILS_H_

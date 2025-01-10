@@ -22,6 +22,7 @@
 #include "langtest.h"
 #include <sh_ift.h>
 #include <xu_lib.h>
+#include <xu_call.h>
 
 typedef struct test_case_t test_case_t;
 
@@ -1291,11 +1292,11 @@ void test_xu_classes(test_case_t* this) {
         "#4.1 call A");
 
     TEST_ASSERT_MSG(this,
-        xu_callib(&vm, &B, 0) == false,
+        xu_callb_i(&vm, &B, 0) == false,
         "#4.2 call B #1");
 
     TEST_ASSERT_MSG(this,
-        xu_callib(&vm, &B, 11) == true,
+        xu_callb_i(&vm, &B, 11) == true,
         "#4.2 call B #2");
 
     vm_destroy(&vm);

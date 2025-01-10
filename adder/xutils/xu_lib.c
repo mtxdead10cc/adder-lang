@@ -413,24 +413,3 @@ char* xu_val_to_string(vm_t* vm, val_t val) {
     vm_sprint_val(str, vm, val);
     return buf;
 }
-
-int xu_calli(vm_t* vm, xu_caller_t* c) {
-    assert(c->entrypoint.argcount == 0);
-    xu_classlist_t* list = c->class.classlist;
-    int ref = c->class.classref;
-    vm_env_t* env = &list->envs[ref];
-    program_t* program = &list->programs[ref];
-    val_t result = vm_execute(vm, env, &c->entrypoint, program);
-    return val_into_number(result);
-}
-
-bool xu_callib(vm_t* vm, xu_caller_t* c, int arg) {
-    assert(c->entrypoint.argcount == 1);
-    xu_classlist_t* classes = c->class.classlist;
-    int ref = c->class.classref;
-    vm_env_t* env = &classes->envs[ref];
-    program_t* program = &classes->programs[ref];
-    program_entry_point_set_arg(&c->entrypoint, 0, val_number(arg));
-    val_t result = vm_execute(vm, env, &c->entrypoint, program);
-    return val_into_bool(result);
-}
