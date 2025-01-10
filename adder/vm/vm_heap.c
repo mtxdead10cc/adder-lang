@@ -18,6 +18,12 @@ inline static void put_mark(uint64_t* marks, int heap_index) {
     marks[mask_index] |= (1UL << mask_bit);
 }
 
+void heap_clear(vm_t* vm) {
+    uint64_t* gc_marks = vm->mem.heap.gc_marks;
+    int heapsize = vm->mem.heap.size;
+    memset(gc_marks, 0, CALC_GC_MARK_U64_COUNT(heapsize) * sizeof(uint64_t));
+}
+
 void heap_gc_mark_used(vm_t* vm, val_t* checkmem, int val_count) {
     val_addr_t virt_addr_heap = MEM_MK_PROGR_ADDR(vm->mem.stack.size);
     // mark all references
@@ -64,7 +70,7 @@ void heap_print_usage(vm_t* vm) {
         }
         cstr_append_fmt(str, "\n");
     }
-    sh_log_info("HEAP USAGE BITS\n%s");
+    sh_log_info("HEAP USAGE BITS\n%s", str.ptr);
 }
 
 int heap_find_small_chunk(vm_t* vm, int value_count) {

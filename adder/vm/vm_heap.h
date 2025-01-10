@@ -15,5 +15,6 @@ void heap_gc_collect(vm_t* vm);
 void heap_print_usage(vm_t* vm);
 array_t heap_array_alloc(vm_t* vm, int val_count);
 int heap_array_copy_to(vm_t* vm, val_t* src, int length, array_t dest);
+void heap_clear(vm_t* vm);
 
 #endif // VM_HEAP_H_

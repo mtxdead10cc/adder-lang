@@ -198,6 +198,11 @@ xu_class_t mk_invalid_class(void) {
     };
 }
 
+xu_class_t xu_class_read_and_create(xu_classlist_t* classes, char* file_path) {
+    source_code_t code = program_source_read_from_file(file_path);
+    return xu_class_create(classes, &code);
+}
+
 
 xu_class_t xu_class_create(xu_classlist_t* classes, source_code_t* code) {
 
