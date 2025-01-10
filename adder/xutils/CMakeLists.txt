@@ -6,6 +6,7 @@ PUBLIC
 
 target_sources(xutils PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/xu_lib.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/xu_call.c
 )
 
 target_link_libraries(xutils PRIVATE adrsha adrcom adrvm)

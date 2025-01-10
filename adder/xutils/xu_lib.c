@@ -408,7 +408,7 @@ char* xu_val_to_string(vm_t* vm, val_t val) {
     buf[0] = '\n'; // reset previous
     cstr_t str = {
         .maxlen = 2048,
-        .ptr = &buf
+        .ptr = buf
     };
     vm_sprint_val(str, vm, val);
     return buf;

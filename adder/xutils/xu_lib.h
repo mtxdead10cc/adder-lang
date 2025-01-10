@@ -51,17 +51,6 @@ typedef struct xu_caller_t {
     entry_point_t   entrypoint;
 } xu_caller_t;
 
-/*
-[xu_invokable_t]
-
-    bool   invokeb(vm, invokable);
-    int    invokei(vm, invokable);
-    float  invokef(vm, invokable);
-    sstr_t invokes(vm, invokable);
-    bool   invokebii(vm, invokable, int a, int b);
-
-*/
-
 ffi_handle_t xu_ffi_action(ffi_actcall_t action, void* user);
 ffi_handle_t xu_ffi_function(ffi_funcall_t function, void* user);
 

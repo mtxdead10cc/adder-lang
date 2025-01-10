@@ -1,4 +1,7 @@
-import itertools, sys
+import itertools
+import sys
+from os import listdir
+from os.path import isfile, join, dirname, abspath
 
 arg_type_list = [
     "bool",
@@ -64,13 +67,13 @@ def gen_func_decldata(rettypes:str, argtypes:list[str], maxargs:int):
                         suffix_1 = f"_{suffix_1}"
                     arglist = ", ".join([ f"{a['type']} {a['name']}" for a in argdata])
                     yield {
-                        "decl": f"{rettype} xu_call{suffix_0}{suffix_1}({arglist})",
+                        "decl": f"{rettype} xu_call{suffix_0}{suffix_1}(vm_t* vm, xu_caller_t* c, {arglist})",
                         "argdata": argdata,
                         "rettype": rettype
                     }
             else:
                 yield {
-                    "decl": f"{rettype} xu_call{suffix_0}()",
+                    "decl": f"{rettype} xu_call{suffix_0}(vm_t* vm, xu_caller_t* c)",
                     "argdata": [],
                     "rettype": rettype
                 }
@@ -104,15 +107,21 @@ def gen_func_body(decldata:dict):
 def gen_header_file(file_name:str, decldatagen):
     name = file_name.replace(".", "_").upper()
     defsym = f"_{name}_"
+    
     s =   "// GENERATED FILE\n"
     s +=  "\n"
     s += f"#ifndef {defsym}\n"
     s += f"#define {defsym}\n"
     s +=  "\n"
-    
+    s +=  "#include <stdbool.h>\n"
+    s +=  "\n"
+    s +=  "\n"
+    s +=  "typedef struct vm_t vm_t;\n"
+    s +=  "typedef struct xu_caller_t xu_caller_t;\n"
+    s +=  "\n"
+    s +=  "\n"
     for decldata in decldatagen:
         s += f"{decldata['decl']};\n"
-    
     s +=  "\n"
     s += f"#endif // {defsym}\n"
     return s
@@ -120,24 +129,38 @@ def gen_header_file(file_name:str, decldatagen):
 def gen_source_file(include_name:str, decldatagen):
     s =   "// GENERATED FILE\n"
     s += f"#include \"{include_name}\"\n"
-    s +=  "#inclide \"xu_lib.h\"\n"
+    s +=  "#include \"xu_lib.h\"\n"
+    s +=  "#include <assert.h>\n"
+    s +=  "#include <vm_types.h>\n"
     s +=  "\n"
     for decldata in decldatagen:
         s += gen_func_body(decldata)
     return s
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("no target dir provided")
-        exit(1)
     
+    max_arg_count = 4
     name = "xu_call"
+    
     print(f"Generating xutils helper ({name})")
     
-    decldatagen = gen_func_decldata(return_type_list, arg_type_list, 2)
-    header_string = gen_header_file(name + ".h", decldatagen)
-    source_string = gen_source_file(name + ".h", decldatagen)
+    decldatagen_0 = gen_func_decldata(return_type_list, arg_type_list, max_arg_count)
+    decldatagen_0, decldatagen_1 = itertools.tee(decldatagen_0, 2)
     
+    header_string = gen_header_file(name + ".h", decldatagen_0)
+    source_string = gen_source_file(name + ".h", decldatagen_1)
+    
+    out_dir = dirname(abspath(__file__))
+    
+    # write header
+    f = open(join(out_dir, name + ".h"), 'w')
+    f.write(header_string)
+    f.close()
+    
+    # write source
+    f = open(join(out_dir, name + ".c"), 'w')
+    f.write(source_string)
+    f.close()
     
     
     
