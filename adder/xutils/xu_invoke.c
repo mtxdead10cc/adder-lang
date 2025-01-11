@@ -1,358 +1,2129 @@
+
+// GENERATED FILE
+
 #include "xu_invoke.h"
 #include "xu_lib.h"
+#include <stdbool.h>
+#include <sh_value.h>
 
-val_t xu_int(int v) {
-    return val_number(v);
-}
-
-val_t xu_float(float v) {
-    return val_number(v);
-}
-
-val_t xu_bool(bool v) {
-    return val_bool(v);
-}
-
-val_t xu_char(char v) {
-    return val_char(v);
-}
-
-val_t call0(vm_t* vm, xu_caller_t* caller) {
+bool bcall0(vm_t* vm, xu_caller_t* caller) {
     assert(caller->entrypoint.argcount == 0);
+
     xu_classlist_t* classes = caller->class.classlist;
     int ref = caller->class.classref;
     vm_env_t* env = &classes->envs[ref];
     program_t* program = &classes->programs[ref];
-    return vm_execute(vm, env, &caller->entrypoint, program);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
+}
+
+int icall0(vm_t* vm, xu_caller_t* caller) {
+    assert(caller->entrypoint.argcount == 0);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+float fcall0(vm_t* vm, xu_caller_t* caller) {
+    assert(caller->entrypoint.argcount == 0);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+char ccall0(vm_t* vm, xu_caller_t* caller) {
+    assert(caller->entrypoint.argcount == 0);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
+}
+
+char* scall0(vm_t* vm, xu_caller_t* caller) {
+    assert(caller->entrypoint.argcount == 0);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
 }
 
 void vcall0(vm_t* vm, xu_caller_t* caller) {
     assert(caller->entrypoint.argcount == 0);
+
     xu_classlist_t* classes = caller->class.classlist;
     int ref = caller->class.classref;
     vm_env_t* env = &classes->envs[ref];
     program_t* program = &classes->programs[ref];
+
     vm_execute(vm, env, &caller->entrypoint, program);
 }
 
-val_t call1(vm_t* vm, xu_caller_t* caller, val_t arg1) {
+bool bcall1(vm_t* vm, xu_caller_t* caller, val_t arg0) {
     assert(caller->entrypoint.argcount == 1);
+
     xu_classlist_t* classes = caller->class.classlist;
     int ref = caller->class.classref;
     vm_env_t* env = &classes->envs[ref];
     program_t* program = &classes->programs[ref];
-    program_entry_point_set_arg(&caller->entrypoint, 0, arg1);
-    return vm_execute(vm, env, &caller->entrypoint, program);
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
 }
 
-void vcall1(vm_t* vm, xu_caller_t* caller, val_t arg1) {
+int icall1(vm_t* vm, xu_caller_t* caller, val_t arg0) {
     assert(caller->entrypoint.argcount == 1);
+
     xu_classlist_t* classes = caller->class.classlist;
     int ref = caller->class.classref;
     vm_env_t* env = &classes->envs[ref];
     program_t* program = &classes->programs[ref];
 
-    program_entry_point_set_arg(&caller->entrypoint, 0, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+float fcall1(vm_t* vm, xu_caller_t* caller, val_t arg0) {
+    assert(caller->entrypoint.argcount == 1);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+char ccall1(vm_t* vm, xu_caller_t* caller, val_t arg0) {
+    assert(caller->entrypoint.argcount == 1);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
+}
+
+char* scall1(vm_t* vm, xu_caller_t* caller, val_t arg0) {
+    assert(caller->entrypoint.argcount == 1);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
+}
+
+void vcall1(vm_t* vm, xu_caller_t* caller, val_t arg0) {
+    assert(caller->entrypoint.argcount == 1);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
 
     vm_execute(vm, env, &caller->entrypoint, program);
 }
 
-val_t call2(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2) {
+bool bcall2(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1) {
     assert(caller->entrypoint.argcount == 2);
-    
+
     xu_classlist_t* classes = caller->class.classlist;
     int ref = caller->class.classref;
     vm_env_t* env = &classes->envs[ref];
     program_t* program = &classes->programs[ref];
 
-    program_entry_point_set_arg(&caller->entrypoint, 0, arg1);
-    program_entry_point_set_arg(&caller->entrypoint, 1, arg2);
-    
-    return vm_execute(vm, env, &caller->entrypoint, program);
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
 }
 
-void vcall2(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2) {
+int icall2(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1) {
     assert(caller->entrypoint.argcount == 2);
-    
+
     xu_classlist_t* classes = caller->class.classlist;
     int ref = caller->class.classref;
     vm_env_t* env = &classes->envs[ref];
     program_t* program = &classes->programs[ref];
 
-    program_entry_point_set_arg(&caller->entrypoint, 0, arg1);
-    program_entry_point_set_arg(&caller->entrypoint, 1, arg2);
-    
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+float fcall2(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1) {
+    assert(caller->entrypoint.argcount == 2);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+char ccall2(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1) {
+    assert(caller->entrypoint.argcount == 2);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
+}
+
+char* scall2(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1) {
+    assert(caller->entrypoint.argcount == 2);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
+}
+
+void vcall2(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1) {
+    assert(caller->entrypoint.argcount == 2);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+
     vm_execute(vm, env, &caller->entrypoint, program);
 }
 
-val_t call3(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3) {
+bool bcall3(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2) {
     assert(caller->entrypoint.argcount == 3);
-    
+
     xu_classlist_t* classes = caller->class.classlist;
     int ref = caller->class.classref;
     vm_env_t* env = &classes->envs[ref];
     program_t* program = &classes->programs[ref];
 
-    program_entry_point_set_arg(&caller->entrypoint, 0, arg1);
-    program_entry_point_set_arg(&caller->entrypoint, 1, arg2);
-    program_entry_point_set_arg(&caller->entrypoint, 2, arg3);
-    
-    return vm_execute(vm, env, &caller->entrypoint, program);
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
 }
 
-void vcall3(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3) {
+int icall3(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2) {
     assert(caller->entrypoint.argcount == 3);
-    
+
     xu_classlist_t* classes = caller->class.classlist;
     int ref = caller->class.classref;
     vm_env_t* env = &classes->envs[ref];
     program_t* program = &classes->programs[ref];
 
-    program_entry_point_set_arg(&caller->entrypoint, 0, arg1);
-    program_entry_point_set_arg(&caller->entrypoint, 1, arg2);
-    program_entry_point_set_arg(&caller->entrypoint, 2, arg3);
-    
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+float fcall3(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2) {
+    assert(caller->entrypoint.argcount == 3);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+char ccall3(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2) {
+    assert(caller->entrypoint.argcount == 3);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
+}
+
+char* scall3(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2) {
+    assert(caller->entrypoint.argcount == 3);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
+}
+
+void vcall3(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2) {
+    assert(caller->entrypoint.argcount == 3);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+
     vm_execute(vm, env, &caller->entrypoint, program);
 }
 
-val_t call4(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4) {
+bool bcall4(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3) {
     assert(caller->entrypoint.argcount == 4);
-    
+
     xu_classlist_t* classes = caller->class.classlist;
     int ref = caller->class.classref;
     vm_env_t* env = &classes->envs[ref];
     program_t* program = &classes->programs[ref];
 
-    program_entry_point_set_arg(&caller->entrypoint, 0, arg1);
-    program_entry_point_set_arg(&caller->entrypoint, 1, arg2);
-    program_entry_point_set_arg(&caller->entrypoint, 2, arg3);
-    program_entry_point_set_arg(&caller->entrypoint, 3, arg4);
-    
-    return vm_execute(vm, env, &caller->entrypoint, program);
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
 }
 
-void vcall4(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4) {
+int icall4(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3) {
     assert(caller->entrypoint.argcount == 4);
-    
+
     xu_classlist_t* classes = caller->class.classlist;
     int ref = caller->class.classref;
     vm_env_t* env = &classes->envs[ref];
     program_t* program = &classes->programs[ref];
 
-    program_entry_point_set_arg(&caller->entrypoint, 0, arg1);
-    program_entry_point_set_arg(&caller->entrypoint, 1, arg2);
-    program_entry_point_set_arg(&caller->entrypoint, 2, arg3);
-    program_entry_point_set_arg(&caller->entrypoint, 3, arg4);
-    
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+float fcall4(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3) {
+    assert(caller->entrypoint.argcount == 4);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+char ccall4(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3) {
+    assert(caller->entrypoint.argcount == 4);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
+}
+
+char* scall4(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3) {
+    assert(caller->entrypoint.argcount == 4);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
+}
+
+void vcall4(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3) {
+    assert(caller->entrypoint.argcount == 4);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+
     vm_execute(vm, env, &caller->entrypoint, program);
 }
 
-val_t call5(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5) {
+bool bcall5(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4) {
     assert(caller->entrypoint.argcount == 5);
-    
+
     xu_classlist_t* classes = caller->class.classlist;
     int ref = caller->class.classref;
     vm_env_t* env = &classes->envs[ref];
     program_t* program = &classes->programs[ref];
 
-    program_entry_point_set_arg(&caller->entrypoint, 0, arg1);
-    program_entry_point_set_arg(&caller->entrypoint, 1, arg2);
-    program_entry_point_set_arg(&caller->entrypoint, 2, arg3);
-    program_entry_point_set_arg(&caller->entrypoint, 3, arg4);
-    program_entry_point_set_arg(&caller->entrypoint, 4, arg5);
-    
-    return vm_execute(vm, env, &caller->entrypoint, program);
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
 }
 
-void vcall5(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5) {
+int icall5(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4) {
     assert(caller->entrypoint.argcount == 5);
-    
+
     xu_classlist_t* classes = caller->class.classlist;
     int ref = caller->class.classref;
     vm_env_t* env = &classes->envs[ref];
     program_t* program = &classes->programs[ref];
 
-    program_entry_point_set_arg(&caller->entrypoint, 0, arg1);
-    program_entry_point_set_arg(&caller->entrypoint, 1, arg2);
-    program_entry_point_set_arg(&caller->entrypoint, 2, arg3);
-    program_entry_point_set_arg(&caller->entrypoint, 3, arg4);
-    program_entry_point_set_arg(&caller->entrypoint, 4, arg5);
-    
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+float fcall5(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4) {
+    assert(caller->entrypoint.argcount == 5);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+char ccall5(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4) {
+    assert(caller->entrypoint.argcount == 5);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
+}
+
+char* scall5(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4) {
+    assert(caller->entrypoint.argcount == 5);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
+}
+
+void vcall5(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4) {
+    assert(caller->entrypoint.argcount == 5);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+
     vm_execute(vm, env, &caller->entrypoint, program);
 }
 
-val_t call6(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6) {
+bool bcall6(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5) {
     assert(caller->entrypoint.argcount == 6);
-    
+
     xu_classlist_t* classes = caller->class.classlist;
     int ref = caller->class.classref;
     vm_env_t* env = &classes->envs[ref];
     program_t* program = &classes->programs[ref];
 
-    program_entry_point_set_arg(&caller->entrypoint, 0, arg1);
-    program_entry_point_set_arg(&caller->entrypoint, 1, arg2);
-    program_entry_point_set_arg(&caller->entrypoint, 2, arg3);
-    program_entry_point_set_arg(&caller->entrypoint, 3, arg4);
-    program_entry_point_set_arg(&caller->entrypoint, 4, arg5);
-    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
-    
-    return vm_execute(vm, env, &caller->entrypoint, program);
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
 }
 
-void vcall6(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6) {
+int icall6(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5) {
     assert(caller->entrypoint.argcount == 6);
-    
+
     xu_classlist_t* classes = caller->class.classlist;
     int ref = caller->class.classref;
     vm_env_t* env = &classes->envs[ref];
     program_t* program = &classes->programs[ref];
 
-    program_entry_point_set_arg(&caller->entrypoint, 0, arg1);
-    program_entry_point_set_arg(&caller->entrypoint, 1, arg2);
-    program_entry_point_set_arg(&caller->entrypoint, 2, arg3);
-    program_entry_point_set_arg(&caller->entrypoint, 3, arg4);
-    program_entry_point_set_arg(&caller->entrypoint, 4, arg5);
-    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
-    
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+float fcall6(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5) {
+    assert(caller->entrypoint.argcount == 6);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+char ccall6(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5) {
+    assert(caller->entrypoint.argcount == 6);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
+}
+
+char* scall6(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5) {
+    assert(caller->entrypoint.argcount == 6);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
+}
+
+void vcall6(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5) {
+    assert(caller->entrypoint.argcount == 6);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+
     vm_execute(vm, env, &caller->entrypoint, program);
 }
 
-int icall0(vm_t* vm, xu_caller_t* caller) {
-    return val_into_number(call0(vm, caller));
+bool bcall7(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6) {
+    assert(caller->entrypoint.argcount == 7);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
 }
 
-float fcall0(vm_t* vm, xu_caller_t* caller) {
-    return val_into_number(call0(vm, caller));
+int icall7(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6) {
+    assert(caller->entrypoint.argcount == 7);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
 }
 
-bool bcall0(vm_t* vm, xu_caller_t* caller) {
-    return val_into_bool(call0(vm, caller));
+float fcall7(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6) {
+    assert(caller->entrypoint.argcount == 7);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
 }
 
-char ccall0(vm_t* vm, xu_caller_t* caller) {
-    return val_into_char(call0(vm, caller));
+char ccall7(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6) {
+    assert(caller->entrypoint.argcount == 7);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
 }
 
-char* scall0(vm_t* vm, xu_caller_t* caller) {
-    return xu_val_to_string(vm, call0(vm, caller));
+char* scall7(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6) {
+    assert(caller->entrypoint.argcount == 7);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
 }
 
-int icall1(vm_t* vm, xu_caller_t* caller, val_t arg1) {
-    return val_into_number(call1(vm, caller, arg1));
+void vcall7(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6) {
+    assert(caller->entrypoint.argcount == 7);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+
+    vm_execute(vm, env, &caller->entrypoint, program);
 }
 
-float fcall1(vm_t* vm, xu_caller_t* caller, val_t arg1) {
-    return val_into_number(call1(vm, caller, arg1));
+bool bcall8(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7) {
+    assert(caller->entrypoint.argcount == 8);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
 }
 
-bool  bcall1(vm_t* vm, xu_caller_t* caller, val_t arg1) {
-    return val_into_bool(call1(vm, caller, arg1));
+int icall8(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7) {
+    assert(caller->entrypoint.argcount == 8);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
 }
 
-char  ccall1(vm_t* vm, xu_caller_t* caller, val_t arg1) {
-    return val_into_char(call1(vm, caller, arg1));
+float fcall8(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7) {
+    assert(caller->entrypoint.argcount == 8);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
 }
 
-char* scall1(vm_t* vm, xu_caller_t* caller, val_t arg1) {
-    return xu_val_to_string(vm, call1(vm, caller, arg1));
+char ccall8(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7) {
+    assert(caller->entrypoint.argcount == 8);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
 }
 
-int icall2(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2) {
-    return val_into_number(call2(vm, caller, arg1, arg2));
+char* scall8(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7) {
+    assert(caller->entrypoint.argcount == 8);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
 }
 
-float fcall2(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2) {
-    return val_into_number(call2(vm, caller, arg1, arg2));
+void vcall8(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7) {
+    assert(caller->entrypoint.argcount == 8);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+
+    vm_execute(vm, env, &caller->entrypoint, program);
 }
 
-bool  bcall2(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2) {
-    return val_into_bool(call2(vm, caller, arg1, arg2));
+bool bcall9(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8) {
+    assert(caller->entrypoint.argcount == 9);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
 }
 
-char ccall2(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2) {
-    return val_into_char(call2(vm, caller, arg1, arg2));
+int icall9(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8) {
+    assert(caller->entrypoint.argcount == 9);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
 }
 
-char* scall2(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2) {
-    return xu_val_to_string(vm, call2(vm, caller, arg1, arg2));
+float fcall9(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8) {
+    assert(caller->entrypoint.argcount == 9);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
 }
 
-int icall3(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3) {
-    return val_into_number(call3(vm, caller, arg1, arg2, arg3));
+char ccall9(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8) {
+    assert(caller->entrypoint.argcount == 9);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
 }
 
-float fcall3(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3) {
-    return val_into_number(call3(vm, caller, arg1, arg2, arg3));
+char* scall9(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8) {
+    assert(caller->entrypoint.argcount == 9);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
 }
 
-bool  bcall3(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3) {
-    return val_into_bool(call3(vm, caller, arg1, arg2, arg3));
+void vcall9(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8) {
+    assert(caller->entrypoint.argcount == 9);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+
+    vm_execute(vm, env, &caller->entrypoint, program);
 }
 
-char  ccall3(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3) {
-    return val_into_char(call3(vm, caller, arg1, arg2, arg3));
+bool bcall10(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9) {
+    assert(caller->entrypoint.argcount == 10);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
 }
 
-char* scall3(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3) {
-    return xu_val_to_string(vm, call3(vm, caller, arg1, arg2, arg3));
+int icall10(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9) {
+    assert(caller->entrypoint.argcount == 10);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
 }
 
-int   icall4(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4) {
-    return val_into_number(call4(vm, caller, arg1, arg2, arg3, arg4));
+float fcall10(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9) {
+    assert(caller->entrypoint.argcount == 10);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
 }
 
-float fcall4(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4) {
-    return val_into_number(call4(vm, caller, arg1, arg2, arg3, arg4));
+char ccall10(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9) {
+    assert(caller->entrypoint.argcount == 10);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
 }
 
-bool  bcall4(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4) {
-    return val_into_bool(call4(vm, caller, arg1, arg2, arg3, arg4));
+char* scall10(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9) {
+    assert(caller->entrypoint.argcount == 10);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
 }
 
-char  ccall4(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4) {
-    return val_into_char(call4(vm, caller, arg1, arg2, arg3, arg4));
+void vcall10(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9) {
+    assert(caller->entrypoint.argcount == 10);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+
+    vm_execute(vm, env, &caller->entrypoint, program);
 }
 
-char* scall4(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4) {
-    return xu_val_to_string(vm, call4(vm, caller, arg1, arg2, arg3, arg4));
+bool bcall11(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10) {
+    assert(caller->entrypoint.argcount == 11);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
 }
 
-int icall5(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5) {
-    return val_into_number(call5(vm, caller, arg1, arg2, arg3, arg4, arg5));
+int icall11(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10) {
+    assert(caller->entrypoint.argcount == 11);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
 }
 
-float fcall5(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5) {
-    return val_into_number(call5(vm, caller, arg1, arg2, arg3, arg4, arg5));
+float fcall11(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10) {
+    assert(caller->entrypoint.argcount == 11);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
 }
 
-bool bcall5(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5) {
-    return val_into_bool(call5(vm, caller, arg1, arg2, arg3, arg4, arg5));
+char ccall11(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10) {
+    assert(caller->entrypoint.argcount == 11);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
 }
 
-char ccall5(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5) {
-    return val_into_char(call5(vm, caller, arg1, arg2, arg3, arg4, arg5));
+char* scall11(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10) {
+    assert(caller->entrypoint.argcount == 11);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
 }
 
-char* scall5(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5) {
-    return xu_val_to_string(vm, call5(vm, caller, arg1, arg2, arg3, arg4, arg5));
+void vcall11(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10) {
+    assert(caller->entrypoint.argcount == 11);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+
+    vm_execute(vm, env, &caller->entrypoint, program);
 }
 
-int icall6(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6) {
-    return val_into_number(call6(vm, caller, arg1, arg2, arg3, arg4, arg5, arg6));
+bool bcall12(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11) {
+    assert(caller->entrypoint.argcount == 12);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
 }
 
-float fcall6(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6) {
-    return val_into_number(call6(vm, caller, arg1, arg2, arg3, arg4, arg5, arg6));
+int icall12(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11) {
+    assert(caller->entrypoint.argcount == 12);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
 }
 
-bool bcall6(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6) {
-    return val_into_bool(call6(vm, caller, arg1, arg2, arg3, arg4, arg5, arg6));
+float fcall12(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11) {
+    assert(caller->entrypoint.argcount == 12);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
 }
 
-char ccall6(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6) {
-    return val_into_char(call6(vm, caller, arg1, arg2, arg3, arg4, arg5, arg6));
+char ccall12(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11) {
+    assert(caller->entrypoint.argcount == 12);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
 }
 
-char* scall6(vm_t* vm, xu_caller_t* caller, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6) {
-    return xu_val_to_string(vm, call6(vm, caller, arg1, arg2, arg3, arg4, arg5, arg6));
+char* scall12(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11) {
+    assert(caller->entrypoint.argcount == 12);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
 }
+
+void vcall12(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11) {
+    assert(caller->entrypoint.argcount == 12);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+
+    vm_execute(vm, env, &caller->entrypoint, program);
+}
+
+bool bcall13(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12) {
+    assert(caller->entrypoint.argcount == 13);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
+}
+
+int icall13(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12) {
+    assert(caller->entrypoint.argcount == 13);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+float fcall13(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12) {
+    assert(caller->entrypoint.argcount == 13);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+char ccall13(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12) {
+    assert(caller->entrypoint.argcount == 13);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
+}
+
+char* scall13(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12) {
+    assert(caller->entrypoint.argcount == 13);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
+}
+
+void vcall13(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12) {
+    assert(caller->entrypoint.argcount == 13);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+
+    vm_execute(vm, env, &caller->entrypoint, program);
+}
+
+bool bcall14(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13) {
+    assert(caller->entrypoint.argcount == 14);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
+}
+
+int icall14(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13) {
+    assert(caller->entrypoint.argcount == 14);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+float fcall14(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13) {
+    assert(caller->entrypoint.argcount == 14);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+char ccall14(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13) {
+    assert(caller->entrypoint.argcount == 14);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
+}
+
+char* scall14(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13) {
+    assert(caller->entrypoint.argcount == 14);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
+}
+
+void vcall14(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13) {
+    assert(caller->entrypoint.argcount == 14);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+
+    vm_execute(vm, env, &caller->entrypoint, program);
+}
+
+bool bcall15(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13, val_t arg14) {
+    assert(caller->entrypoint.argcount == 15);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+    program_entry_point_set_arg(&caller->entrypoint, 14, arg14);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
+}
+
+int icall15(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13, val_t arg14) {
+    assert(caller->entrypoint.argcount == 15);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+    program_entry_point_set_arg(&caller->entrypoint, 14, arg14);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+float fcall15(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13, val_t arg14) {
+    assert(caller->entrypoint.argcount == 15);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+    program_entry_point_set_arg(&caller->entrypoint, 14, arg14);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+char ccall15(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13, val_t arg14) {
+    assert(caller->entrypoint.argcount == 15);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+    program_entry_point_set_arg(&caller->entrypoint, 14, arg14);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
+}
+
+char* scall15(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13, val_t arg14) {
+    assert(caller->entrypoint.argcount == 15);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+    program_entry_point_set_arg(&caller->entrypoint, 14, arg14);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
+}
+
+void vcall15(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13, val_t arg14) {
+    assert(caller->entrypoint.argcount == 15);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+    program_entry_point_set_arg(&caller->entrypoint, 14, arg14);
+
+    vm_execute(vm, env, &caller->entrypoint, program);
+}
+
+bool bcall16(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13, val_t arg14, val_t arg15) {
+    assert(caller->entrypoint.argcount == 16);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+    program_entry_point_set_arg(&caller->entrypoint, 14, arg14);
+    program_entry_point_set_arg(&caller->entrypoint, 15, arg15);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_bool(result);
+}
+
+int icall16(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13, val_t arg14, val_t arg15) {
+    assert(caller->entrypoint.argcount == 16);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+    program_entry_point_set_arg(&caller->entrypoint, 14, arg14);
+    program_entry_point_set_arg(&caller->entrypoint, 15, arg15);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+float fcall16(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13, val_t arg14, val_t arg15) {
+    assert(caller->entrypoint.argcount == 16);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+    program_entry_point_set_arg(&caller->entrypoint, 14, arg14);
+    program_entry_point_set_arg(&caller->entrypoint, 15, arg15);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_number(result);
+}
+
+char ccall16(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13, val_t arg14, val_t arg15) {
+    assert(caller->entrypoint.argcount == 16);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+    program_entry_point_set_arg(&caller->entrypoint, 14, arg14);
+    program_entry_point_set_arg(&caller->entrypoint, 15, arg15);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return val_into_char(result);
+}
+
+char* scall16(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13, val_t arg14, val_t arg15) {
+    assert(caller->entrypoint.argcount == 16);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+    program_entry_point_set_arg(&caller->entrypoint, 14, arg14);
+    program_entry_point_set_arg(&caller->entrypoint, 15, arg15);
+
+    val_t result = vm_execute(vm, env, &caller->entrypoint, program);
+    return xu_val_to_string(vm, result);
+}
+
+void vcall16(vm_t* vm, xu_caller_t* caller, val_t arg0, val_t arg1, val_t arg2, val_t arg3, val_t arg4, val_t arg5, val_t arg6, val_t arg7, val_t arg8, val_t arg9, val_t arg10, val_t arg11, val_t arg12, val_t arg13, val_t arg14, val_t arg15) {
+    assert(caller->entrypoint.argcount == 16);
+
+    xu_classlist_t* classes = caller->class.classlist;
+    int ref = caller->class.classref;
+    vm_env_t* env = &classes->envs[ref];
+    program_t* program = &classes->programs[ref];
+
+    program_entry_point_set_arg(&caller->entrypoint, 0, arg0);
+    program_entry_point_set_arg(&caller->entrypoint, 1, arg1);
+    program_entry_point_set_arg(&caller->entrypoint, 2, arg2);
+    program_entry_point_set_arg(&caller->entrypoint, 3, arg3);
+    program_entry_point_set_arg(&caller->entrypoint, 4, arg4);
+    program_entry_point_set_arg(&caller->entrypoint, 5, arg5);
+    program_entry_point_set_arg(&caller->entrypoint, 6, arg6);
+    program_entry_point_set_arg(&caller->entrypoint, 7, arg7);
+    program_entry_point_set_arg(&caller->entrypoint, 8, arg8);
+    program_entry_point_set_arg(&caller->entrypoint, 9, arg9);
+    program_entry_point_set_arg(&caller->entrypoint, 10, arg10);
+    program_entry_point_set_arg(&caller->entrypoint, 11, arg11);
+    program_entry_point_set_arg(&caller->entrypoint, 12, arg12);
+    program_entry_point_set_arg(&caller->entrypoint, 13, arg13);
+    program_entry_point_set_arg(&caller->entrypoint, 14, arg14);
+    program_entry_point_set_arg(&caller->entrypoint, 15, arg15);
+
+    vm_execute(vm, env, &caller->entrypoint, program);
+}
+
+
+

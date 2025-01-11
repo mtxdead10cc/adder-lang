@@ -1288,15 +1288,15 @@ void test_xu_classes(test_case_t* this) {
     vm_create(&vm, 16);
 
     TEST_ASSERT_MSG(this,
-        xu_callb(&vm, &A) == 0,
+        bcall(&vm, &A) == 0,
         "#4.1 call A");
 
     TEST_ASSERT_MSG(this,
-        xu_callb_i(&vm, &B, 0) == false,
+        bcalli(&vm, &B, 0) == false,
         "#4.2 call B #1");
 
     TEST_ASSERT_MSG(this,
-        xu_callb_i(&vm, &B, 11) == true,
+        bcalli(&vm, &B, 11) == true,
         "#4.2 call B #2");
 
     vm_destroy(&vm);
