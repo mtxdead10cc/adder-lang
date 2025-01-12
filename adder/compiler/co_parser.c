@@ -830,12 +830,33 @@ pa_result_t pa_parse_funimportdecl(parser_t* parser) {
             &funname.ref);
 }
 
+int seek_end_of_type(parser_t* parser, int offs, int n) {
+    token_t token = pa_peek_token(parser, offs);
+    if ( token.type == TT_CMP_LT && offs > 0 ) {
+        return seek_end_of_type(parser, offs+1, n + 1);
+    } else if ( token.type == TT_CMP_GT && offs > 0 ) {
+        if( (n - 1) == 0 )
+            return offs;
+        return seek_end_of_type(parser, offs+1, n - 1);
+    } else if ( is_valid_type_name(token.ref) ) {
+        int next = seek_end_of_type(parser, offs+1, n);
+        if( next > offs )
+            return next;
+        if( n == 0 )
+            return offs;
+    }
+    return -1;
+}
+
 pa_result_t pa_try_parse_fundecl(parser_t* parser) {
 
-    if( pa_peek_token(parser, 0).type != TT_SYMBOL
-     || pa_peek_token(parser, 1).type != TT_SYMBOL
-     || pa_peek_token(parser, 2).type != TT_OPEN_PAREN )
+    int eot = seek_end_of_type(parser, 0, 0);
+    if( eot < 0 )
         return par_nothing();
+
+    if( pa_peek_token(parser, eot + 1).type != TT_SYMBOL
+     || pa_peek_token(parser, eot + 2).type != TT_OPEN_PAREN )
+     return par_nothing();
 
     ast_annot_t* retannot;
     pa_result_t result = parse_type_annotation(parser, &retannot);
