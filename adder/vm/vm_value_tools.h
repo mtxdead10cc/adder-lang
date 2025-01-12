@@ -13,12 +13,13 @@ int  val_get_string(val_t val, addr_lookup_fn lookup, void* user, char* dest, in
 char* val_get_type_name(val_type_t type);
 
 inline static val_t* array_get_ptr(vm_t* vm, array_t array, int index) {
-    assert(ADDR_IS_NULL(array.address) == false);
-    if( ADDR_IS_CONST(array.address) ) {
+    if(ADDR_IS_NULL(array.address)) 
+        return NULL;
+
+    if( ADDR_IS_CONST(array.address) )
         return (vm->run.constants + MEM_ADDR_TO_INDEX(array.address) + index);
-    } else {
+    else
         return (vm->mem.membase + MEM_ADDR_TO_INDEX(array.address) + index);
-    }
 }
 
 inline static val_t array_get(vm_t* vm, array_t array, int index) {

@@ -158,11 +158,7 @@ void program_destroy(program_t* prog) {
     }
 }
 
-bool program_entry_point_is_valid(entry_point_t entry_point) {
-    return entry_point.address >= 0 && entry_point.argcount >= 0;
-}
-
-entry_point_t program_entry_point_find(program_t* prog, char* name, ift_t* type) {
+entry_point_t entry_point_find_any(program_t* prog, char* name, ift_t* type) {
     
     entry_point_t ep = {
         .argvals = { 0 },
@@ -238,6 +234,38 @@ entry_point_t program_entry_point_find(program_t* prog, char* name, ift_t* type)
     ep.address = uaddress;
     ep.argcount = ift_func_arg_count(t);
     return ep;
+}
+
+entry_point_t program_entry_point_find(program_t* prog, char* name, ift_t type) {
+    if( name == NULL ) {
+        sh_log_error("program_entry_point_find: name was NULL");
+        return (entry_point_t) {
+            .argvals = { 0 },
+            .argcount = -1,
+            .address = -1
+        };
+    }
+    return entry_point_find_any(prog, name, &type);
+}
+
+entry_point_t program_entry_point_find_any(program_t* prog, char* name) {
+    if( name == NULL ) {
+        sh_log_error("program_entry_point_find: name was NULL");
+        return (entry_point_t) {
+            .argvals = { 0 },
+            .argcount = -1,
+            .address = -1
+        };
+    }
+    return entry_point_find_any(prog, name, NULL);
+}
+
+entry_point_t program_entry_point_find_default(program_t* prog) {
+    return entry_point_find_any(prog, NULL, NULL);
+}
+
+bool program_entry_point_is_valid(entry_point_t entry_point) {
+    return entry_point.address >= 0 && entry_point.argcount >= 0;
 }
 
 bool program_entry_point_set_arg(entry_point_t* ep, int index, val_t arg) {

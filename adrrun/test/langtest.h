@@ -220,6 +220,22 @@ ltc_t langtest_testcases[] = {
         "}\n",
         .expect = "10000",
         .filepath = "basics.txt",
+    },
+    {
+        .category = "verify",
+        .name = "return-array",
+        .code = 
+        "array<int> A() {\n"
+        "    return [1,2,3,4,5,6,7,8];\n"
+        "}\n"
+        "int main() {\n"
+        "    array<int> a = A();\n"
+        "    for(int v in a) {\n"
+        "        return v;\n"
+        "    }\n"
+        "}\n",
+        .expect = "1",
+        .filepath = "basics.txt",
     }
 };
 

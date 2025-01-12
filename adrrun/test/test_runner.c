@@ -23,6 +23,7 @@
 #include <sh_ift.h>
 #include <xu_lib.h>
 #include <xu_invoke.h>
+#include <vm_value_tools.h>
 
 typedef struct test_case_t test_case_t;
 
@@ -334,7 +335,7 @@ void test_vm(test_case_t* this) {
     vm_env_t env = { 0 };
     vm_env_setup(&env, &program, NULL);
 
-    entry_point_t ep = program_entry_point_find(&program, NULL, NULL);
+    entry_point_t ep = program_entry_point_find_default(&program);
 
     TEST_ASSERT_MSG(this,
         vm_env_is_ready(&env),
@@ -380,7 +381,7 @@ void test_vm(test_case_t* this) {
     program.inst.size = instr_buf.size;
     program.inst.buffer = instr_buf.data;
 
-    ep = program_entry_point_find(&program, NULL, NULL);
+    ep = program_entry_point_find_default(&program);
 
     TEST_ASSERT_MSG(this,
         vm_env_is_ready(&env),
@@ -495,7 +496,7 @@ void test_ast(test_case_t* this) {
     vm_env_t env = { 0 };
     vm_env_setup(&env, &program, NULL);
 
-    entry_point_t ep = program_entry_point_find(&program, "main", NULL);
+    entry_point_t ep = program_entry_point_find_any(&program, "main");
 
     program_entry_point_set_arg(&ep, 0, val_number(1));
     program_entry_point_set_arg(&ep, 1, val_number(-1));
@@ -833,7 +834,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         "'%s': failed set up env.",
                 tc_name);
 
-    entry_point_t ep = program_entry_point_find(&program, "main", NULL);
+    entry_point_t ep = program_entry_point_find_any(&program, "main");
     val_t res = val_none();
     if( vm_env_is_ready(&env) ) {
         res = vm_execute(&vm, &env, &ep, &program);
@@ -1303,10 +1304,144 @@ void test_xu_classes(test_case_t* this) {
     xu_cleanup(&list);
 }
 
+val_t test_alloc(ffi_hndl_meta_t md, int argcount, val_t* args) {
+    assert(argcount == 1);
+    int n = val_into_number(args[0]);
+    array_t a = heap_array_alloc(md.vm, n);
+    val_t* ptr = array_get_ptr(md.vm, a, 0);
+    for(int i = 0; i < n; i++) {
+        ptr[i] = val_number(i + 1);
+    }
+    return val_array(a);
+}
+
+void test_vm_full_heap(test_case_t* this) {
+    
+    char* str = 
+    "import array<int> alloc(int n);\n"
+    "int main(int n) {\n" 
+    "   array<int> arr = alloc(n);\n"  
+    "   return 0;\n"
+    "}\n";
+
+    ffi_t ffi = { 0 };
+    ffi_init(&ffi);
+
+    ffi_native_exports_define(&ffi.supplied,
+        sstr("alloc"),
+        (ffi_handle_t) {
+            .local = NULL,
+            .tag = FFI_HNDL_HOST_FUNCTION,
+            .u.host_function = test_alloc
+        }, ift_func_1(ift_list(ift_int()), ift_int()));
+
+    source_code_t code = program_source_from_memory(str, strlen(str));
+    program_t program = program_compile(&code, false);
+    program_source_free(&code);
+
+    if( program_is_valid(&program) == false ) {
+        TEST_ASSERT_MSG(this,
+            false,
+            "#2.0 failed to compile test program");
+        return;
+    }
+
+    entry_point_t ep = program_entry_point_find(&program, "main", ift_func_1(ift_int(), ift_int()));
+    if( program_entry_point_is_valid(ep) == false ) {
+        TEST_ASSERT_MSG(this,
+            false,
+            "#2.1 failed access entry point");
+        return;
+    }
+
+    program_entry_point_set_arg(&ep, 0, val_number(39));
+
+    vm_t vm = (vm_t) {0};
+    vm_create(&vm, 2*40);
+
+    vm_env_t env = (vm_env_t) {0};
+    vm_env_setup(&env, &program, &ffi);
+
+    for(int i = 0; i < 100; i++) {
+        vm_execute(&vm, &env, &ep, &program);
+    }
+
+    vm_destroy(&vm);
+    vm_env_destroy(&env);
+    program_destroy(&program);
+}
+
+
+void test_vm_cleanup(test_case_t* this) {
+
+    char* src_01 = 
+    "array<int> SPAM() {\n"
+    "   return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];\n"
+    "}\n"
+    "int main() {\n" 
+    "   array<int> arr = SPAM();\n"
+    "   int v = 0;\n"
+    "   for(int i in arr) {\n"
+    "       v = v + i;\n"
+    "   }\n"
+    "   return v;\n"  
+    "}\n";
+
+    source_code_t code = program_source_from_memory(src_01, strlen(src_01));
+    program_t program = program_compile(&code, false);
+    program_source_free(&code);
+
+    if( program_is_valid(&program) == false ) {
+        TEST_ASSERT_MSG(this,
+            false,
+            "#1.0 failed to compile test program");
+        return;
+    }
+
+    entry_point_t ep = program_entry_point_find(&program, "main", ift_func(ift_int()));
+    if( program_entry_point_is_valid(ep) == false ) {
+        TEST_ASSERT_MSG(this,
+            false,
+            "#1.1 failed access entry point");
+        return;
+    }
+
+    vm_t vm = {0};
+    vm_create(&vm, 40);
+
+    vm_env_t env = {0};
+    vm_env_setup(&env, &program, NULL);
+
+    for(int i = 0; i < 100; i++) {
+        vm_execute(&vm, &env, &ep, &program);
+        heap_gc_collect(&vm);
+        int heap_used = heap_get_used(&vm);
+        TEST_ASSERT_MSG(this,
+            heap_used == 0,
+            "#1.2 heap");
+        if(heap_used != 0)
+            break;
+    }
+
+    vm_destroy(&vm);
+    vm_env_destroy(&env);
+    program_destroy(&program);
+}
+
 
 test_results_t run_testcases(void) {
 
     test_case_t test_cases[] = {
+        {
+            .name = "vm full heap",
+            .test = test_vm_full_heap,
+            .nfailed = 0
+        },
+        {
+            .name = "vm cleanup",
+            .test = test_vm_cleanup,
+            .nfailed = 0
+        },
         {
             .name = "ift types",
             .test = test_ift_types,

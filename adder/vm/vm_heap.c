@@ -73,6 +73,21 @@ void heap_print_usage(vm_t* vm) {
     sh_log_info("HEAP USAGE BITS\n%s", str.ptr);
 }
 
+int heap_get_used(vm_t* vm) {
+    int used = 0;
+    int pages = CALC_GC_MARK_U64_COUNT(vm->mem.heap.size);
+    int num_bits = sizeof(uint64_t) * CHAR_BIT;
+    for(int i = 0; i < pages; i++) {
+        for(int j = 0; j < num_bits; j++) {
+            uint64_t marks = vm->mem.heap.gc_marks[i];
+            if(((1UL << j) & marks) > 0) {
+                used += 8;
+            }
+        }
+    }
+    return used;
+}
+
 int heap_find_small_chunk(vm_t* vm, int value_count) {
     int num_bits_per_page = sizeof(uint64_t) * CHAR_BIT;
     int num_pages = CALC_GC_MARK_U64_COUNT(vm->mem.heap.size);
@@ -151,21 +166,21 @@ int heap_find_free_chunk(vm_t* vm, int val_count) {
     }
 }
 
-// TODO: Not checking if too much memory is allocated!
-
 array_t heap_array_alloc(vm_t* vm, int val_count) {
 
     int addr = heap_find_free_chunk(vm, val_count);
+    int end_addr = addr + val_count;
 
     // run GC if we are out of memory
-    if( addr < 0 ) {
+    if( addr < 0 || end_addr >= vm->mem.heap.size ) {
         heap_gc_collect(vm);
         addr = heap_find_free_chunk(vm, val_count);
+        end_addr = addr + val_count;
     }
 
-    // if GC did not free up memory we fail
-    if( addr < 0 ) {
-        sh_log_error("VM heap memory is full.\n");
+    // if GC did not free up enough memory we fail
+    if( addr < 0 || end_addr >= vm->mem.heap.size ) {
+        sh_log_error("VM heap: not enough free memory.\n");
         return (array_t) { 0 }; // null address makes this invalid
     }
 

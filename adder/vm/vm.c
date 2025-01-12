@@ -401,8 +401,13 @@ val_t vm_execute(vm_t* vm, vm_env_t* env, entry_point_t* ep, program_t* program)
                     frame.return_pc = -1;
                 }
 
+                // Note: if the return address is negative we exit the vm.
                 if( frame.return_pc < 0 ) {
-                    // Note: if the return address is negative we exit the vm.
+                    // below the return value in the stack
+                    // we may have a frame + locals etc
+                    // so to ensure the frame is poped
+                    // we reset the stack top pointer
+                    vm_mem->stack.top = 0;
                     return val_none();
                 }
 
@@ -434,12 +439,18 @@ val_t vm_execute(vm_t* vm, vm_env_t* env, entry_point_t* ep, program_t* program)
 
                 if( frame.return_pc < 0 ) {
                     // Note: if the return address is negative we exit the vm
-                    //       returning the top of stack element.
+                    //       returning the top of stack element. 
+                    val_t rval = val_none();
                     if( vm_mem->stack.top >= 0 ) {
-                        return stack[vm_mem->stack.top];
-                    } else {
-                        return val_none();
+                        rval = stack[vm_mem->stack.top];
+                        // below the return value in the stack
+                        // we may have a frame + locals etc
+                        // so to ensure the frame is poped
+                        // we reset the stack top pointer
+                        vm_mem->stack.top = 0;
                     }
+
+                    return rval;
                 }
 
                 int body_start = vm_mem->stack.frame + frame.num_locals + frame.num_args;
@@ -455,6 +466,7 @@ val_t vm_execute(vm_t* vm, vm_env_t* env, entry_point_t* ep, program_t* program)
                     // push return value
                     stack[++vm_mem->stack.top] = ret_val;
                 }
+
                 // find index of previous frame
                 // this way of updating current frame may turn out
                 // to be too slow.
@@ -465,6 +477,7 @@ val_t vm_execute(vm_t* vm, vm_env_t* env, entry_point_t* ep, program_t* program)
                         break;
                     }
                 }
+
             } break;
             case OP_STORE_LOCAL: {
                 uint32_t local_idx = READ_U32(instructions, vm_run->pc);

@@ -148,7 +148,7 @@ bool xu_quick_run(char* filepath, xu_quickopts_t opts) {
             vm_env_t env = { 0 };
             vm_env_setup(&env, &program, &ffi);
 
-            entry_point_t ep = program_entry_point_find(&program, "main", NULL);
+            entry_point_t ep = program_entry_point_find_any(&program, "main");
 
             vm_t vm = { 0 };
             vm_create(&vm, 256);
@@ -297,7 +297,7 @@ xu_caller_t xu_class_extract(xu_class_t class, char* name, ift_t type) {
     }
 
     program_t* program = &list->programs[class.classref];
-    entry_point_t ep = program_entry_point_find(program, name, &type);
+    entry_point_t ep = program_entry_point_find(program, name, type);
 
     if( ep.address < 0 || ep.argcount < 0 ) {
         sh_log_error("xu_class_extract: entrypoint '%s' was not found", name);
