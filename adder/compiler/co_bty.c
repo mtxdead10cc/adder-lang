@@ -715,7 +715,7 @@ bty_type_t* bty_synth_binop(bty_ctx_t* c, ast_node_t* n) {
 
 bty_type_t* bty_synth_funcall(bty_ctx_t* c, ast_funcall_t fc) {
     if( fc.args->type != AST_ARGLIST ) {
-        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_extract_srcref(fc.args));
+        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, fc.name);
         trace_msg_append_costr(m, "invalid argument(s)");
         return bty_error(c->arena, BTY_ERR_INTERNAL);
     }
@@ -730,7 +730,7 @@ bty_type_t* bty_synth_funcall(bty_ctx_t* c, ast_funcall_t fc) {
     assert(fnty->tag == BTY_FUNC);
     ast_arglist_t al = fc.args->u.n_args;
     if( al.count != (size_t) fnty->u.fun.argc ) {
-        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_extract_srcref(fc.args));
+        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, fc.name);
         trace_msg_append_costr(m, "argument count mismatch");
         return bty_error(c->arena, BTY_ERR_TYPECHECK);
     }

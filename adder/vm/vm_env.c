@@ -104,7 +104,7 @@ bool vm_env_setup(vm_env_t* env, program_t* program, ffi_t* ffi) {
         int supp_index = ffi_native_exports_index_of(&ffi->supplied, def.name);
         assert( supp_index >= 0 );
         mapping[i] = ffi->supplied.handle[supp_index];
-        argc[i] = ift_func_arg_count(ffi->supplied.def[i].type);
+        argc[i] = ift_func_arg_count(ffi->supplied.def[supp_index].type);
     }
 
     env->count = program->imports.count;

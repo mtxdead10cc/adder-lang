@@ -200,7 +200,9 @@ xu_class_t mk_invalid_class(void) {
 
 xu_class_t xu_class_read_and_create(xu_classlist_t* classes, char* file_path) {
     source_code_t code = program_source_read_from_file(file_path);
-    return xu_class_create(classes, &code);
+    xu_class_t class = xu_class_create(classes, &code);
+    program_source_free(&code);
+    return class;
 }
 
 
@@ -320,7 +322,7 @@ bool xu_class_inject(xu_class_t class, char* name, ift_t type, ffi_handle_t hand
     // TODO: Verify that the type is function / action etc.
 
     if(xu_class_is_valid(class) == false) {
-        sh_log_error("xu_class_inject: received invalid class data when extracting '%s'", name);
+        sh_log_error("xu_class_inject: received invalid class data when injecting '%s'", name);
         return false;
     }
 

@@ -395,5 +395,6 @@ program_t program_compile(source_code_t* code, bool print_ast) {
 
     pa_destroy(&parser);
     arena_destroy(arena);
+    trace_destroy(&trace);
     return program;
 }
