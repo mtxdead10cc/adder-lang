@@ -198,15 +198,15 @@ xu_class_t mk_invalid_class(void) {
     };
 }
 
-xu_class_t xu_class_read_and_create(xu_classlist_t* classes, char* file_path) {
+xu_class_t xu_class_read_and_create(xu_classlist_t* classes, char* file_path, int class_id) {
     source_code_t code = program_source_read_from_file(file_path);
-    xu_class_t class = xu_class_create(classes, &code);
+    xu_class_t class = xu_class_create(classes, &code, class_id);
     program_source_free(&code);
     return class;
 }
 
 
-xu_class_t xu_class_create(xu_classlist_t* classes, source_code_t* code) {
+xu_class_t xu_class_create(xu_classlist_t* classes, source_code_t* code, int class_id) {
 
     if( program_source_is_valid(code) == false ) {
         sh_log_error("xu_class_create: received invalid source code");
@@ -246,6 +246,7 @@ xu_class_t xu_class_create(xu_classlist_t* classes, source_code_t* code) {
     }
 
     classes->modtimes[ref] = code->modtime;
+    classes->user_ids[ref] = class_id;
     classes->envs[ref] = (vm_env_t) {0};
     classes->count ++;
 
@@ -261,6 +262,12 @@ bool xu_class_is_valid(xu_class_t class) {
     if(class.classref < 0 || class.classref >= XU_COUNT)
         return false;
     return true;
+}
+
+int xu_class_get_id(xu_class_t class, int not_found_default) {
+    if( xu_class_is_valid(class) )
+        return class.classlist->user_ids[class.classref];
+    return not_found_default;
 }
 
 bool xu_class_is_compiled(xu_class_t class) {
@@ -370,7 +377,86 @@ bool xu_class_finalize(xu_class_t class) {
     return true;
 }
 
-bool xu_finalize(xu_classlist_t* classes) {
+xu_iterator_t xu_iterator(xu_classlist_t* classes) {
+    return (xu_iterator_t) {
+        .classes = classes,
+        .current = -1
+    };
+}
+
+void xu_iterator_reset(xu_iterator_t* it) {
+    it->current = -1;
+}
+
+bool xu_iterator_next(xu_iterator_t* it) {
+    int next = it->current + 1;
+    if( next < it->classes->count ) {
+        it->current = next;
+        return true;
+    }
+    return false;
+}
+
+xu_class_t xu_iterator_current(xu_iterator_t* it) {
+    xu_class_t result = { 0 };
+    if( it->current < it->classes->count && it->current >= 0) {
+        result.classlist = it->classes;
+        result.classref = it->current;
+    }
+    return result;
+}
+
+xu_result_t xu_refresh_class(xu_class_t class) {
+
+    xu_classlist_t* classes = class.classlist;
+    int classref = class.classref;
+
+    char* srcpath = classes->paths[classref];
+    if( srcpath == NULL )
+        return XU_NO_CHANGE; // source from memory buffer
+
+    if( program_file_exists(srcpath) == false )
+        return XU_ERROR_INVALID_PARAM;
+
+    time_t new_modtime = program_file_get_modtime(srcpath);
+    if( classes->modtimes[classref] >= new_modtime )
+        return XU_NO_CHANGE;
+
+    classes->modtimes[classref] = new_modtime;
+
+    source_code_t code = program_source_read_from_file(srcpath);
+    program_t new_program = program_compile(&code, false);
+    program_source_free(&code);
+
+    // keep the old program if we fail to compile
+    if( program_is_valid(&new_program) == false )
+        return XU_ERROR_COMPILATION;
+
+    // finalize / setup env
+    ffi_t* ffi = &classes->interfaces[classref];   // reuse previous FFI
+    vm_env_t new_env = { 0 };               // new ENV
+
+    if(vm_env_setup(&new_env, &new_program, ffi) == false) {
+        vm_env_destroy(&new_env);
+        sh_log_error("xu_refresh: env setup failed");
+        return XU_ERROR_ENV;
+    }
+
+    // destroy the old env
+    vm_env_destroy(&classes->envs[classref]);
+
+    // destroy the old program
+    if( program_is_valid(&classes->programs[classref]) )
+        program_destroy(&classes->programs[classref]);
+
+    // assign the new version
+    classes->envs[classref] = new_env;
+    classes->programs[classref] = new_program;
+    return XU_OK;
+}
+
+
+bool xu_finalize_all(xu_classlist_t* classes) {
     int failed_count = 0;
     for(int i = 0; i < classes->count; i++) {
         xu_class_t class = (xu_class_t) {
@@ -383,7 +469,7 @@ bool xu_finalize(xu_classlist_t* classes) {
     return failed_count == 0;
 }
 
-void xu_cleanup(xu_classlist_t* classes) {
+void xu_cleanup_all(xu_classlist_t* classes) {
     for(int i = 0; i < classes->count; i++) {
         ffi_destroy(&classes->interfaces[i]);
         program_destroy(&classes->programs[i]);

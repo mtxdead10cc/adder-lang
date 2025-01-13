@@ -1262,7 +1262,7 @@ void test_xu_classes(test_case_t* this) {
     
     xu_classlist_t list = {0};
     source_code_t code = program_source_from_memory(src_class, strlen(src_class));
-    xu_class_t class = xu_class_create(&list, &code);
+    xu_class_t class = xu_class_create(&list, &code, 0xBEEF);
 
     TEST_ASSERT_MSG(this,
         xu_class_is_compiled(class),
@@ -1282,7 +1282,7 @@ void test_xu_classes(test_case_t* this) {
         "#2.1 entry point B");
 
     TEST_ASSERT_MSG(this,
-        xu_finalize(&list),
+        xu_finalize_all(&list),
         "#3.1 finalize");
 
     vm_t vm = {0};
@@ -1301,7 +1301,7 @@ void test_xu_classes(test_case_t* this) {
         "#4.2 call B #2");
 
     vm_destroy(&vm);
-    xu_cleanup(&list);
+    xu_cleanup_all(&list);
 }
 
 val_t test_alloc(ffi_hndl_meta_t md, int argcount, val_t* args) {
