@@ -498,7 +498,7 @@ char* xu_val_to_string(vm_t* vm, val_t val) {
     // note: this will get messy if 
     // called from multiple threads
     static char buf[2048];
-    buf[0] = '\n'; // reset previous
+    buf[0] = '\0'; // reset previous
     cstr_t str = {
         .maxlen = 2048,
         .ptr = buf

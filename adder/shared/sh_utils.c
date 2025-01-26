@@ -10,7 +10,7 @@
 
 sstr_t sstr(char* str) {
     sstr_t sstr = { 0 };
-    size_t len = strlen(str);
+    size_t len = strnlen(str, SSTR_MAX_LEN+1);
     assert(len <= SSTR_MAX_LEN);
     len = min(len, SSTR_MAX_LEN);
     strncpy(sstr.str, str, len);
