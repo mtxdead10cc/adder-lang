@@ -243,7 +243,7 @@ time_t program_file_get_modtime(char *file_path) {
 
 source_code_t program_source_from_memory(char* source_code, int length) {
     source_code_t src = (source_code_t) {
-        .file_path = "xutils-memory-buffer",
+        .file_path = "memory-buffer",
         .modtime = 0UL,
         .source_code = (char*) malloc( length * sizeof(char) ),
         .source_length = length   
@@ -294,11 +294,27 @@ source_code_t program_source_read_from_file(char* file_path) {
         sh_log_error("program_source_read_from_file: the file was too large "
             "(todo: fix source_code_t etc.)\n\t%s",
             file_path);
+        if( source_text != NULL )
+            free(source_text);
         return (source_code_t) { 0 };
     }
 
+    size_t path_length = strnlen(file_path, 2048);
+    char* path_clone = (char*) malloc((path_length + 1) * sizeof(char));
+
+    if( path_length == 2048 || path_clone == NULL ) {
+        sh_log_error("program_source_read_from_file: failed to create a copy of the file path\n");
+        if( path_clone != NULL )
+            free(path_clone);
+        if( source_text != NULL )
+            free(source_text);
+        return (source_code_t) { 0 };
+    }
+
+    strncpy(path_clone, file_path, path_length);
+
     return (source_code_t) {
-        .file_path = file_path,
+        .file_path = path_clone,
         .modtime = program_file_get_modtime(file_path),
         .source_code = source_text,
         .source_length = (int) source_length
@@ -312,15 +328,25 @@ bool program_source_is_valid(source_code_t* code) {
         return false;
     if( code->source_code == NULL )
         return false;
+    if( code->file_path == NULL )
+        return false;
     return true;
 }
 
 void program_source_free(source_code_t* code) {
+
     if( code == NULL )
         return;
+
     if( code->source_code != NULL )
         free(code->source_code);
+    
     code->source_code = NULL;
+
+    if( code->file_path != NULL )
+        free(code->file_path);
+    
+    code->file_path = NULL;
 }
 
 program_t program_compile(source_code_t* code, bool print_ast) {
