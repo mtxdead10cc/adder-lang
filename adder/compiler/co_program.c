@@ -242,16 +242,28 @@ time_t program_file_get_modtime(char *file_path) {
 }
 
 source_code_t program_source_from_memory(char* source_code, int length) {
+
     source_code_t src = (source_code_t) {
-        .file_path = "memory-buffer",
+        .file_path = (char*) malloc( 16 * sizeof(char) ),
         .modtime = 0UL,
         .source_code = (char*) malloc( length * sizeof(char) ),
         .source_length = length   
     };
-    if( src.source_code == NULL )
-        return (source_code_t) {0};
+
+    // i'm fine with using goto for error handling in C
+    if( src.file_path == NULL || src.source_code == NULL )
+        goto alloc_failed;
+    strncpy(src.file_path, "memory-buffer", 14);
     strncpy(src.source_code, source_code, length);
     return src;
+
+alloc_failed:
+
+    if( src.file_path != NULL )
+        free(src.file_path);
+    if( src.source_code != NULL )
+        free(src.source_code);
+    return (source_code_t) { 0 };
 }
 
 source_code_t program_source_read_from_file(char* file_path) {

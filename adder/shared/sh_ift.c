@@ -270,3 +270,9 @@ bool ift_is_unknown(ift_t type) {
         return true;
     return type.tags[0] == IFT_UNK;
 }
+
+bool ift_is_void(ift_t type) {
+    if( type.count != 1 )
+        return false;
+    return type.tags[0] == IFT_VOID;
+}

@@ -163,7 +163,8 @@ entry_point_t entry_point_find_any(program_t* prog, char* name, ift_t* type) {
     entry_point_t ep = {
         .argvals = { 0 },
         .argcount = -1,
-        .address = -1
+        .address = -1,
+        .type = ift_unknown()
     };
 
     if( prog == NULL ) {
@@ -184,6 +185,8 @@ entry_point_t entry_point_find_any(program_t* prog, char* name, ift_t* type) {
         }
         ep.address = 0;
         ep.argcount = argc;
+        if( type != NULL )
+            ep.type = *type; 
         return ep;
     }
 
@@ -230,9 +233,9 @@ entry_point_t entry_point_find_any(program_t* prog, char* name, ift_t* type) {
         return ep;
     }
 
-    ift_t t = prog->exports.def[ep_index].type;
+    ep.type = prog->exports.def[ep_index].type;
     ep.address = uaddress;
-    ep.argcount = ift_func_arg_count(t);
+    ep.argcount = ift_func_arg_count(ep.type);
     return ep;
 }
 
@@ -242,7 +245,8 @@ entry_point_t program_entry_point_find(program_t* prog, char* name, ift_t type) 
         return (entry_point_t) {
             .argvals = { 0 },
             .argcount = -1,
-            .address = -1
+            .address = -1,
+            .type = ift_unknown()
         };
     }
     return entry_point_find_any(prog, name, &type);
@@ -254,7 +258,8 @@ entry_point_t program_entry_point_find_any(program_t* prog, char* name) {
         return (entry_point_t) {
             .argvals = { 0 },
             .argcount = -1,
-            .address = -1
+            .address = -1,
+            .type = ift_unknown()
         };
     }
     return entry_point_find_any(prog, name, NULL);

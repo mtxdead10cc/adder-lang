@@ -19,9 +19,6 @@
 #include <sh_ift.h>
 #include <xu_lib.h>
 
-
-#define DEFAULT_PATH "resources/test.gvm"
-
 val_t test(vm_t* vm, size_t argcount, val_t* args) {
     (void)(argcount); // hide unused warning
     int a = val_into_number(args[0]);
@@ -36,30 +33,6 @@ val_t test(vm_t* vm, size_t argcount, val_t* args) {
     return val_array(array);
 }
 
-typedef struct todo_item_t {
-    bool is_done;
-    char* descr;
-} todo_item_t;
-
-void print_todo_list(todo_item_t* items, size_t count) {
-    sh_log_info("TODO LIST\n");
-    sh_log_info("--------------------------------------\n");
-    for(size_t i = 0; i < count; i++) {
-        sh_log_info(" [%s] %s\n",
-            items[i].is_done ? "X" : " ",
-            items[i].descr);
-    }
-    sh_log_info("--------------------------------------\n");
-}
-
-void todo_list(void) {
-    todo_item_t items[] = {        
-        { false, "Foreach break." }
-    };
-    size_t count = sizeof(items) / sizeof(items[0]);
-    print_todo_list(items, count);
-}
-
 int main(int argv, char** argc) {
 
     char* path = NULL;
@@ -69,8 +42,6 @@ int main(int argv, char** argc) {
     bool keep_alive = false;
     bool run_tests = false;
     int path_arg = -1;
-
-    todo_list();
     
     for(int i = 0; i < argv; i++) {
         disassemble |= strncmp(argc[i], "-d", 2) == 0;
@@ -113,6 +84,8 @@ int main(int argv, char** argc) {
         "\n\t\t -h : show this help message"
         "\n\t\t -k : keep alive, reload and run on file update"
         "\n\t\t -t : run test cases"
+        "\n\t\t -a : show ast"
+        "\n\t\t -d : show disassembly"
         "\n" );
     }
 

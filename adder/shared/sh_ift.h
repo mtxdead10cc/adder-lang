@@ -31,5 +31,6 @@ bool ift_type_equals(ift_t* a, ift_t* b);
 sstr_t ift_type_to_sstr(ift_t type);
 bool ift_type_equals(ift_t* a, ift_t* b);
 bool ift_is_unknown(ift_t type);
+bool ift_is_void(ift_t type);
 
 #endif // IFT_H_

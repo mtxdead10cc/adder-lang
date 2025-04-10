@@ -20,12 +20,8 @@
 #include <sh_ift.h>
 #include <vm_value_tools.h>
 #include <vm_heap.h>
-
-
 #include "sh_program.h"
-
 #include "xu_lib.h"
-
 
 void xu_ffi_print(ffi_hndl_meta_t md, int argcount, val_t* args) {
     define_cstr(str, 512);
@@ -36,7 +32,6 @@ void xu_ffi_print(ffi_hndl_meta_t md, int argcount, val_t* args) {
     }
     sh_log_info("> %s", str.ptr);
 }
-
 
 val_t xu_ffi_to_string(ffi_hndl_meta_t md, int argcount, val_t* args) {
     define_cstr(str, 512);
@@ -55,6 +50,7 @@ val_t xu_ffi_to_string(ffi_hndl_meta_t md, int argcount, val_t* args) {
     }
     return val_array(arr);
 }
+
 
 bool xu_setup_default_interface(ffi_t* ffi) {
     
@@ -157,8 +153,11 @@ bool xu_quick_run(char* filepath, xu_quickopts_t opts) {
                 define_cstr(str, 2048);
                 // execute script
                 val_t result = vm_execute(&vm, &env, &ep, &program);
-                vm_sprint_val(str, &vm, result);
-                sh_log_info(" => %s", str.ptr);
+                ift_t return_type = ift_func_get_return_type(ep.type);
+                if( ift_is_void(return_type) == false ) {
+                    vm_sprint_val(str, &vm, result);
+                    sh_log_info(" => %s", str.ptr);
+                }
             }
 
             vm_env_destroy(&env);
