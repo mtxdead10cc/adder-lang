@@ -51,6 +51,29 @@ val_t xu_ffi_to_string(ffi_hndl_meta_t md, int argcount, val_t* args) {
     return val_array(arr);
 }
 
+val_t xu_ffi_add_strings(ffi_hndl_meta_t md, int argcount, val_t* args) {
+
+    assert(argcount == 2);
+
+    array_t a = val_into_array(args[0]);
+    array_t b = val_into_array(args[1]);
+
+    array_t new_array = heap_array_alloc(md.vm, a.length + b.length);
+    val_t* new_ptr = array_get_ptr(md.vm, new_array, 0);
+
+    val_t* a_ptr = array_get_ptr(md.vm, a, 0);
+    for(int i = 0; i < a.length; i++) {
+        new_ptr[i] = a_ptr[i];
+    }
+
+    val_t* b_ptr = array_get_ptr(md.vm, b, 0);
+    for(int i = 0; i < b.length; i++) {
+        new_ptr[a.length + i] = b_ptr[i];
+    }
+
+    return val_array(new_array);
+}
+
 
 bool xu_setup_default_interface(ffi_t* ffi) {
     
@@ -95,6 +118,17 @@ bool xu_setup_default_interface(ffi_t* ffi) {
             .u.host_function = xu_ffi_to_string,
         },
         ift_func_1(ift_list(ift_char()), ift_bool()));
+
+    res += ffi_native_exports_define(&ffi->supplied,
+        sstr("stradd"), 
+        (ffi_handle_t) {
+            .local = 0,
+            .tag = FFI_HNDL_HOST_FUNCTION,
+            .u.host_function = xu_ffi_add_strings,
+        },
+        ift_func_2(ift_list(ift_char()),
+            ift_list(ift_char()),
+            ift_list(ift_char())));
 
     if( res < 4 )
         sh_log_error("error: failed to register FFI function");
