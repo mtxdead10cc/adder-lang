@@ -27,7 +27,7 @@ void sh_log_init(sh_logprintfn_t printfn) {
 void print_wrapper(sh_log_tag_t tag, char* fmt, va_list args) {
     const char* pre = sh_log_preabmle(tag);
     int pre_len = strnlen(pre, 32);
-    int fmt_len = strnlen(fmt, 2048);
+    int fmt_len = strnlen(fmt, SH_LOG_MAX_MESSAGE_LENGTH);
     int len = pre_len + fmt_len;
     
     char buf[len + 2];

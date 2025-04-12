@@ -22,6 +22,6 @@ void _sh_log_message(sh_log_tag_t tag, char* fmt, ...);
 #define sh_log_info(...) _sh_log_message(SH_LOG_INFO, __VA_ARGS__)
 #define sh_log(...) _sh_log_message(SH_LOG_DEFAULT, __VA_ARGS__)
 
-
+#define SH_LOG_MAX_MESSAGE_LENGTH (2048 * 5)
 
 #endif // SH_LOG_H_
