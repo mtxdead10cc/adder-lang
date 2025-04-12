@@ -1,18 +1,15 @@
 
 /////////////////////////////////////
 // import from the host (xu_lib.c)
-//
 // into-string "cast" functions
-//
 import string itos(int v);
 import string ftos(float v);
 import string btos(bool v);
-//
 // utility functions
-//
 import void print(string msg);
 import string stradd(string fst, string snd);
 //////////////////////////////////////
+
 
 int calculate_sum(array<int> numbers) {
     int sum = 0;
@@ -22,15 +19,15 @@ int calculate_sum(array<int> numbers) {
     return sum;
 }
 
-void describe_number(int number) {
+string get_description(int number) {
     if( number == 42 ) {
-        print(stradd(itos(number), ": the best even number"));
+        return stradd(itos(number), ": the best even number");
     } else if ( number == 3 ) {
-        print(stradd(itos(number), ": odd and almost PI"));
+        return stradd(itos(number), ": odd and almost PI");
     } else if( number % 2 == 0 ) {
-        print(stradd(itos(number), ": an even number"));
+        return stradd(itos(number), ": an even number");
     } else {
-        print(stradd(itos(number), ": an odd number"));   
+        return stradd(itos(number), ": an odd number");
     }
 }
 
@@ -43,7 +40,8 @@ void main() {
 
     print("Presenting today's numbers")
     for(int n in numbers) {
-        describe_number(n);
+        string description = get_description(n);
+        print(description);
     }
 
     int sum = calculate_sum(numbers);
