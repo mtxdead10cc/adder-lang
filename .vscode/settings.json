@@ -52,7 +52,8 @@
         "ostream": "c",
         "ranges": "c",
         "span": "c",
-        "test_runner.h": "c"
+        "test_runner.h": "c",
+        "sh_program.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

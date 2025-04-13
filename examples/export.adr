@@ -1,0 +1,8 @@
+
+export float add(float a, float b) {
+    return a + b;
+}
+
+export float subtract(float a, float b) {
+    return a - b;
+}

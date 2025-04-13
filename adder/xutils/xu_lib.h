@@ -99,7 +99,10 @@ typedef struct xu_quickopts_t {
     bool        disassemble;
     bool        show_ast;
     bool        keep_alive;
+    int         vm_memory;
+    char*       callstr; // fname(0, false, 1.3, "hello")
 } xu_quickopts_t;
+
 
 bool xu_quick_run(char* filepath, xu_quickopts_t opts);
 

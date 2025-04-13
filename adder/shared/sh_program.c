@@ -115,17 +115,38 @@ void program_disassemble(program_t* program) {
     sh_log_info(str.ptr);
 }
 
-int program_find_entrypoint(program_t* prog, sstr_t name, ift_t* expected) {
+int program_find_entrypoint_by_name_and_type(program_t* prog, sstr_t name, ift_t expected, bool retcheck) {
+
+    if( prog == NULL )
+        return -1;
+
+    for(int i = 0; i < prog->exports.count; i++) {
+
+        ffi_definition_t def = prog->exports.def[i];
+        if( sstr_equal(&name, &def.name) == false )
+            continue;
+
+        if( retcheck ) {
+            if( ift_type_equals(&expected, &def.type) == false )
+                return -2;
+        } else {
+            if( ift_func_arglist_equals(&expected, &def.type) == false )
+                return -2;
+        }
+
+        return i;
+    }
+
+    return -1;
+}
+
+int program_find_entrypoint_by_name(program_t* prog, sstr_t name) {
     if( prog == NULL )
         return -1;
     for(int i = 0; i < prog->exports.count; i++) {
         ffi_definition_t def = prog->exports.def[i];
         if( sstr_equal(&name, &def.name) == false )
             continue;
-        if( expected != NULL ) {
-            if( ift_type_equals(expected, &def.type) == false )
-                return -2;
-        }
         return i;
     }
     return -1;
@@ -158,110 +179,107 @@ void program_destroy(program_t* prog) {
     }
 }
 
-entry_point_t entry_point_find_any(program_t* prog, char* name, ift_t* type) {
+int entry_point_find_any(program_t* prog, char* name, ift_t type, entry_point_t* result) {
     
-    entry_point_t ep = {
-        .argvals = { 0 },
-        .argcount = -1,
-        .address = -1
-    };
+    *result = program_entry_point_invalid();
 
     if( prog == NULL ) {
         sh_log_error("get_entry_point: program was NULL");
-        return ep;
+        return PEP_INVALID_PROGRAM;
     }
 
-    int max_args = sizeof(ep.argvals) / sizeof(ep.argvals[0]);
-
+    int max_args = sizeof(result->argvals) / sizeof(result->argvals[0]);
+    int provided_argcount = ift_func_arg_count(type);
+    if( provided_argcount > max_args ) {
+        // call requires unsupported arg count
+        return PEP_INVALID_ENTRY_POINT_ARG_COUNT;
+    }
+    
     if( name == NULL ) {
         // default entry point addr = 0
-        int argc = 0;
-        if( type != NULL )
-            argc = ift_func_arg_count(*type);
-        if( argc > max_args ) {
-            sh_log_error("get_entry_point: program requires unsupported arg count");
-            return ep;
-        }
-        ep.address = 0;
-        ep.argcount = argc;
-        return ep;
+        *result = (entry_point_t) {
+            .address = 0,
+            .argcount = provided_argcount,
+            .type = type
+        };
+        return PEP_OK;
     }
 
     if( prog->exports.count <= 0 ) {
-        sh_log_error("get_entry_point: invalid program.");
-        return ep;
+        // invalid program, no entry points
+        return PEP_INVALID_PROGRAM;
     }
 
-    int ep_index = program_find_entrypoint(prog, sstr(name), type);
+    int ep_index = ift_is_unknown(type)
+        ? program_find_entrypoint_by_name(prog, sstr(name))
+        : program_find_entrypoint_by_name_and_type(prog, sstr(name), type, false);
 
-    if( ep_index == -1 ) {
-        sh_log_error("'%s' not found", name);
-        return ep;
-    }
-    
-    if ( ep_index == -2 ) {
-        sstr_t s = sstr("");
-        sstr_append_fmt(&s, "%s ", name);
-        if( type != NULL ) {
-            sstr_t t = ift_type_to_sstr(*type);
-            sstr_append(&s, &t);
-        }
-        sh_log_error("no match for type %.*s", sstr_len(&s), sstr_ptr(&s));
-        return ep;
+    if( ep_index == -1 )
+        return PEP_NAME_NOT_FOUND;    // name not found
+
+    if( ep_index == -2 ) {
+        int idx = program_find_entrypoint_by_name(prog, sstr(name));
+        if( idx >= 0 ) // set the actual type (for error reporting)
+            result->type = prog->exports.def[idx].type;
+        return PEP_TYPE_NOT_MATCHING; // type not matching
     }
 
     uint32_t uaddress = prog->expaddr[ep_index];
+    ift_t ep_type = prog->exports.def[ep_index].type;
+    int ep_argcount = ift_func_arg_count(ep_type);
+
+    if( ift_is_unknown(type) == false && (ep_argcount != provided_argcount) ) {
+        // arg count not matching
+        return PEP_INVALID_ENTRY_POINT_ARG_COUNT;
+    }
     
     if( uaddress >= prog->inst.size ) {
-        sh_log_error("invalid entry point address %d", uaddress);
-        return ep;
+        // invalid entry point address
+        return PEP_INVALID_PROGRAM_ENTRY_POINT;
     }
 
     if( prog->inst.buffer[uaddress] != OP_MAKE_FRAME ) {
-        sh_log_error("entry point address is not pointing to a frame");
-        return ep;
+        // entry point address is not pointing to a frame
+        return PEP_INVALID_PROGRAM_ENTRY_POINT;
     }
 
-    int argc = 0;
-    if( type != NULL )
-        argc = ift_func_arg_count(*type);
-    if( argc > max_args ) {
-        sh_log_error("get_entry_point: program requires unsupported arg count");
-        return ep;
-    }
+    (*result) = (entry_point_t) {
+        .address = uaddress,
+        .argcount = ep_argcount,
+        .type = ep_type
+    };
 
-    ift_t t = prog->exports.def[ep_index].type;
-    ep.address = uaddress;
-    ep.argcount = ift_func_arg_count(t);
-    return ep;
+    return PEP_OK;
 }
 
-entry_point_t program_entry_point_find(program_t* prog, char* name, ift_t type) {
+entry_point_t program_entry_point_invalid() {
+    return (entry_point_t) {
+        .argvals = { 0 },
+        .argcount = -1,
+        .address = -1,
+        .type = ift_unknown()
+    };
+}
+
+int program_entry_point_find(program_t* prog, char* name, ift_t type, entry_point_t* result) {
+    if( ift_is_unknown(type) ) {
+        return PEP_TYPE_NOT_MATCHING;
+    }
     if( name == NULL ) {
-        sh_log_error("program_entry_point_find: name was NULL");
-        return (entry_point_t) {
-            .argvals = { 0 },
-            .argcount = -1,
-            .address = -1
-        };
+        return PEP_NAME_NOT_FOUND;
     }
-    return entry_point_find_any(prog, name, &type);
+    return entry_point_find_any(prog, name, type, result);
 }
 
-entry_point_t program_entry_point_find_any(program_t* prog, char* name) {
+int program_entry_point_find_any(program_t* prog, char* name, entry_point_t* result) {
     if( name == NULL ) {
-        sh_log_error("program_entry_point_find: name was NULL");
-        return (entry_point_t) {
-            .argvals = { 0 },
-            .argcount = -1,
-            .address = -1
-        };
+        return PEP_NAME_NOT_FOUND;
     }
-    return entry_point_find_any(prog, name, NULL);
+    return entry_point_find_any(prog, name, ift_unknown(), result);
 }
 
-entry_point_t program_entry_point_find_default(program_t* prog) {
-    return entry_point_find_any(prog, NULL, NULL);
+int program_entry_point_find_default(program_t* prog, entry_point_t* result) {
+    return entry_point_find_any(prog, NULL, ift_unknown(), result);
 }
 
 bool program_entry_point_is_valid(entry_point_t entry_point) {

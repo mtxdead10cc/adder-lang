@@ -26,10 +26,11 @@ ift_t ift_func_2(ift_t return_type, ift_t arg1, ift_t arg2);
 ift_t ift_func_3(ift_t return_type, ift_t arg1, ift_t arg2, ift_t arg3);
 
 int   ift_func_arg_count(ift_t func);
-bool ift_type_equals(ift_t* a, ift_t* b);
+bool  ift_type_equals(ift_t* a, ift_t* b);
+bool  ift_func_arglist_equals(ift_t* a, ift_t* b);
 
 sstr_t ift_type_to_sstr(ift_t type);
-bool ift_type_equals(ift_t* a, ift_t* b);
 bool ift_is_unknown(ift_t type);
+bool ift_is_void(ift_t type);
 
 #endif // IFT_H_

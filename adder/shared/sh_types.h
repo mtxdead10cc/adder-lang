@@ -172,6 +172,7 @@ typedef struct entry_point_t {
     val_t argvals[16];
     int   argcount;
     int   address;
+    ift_t type;
 } entry_point_t;
 
 typedef struct program_t {

@@ -14,7 +14,6 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -march=native -funroll-loops -ftree
 
 add_subdirectory(adder)
 add_subdirectory(adrrun)
-add_subdirectory(test-app)
 
 # copy build binaries to bin folder
 #add_custom_target(install-all ALL

@@ -230,6 +230,21 @@ bool ift_type_equals(ift_t* a, ift_t* b) {
     return memcmp(a->tags, b->tags, a->count) == 0;
 }
 
+bool ift_func_arglist_equals(ift_t* a, ift_t* b) {
+    // minimal: <fun-start> <return-type> <fun-end>
+    int ac = ift_func_arg_count(*a);
+    int bc = ift_func_arg_count(*b);
+    if( ac != bc )
+        return false;
+    if( a->tags[0] != IFT_FUN )
+        return false;
+    if( b->tags[0] != IFT_FUN )
+        return false;
+    return memcmp(
+        a->tags + a->count - ac - 1,
+        b->tags + b->count - bc - 1, ac) == 0;
+}
+
 sstr_t ift_type_to_sstr(ift_t type) {
     if( type.count == 0 )
         return sstr("<empty>");
@@ -269,4 +284,10 @@ bool ift_is_unknown(ift_t type) {
     if( type.count == 0 )
         return true;
     return type.tags[0] == IFT_UNK;
+}
+
+bool ift_is_void(ift_t type) {
+    if( type.count != 1 )
+        return false;
+    return type.tags[0] == IFT_VOID;
 }

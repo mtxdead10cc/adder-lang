@@ -1,0 +1,50 @@
+
+/////////////////////////////////////
+// import from the host (xu_lib.c)
+// into-string "cast" functions
+import string itos(int v);
+import string ftos(float v);
+import string btos(bool v);
+// utility functions
+import void print(string msg);
+import string stradd(string fst, string snd);
+//////////////////////////////////////
+
+int calculate_sum(array<int> numbers) {
+    int sum = 0;
+    for(int n in numbers) {
+        sum = sum + n;
+    }
+    return sum;
+}
+
+string get_description(int number) {
+    if( number == 42 ) {
+        return stradd(itos(number), ": the best even number");
+    } else if ( number == 3 ) {
+        return stradd(itos(number), ": odd and almost PI");
+    } else if( number % 2 == 0 ) {
+        return stradd(itos(number), ": an even number");
+    } else {
+        return stradd(itos(number), ": an odd number");
+    }
+}
+
+void main() {
+    
+    array<int> numbers = [
+        1, 2, 3, 4, 5,
+        6, 7, 8, 9, 42
+    ];
+
+    print("Presenting today's numbers")
+    
+    for(int n in numbers) {
+        string description = get_description(n);
+        print(stradd("  ", description));
+    }
+
+    int sum = calculate_sum(numbers);
+    print(stradd("sum: ", itos(sum)));
+}
+

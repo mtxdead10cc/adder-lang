@@ -20,12 +20,8 @@
 #include <sh_ift.h>
 #include <vm_value_tools.h>
 #include <vm_heap.h>
-
-
 #include "sh_program.h"
-
 #include "xu_lib.h"
-
 
 void xu_ffi_print(ffi_hndl_meta_t md, int argcount, val_t* args) {
     define_cstr(str, 512);
@@ -34,9 +30,8 @@ void xu_ffi_print(ffi_hndl_meta_t md, int argcount, val_t* args) {
             cstr_append_fmt(str, " ");
         vm_sprint_val(str, md.vm, args[i]);
     }
-    sh_log_info("> %s", str.ptr);
+    sh_log("> %s", str.ptr);
 }
-
 
 val_t xu_ffi_to_string(ffi_hndl_meta_t md, int argcount, val_t* args) {
     define_cstr(str, 512);
@@ -55,6 +50,30 @@ val_t xu_ffi_to_string(ffi_hndl_meta_t md, int argcount, val_t* args) {
     }
     return val_array(arr);
 }
+
+val_t xu_ffi_add_strings(ffi_hndl_meta_t md, int argcount, val_t* args) {
+
+    assert(argcount == 2);
+
+    array_t a = val_into_array(args[0]);
+    array_t b = val_into_array(args[1]);
+
+    array_t new_array = heap_array_alloc(md.vm, a.length + b.length);
+    val_t* new_ptr = array_get_ptr(md.vm, new_array, 0);
+
+    val_t* a_ptr = array_get_ptr(md.vm, a, 0);
+    for(int i = 0; i < a.length; i++) {
+        new_ptr[i] = a_ptr[i];
+    }
+
+    val_t* b_ptr = array_get_ptr(md.vm, b, 0);
+    for(int i = 0; i < b.length; i++) {
+        new_ptr[a.length + i] = b_ptr[i];
+    }
+
+    return val_array(new_array);
+}
+
 
 bool xu_setup_default_interface(ffi_t* ffi) {
     
@@ -100,6 +119,17 @@ bool xu_setup_default_interface(ffi_t* ffi) {
         },
         ift_func_1(ift_list(ift_char()), ift_bool()));
 
+    res += ffi_native_exports_define(&ffi->supplied,
+        sstr("stradd"), 
+        (ffi_handle_t) {
+            .local = 0,
+            .tag = FFI_HNDL_HOST_FUNCTION,
+            .u.host_function = xu_ffi_add_strings,
+        },
+        ift_func_2(ift_list(ift_char()),
+            ift_list(ift_char()),
+            ift_list(ift_char())));
+
     if( res < 4 )
         sh_log_error("error: failed to register FFI function");
     
@@ -108,11 +138,161 @@ bool xu_setup_default_interface(ffi_t* ffi) {
     return res;
 }
 
+#define XU_PARSE_MAX_SIZE 512
+#define XU_PARSE_MAX_ARGS 8
+
+int xu_callstr_segment_length(char* str, int maxlen) {
+    bool qouted = false;
+    for(int i = 0; i < maxlen; i++) {
+        if( str[i] == '"' )
+            qouted = !qouted;
+        if( qouted == false && (str[i] == ',' || str[i] == ')') )
+            return i;
+    }
+    return -1;
+}
+
+int xu_callstr_length(char* callstr) {
+    int len = strnlen(callstr, XU_PARSE_MAX_SIZE + 1);
+    if( len >= XU_PARSE_MAX_SIZE ) {
+        return -1;
+    }
+    return len;
+}
+
+int xu_callstr_name_length(char* callstr) {
+    int len = xu_callstr_length(callstr);
+    len = str_index_of(callstr, len, '(');
+    len = str_rstrip_whitespace(callstr, len);
+    if( len < 0 )
+        len = 0;
+    return len;
+}
+
+ift_t xu_ift_from_callstring(char* callstr) {
+
+    if( callstr == NULL )
+        return ift_unknown();
+
+    int len = xu_callstr_length(callstr);
+    int start = str_index_of(callstr, len, '(') + 1;
+    if( start >= len || start < 0 ) {
+        sh_log_error("error: malformed callstring");
+        return ift_unknown();
+    }
+
+    ift_t ftype = ift_func(ift_unknown());
+
+    while(true) {
+
+        int seglen = xu_callstr_segment_length(callstr + start, len - start);
+        
+        if( seglen < 0 )
+            break;
+        
+        if( str_is_string(callstr + start, seglen) ) {
+            ftype = ift_func_add_arg(ftype, ift_list(ift_char()));
+        } else if(str_is_bool(callstr + start, seglen)) {
+            ftype = ift_func_add_arg(ftype, ift_bool());
+        } else if(str_is_float(callstr + start, seglen)) {
+            ftype = ift_func_add_arg(ftype, ift_float());
+        } else if(str_is_int(callstr + start, seglen)) {
+            ftype = ift_func_add_arg(ftype, ift_int());
+        } else {
+            break;
+        }
+        
+        start += seglen + 1;
+    }
+
+    return ftype;
+}
+
+val_t xu_alloc_user_string(vm_t* vm, int len, char* str) {
+
+    int start = str_index_of(str, len, '"') + 1;
+    int end = str_index_of(str + start, len, '"');
+
+    int arraylen = end - start;
+
+    if( start < 0 || end < 0 || arraylen < 0 )
+        arraylen = 0;
+
+    array_t array = heap_array_alloc(vm, arraylen);
+    val_t* ptr = array_get_ptr(vm, array, 0);
+    for(int i = 0; i < arraylen; i++) {
+        ptr[i] = str[i + start];
+    }
+
+    return val_array(array);
+}
+
+int xu_args_from_callstring(vm_t* vm, char* callstr, int maxlen, val_t* args) {
+
+    if( callstr == NULL )
+        return 0;
+
+    int len = xu_callstr_length(callstr);
+    int start = str_index_of(callstr, len, '(') + 1;
+    if( start >= len ) {
+        return 0;
+    }
+
+    int argc = 0;
+
+    while(argc < maxlen) {
+
+        int seglen = xu_callstr_segment_length(callstr + start, len - start);
+        
+        if( seglen < 0 )
+            break;
+        
+        if( str_is_string(callstr + start, seglen) ) {
+            args[argc++] = xu_alloc_user_string(vm, seglen, callstr + start);
+        } else if(str_is_bool(callstr + start, seglen)) {
+            args[argc++] = val_bool(strncmp(callstr + start, "true", 4) == 0);
+        } else if(str_is_float(callstr + start, seglen)) {
+            float v = 0.0f;
+            sscanf(callstr + start, "%f", &v);
+            args[argc++] = val_number(v);
+        } else if (str_is_int(callstr + start, seglen)) {
+            int v = 0;
+            sscanf(callstr + start, "%d", &v);
+            args[argc++] = val_number(v);
+        } else {
+            break;
+        }
+        
+        start += seglen + 1;
+    }
+
+    return argc;
+}
+
+int xu_call_string_to_entry_point(program_t* program, char* callstr, entry_point_t* result) {
+
+    *result = program_entry_point_invalid();
+
+    if( callstr == NULL )
+        return PEP_NAME_NOT_FOUND;
+
+    int nlen = xu_callstr_name_length(callstr);
+    if( nlen <= 0 )
+        return PEP_NAME_NOT_FOUND;
+
+    char name[nlen + 1];
+    for(int i = 0; i < nlen; i++)
+        name[i] = callstr[i];
+    name[nlen] = '\0';
+
+    ift_t ftype = xu_ift_from_callstring(callstr);
+    return program_entry_point_find(program, name, ftype, result);
+}
 
 bool xu_quick_run(char* filepath, xu_quickopts_t opts) {
 
     time_t last_creation_time = 0x0L;
-    bool compile_ok = true;
+    bool all_checks_passed = true;
     ffi_t ffi = { 0 };
 
     if( program_file_exists(filepath) == false ) {
@@ -136,10 +316,57 @@ bool xu_quick_run(char* filepath, xu_quickopts_t opts) {
         last_creation_time = creation_time;
         source_code_t code = program_source_read_from_file(filepath);
         program_t program = program_compile(&code, opts.show_ast);
-        compile_ok = program_is_valid(&program);
-        sh_log_info("%s [%s]\n", filepath, compile_ok ? "OK" : "FAILED");
+        all_checks_passed = program_is_valid(&program);
+        sh_log("%s [%s]\n", filepath, all_checks_passed ? "OK" : "FAILED");
+
+        entry_point_t entrypoint = { 0 };
+
+        char* callstr = opts.callstr == NULL ? "main()" : opts.callstr;
+        int find_result = xu_call_string_to_entry_point(&program, callstr, &entrypoint);
         
-        if( compile_ok ) {
+        switch(find_result) {
+            case PEP_INVALID_ENTRY_POINT_ARG_COUNT: {
+                sh_log_error(
+                    "the argument count of call string "
+                    "%s does not match the entry point",
+                    callstr);
+            } break;
+            case PEP_INVALID_PROGRAM_ENTRY_POINT: {
+                sh_log_error("invalid program entry point");
+            } break;
+            case PEP_NAME_NOT_FOUND: {
+                int nlen = xu_callstr_name_length(callstr);
+                sh_log_error("no exported function called '%.*s' was found",
+                    nlen, callstr);
+            } break;
+            case PEP_TYPE_NOT_MATCHING: {
+                ift_t ftype = xu_ift_from_callstring(callstr);
+                sstr_t calltype_str = ift_type_to_sstr(ftype);
+                sstr_t progtype_str = ift_type_to_sstr(entrypoint.type);
+                calltype_str = sstr_substr(&calltype_str, 0, sstr_index_of(&calltype_str, ')') + 1);
+                int nlen = xu_callstr_name_length(callstr);
+                sh_log_error(
+                    "the function '%.*s' was found, but "
+                    "its type\n|  %s\ndoes not match the "
+                    "call string\n|  %s // %s",
+                    nlen, callstr,
+                    progtype_str.str,
+                    callstr,
+                    calltype_str.str);
+            } break;
+            case PEP_INVALID_PROGRAM: {
+                sh_log_error(
+                    "invalid source code (the string was "
+                    "NULL or no exports/main defined)");
+            } break;
+            default: break;
+        }
+
+        if( program_entry_point_is_valid(entrypoint) == false ) {
+            all_checks_passed = false;
+        }
+        
+        if( all_checks_passed ) {
 
             if( opts.disassemble ) {
                 program_disassemble(&program);
@@ -148,17 +375,19 @@ bool xu_quick_run(char* filepath, xu_quickopts_t opts) {
             vm_env_t env = { 0 };
             vm_env_setup(&env, &program, &ffi);
 
-            entry_point_t ep = program_entry_point_find_any(&program, "main");
-
             vm_t vm = { 0 };
-            vm_create(&vm, 256);
+            vm_create(&vm, opts.vm_memory);
 
             if( vm_env_is_ready(&env) ) {
-                define_cstr(str, 2048);
+                xu_args_from_callstring(&vm, opts.callstr, entrypoint.argcount, entrypoint.argvals);
                 // execute script
-                val_t result = vm_execute(&vm, &env, &ep, &program);
-                vm_sprint_val(str, &vm, result);
-                sh_log_info(" => %s", str.ptr);
+                val_t result = vm_execute(&vm, &env, &entrypoint, &program);
+                ift_t return_type = ift_func_get_return_type(entrypoint.type);
+                if( ift_is_void(return_type) == false ) {
+                    define_cstr(str, 2048);
+                    vm_sprint_val(str, &vm, result);
+                    sh_log(" => %s", str.ptr);
+                }
             }
 
             vm_env_destroy(&env);
@@ -170,7 +399,7 @@ bool xu_quick_run(char* filepath, xu_quickopts_t opts) {
 
     ffi_destroy(&ffi);
 
-    return compile_ok;
+    return all_checks_passed;
 }
 
 #define UNUSED(X) (void)(X)
@@ -306,10 +535,16 @@ xu_caller_t xu_class_extract(xu_class_t class, char* name, ift_t type) {
     }
 
     program_t* program = &list->programs[class.classref];
-    entry_point_t ep = program_entry_point_find(program, name, type);
+
+    entry_point_t ep = {0};
+    
+    if( program_entry_point_find(program, name, type, &ep) != PEP_OK ) {
+        sh_log_error("xu_class_extract: entrypoint '%s' could not be extracted", name);
+        return mk_invalid_caller();
+    }
 
     if( ep.address < 0 || ep.argcount < 0 ) {
-        sh_log_error("xu_class_extract: entrypoint '%s' was not found", name);
+        sh_log_error("xu_class_extract: entrypoint '%s' was invalid", name);
         return mk_invalid_caller();
     }
 

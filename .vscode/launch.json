@@ -7,7 +7,7 @@
             "request": "launch",
             // Resolved by CMake Tools:
             "program": "${command:cmake.launchTargetPath}",
-            "args": [ "-k", "-a", "scripts/test.adr" ],
+            "args": [ "-d", "-a", "examples/basics.adr" ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [

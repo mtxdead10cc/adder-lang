@@ -129,7 +129,6 @@ void vm_destroy(vm_t* vm) {
 }
 
 inline static void ffi_invoke(ffi_handle_t* hndl, int arg_count, vm_t* vm) {
-    vm->mem.stack.top -= arg_count;
     switch(hndl->tag) {
         case FFI_HNDL_HOST_ACTION: {
             hndl->u.host_action(
@@ -138,7 +137,8 @@ inline static void ffi_invoke(ffi_handle_t* hndl, int arg_count, vm_t* vm) {
                     .vm = vm
                 },
                 arg_count,
-                vm->mem.stack.values + vm->mem.stack.top + 1);
+                vm->mem.stack.values + vm->mem.stack.top + 1 - arg_count);
+            vm->mem.stack.top -= arg_count;
         } break;
         case FFI_HNDL_HOST_FUNCTION: {
             val_t ret = hndl->u.host_function(
@@ -147,7 +147,8 @@ inline static void ffi_invoke(ffi_handle_t* hndl, int arg_count, vm_t* vm) {
                     .vm = vm
                 },
                 arg_count,
-                vm->mem.stack.values + vm->mem.stack.top + 1);
+                vm->mem.stack.values + vm->mem.stack.top + 1 - arg_count);
+            vm->mem.stack.top -= arg_count;
             vm->mem.stack.values[++vm->mem.stack.top] = ret;
         } break;
         default: {
