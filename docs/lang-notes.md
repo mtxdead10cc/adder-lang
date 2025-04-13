@@ -90,19 +90,10 @@ In the VM the following should be true:
 
 ### TODO
 
-* [ ] The parsing of language source code.
-* [ ] IR based typechecking.
-* [ ] OP_NATIVE_CALL via AST_CALL ( 'extern print(any val) -> none;' ).
 * [ ] OP_BREAK needs an implementation.
-* [X] Remove gvm_asm and clean up unused datatypes.
-* [X] Remove or cleanup asmutils.
-* [X] Bytecode op args should be 32 bit.
-* [X] Update VM data structures to use unsigned 32 bit integers.
 * [ ] Compiler errors and warnings.
 * [ ] Proper VM traps instead of asserts and exit(1).
-* [X] Function arguments in VM needs to be treated like locals.
-* [X] Use indices instead of strings for identifiers (locals, globals, function names, etc).
-* [X] Remove the concept of globals. There should always be a stack-frame present.
+
 
 ### Lua EBNF (for reference)
 
