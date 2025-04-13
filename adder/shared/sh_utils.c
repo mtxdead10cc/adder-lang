@@ -55,6 +55,27 @@ void sstr_clear(sstr_t* sstr) {
     memset(sstr->str, 0, SSTR_MAX_LEN);
 }
 
+int sstr_index_of(sstr_t* sstr, char c) {
+    for(int i = 0; i < SSTR_MAX_LEN; i++) {
+        if( sstr->str[i] == c )
+            return i;
+    }
+    return -1;
+}
+
+sstr_t sstr_substr(sstr_t* sstr, int start, int end) {
+    if( end > SSTR_MAX_LEN )
+        end = SSTR_MAX_LEN;
+    int count = end - start;
+    if( count <= 0 )
+        return (sstr_t) { 0 };
+    sstr_t res = { 0 };
+    for(int i = 0; i < count; i++) {
+        res.str[i] = sstr->str[i + start];
+    }
+    return res;
+}
+
 int sstr_append(sstr_t* on, sstr_t* addition) {
     if( on == NULL )
         return -SSTR_MAX_LEN;
@@ -113,4 +134,113 @@ int cstr_append_fmt(cstr_t str, const char* fmt, ...) {
     int w = vsnprintf(str.ptr + len, str.maxlen-len, fmt, args);
     va_end(args);
     return w;
+}
+
+bool str_is_whitespace_char(char c) {
+    return c == ' '
+        || c == '\t'
+        || c == '\n';
+}
+
+char* str_lstrip_whitespace(char* str, int* len) {
+    while( (*len) > 0 ) {
+        if( str_is_whitespace_char(str[0]) ) {
+            str++;
+            (*len) --;
+        } else {
+            break;
+        }
+    }
+    return str;
+}
+
+int str_rstrip_whitespace(char* str, int len) {
+    while( len > 0 ) {
+        if( str_is_whitespace_char(str[len-1]) ) {
+            len --;
+        } else {
+            break;
+        }
+    }
+    return len;
+}
+
+char* str_strip_whitespace(char* str, int* length) {
+    str = str_lstrip_whitespace(str, length);
+    *length = str_rstrip_whitespace(str, *length);
+    return str;
+}
+
+bool str_is_bool(char* str, int len) {
+    str = str_lstrip_whitespace(str, &len);
+    if( len < 5 )
+        return false;
+    return strncmp("false", str, 5) == 0
+        || strncmp("true", str, 4)  == 0;
+}
+
+bool str_is_float(char* str, int len) {
+    str = str_lstrip_whitespace(str, &len);
+    if( len <= 0 )
+        return false;
+
+    int dotcount = 0;
+    int numcount = 0;
+    for(int i = 0; i < len; i++) {
+        if( str[i] >= '0' && str[i] <= '9' ) {
+            numcount ++;
+            continue;
+        }
+        if( str[i] == '.' && dotcount <= 1 ) {
+            dotcount ++;
+            continue;
+        }
+        if( str_is_whitespace_char(str[i]) )
+            continue;
+        return false;
+    }
+
+    return dotcount == 1 && numcount > 0;
+}
+
+bool str_is_int(char* str, int len) {
+    str = str_lstrip_whitespace(str, &len);
+    if( len <= 0 )
+        return false;
+    int numcount = 0;
+    for(int i = 0; i < len; i++) {
+        if( str[i] >= '0' && str[i] <= '9' ) {
+            numcount ++;
+            continue;
+        }
+        if( str_is_whitespace_char(str[i]) )
+            continue;
+        return false;
+    }
+    return numcount > 0;
+}
+
+bool str_is_string(char* str, int len) {
+    str = str_lstrip_whitespace(str, &len);
+    if( len <= 0 )
+        return false;
+    if( str[0] != '"' )
+        return false;
+    for(int i = 1; i < len; i++) {
+        if( str[i] == '"' ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int str_index_of(char* str, int len, char c) {
+    int index = 0;
+    while (index < len) {
+        if( str[index] == c ) {
+            return index;
+        }
+        index ++;
+    }
+    return -1;
 }

@@ -26,6 +26,8 @@ char*  sstr_ptr(sstr_t* sstr);
 void   sstr_copy(sstr_t* dest, sstr_t* src);
 void   sstr_replace(sstr_t* sstr, char* text);
 void   sstr_clear(sstr_t* sstr);
+int    sstr_index_of(sstr_t* sstr, char c);
+sstr_t sstr_substr(sstr_t* sstr, int start, int end);
 
 int sstr_append(sstr_t* on, sstr_t* addition);
 int sstr_append_str(sstr_t* on, char* addition);
@@ -38,5 +40,17 @@ int sstr_append_fmt(sstr_t* on, const char* fmt, ...);
 
 int cstr_append_fmt(cstr_t str, const char* fmt, ...);
 
+
+bool str_is_whitespace_char(char c);
+
+bool str_is_bool(char* str, int maxlen);
+bool str_is_int(char* str, int maxlen);
+bool str_is_float(char* str, int maxlen);
+bool str_is_string(char* str, int maxlen);
+int  str_index_of(char* str, int len, char c);
+
+char* str_lstrip_whitespace(char* str, int* length);
+int   str_rstrip_whitespace(char* str, int length);
+char* str_strip_whitespace(char* str, int* length);
 
 #endif // VM_UTILS_H_

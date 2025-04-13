@@ -335,7 +335,8 @@ void test_vm(test_case_t* this) {
     vm_env_t env = { 0 };
     vm_env_setup(&env, &program, NULL);
 
-    entry_point_t ep = program_entry_point_find_default(&program);
+    entry_point_t ep = { 0 };
+    program_entry_point_find_default(&program, &ep);
 
     TEST_ASSERT_MSG(this,
         vm_env_is_ready(&env),
@@ -381,12 +382,11 @@ void test_vm(test_case_t* this) {
     program.inst.size = instr_buf.size;
     program.inst.buffer = instr_buf.data;
 
-    ep = program_entry_point_find_default(&program);
-
     TEST_ASSERT_MSG(this,
         vm_env_is_ready(&env),
         "#4.0 call check failed");
 
+    program_entry_point_find_default(&program, &ep);
     program_entry_point_set_arg_unsafe(&ep, 0, val_number(10));
 
     ret = vm_execute(&vm, &env, &ep, &program);
@@ -496,7 +496,9 @@ void test_ast(test_case_t* this) {
     vm_env_t env = { 0 };
     vm_env_setup(&env, &program, NULL);
 
-    entry_point_t ep = program_entry_point_find_any(&program, "main");
+    entry_point_t ep = {0};
+    
+    program_entry_point_find_any(&program, "main", &ep);
 
     program_entry_point_set_arg(&ep, 0, val_number(1));
     program_entry_point_set_arg(&ep, 1, val_number(-1));
@@ -834,7 +836,9 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         "'%s': failed set up env.",
                 tc_name);
 
-    entry_point_t ep = program_entry_point_find_any(&program, "main");
+    entry_point_t ep = {0};
+    program_entry_point_find_any(&program, "main", &ep);
+
     val_t res = val_none();
     if( vm_env_is_ready(&env) ) {
         res = vm_execute(&vm, &env, &ep, &program);
@@ -1346,7 +1350,10 @@ void test_vm_full_heap(test_case_t* this) {
         return;
     }
 
-    entry_point_t ep = program_entry_point_find(&program, "main", ift_func_1(ift_int(), ift_int()));
+    entry_point_t ep = {0};
+    
+    program_entry_point_find(&program, "main", ift_func_1(ift_int(), ift_int()), &ep);
+    
     if( program_entry_point_is_valid(ep) == false ) {
         TEST_ASSERT_MSG(this,
             false,
@@ -1398,7 +1405,8 @@ void test_vm_cleanup(test_case_t* this) {
         return;
     }
 
-    entry_point_t ep = program_entry_point_find(&program, "main", ift_func(ift_int()));
+    entry_point_t ep = {0};
+    program_entry_point_find(&program, "main", ift_func(ift_int()), &ep);
     if( program_entry_point_is_valid(ep) == false ) {
         TEST_ASSERT_MSG(this,
             false,
