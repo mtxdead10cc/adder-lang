@@ -12,7 +12,7 @@ Adder is a small language that compiles to byte code. The language is built to b
 
 * Garbage collected (arrays)
 
-* In development, potentially unstable, no official release version, and no promises regarding backward compatibility in future updates (USE AT YOUR OWN RISK)
+* In development and potentially unstable (USE AT YOUR OWN RISK)
 
 * Currently only targeting Linux and Android (adding support for more platforms should not be too hard)
 
@@ -24,7 +24,7 @@ Adder is a small language that compiles to byte code. The language is built to b
 
 ### Import from host
 
-Native C functions can be registered and made available in the adder code.
+Native C functions can be registered and made available to the adder code.
 
 There are currently a (small) number of built-in functions automatically available when using adrrun (or adder/xutils).
 
@@ -38,7 +38,7 @@ import string stradd(string fst, string snd);  // concatenate two strings
 
 ### Export to host
 
-Adder functions can be exported, this enables them to be called from the native C code.
+Adder functions can be exported, this enables them to be called from the native c code.
 
 ```c
 // export a function called 'hello'
@@ -81,7 +81,7 @@ void main() {
 
 ### Control flow
 
-Adder supports controle flow by way of if ... else if .. else. 
+Adder supports control flow by way of if ... else if .. else. 
 
 Most operators are similar to C with the notable exception that '&&'' is replaced with the **and** keyword and '||'' is replaced with **or** keyword.
 
@@ -99,7 +99,7 @@ string main(int n) {
 
 ### Loops
 
-We can iterate over arrays one item at the time, as can be see in the example below.
+We can iterate over arrays one item at the time, as can be seen in the example below.
 
 There is currently no way to do arbitrary iteration (eg. 'while(true)' etc.), however, using adder in conjunction with our own host-provided functions we can account for this limitation.
 
@@ -115,7 +115,7 @@ int calculate_sum(array<int> numbers) {
 
 ## Host integration
 
-The c code for this example can be found in the [examples](examples/host/main.c) folder.
+The c code referenced in this section can be found in the [examples](examples/host/main.c) folder.
 
 ### Register a log function
 
@@ -226,7 +226,7 @@ bool create_ok = vm_create(&vm, 128);
 
 xu_invoke.h is a massive file that mostly contains (generated) c macros. The idea is to simplify the binding code by providing helper macros that all take a pointer to a virtual machine, an extracted adder function handle (xu_caller_t) and the value arguments to the function.
 
-The naming convention is basically <return-type>call<arg-type><arg-type> etc. Meaning, for example if **foo** is a function that returns a float and takes 3 integers as arguments, the macro to use would be **float val = fcalliii(&vm, &foo, 1, 2, 3)**.
+The naming convention is basically returntype+'call'+argtype+argtype... Meaning, for example if **foo** is a function that returns a float and takes 3 integers as arguments, the macro to use would be **float val = fcalliii(&vm, &foo, 1, 2, 3)**.
 
 | type               | signature letter |
 | ------------------ | ---------------- |
