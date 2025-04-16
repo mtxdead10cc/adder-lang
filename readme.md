@@ -30,17 +30,15 @@ import string stradd(string fst, string snd);   // string concatenation
 
 string get_description(int number) {
     if( number % 2 == 0 ) {
-        return stradd(itos(number), ": an even number");
+        return stradd(itos(number), " is even");
     } else {
-        return stradd(itos(number), ": an odd number");
+        return stradd(itos(number), " is odd");
     }
 }
 
 void main() {
-    array<int> numbers = [ 8, 9, 42 ];
-    for(int n in numbers) {
-        string description = get_description(n);
-        print(stradd("  ", description));
+    for( int n in [ 8, 9, 42 ] ) {
+        print( get_description(n) );
     }
 }
 ```
@@ -48,9 +46,9 @@ void main() {
 ```c
 $ ./adrrun example.adr 
 example.adr [OK]
->   8.000000: an even number
->   9.000000: an odd number
->   42.000000: an even number
+> 8.000000 is even
+> 9.000000 is odd
+> 42.000000 is even
 ```
 
 ## Documentation

@@ -19,3 +19,5 @@ Another part of this work would be to figure out how to handle stack and heap re
 Add support for function overloading, perhaps via name mangling (functions with the same name but different type signatures).
 
 Implement some basic optimization techniques in the compiler (constant folding, peephole optimization).
+
+The type annotations on local variables are actually not required for typechecking (due to the bidirectional typechecker). The current implementation enforces these annotations anyway. In the future however, local variable type annotations might become optional. 
