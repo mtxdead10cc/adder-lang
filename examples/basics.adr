@@ -37,7 +37,7 @@ void main() {
         6, 7, 8, 9, 42
     ];
 
-    print("Presenting today's numbers")
+    print("Presenting today's numbers");
     
     for(int n in numbers) {
         string description = get_description(n);

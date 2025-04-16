@@ -1,4 +1,6 @@
-# GVM SCRIPT
+# ADDER VM
+
+An overview of the vm asm operations, this document contains outdated information.
 
 ## Operations
 

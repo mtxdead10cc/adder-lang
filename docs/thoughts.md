@@ -1,4 +1,7 @@
-# Language
+# Random thoughts and notes
+
+Some old notes, from early on in the project.
+Not sure this is of much use to anyone. 
 
 ## Syntax
 
