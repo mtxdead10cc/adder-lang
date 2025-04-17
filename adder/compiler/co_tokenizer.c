@@ -65,7 +65,7 @@ typedef struct tokenizer_state_t {
 size_t sweep_while(tokenizer_state_t* state, size_t start_offset, lex_predicate_t lex) {
     size_t cursor = state->cursor + start_offset;
     size_t stop = state->buffer_size - 1;
-    while ( lexer_match(lex, lexer_scan(state->buffer[cursor])) && cursor <= stop ) {
+    while ( cursor <= stop && lexer_match(lex, lexer_scan(state->buffer[cursor])) ) {
         cursor ++;
     }
     return cursor - state->cursor - start_offset;
