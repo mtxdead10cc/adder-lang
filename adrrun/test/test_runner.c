@@ -992,7 +992,7 @@ void test_arena_alloc(test_case_t* this) {
         all_match,
         "#1.3 arena int array after realloc");
 
-    nums = arealloc(a, nums, sizeof(int)*5);
+    nums = arealloc(a, nums, sizeof(int) * 5);
 
     all_match = true;
     for(int i = 0; i < 5; i++) {
@@ -1003,7 +1003,7 @@ void test_arena_alloc(test_case_t* this) {
         all_match,
         "#1.4 arena int array after realloc");
 
-    nums = arealloc(a, nums, sizeof(int)*500);
+    nums = arealloc(a, nums, sizeof(int) * 500);
 
     int acc = 0;
     for(int i = 0; i < 500; i++) {
@@ -1347,6 +1347,7 @@ void test_vm_full_heap(test_case_t* this) {
         TEST_ASSERT_MSG(this,
             false,
             "#2.0 failed to compile test program");
+        ffi_destroy(&ffi);
         return;
     }
 
@@ -1358,6 +1359,8 @@ void test_vm_full_heap(test_case_t* this) {
         TEST_ASSERT_MSG(this,
             false,
             "#2.1 failed access entry point");
+        ffi_destroy(&ffi);
+        program_destroy(&program);
         return;
     }
 
@@ -1375,6 +1378,7 @@ void test_vm_full_heap(test_case_t* this) {
 
     vm_destroy(&vm);
     vm_env_destroy(&env);
+    ffi_destroy(&ffi);
     program_destroy(&program);
 }
 

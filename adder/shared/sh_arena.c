@@ -22,6 +22,7 @@ arena_t* arena_create(ptrdiff_t size) {
     if( data == NULL ) {
         return NULL;
     }
+    memset(data, 0, sizeof(uint8_t) * capacity);
     arena_t* a = (arena_t*) malloc( sizeof(arena_t) );
     if( a == NULL ) {
         free(data);
@@ -80,7 +81,7 @@ void* aalloc(arena_t* arena, ptrdiff_t size) {
         if( arena->next == NULL )
             return NULL;
         arena->next->size += size;
-        return memset(arena->next->data, 0, size);
+        return arena->next->data;
     }
 
     void *p = arena->data + arena->size + padding;
@@ -100,7 +101,7 @@ void* arealloc(arena_t* arena, void* srcptr, ptrdiff_t size) {
     // looking for source data len
     while( current != NULL ) {
         ptrdiff_t diff = refptr - current->data;
-        if( diff < current->capacity && diff >= 0 ) {
+        if( diff < current->capacity && diff >= 0 && srclen < 0 ) {
             srclen = current->capacity - diff;
         }
         arena = current;
