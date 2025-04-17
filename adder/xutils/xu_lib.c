@@ -316,6 +316,7 @@ bool xu_quick_run(char* filepath, xu_quickopts_t opts) {
         last_creation_time = creation_time;
         source_code_t code = program_source_read_from_file(filepath);
         program_t program = program_compile(&code, opts.show_ast);
+        program_source_free(&code);
         all_checks_passed = program_is_valid(&program);
         sh_log("%s [%s]\n", filepath, all_checks_passed ? "OK" : "FAILED");
 
@@ -391,9 +392,10 @@ bool xu_quick_run(char* filepath, xu_quickopts_t opts) {
             }
 
             vm_env_destroy(&env);
-            program_destroy(&program);
             vm_destroy(&vm);
         }
+
+        program_destroy(&program);
 
     } while ( opts.keep_alive );
 

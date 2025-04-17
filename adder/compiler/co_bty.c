@@ -1084,9 +1084,9 @@ bool bty_typecheck(bty_ctx_t* ctx, ast_node_t* program) {
         trace_msg_t* m = trace_create_message(ctx->trace, TM_ERROR, program->ref);
         trace_msg_append_fmt(m,
             "type-error: the program has no entry points"
-            "\n  Fix this by"
+            "\n  fix this by"
             "\n  - adding a main function"
-            "\n  - exportin a function (optional)");
+            "\n  - exporting a function (optional)");
         return false;
     }
 
