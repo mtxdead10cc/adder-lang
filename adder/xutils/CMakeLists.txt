@@ -10,4 +10,4 @@ target_sources(xutils PRIVATE
 )
 
 target_link_libraries(xutils PRIVATE adrsha adrcom adrvm)
-target_compile_options(xutils PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(xutils PRIVATE -Wall -Wpedantic -Wextra -Werror)

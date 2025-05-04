@@ -25,106 +25,119 @@
 
 // VALUE
 
-#define VAL_MK_TYPE_ID(T) ( ((val_t)(T) & 0xF) << 60 )
-#define VAL_GET_TYPE(V)     ((val_type_t)(((val_t)(V)) >> 60))
-
 inline static val_t val_none(void) {
-    return VAL_MK_TYPE_ID(VAL_NONE);
+    return (val_t) {
+        .type = VAL_NONE,
+        .u.boolean = false
+    };
 }
 
 inline static val_t val_number(float value) {
-    uint32_t tmp = *((uint32_t*)&value);
-    return (VAL_MK_TYPE_ID(VAL_NUMBER) | tmp);
+    return (val_t) {
+        .type = VAL_NUMBER,
+        .u.number = value
+    };
 }
 
 inline static val_t val_ivec2(ivec2_t value) {
-    return (VAL_MK_TYPE_ID(VAL_IVEC2) | (value.x << 16) | value.y);
+    return (val_t) {
+        .type = VAL_IVEC2,
+        .u.ivec = value
+    };
 }
 
 inline static val_t val_ivec2_from_args(int16_t x, int16_t y) {
-    return (VAL_MK_TYPE_ID(VAL_IVEC2) | (x << 16) | y);
+    return (val_t) {
+        .type = VAL_IVEC2,
+        .u.ivec = (ivec2_t) {
+            .x = x,
+            .y = y
+        }
+    };
 }
 
 inline static val_t val_bool(bool value) {
-    return (VAL_MK_TYPE_ID(VAL_BOOL) | (value ? 0xFF : 0x00));
+    return (val_t) {
+        .type = VAL_BOOL,
+        .u.boolean = value
+    };
 }
 
 inline static val_t val_char(char value) {
-    return VAL_MK_TYPE_ID(VAL_CHAR) | (((val_t)(value)) & 0xFFFF);
+    return (val_t) {
+        .type = VAL_CHAR,
+        .u.character = value
+    };
 }
 
 inline static val_t val_array(array_t value) {
-    return ( VAL_MK_TYPE_ID(VAL_ARRAY)\
-                            | (  (val_t)(((val_t)(value.length) & 0xFFFFFF) << 32) )\
-                            | (  (val_t)( (val_t)(value.address) & 0xFFFFFFFF    ) ) );
+    return (val_t) {
+        .type = VAL_ARRAY,
+        .u.array = value
+    };
 }
 
 inline static val_t val_array_from_args(val_addr_t addr, int length) {
-    return ( VAL_MK_TYPE_ID(VAL_ARRAY)\
-                            | (  (val_t)(((val_t)(length) & 0xFFFFFF) << 32) )\
-                            | (  (val_t)( (val_t)(addr) & 0xFFFFFFFF       ) ) );
+    return (val_t) {
+        .type = VAL_ARRAY,
+        .u.array = (array_t) {
+            .address = addr,
+            .length = length
+        }
+    };
 }
 
 inline static val_t val_frame(frame_t value) {
-    return ( VAL_MK_TYPE_ID(VAL_FRAME)\
-                            | (  (val_t)(((val_t)(value.num_args) & 0xFF) << 40) )\
-                            | (  (val_t)(((val_t)(value.num_locals) & 0xFF) << 32) )\
-                            | (  (val_t)( (val_t)(value.return_pc) & 0xFFFFFFFF   ) ) );
+    return (val_t) {
+        .type = VAL_FRAME,
+        .u.frame = value
+    };
 }
 
 inline static val_t val_frame_from_args(int return_pc, uint8_t num_args, uint8_t num_locals) {
-    return ( VAL_MK_TYPE_ID(VAL_FRAME)\
-                            | (  (val_t)(((val_t)(num_args) & 0xFF) << 40) )\
-                            | (  (val_t)(((val_t)(num_locals) & 0xFF) << 32) )\
-                            | (  (val_t)( (val_t)(return_pc) & 0xFFFFFFFF   ) ) );
+    return (val_t) {
+        .type = VAL_FRAME,
+        .u.frame = (frame_t) {
+            .num_args = num_args,
+            .num_locals = num_locals,
+            .return_pc = return_pc
+        }
+    };
 }
 
 inline static val_t val_iter(iter_t value) {
-    return ( VAL_MK_TYPE_ID(VAL_ITER)\
-                        | (  (val_t)(((val_t)(value.remaining) & 0xFFFFFF) << 32) )\
-                        | (  (val_t)( (val_t)(value.current) & 0xFFFFFFFF    ) ) );
+    return (val_t) {
+        .type = VAL_ITER,
+        .u.iter = value
+    };
 }
 
 inline static float val_into_number(val_t value) {
-    uint32_t tmp = (uint32_t)(value & 0xFFFFFFFF);
-    return *(float*)&tmp;
+    return value.u.number;
 }
 
 inline static ivec2_t val_into_ivec2(val_t value) {
-    return (ivec2_t) {
-        .x = ((value >> 16) & 0xFFFF),
-        .y = ( value & 0xFFFF )
-    };
+    return value.u.ivec;
 }
 
 inline static bool val_into_bool(val_t value) {
-    return ((((val_t)(value)) & 0xFF) > 0x80);
+    return value.u.boolean;
 }
 
 inline static char val_into_char(val_t value) {
-    return ((char)(((val_t)(value)) & 0xFFFF));
+    return value.u.character;
 }
 
 inline static array_t val_into_array(val_t value) {
-    return (array_t) {
-        .length = (int) (((val_t)(value) >> 32) & 0xFFFFFF),
-        .address = (val_addr_t)((val_t)(value) & 0xFFFFFFFF)
-    };
+    return value.u.array;
 }
 
 inline static frame_t val_into_frame(val_t value) {
-    return (frame_t) {
-        .num_args = (uint8_t) (((val_t)(value) >> 40) & 0xFF),
-        .num_locals = (uint8_t) (((val_t)(value) >> 32) & 0xFF),
-        .return_pc = (int)((val_t)(value) & 0xFFFFFFFF)
-    };
+    return value.u.frame;
 }
 
 inline static iter_t val_into_iter(val_t value) {
-    return (iter_t) {
-        .remaining = (int) (((val_t)(value) >> 32) & 0xFFFFFF),
-        .current = (val_addr_t)((val_t)(value) & 0xFFFFFFFF)
-    };
+    return value.u.iter;
 }
 
 #endif // VM_VALUE_H_

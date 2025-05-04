@@ -345,7 +345,7 @@ void test_vm(test_case_t* this) {
     val_t ret = vm_execute(&vm, &env, &ep, &program);
 
     TEST_ASSERT_MSG(this,
-        VAL_GET_TYPE(ret) == VAL_NUMBER,
+        ret.type == VAL_NUMBER,
         "#3.1 unexpected return type.");
 
     TEST_ASSERT_MSG(this,
@@ -392,7 +392,7 @@ void test_vm(test_case_t* this) {
     ret = vm_execute(&vm, &env, &ep, &program);
 
     TEST_ASSERT_MSG(this,
-        VAL_GET_TYPE(ret) == VAL_NUMBER,
+        ret.type == VAL_NUMBER,
         "#4.1 unexpected return type.");
 
     TEST_ASSERT_MSG(this,
@@ -506,7 +506,7 @@ void test_ast(test_case_t* this) {
     val_t ret = vm_execute(&vm, &env, &ep, &program);
 
     TEST_ASSERT_MSG(this,
-        VAL_GET_TYPE(ret) == VAL_NUMBER,
+        ret.type == VAL_NUMBER,
         "#1.1 unexpected return type.");
 
     TEST_ASSERT_MSG(this,
@@ -846,7 +846,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
 
     // TODO: FIX VALUE PRINTING AT SOME POINT!
 
-    switch(VAL_GET_TYPE(res)) {
+    switch(res.type) {
         case VAL_ARRAY: {
             int wlen = vm_get_string(&vm, res, result_as_text, sizeof(result_as_text));
             result_as_text[wlen] = '\0';
@@ -1310,6 +1310,7 @@ void test_xu_classes(test_case_t* this) {
 
 val_t test_alloc(ffi_hndl_meta_t md, int argcount, val_t* args) {
     assert(argcount == 1);
+    (void)(argcount);
     int n = val_into_number(args[0]);
     array_t a = heap_array_alloc(md.vm, n);
     val_t* ptr = array_get_ptr(md.vm, a, 0);

@@ -15,4 +15,4 @@ target_sources(adrsha PRIVATE
 )
 
 target_link_libraries(adrsha PUBLIC m)
-target_compile_options(adrsha PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(adrsha PRIVATE -Wall -Wpedantic -Wextra -Werror)

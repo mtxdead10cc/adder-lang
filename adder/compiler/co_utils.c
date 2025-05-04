@@ -113,9 +113,39 @@ void valbuffer_destroy(valbuffer_t* buffer) {
     buffer->size = 0;
 }
 
+bool val_compare(val_t a, val_t b) {
+    if( a.type != b.type )
+        return false;
+    switch( a.type ) {
+        case VAL_NONE:
+            return true;
+        case VAL_ARRAY:
+            return (a.u.array.address == b.u.array.address)
+                && (a.u.array.length == b.u.array.length);
+        case VAL_BOOL:
+            return a.u.boolean == b.u.boolean;
+        case VAL_CHAR:
+            return a.u.character == b.u.character;
+        case VAL_FRAME:
+            return (a.u.frame.num_args == b.u.frame.num_args)
+                && (a.u.frame.num_locals == b.u.frame.num_locals)
+                && (a.u.frame.return_pc == b.u.frame.return_pc);
+        case VAL_ITER:
+            return (a.u.iter.current == b.u.iter.current)
+                && (a.u.iter.remaining == b.u.iter.remaining);
+        case VAL_IVEC2:
+            return (a.u.ivec.x == b.u.ivec.x)
+                && (a.u.ivec.y == b.u.ivec.y);
+        case VAL_NUMBER:
+            return a.u.number == b.u.number;
+        default:
+            return false;
+    }
+}
+
 bool valbuffer_linear_search(valbuffer_t* buffer, val_t match, uint32_t* index) {
     for(uint32_t i = 0; i < buffer->size; i++) {
-        if( match == buffer->values[i] ) {
+        if( val_compare(match, buffer->values[i]) ) {
             *index = i;
             return true;
         }

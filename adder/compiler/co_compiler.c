@@ -786,7 +786,6 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
 }
 
 void recalc_index_to_bytecode_adress(ir_list_t* instrs, uint32_t* idx2addr) {
-    uint32_t max_addr = idx2addr[instrs->count];
     for (uint32_t i = 0; i < instrs->count; i++) {
         switch(instrs->irs[i].opcode) {
             case OP_CALL:
@@ -794,7 +793,8 @@ void recalc_index_to_bytecode_adress(ir_list_t* instrs, uint32_t* idx2addr) {
             case OP_JUMP:
             case OP_JUMP_IF_FALSE: {
                 uint32_t index = instrs->irs[i].args[0];
-                assert(idx2addr[index] <= max_addr);
+                // assert <= max_address
+                assert(idx2addr[index] <= idx2addr[instrs->count]);
                 instrs->irs[i].args[0] = idx2addr[index];
             } break;
             default: break;
@@ -805,6 +805,7 @@ void recalc_index_to_bytecode_adress(ir_list_t* instrs, uint32_t* idx2addr) {
 void create_index_to_addr_map(ir_list_t* instrs, uint32_t* idx2addr, uint32_t size) {
     uint32_t addr = 0;
     const uint32_t argbytes = 4; // 32-bit args
+    (void)(size);
     assert(instrs->count + 1 <= size);
     for (uint32_t i = 0; i < instrs->count; i++) {
         idx2addr[i] = addr;

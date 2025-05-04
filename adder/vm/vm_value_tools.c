@@ -6,7 +6,7 @@
 
 
 void val_sprint(cstr_t str, val_t val) {
-    switch (VAL_GET_TYPE(val))
+    switch (val.type)
     {
     case VAL_NUMBER:
         cstr_append_fmt(str, "%f", val_into_number(val));
@@ -54,7 +54,7 @@ void val_sprint_string(cstr_t str, val_t* valbuf, int valbuf_length) {
 }
 
 void val_sprint_lookup(cstr_t str, val_t val, addr_lookup_fn lookup, void* user) {
-    if( VAL_GET_TYPE(val) == VAL_ARRAY && lookup != NULL && user != NULL ) {
+    if( val.type == VAL_ARRAY && lookup != NULL && user != NULL ) {
         array_t array = val_into_array(val);
         val_t* buffer = lookup(user, array.address);
         if( buffer == NULL ) {
@@ -62,7 +62,7 @@ void val_sprint_lookup(cstr_t str, val_t val, addr_lookup_fn lookup, void* user)
             return;
         }
         int length = array.length;
-        bool is_list = VAL_GET_TYPE(buffer[0]) != VAL_CHAR;
+        bool is_list = buffer[0].type != VAL_CHAR;
         if(is_list) {
             cstr_append_fmt(str, "[ ");
             for(int i = 0; i < length; i++) {
@@ -81,7 +81,7 @@ void val_sprint_lookup(cstr_t str, val_t val, addr_lookup_fn lookup, void* user)
 }
 
 int val_get_string(val_t val, addr_lookup_fn lookup, void* user, char* dest, int dest_len) {
-    if( lookup == NULL || VAL_GET_TYPE(val) != VAL_ARRAY ) {
+    if( lookup == NULL || val.type != VAL_ARRAY ) {
         return 0;
     }
     array_t array = val_into_array(val);
