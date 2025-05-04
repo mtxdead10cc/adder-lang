@@ -15,9 +15,18 @@ typedef struct arena_t {
     uint8_t* data;
 } arena_t;
 
-typedef uint8_t type_id_t;
+typedef enum val_type_t {
+    VAL_NONE,
+    VAL_NUMBER,
+    VAL_IVEC2,
+    VAL_BOOL,
+    VAL_CHAR,
+    VAL_ARRAY,
+    VAL_FRAME,
+    VAL_ITER,
+    VAL_TYPE_COUNT
+} val_type_t;
 
-typedef uint64_t val_t;
 typedef uint32_t val_addr_t;
 
 typedef struct ivec2_t {
@@ -41,17 +50,18 @@ typedef struct iter_t {
     int remaining;      // the number of iterations remaining 
 } iter_t;
 
-typedef enum val_type_t {
-    VAL_NONE,
-    VAL_NUMBER,
-    VAL_IVEC2,
-    VAL_BOOL,
-    VAL_CHAR,
-    VAL_ARRAY,
-    VAL_FRAME,
-    VAL_ITER,
-    VAL_TYPE_COUNT
-} val_type_t;
+typedef struct val_t {
+    val_type_t type;
+    union {
+        float       number;
+        bool        boolean;
+        char        character;
+        ivec2_t     ivec;
+        array_t     array;
+        frame_t     frame;
+        iter_t      iter;
+    } u;
+} val_t;
 
 typedef enum vm_op_t {
     OP_HALT = 0x00,

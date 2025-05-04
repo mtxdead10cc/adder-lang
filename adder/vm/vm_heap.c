@@ -29,7 +29,7 @@ void heap_gc_mark_used(vm_t* vm, val_t* checkmem, int val_count) {
     // mark all references
     for(int i = 0; i < val_count; i++) {
         val_t value = checkmem[i];
-        if( VAL_GET_TYPE(value) != VAL_ARRAY ) {
+        if( value.type != VAL_ARRAY ) {
             continue;
         }
         array_t array = val_into_array(value);
@@ -205,7 +205,7 @@ array_t heap_array_alloc(vm_t* vm, int val_count) {
 
     // set all values
     for(int i = 0; i < val_count; i++) {
-        vm->mem.heap.values[addr + i] = 0;
+        vm->mem.heap.values[addr + i] = (val_t){ 0 };
     }
 
     return (array_t) {

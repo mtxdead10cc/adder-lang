@@ -13,4 +13,4 @@ target_sources(adrvm PRIVATE
 )
 
 target_link_libraries(adrvm PUBLIC m adrsha)
-target_compile_options(adrvm PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(adrvm PRIVATE -Wall -Wpedantic -Wextra -Werror)

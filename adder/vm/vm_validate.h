@@ -62,7 +62,7 @@ inline static bool validation_check_stack_args(vm_t* vm, char* context, int arg_
     int stack_top = vm->mem.stack.top;
     for(int i = 0; i < arg_count; i++) {
         val_t arg = vm->mem.stack.values[stack_top - i];
-        val_type_t arg_type = VAL_GET_TYPE(arg);
+        val_type_t arg_type = arg.type;
         val_type_t expected = va_arg(arg_ptr, val_type_t);
         if( expected != arg_type ) {
             snprintf(validation->message, 256,

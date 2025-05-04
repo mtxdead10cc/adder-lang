@@ -386,7 +386,7 @@ val_t vm_execute(vm_t* vm, vm_env_t* env, entry_point_t* ep, program_t* program)
                 // init locals (not needed)
                 uint32_t locals_idx = frame_start + 1 + nargs;
                 for(uint32_t i = 0; i < nlocals; i++) {
-                    stack[locals_idx + i] = 0;
+                    stack[locals_idx + i] = (val_t) { 0 };
                 }
 
                 // make room for the locals on the stack
@@ -423,7 +423,7 @@ val_t vm_execute(vm_t* vm, vm_env_t* env, entry_point_t* ep, program_t* program)
                 // to be too slow.
                 vm_mem->stack.frame = -1;
                 for(int i = vm_mem->stack.top; i >= 0; i--) {
-                    if( VAL_GET_TYPE(stack[i]) == VAL_FRAME ) {
+                    if( stack[i].type == VAL_FRAME ) {
                         vm_mem->stack.frame = i;
                         break;
                     }
@@ -473,7 +473,7 @@ val_t vm_execute(vm_t* vm, vm_env_t* env, entry_point_t* ep, program_t* program)
                 // to be too slow.
                 vm_mem->stack.frame = -1;
                 for(int i = vm_mem->stack.top; i >= 0; i--) {
-                    if( VAL_GET_TYPE(stack[i]) == VAL_FRAME ) {
+                    if( stack[i].type == VAL_FRAME ) {
                         vm_mem->stack.frame = i;
                         break;
                     }

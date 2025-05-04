@@ -54,6 +54,7 @@ val_t xu_ffi_to_string(ffi_hndl_meta_t md, int argcount, val_t* args) {
 val_t xu_ffi_add_strings(ffi_hndl_meta_t md, int argcount, val_t* args) {
 
     assert(argcount == 2);
+    (void)(argcount);
 
     array_t a = val_into_array(args[0]);
     array_t b = val_into_array(args[1]);
@@ -221,7 +222,10 @@ val_t xu_alloc_user_string(vm_t* vm, int len, char* str) {
     array_t array = heap_array_alloc(vm, arraylen);
     val_t* ptr = array_get_ptr(vm, array, 0);
     for(int i = 0; i < arraylen; i++) {
-        ptr[i] = str[i + start];
+        ptr[i] = (val_t) {
+            .type = VAL_CHAR,
+            .u.character = str[i + start]
+        };
     }
 
     return val_array(array);
@@ -512,7 +516,7 @@ xu_caller_t mk_invalid_caller(void) {
     return (xu_caller_t) {
         .class = mk_invalid_class(),
         .entrypoint = (entry_point_t) {
-            .argvals = { 0 },
+            .argvals = {{ 0 }},
             .argcount = -1,
             .address = -1
         }

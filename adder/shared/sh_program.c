@@ -11,7 +11,7 @@
 
 void sprint_value(cstr_t str, val_t* memory, val_t val) {
 
-    if( VAL_GET_TYPE(val) == VAL_ARRAY ) {
+    if( val.type == VAL_ARRAY ) {
         array_t array = val_into_array(val);
         val_t* buffer = memory + MEM_ADDR_TO_INDEX(array.address);
         if( buffer == NULL ) {
@@ -19,7 +19,7 @@ void sprint_value(cstr_t str, val_t* memory, val_t val) {
             return;
         }
         int length = array.length;
-        bool is_list = VAL_GET_TYPE(buffer[0]) != VAL_CHAR;
+        bool is_list = buffer[0].type != VAL_CHAR;
         if(is_list) {
             cstr_append_fmt(str, "[ ");
             for(int i = 0; i < length; i++) {
@@ -33,7 +33,7 @@ void sprint_value(cstr_t str, val_t* memory, val_t val) {
             }
         }
     } else {
-        switch (VAL_GET_TYPE(val))
+        switch (val.type)
         {
         case VAL_NUMBER:
             cstr_append_fmt(str, "%f", val_into_number(val));
@@ -254,7 +254,7 @@ int entry_point_find_any(program_t* prog, char* name, ift_t type, entry_point_t*
 
 entry_point_t program_entry_point_invalid() {
     return (entry_point_t) {
-        .argvals = { 0 },
+        .argvals = {{ 0 }},
         .argcount = -1,
         .address = -1,
         .type = ift_unknown()
