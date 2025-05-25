@@ -226,7 +226,7 @@ char* sprint_ast(arena_t* a, int ind, ast_node_t* n) {
 bool program_file_exists(char *path) {
     if( path == NULL )
         return false;
-    FILE *file;   
+    FILE *file = NULL;
     if ((file = fopen(path, "r"))) {
         fclose(file);
         return true;
@@ -323,6 +323,7 @@ source_code_t program_source_read_from_file(char* file_path) {
         return (source_code_t) { 0 };
     }
 
+    memset(path_clone, 0, (path_length + 1) * sizeof(char));
     strncpy(path_clone, file_path, path_length);
 
     return (source_code_t) {

@@ -474,10 +474,12 @@ xu_class_t xu_class_create(xu_classlist_t* classes, source_code_t* code, int cla
 
     if( program_file_exists(code->file_path) ) {
         // check if source from a real file
-        classes->paths[ref] = code->file_path;
+        int len = strnlen(code->file_path, 2048-1);
+        memcpy(classes->paths[ref], code->file_path, len);
+        classes->paths[ref][len] = '\0';
     } else {
         // or memory buffer
-        classes->paths[ref] = NULL;
+        memset(&classes->paths[ref], 0, 2048);
     }
 
     classes->modtimes[ref] = code->modtime;
@@ -536,7 +538,7 @@ xu_caller_t xu_class_extract(xu_class_t class, char* name, ift_t type) {
     if(xu_class_is_compiled(class) == false) {
         char* path = list->paths[class.classref];
         sh_log_error("xu_class_extract: the class has not been compiled: %s",
-            (path != NULL) ? path : "(from memory buffer)");
+            (path[0] != 0) ? path : "(from memory buffer)");
         return mk_invalid_caller();
     }
 
@@ -653,7 +655,7 @@ xu_result_t xu_refresh_class(xu_class_t class) {
     int classref = class.classref;
 
     char* srcpath = classes->paths[classref];
-    if( srcpath == NULL )
+    if( srcpath[0] == 0 )
         return XU_NO_CHANGE; // source from memory buffer
 
     if( program_file_exists(srcpath) == false )
@@ -716,7 +718,7 @@ void xu_cleanup_all(xu_classlist_t* classes) {
         program_destroy(&classes->programs[i]);
         vm_env_destroy(&classes->envs[i]);
         classes->modtimes[i] = 0UL;
-        classes->paths[i] = NULL;
+        memset(classes->paths[i], 0, 2048);
         classes->programs[i] = (program_t) {0};
         classes->interfaces[i] = (ffi_t) {0};
         classes->envs[i] = (vm_env_t) {0};
