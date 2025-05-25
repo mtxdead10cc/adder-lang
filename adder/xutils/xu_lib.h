@@ -40,7 +40,7 @@ typedef struct xu_class_t {
 
 typedef struct xu_classlist_t {
     int             count;
-    char*           paths[XU_COUNT];
+    char            paths[XU_COUNT][2048];
     int             user_ids[XU_COUNT];
     time_t          modtimes[XU_COUNT];
     program_t       programs[XU_COUNT];
