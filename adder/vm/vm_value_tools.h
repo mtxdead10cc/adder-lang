@@ -1,8 +1,11 @@
 #ifndef VM_VALUE_TOOLS_H_
 #define VM_VALUE_TOOLS_H_
 
-#include "sh_types.h"
-#include "vm_types.h"
+#include <shared/sh_types.h>
+#include <shared/sh_value.h>
+
+#include "vm/vm_types.h"
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <assert.h>

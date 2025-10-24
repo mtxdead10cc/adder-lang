@@ -1,7 +1,8 @@
 #ifndef VM_VALUE_H_
 #define VM_VALUE_H_
 
-#include "sh_types.h"
+#include "shared/sh_types.h"
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <assert.h>

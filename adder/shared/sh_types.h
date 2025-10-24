@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "sh_config.h"
+#include "shared/sh_config.h"
 
 typedef struct arena_t arena_t;
 typedef struct arena_t {

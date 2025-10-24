@@ -1,13 +1,14 @@
-#include "sh_program.h"
-#include "sh_value.h"
-#include "sh_asminfo.h"
-#include "sh_utils.h"
-#include "sh_ffi.h"
-#include "sh_ift.h"
+#include "shared/sh_program.h"
+
+#include "shared/sh_value.h"
+#include "shared/sh_asminfo.h"
+#include "shared/sh_utils.h"
+#include "shared/sh_ffi.h"
+#include "shared/sh_ift.h"
+#include "shared/sh_log.h"
+
 #include <stdlib.h>
 #include <string.h>
-#include "sh_log.h"
-#include "sh_program.h"
 
 void sprint_value(cstr_t str, val_t* memory, val_t val) {
 

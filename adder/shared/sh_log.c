@@ -1,5 +1,6 @@
-#include "sh_log.h"
-#include "sh_utils.h"
+#include "shared/sh_log.h"
+#include "shared/sh_utils.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

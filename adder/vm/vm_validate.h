@@ -1,12 +1,15 @@
 #ifndef VM_VALIDATE_H_
 #define VM_VALIDATE_H_
 
-#include "sh_types.h"
-#include "sh_config.h"
-#include "sh_value.h"
-#include "sh_asminfo.h"
-#include "vm_value_tools.h"
-#include "vm_types.h"
+#include <shared/sh_types.h>
+#include <shared/sh_config.h>
+#include <shared/sh_value.h>
+#include <shared/sh_asminfo.h>
+#include <shared/sh_log.h>
+
+#include "vm/vm_value_tools.h"
+#include "vm/vm_types.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -14,7 +17,7 @@
 #include <math.h>
 #include <assert.h>
 #include <limits.h>
-#include <sh_log.h>
+
 
 #if VM_RUNTIME_VALIDATION > 0
 

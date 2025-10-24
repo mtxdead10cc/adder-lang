@@ -1,23 +1,29 @@
+#include "test/test_runner.h"
+
 #include <stdio.h>
-#include <vm.h>
-#include <sh_value.h>
-#include <sh_ffi.h>
-#include <vm_value_tools.h>
-#include <sh_log.h>
-#include <vm_heap.h>
-#include <vm_env.h>
-#include <co_program.h>
-#include <co_ast.h>
+
+#include <shared/sh_value.h>
+#include <shared/sh_ffi.h>
+#include <shared/sh_log.h>
+#include <shared/sh_program.h>
+#include <shared/sh_arena.h>
+#include <shared/sh_ift.h>
+
+#include <vm/vm.h>
+#include <vm/vm_heap.h>
+#include <vm/vm_env.h>
+#include <vm/vm_value_tools.h>
+
+#include <adrcom/compiler/co_program.h>
+#include <adrcom/shared/co_ast.h>
+
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string.h>
 #include <assert.h>
-#include <sh_program.h>
-#include "test/test_runner.h"
-#include <sh_arena.h>
-#include <sh_ift.h>
-#include <xu_lib.h>
+
+#include <xutils/xu_lib.h>
 
 bool is_adr_path(char* str) {
     int len = strnlen(str, 1024);

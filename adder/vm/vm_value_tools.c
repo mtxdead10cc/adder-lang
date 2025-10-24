@@ -1,6 +1,8 @@
-#include "sh_value.h"
-#include "sh_utils.h"
 #include "vm.h"
+
+#include <shared/sh_types.h>
+#include <shared/sh_value.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 

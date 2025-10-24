@@ -1,13 +1,16 @@
-#include "vm_heap.h"
-#include "vm.h"
-#include "sh_types.h"
-#include "sh_value.h"
+#include "vm/vm_heap.h"
+#include "vm/vm.h"
+
+#include <shared/sh_types.h>
+#include <shared/sh_value.h>
+#include <shared/sh_log.h>
+
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
-#include <sh_log.h>
+
 
 #define _MAX(A,B) ((A) > (B) ? (A) : (B))
 #define _MIN(A,B) ((A) < (B) ? (A) : (B))

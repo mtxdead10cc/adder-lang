@@ -1,27 +1,32 @@
 #ifndef XUTILS_H_
 #define XUTILS_H_
 
-#include <vm.h>
-#include <vm_heap.h>
-#include <sh_value.h>
-#include <sh_arena.h>
-#include <co_ast.h>
-#include <co_trace.h>
-#include <co_parser.h>
-#include <co_compiler.h>
-#include <co_program.h>
-#include <co_bty.h>
-#include <sh_program.h>
-#include <sh_log.h>
-#include <vm_env.h>
-#include <sh_ffi.h>
+#include <vm/vm.h>
+#include <vm/vm_heap.h>
+#include <vm/vm_env.h>
+
+#include <shared/sh_value.h>
+#include <shared/sh_arena.h>
+#include <shared/sh_program.h>
+#include <shared/sh_log.h>
+#include <shared/sh_ffi.h>
+#include <shared/sh_ift.h>
+
+#include <adrcom/shared/co_ast.h>
+#include <adrcom/shared/co_trace.h>
+#include <adrcom/parser/co_parser.h>
+
+#include <adrcom/compiler/co_compiler.h>
+#include <adrcom/compiler/co_program.h>
+
+#include <adrcom/typechecker/co_bty.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <assert.h>
 #include <stdarg.h>
-#include <sh_ift.h>
 
 #include <dlfcn.h>
 #include <unistd.h>

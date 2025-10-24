@@ -1,14 +1,15 @@
-#include "vm.h"
-#include "sh_types.h"
-#include "sh_asminfo.h"
-#include "sh_value.h"
-#include "sh_utils.h"
-#include "sh_config.h"
-#include "sh_program.h"
-#include "vm_env.h"
-#include "vm_heap.h"
-#include "vm_validate.h"
-#include <sh_log.h>
+#include "vm/vm.h"
+#include "vm/vm_env.h"
+#include "vm/vm_heap.h"
+#include "vm/vm_validate.h"
+
+#include <shared/sh_types.h>
+#include <shared/sh_asminfo.h>
+#include <shared/sh_value.h>
+#include <shared/sh_utils.h>
+#include <shared/sh_config.h>
+#include <shared/sh_program.h>
+#include <shared/sh_log.h>
 
 #include <stdarg.h>
 #include <stdio.h>

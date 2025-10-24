@@ -1,11 +1,12 @@
 #ifndef SH_FFI
 #define SH_FFI
 
-#include "sh_utils.h"
+#include "shared/sh_types.h"
+#include "shared/sh_utils.h"
+
 #include <stdbool.h>
 #include <stdarg.h>
 #include <assert.h>
-#include "sh_types.h"
 
 bool ffi_init(ffi_t* ffi);
 void ffi_destroy(ffi_t* ffi);

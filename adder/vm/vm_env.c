@@ -1,7 +1,7 @@
-#include "vm_env.h"
-#include "sh_log.h"
-#include "sh_program.h"
-#include "sh_ift.h"
+#include "vm/vm_env.h"
+#include <shared/sh_log.h>
+#include <shared/sh_program.h>
+#include <shared/sh_ift.h>
 #include <stdlib.h>
 #include <string.h>
 

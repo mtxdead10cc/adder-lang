@@ -1,23 +1,13 @@
 #include <stdio.h>
-#include <vm.h>
-#include <sh_value.h>
-#include <sh_ffi.h>
-#include <vm_value_tools.h>
-#include <sh_log.h>
-#include <vm_heap.h>
-#include <vm_env.h>
-#include <co_program.h>
-#include <co_ast.h>
+
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string.h>
 #include <assert.h>
-#include <sh_program.h>
-#include <sh_arena.h>
-#include <sh_ift.h>
-#include <xu_lib.h>
-#include <xu_invoke.h>
+
+#include <xutils/xu_lib.h>
+#include <xutils/xu_invoke.h>
 
 #define UNUSED_PARAM(X) (void)(X)
 

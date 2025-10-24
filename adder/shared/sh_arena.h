@@ -5,7 +5,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdarg.h>
-#include "sh_types.h"
+
+#include "shared/sh_types.h"
 
 
 arena_t* arena_create(ptrdiff_t size);

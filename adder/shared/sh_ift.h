@@ -1,10 +1,10 @@
 #ifndef IFT_H_
 #define IFT_H_
 
-#include <sh_types.h>
+#include "shared/sh_types.h"
+
 #include <stdbool.h>
 #include <stdint.h>
-
 
 
 ift_t ift_void(void);

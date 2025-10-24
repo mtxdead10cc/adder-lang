@@ -1,5 +1,6 @@
-#include "sh_arena.h"
-#include "sh_log.h"
+#include "shared/sh_arena.h"
+#include "shared/sh_log.h"
+
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>

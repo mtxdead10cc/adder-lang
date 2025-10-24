@@ -1,10 +1,12 @@
 
 // GENERATED FILE
 
-#include "xu_invoke.h"
-#include "xu_lib.h"
+#include "xutils/xu_invoke.h"
+#include "xutils/xu_lib.h"
+
+#include <shared/sh_value.h>
+
 #include <stdbool.h>
-#include <sh_value.h>
 
 bool bcall0(vm_t* vm, xu_caller_t* caller) {
     assert(caller->entrypoint.argcount == 0);

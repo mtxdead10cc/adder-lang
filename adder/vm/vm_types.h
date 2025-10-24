@@ -1,8 +1,8 @@
 #ifndef VM_VM_TYPES_H_
 #define VM_VM_TYPES_H_
 
-#include "sh_types.h"
-#include "sh_ffi.h"
+#include <shared/sh_types.h>
+#include <shared/sh_ffi.h>
 
 typedef struct vm_stack_t {
     val_t* values;  // pointer to the stack

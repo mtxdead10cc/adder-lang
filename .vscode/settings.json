@@ -53,7 +53,25 @@
         "ranges": "c",
         "span": "c",
         "test_runner.h": "c",
-        "sh_program.h": "c"
+        "sh_program.h": "c",
+        "co_trace.h": "c",
+        "co_bty.h": "c",
+        "co_types.h": "c",
+        "co_utils.h": "c",
+        "co_ast.h": "c",
+        "co_tokenizer.h": "c",
+        "sh_arena.h": "c",
+        "sh_value.h": "c",
+        "sh_log.h": "c",
+        "vm_value_tools.h": "c",
+        "sh_config.h": "c",
+        "stdarg.h": "c",
+        "vm_env.h": "c",
+        "sh_ffi.h": "c",
+        "sh_ift.h": "c",
+        "co_program.h": "c",
+        "co_parser.h": "c",
+        "termhax.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

@@ -1,7 +1,7 @@
 #ifndef GVM_ASMINFO_H_
 #define GVM_ASMINFO_H_
 
-#include "sh_types.h"
+#include "shared/sh_types.h"
 
 #define OP_MAX_ARG_COUNT 2
 

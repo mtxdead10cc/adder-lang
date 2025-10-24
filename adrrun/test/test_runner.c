@@ -1,29 +1,40 @@
 #include "test_runner.h"
-#include <vm.h>
-#include <vm_heap.h>
-#include <sh_value.h>
-#include <sh_arena.h>
-#include <co_ast.h>
-#include <co_trace.h>
-#include <co_parser.h>
-#include <co_compiler.h>
-#include <co_program.h>
-#include <co_bty.h>
-#include <sh_program.h>
-#include <sh_log.h>
-#include <vm_env.h>
-#include <sh_ffi.h>
+
+#include <vm/vm.h>
+#include <vm/vm_heap.h>
+#include <vm/vm_env.h>
+#include <vm/vm_value_tools.h>
+
+#include <shared/sh_value.h>
+#include <shared/sh_arena.h>
+#include <shared/sh_program.h>
+#include <shared/sh_log.h>
+
+#include <adrcom/shared/co_ast.h>
+#include <adrcom/shared/co_trace.h>
+
+#include <adrcom/parser/co_parser.h>
+
+#include <adrcom/compiler/co_compiler.h>
+#include <adrcom/compiler/co_program.h>
+
+#include <adrcom/typechecker/co_bty.h>
+
+#include <shared/sh_ffi.h>
+#include <shared/sh_ift.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
 #include <stdarg.h>
+
 #include "termhax.h"
 #include "langtest.h"
-#include <sh_ift.h>
-#include <xu_lib.h>
-#include <xu_invoke.h>
-#include <vm_value_tools.h>
+
+#include <xutils/xu_lib.h>
+#include <xutils/xu_invoke.h>
+
 
 typedef struct test_case_t test_case_t;
 

@@ -1,6 +1,7 @@
-#include "sh_ffi.h"
-#include "sh_ift.h"
-#include "sh_log.h"
+#include "shared/sh_ffi.h"
+#include "shared/sh_ift.h"
+#include "shared/sh_log.h"
+
 #include <stdarg.h>
 #include <stdlib.h>
 #include <assert.h>

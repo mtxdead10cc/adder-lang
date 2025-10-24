@@ -1,8 +1,8 @@
 #ifndef GVM_H_
 #define GVM_H_
 
-#include "sh_types.h"
-#include "vm_types.h"
+#include <shared/sh_types.h>
+#include "vm/vm_types.h"
 
 bool vm_create(vm_t* vm, int memory_size);
 val_t vm_execute(vm_t* vm, vm_env_t* env, entry_point_t* ep, program_t* program);

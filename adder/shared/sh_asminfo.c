@@ -1,5 +1,6 @@
-#include "sh_asminfo.h"
-#include "sh_types.h"
+#include "shared/sh_asminfo.h"
+#include "shared/sh_types.h"
+
 #include <assert.h>
 
 static op_info_t opinfo[OP_OPCODE_COUNT] = {

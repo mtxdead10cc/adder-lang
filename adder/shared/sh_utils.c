@@ -1,6 +1,7 @@
-#include "sh_utils.h"
-#include "sh_config.h"
-#include "sh_value.h"
+#include "shared/sh_utils.h"
+#include "shared/sh_config.h"
+#include "shared/sh_value.h"
+
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>

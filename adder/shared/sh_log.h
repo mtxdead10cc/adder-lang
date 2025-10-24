@@ -2,7 +2,8 @@
 #define SH_LOG_H_
 
 #include <stdarg.h>
-#include "sh_types.h"
+
+#include "shared/sh_types.h"
 
 typedef enum sh_log_tag_t {
     SH_LOG_DEFAULT,

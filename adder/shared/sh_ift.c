@@ -1,9 +1,10 @@
-#include "sh_ift.h"
+#include "shared/sh_ift.h"
+#include "shared/sh_utils.h"
+#include "shared/sh_log.h"
+
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include "sh_utils.h"
-#include "sh_log.h"
 
 ift_t ift_void(void) {
     ift_t type = { 0 };

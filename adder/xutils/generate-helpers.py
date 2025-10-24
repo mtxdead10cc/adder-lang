@@ -168,8 +168,9 @@ def gen_header(file_name:str, return_types:list[str], arg_types:list[str], max_a
     #ifndef {symbol}
     #define {symbol}
 
+    #include <shared/sh_value.h>
+
     #include <stdbool.h>
-    #include <sh_value.h>
 
     typedef struct vm_t vm_t;
     typedef struct xu_caller_t xu_caller_t;
@@ -188,11 +189,13 @@ def gen_source(include_name:str, return_types:list[str], arg_types:list[str], ma
     source_str = f"""
     // GENERATED FILE
     
-    #include "{include_name}"
-    #include "xu_lib.h"
-    #include <stdbool.h>
-    #include <sh_value.h>
+    #include "xutils/{include_name}"
+    #include "xutils/xu_lib.h"
 
+    #include <shared/sh_value.h>
+
+    #include <stdbool.h>
+    
     """.replace("    ", "")
     for defstr in gen_c_definitions(return_types, max_arg_count):
         source_str += defstr + "\n"

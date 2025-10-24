@@ -1,7 +1,8 @@
 #ifndef SH_PROGRAM_H_
 #define SH_PROGRAM_H_
 
-#include "sh_types.h"
+#include "shared/sh_types.h"
+
 #include <stdio.h>
 #include <stdbool.h>
 

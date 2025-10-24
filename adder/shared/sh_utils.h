@@ -1,10 +1,11 @@
 #ifndef VM_UTILS_H_
 #define VM_UTILS_H_
 
+#include "shared/sh_types.h"
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include "sh_types.h"
 #include <stdarg.h>
 
 #define READ_U32(D, AT) ((uint32_t)((0xFF & (D)[(AT) + 3]) << (8*3)) |\
