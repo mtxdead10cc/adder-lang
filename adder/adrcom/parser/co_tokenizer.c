@@ -1,5 +1,7 @@
 #include "adrcom/parser/co_tokenizer.h"
 
+#include "adrcom/parser/co_parser_types.h"
+
 #include <adrcom/shared/co_trace.h>
 #include <adrcom/compiler/co_srcmap.h>
 
@@ -289,4 +291,52 @@ bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
     }
 
     return trace_get_error_count(args->trace) == 0;
+}
+
+
+
+int tokenizer_trace_msg_append_token_type_name(trace_msg_t* msg, token_type_t type) {
+    switch (type) {
+        case TT_INITIAL:        return trace_msg_append_costr(msg, "initial token");
+        case TT_SPACE:          return trace_msg_append_costr(msg, "space");
+        case TT_COMMENT:        return trace_msg_append_costr(msg, "comment");
+        case TT_SYMBOL:         return trace_msg_append_costr(msg, "symbol");
+        case TT_NUMBER:         return trace_msg_append_costr(msg, "number");
+        case TT_BOOLEAN:        return trace_msg_append_costr(msg, "bool");
+        case TT_STRING:         return trace_msg_append_costr(msg, "string");
+        case TT_SEPARATOR:      return trace_msg_append_costr(msg, "separator");
+        case TT_STATEMENT_END:  return trace_msg_append_costr(msg, "end of statement");
+        case TT_ARROW:          return trace_msg_append_costr(msg, "function return type arrow");
+        case TT_ASSIGN:         return trace_msg_append_costr(msg, "assignment");
+        case TT_CMP_LT:         return trace_msg_append_costr(msg, "opening angle bracket alt. less than");
+        case TT_CMP_GT:         return trace_msg_append_costr(msg, "closing angle bracket alt. greater than");
+        case TT_OPEN_PAREN:     return trace_msg_append_costr(msg, "left parenthesis");
+        case TT_CLOSE_PAREN:    return trace_msg_append_costr(msg, "right parenthesis");
+        case TT_OPEN_CURLY:     return trace_msg_append_costr(msg, "opening brace");
+        case TT_CLOSE_CURLY:    return trace_msg_append_costr(msg, "closing brace");
+        case TT_OPEN_SBRACKET:  return trace_msg_append_costr(msg, "opening square bracket");
+        case TT_CLOSE_SBRACKET: return trace_msg_append_costr(msg, "closing square bracket");
+        case TT_BINOP_AND:      return trace_msg_append_costr(msg, "binary and-operator");
+        case TT_BINOP_OR:       return trace_msg_append_costr(msg, "binary or-operator");
+        case TT_UNOP_NOT:       return trace_msg_append_costr(msg, "unary not-operator");
+        case TT_FINAL:          return trace_msg_append_costr(msg, "final token");
+        case TT_NOTHING:        return trace_msg_append_costr(msg, "nothing");
+        case TT_BINOP_MUL:      return trace_msg_append_costr(msg, "multiply operator");
+        case TT_BINOP_DIV:      return trace_msg_append_costr(msg, "division operator");
+        case TT_BINOP_MOD:      return trace_msg_append_costr(msg, "modulus operator");
+        case TT_BINOP_PLUS:     return trace_msg_append_costr(msg, "binary plus-operator");
+        case TT_BINOP_MINUS:    return trace_msg_append_costr(msg, "binary minus-operator");
+        case TT_KW_IF:
+        case TT_KW_ELSE:
+        case TT_KW_FOR:
+        case TT_KW_RETURN:
+        case TT_KW_FUN_DEF:     return trace_msg_append_costr(msg, "keyword");
+        case TT_CMP_EQ:
+        case TT_CMP_NEQ:
+        case TT_CMP_GT_EQ:
+        case TT_CMP_LT_EQ:      return trace_msg_append_costr(msg, "comparison operator");
+        case TT_IMPORT:         return trace_msg_append_costr(msg, "from host to script import");
+        case TT_EXPORT:         return trace_msg_append_costr(msg, "from script to host export");
+        default:                return trace_msg_append_costr(msg, "unknown");
+    }
 }

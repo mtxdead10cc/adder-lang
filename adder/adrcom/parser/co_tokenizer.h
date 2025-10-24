@@ -11,6 +11,7 @@
 #include <adrcom/shared/co_utils.h>
 
 #include "adrcom/parser/co_lexer.h"
+#include "adrcom/parser/co_parser_types.h"
 
 inline static token_t token_const(const char* content, token_type_t type) {
     return (token_t) {
@@ -101,5 +102,7 @@ typedef struct tokenizer_args_t {
 } tokenizer_args_t;
 
 bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args);
+
+int tokenizer_trace_msg_append_token_type_name(trace_msg_t* msg, token_type_t type);
 
 #endif // GVM_TOKENIZER_H_

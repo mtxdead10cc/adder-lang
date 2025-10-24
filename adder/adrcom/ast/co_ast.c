@@ -1,5 +1,4 @@
-#ifndef GVM_AST_H_
-#define GVM_AST_H_
+#include "adrcom/ast/co_ast.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -8,14 +7,13 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "adrcom/shared/co_types.h"
-#include "adrcom/shared/co_utils.h"
+#include <adrcom/shared/co_utils.h>
 
 #include <shared/sh_utils.h>
 #include <shared/sh_arena.h>
 #include <shared/sh_log.h>
 
-inline static ast_annot_t* ast_annot(arena_t* a, srcref_t name) {
+ast_annot_t* ast_annot(arena_t* a, srcref_t name) {
     ast_annot_t* annot = (ast_annot_t*) aalloc(a, sizeof(ast_annot_t));
     annot->childcount = 0;
     annot->children = NULL;
@@ -23,7 +21,7 @@ inline static ast_annot_t* ast_annot(arena_t* a, srcref_t name) {
     return annot;
 }
 
-inline static void ast_annot_add_child(arena_t* a, ast_annot_t* parent, ast_annot_t* child) {
+void ast_annot_add_child(arena_t* a, ast_annot_t* parent, ast_annot_t* child) {
     parent->childcount ++;
     if( parent->children == NULL ) {
         parent->children = (ast_annot_t**) aalloc(a,
@@ -36,7 +34,7 @@ inline static void ast_annot_add_child(arena_t* a, ast_annot_t* parent, ast_anno
     parent->children[parent->childcount - 1] = child;
 }
 
-inline static srcref_t ast_srcref_from_annotation(ast_annot_t* annot) {
+srcref_t ast_srcref_from_annotation(ast_annot_t* annot) {
     srcref_t combined = annot->name;
     for(size_t i = 0; i < annot->childcount; i++) {
         combined = srcref_combine(combined,
@@ -45,7 +43,7 @@ inline static srcref_t ast_srcref_from_annotation(ast_annot_t* annot) {
     return combined;
 }
 
-inline static ast_node_t* ast_int(arena_t* a, int val) {
+ast_node_t* ast_int(arena_t* a, int val) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_VALUE;
     node->ref = (srcref_t) { 0 };
@@ -56,7 +54,7 @@ inline static ast_node_t* ast_int(arena_t* a, int val) {
     return node;
 }
 
-inline static ast_node_t* ast_float(arena_t* a, float val) {
+ast_node_t* ast_float(arena_t* a, float val) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_VALUE;
     node->ref = (srcref_t) { 0 };
@@ -67,7 +65,7 @@ inline static ast_node_t* ast_float(arena_t* a, float val) {
     return node;
 }
 
-inline static ast_node_t* ast_bool(arena_t* a, bool val) {
+ast_node_t* ast_bool(arena_t* a, bool val) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_VALUE;
     node->ref = (srcref_t) { 0 };
@@ -78,7 +76,7 @@ inline static ast_node_t* ast_bool(arena_t* a, bool val) {
     return node;
 }
 
-inline static ast_node_t* ast_char(arena_t* a, char val) {
+ast_node_t* ast_char(arena_t* a, char val) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_VALUE;
     node->ref = (srcref_t) { 0 };
@@ -89,7 +87,7 @@ inline static ast_node_t* ast_char(arena_t* a, char val) {
     return node;
 }
 
-inline static ast_node_t* ast_varref(arena_t* a, srcref_t name) {
+ast_node_t* ast_varref(arena_t* a, srcref_t name) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_VAR_REF;
     node->ref = (srcref_t) { 0 };
@@ -99,7 +97,7 @@ inline static ast_node_t* ast_varref(arena_t* a, srcref_t name) {
     return node;
 }
 
-inline static ast_node_t* ast_tyannot(arena_t* a, ast_annot_t* type, ast_node_t* expr) {
+ast_node_t* ast_tyannot(arena_t* a, ast_annot_t* type, ast_node_t* expr) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_TYANNOT;
     node->ref = (srcref_t) { 0 };
@@ -110,7 +108,7 @@ inline static ast_node_t* ast_tyannot(arena_t* a, ast_annot_t* type, ast_node_t*
     return node;
 }
 
-inline static ast_node_t* ast_block(arena_t* a) {
+ast_node_t* ast_block(arena_t* a) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_BLOCK;
     node->ref = (srcref_t) { 0 };
@@ -121,7 +119,7 @@ inline static ast_node_t* ast_block(arena_t* a) {
     return node;
 }
 
-inline static void ast_block_add(arena_t* a, ast_node_t* block, ast_node_t* node) {
+void ast_block_add(arena_t* a, ast_node_t* block, ast_node_t* node) {
     assert(block->type == AST_BLOCK);
     if( block->u.n_block.count == 0 ) {
         assert(block->u.n_block.content == NULL);
@@ -132,7 +130,7 @@ inline static void ast_block_add(arena_t* a, ast_node_t* block, ast_node_t* node
     block->u.n_block.content[block->u.n_block.count++] = node;
 }
 
-inline static ast_node_t* ast_block_with(arena_t* a, ast_node_t* content) {
+ast_node_t* ast_block_with(arena_t* a, ast_node_t* content) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_BLOCK;
     node->ref = (srcref_t) { 0 };
@@ -144,7 +142,7 @@ inline static ast_node_t* ast_block_with(arena_t* a, ast_node_t* content) {
     return node;
 }
 
-inline static ast_node_t* ast_array(arena_t* a) {
+ast_node_t* ast_array(arena_t* a) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_ARRAY;
     node->ref = (srcref_t) { 0 };
@@ -155,7 +153,7 @@ inline static ast_node_t* ast_array(arena_t* a) {
     return node;
 }
 
-inline static void ast_array_add(arena_t* a, ast_node_t* array, ast_node_t* node) {
+void ast_array_add(arena_t* a, ast_node_t* array, ast_node_t* node) {
     assert(array->type == AST_ARRAY);
     if( array->u.n_array.count == 0 ) {
         assert(array->u.n_array.content == NULL);
@@ -166,7 +164,7 @@ inline static void ast_array_add(arena_t* a, ast_node_t* array, ast_node_t* node
     array->u.n_array.content[array->u.n_array.count++] = node;
 }
 
-inline static ast_node_t* ast_arglist(arena_t* a) {
+ast_node_t* ast_arglist(arena_t* a) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_ARGLIST;
     node->ref = (srcref_t) { 0 };
@@ -177,7 +175,7 @@ inline static ast_node_t* ast_arglist(arena_t* a) {
     return node;
 }
 
-inline static void ast_arglist_add(arena_t* a, ast_node_t* args, ast_node_t* node) {
+void ast_arglist_add(arena_t* a, ast_node_t* args, ast_node_t* node) {
     assert(args->type == AST_ARGLIST);
     if( args->u.n_args.count == 0 ) {
         assert(args->u.n_args.content == NULL);
@@ -188,7 +186,7 @@ inline static void ast_arglist_add(arena_t* a, ast_node_t* args, ast_node_t* nod
     args->u.n_args.content[args->u.n_args.count++] = node;
 }
 
-inline static ast_node_t* ast_string(arena_t* a, srcref_t val) {
+ast_node_t* ast_string(arena_t* a, srcref_t val) {
     ast_node_t* char_array = ast_array(a);
     char_array->ref = val;
 
@@ -231,7 +229,7 @@ inline static ast_node_t* ast_string(arena_t* a, srcref_t val) {
     return char_array;
 }
 
-inline static ast_node_t* ast_return(arena_t* a, ast_node_t* ret) {
+ast_node_t* ast_return(arena_t* a, ast_node_t* ret) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_RETURN;
     node->ref = (srcref_t) { 0 };
@@ -241,14 +239,14 @@ inline static ast_node_t* ast_return(arena_t* a, ast_node_t* ret) {
     return node;
 }
 
-inline static ast_node_t* ast_break(arena_t* a) {
+ast_node_t* ast_break(arena_t* a) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_BREAK;
     node->ref = (srcref_t) { 0 };
     return node;
 }
 
-inline static ast_node_t* ast_funexdecl( arena_t* a, srcref_t name,
+ast_node_t* ast_funexdecl( arena_t* a, srcref_t name,
                                          ast_node_t* args ) 
 {
     assert(args->type == AST_ARGLIST);
@@ -262,7 +260,7 @@ inline static ast_node_t* ast_funexdecl( arena_t* a, srcref_t name,
     return node;
 }
 
-inline static ast_node_t* ast_fundecl( arena_t* a, srcref_t name,
+ast_node_t* ast_fundecl( arena_t* a, srcref_t name,
                                        ast_node_t* args,
                                        ast_node_t* body ) 
 {
@@ -280,12 +278,12 @@ inline static ast_node_t* ast_fundecl( arena_t* a, srcref_t name,
     return node;
 }
 
-inline static void ast_fundecl_set_exported(ast_node_t* node) {
+void ast_fundecl_set_exported(ast_node_t* node) {
     assert(node->type == AST_FUN_DECL);
     node->u.n_fundecl.exported = true;
 }
 
-inline static ast_node_t* ast_exported_fundecl( arena_t* a, srcref_t name,
+ast_node_t* ast_exported_fundecl( arena_t* a, srcref_t name,
                                        ast_node_t* args,
                                        ast_node_t* body ) 
 {
@@ -294,7 +292,7 @@ inline static ast_node_t* ast_exported_fundecl( arena_t* a, srcref_t name,
     return node;
 }
 
-inline static ast_node_t* ast_funcall( arena_t* a, srcref_t name,
+ast_node_t* ast_funcall( arena_t* a, srcref_t name,
                                        ast_node_t* args ) 
 {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
@@ -307,7 +305,7 @@ inline static ast_node_t* ast_funcall( arena_t* a, srcref_t name,
     return node;
 }
 
-inline static ast_node_t* ast_if( arena_t* a, ast_node_t* cond,
+ast_node_t* ast_if( arena_t* a, ast_node_t* cond,
                                   ast_node_t* if_true,
                                   ast_node_t* next ) 
 {
@@ -322,14 +320,14 @@ inline static ast_node_t* ast_if( arena_t* a, ast_node_t* cond,
     return node;
 }
 
-inline static bool ast_is_valid_else_block(ast_node_t* node) {
+bool ast_is_valid_else_block(ast_node_t* node) {
     if( node == NULL )
         return false;
     return node->type == AST_BLOCK
         && node->u.n_block.count > 0;
 }
 
-inline static ast_node_t* ast_foreach( arena_t* a, ast_node_t* vardecl,
+ast_node_t* ast_foreach( arena_t* a, ast_node_t* vardecl,
                                        ast_node_t* collection,
                                        ast_node_t* loop_body ) 
 {
@@ -344,7 +342,7 @@ inline static ast_node_t* ast_foreach( arena_t* a, ast_node_t* vardecl,
     return node;
 }
 
-inline static ast_node_t* ast_binop(arena_t* a, ast_binop_type_t op, ast_node_t* left, ast_node_t* right) {
+ast_node_t* ast_binop(arena_t* a, ast_binop_type_t op, ast_node_t* left, ast_node_t* right) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_BINOP;
     node->ref = (srcref_t) { 0 };
@@ -356,7 +354,7 @@ inline static ast_node_t* ast_binop(arena_t* a, ast_binop_type_t op, ast_node_t*
     return node;
 }
 
-inline static ast_node_t* ast_unnop(arena_t* a, ast_unop_type_t op, ast_node_t* inner) {
+ast_node_t* ast_unnop(arena_t* a, ast_unop_type_t op, ast_node_t* inner) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_UNOP;
     node->ref = (srcref_t) { 0 };
@@ -367,7 +365,7 @@ inline static ast_node_t* ast_unnop(arena_t* a, ast_unop_type_t op, ast_node_t* 
     return node;
 }
 
-inline static ast_node_t* ast_assign(arena_t* a, ast_node_t* left, ast_node_t* right) {
+ast_node_t* ast_assign(arena_t* a, ast_node_t* left, ast_node_t* right) {
     ast_node_t* node = (ast_node_t*) aalloc(a, sizeof(ast_node_t));
     node->type = AST_ASSIGN;
     node->ref = (srcref_t) { 0 };
@@ -378,7 +376,7 @@ inline static ast_node_t* ast_assign(arena_t* a, ast_node_t* left, ast_node_t* r
     return node;
 }
 
-inline static srcref_t ast_try_extract_name(ast_node_t* n) {
+srcref_t ast_try_extract_name(ast_node_t* n) {
     switch(n->type) {
         case AST_VAR_REF:       return n->u.n_varref.name;
         case AST_FUN_DECL:      return n->u.n_fundecl.name;
@@ -388,7 +386,7 @@ inline static srcref_t ast_try_extract_name(ast_node_t* n) {
     }
 }
 
-inline static srcref_t ast_extract_srcref(ast_node_t* node) {
+srcref_t ast_extract_srcref(ast_node_t* node) {
     switch (node->type) {
         case AST_ARRAY: {
             srcref_t combined = { 0 };
@@ -501,7 +499,7 @@ inline static srcref_t ast_extract_srcref(ast_node_t* node) {
     }
 }
 
-inline static char* ast_node_type_as_string(ast_node_type_t type) {
+char* ast_node_type_as_string(ast_node_type_t type) {
     switch (type) {
         case AST_VALUE:         return "VALUE";
         case AST_VAR_REF:       return "VAR_REF";
@@ -523,7 +521,7 @@ inline static char* ast_node_type_as_string(ast_node_type_t type) {
     }
 }
 
-inline static char* ast_binop_type_as_string(ast_binop_type_t type) {
+char* ast_binop_type_as_string(ast_binop_type_t type) {
     switch(type) {
         case AST_BIN_ADD:   return "ADD";
         case AST_BIN_SUB:   return "SUB";
@@ -543,7 +541,7 @@ inline static char* ast_binop_type_as_string(ast_binop_type_t type) {
     }
 }
 
-inline static char* ast_unop_type_as_string(ast_unop_type_t type) {
+char* ast_unop_type_as_string(ast_unop_type_t type) {
     switch(type) {
         case AST_UN_NOT: return "NOT";
         case AST_UN_NEG: return "NEG";
@@ -551,7 +549,7 @@ inline static char* ast_unop_type_as_string(ast_unop_type_t type) {
     }
 }
 
-inline static char* ast_value_type_string(ast_value_type_t type) {
+char* ast_value_type_string(ast_value_type_t type) {
     switch(type) {
         case AST_VALUE_BOOL:    return LANG_TYPENAME_BOOL;
         case AST_VALUE_CHAR:    return LANG_TYPENAME_CHAR;
@@ -562,7 +560,7 @@ inline static char* ast_value_type_string(ast_value_type_t type) {
     }
 }
 
-inline static void ast_dump_value(cstr_t str, ast_value_t val) {
+void ast_dump_value(cstr_t str, ast_value_t val) {
     switch(val.type) {
         case AST_VALUE_BOOL:    cstr_append_fmt(str, "%s", val.u._bool ? "true" : "false");   break;
         case AST_VALUE_CHAR:    cstr_append_fmt(str, "'%c'", val.u._char);                    break;
@@ -573,11 +571,11 @@ inline static void ast_dump_value(cstr_t str, ast_value_t val) {
     }
 }
 
-inline static void _ast_nl(cstr_t str, int indent) {
+void _ast_nl(cstr_t str, int indent) {
     cstr_append_fmt(str,"\n%*s", (indent * 4), "");
 }
 
-inline static void _ast_dump_annot(cstr_t str, ast_annot_t* a) {
+void _ast_dump_annot(cstr_t str, ast_annot_t* a) {
     cstr_append_fmt(str, "(");
     srcref_sprint(str, a->name); 
     cstr_append_fmt(str, " (");
@@ -587,7 +585,7 @@ inline static void _ast_dump_annot(cstr_t str, ast_annot_t* a) {
     cstr_append_fmt(str, "))");
 }
 
-inline static void _ast_dump(cstr_t str, ast_node_t* node, int indent) {
+void _ast_dump(cstr_t str, ast_node_t* node, int indent) {
     cstr_append_fmt(str, "[");
     cstr_append_fmt(str, "%s ", ast_node_type_as_string(node->type));
     switch(node->type) {
@@ -688,11 +686,9 @@ inline static void _ast_dump(cstr_t str, ast_node_t* node, int indent) {
     cstr_append_fmt(str, "]");
 }
 
-inline static void ast_dump(ast_node_t* node) {
+void ast_dump(ast_node_t* node) {
     define_cstr(str, 1024 * 4);
     _ast_dump(str, node, 0);
     cstr_append_fmt(str, "\n");
     sh_log_info(str.ptr);
 }
-
-#endif // GVM_AST_H_

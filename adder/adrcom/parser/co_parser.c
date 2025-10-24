@@ -2,7 +2,8 @@
 #include "adrcom/parser/co_tokenizer.h"
 
 #include <adrcom/shared/co_trace.h>
-#include <adrcom/shared/co_ast.h>
+
+#include <adrcom/ast/co_ast.h>
 
 #include <shared/sh_types.h>
 #include <shared/sh_utils.h>
@@ -110,9 +111,9 @@ pa_result_t pa_error_out_of_tokens(parser_t* parser) {
 pa_result_t pa_error_unexpected_token_type(parser_t* parser, token_type_t expected, token_t actual) {
     trace_msg_t* msg = trace_create_message(parser->trace, TM_ERROR, actual.ref);
     trace_msg_append_costr(msg, "unexpected token, expected ");
-    trace_msg_append_token_type_name(msg, expected);
+    tokenizer_trace_msg_append_token_type_name(msg, expected);
     trace_msg_append_costr(msg, " but found ");
-    trace_msg_append_token_type_name(msg, actual.type);
+    tokenizer_trace_msg_append_token_type_name(msg, actual.type);
     trace_msg_append_costr(msg, " ('");
     trace_msg_append(msg,
         srcref_ptr(actual.ref),
@@ -124,7 +125,7 @@ pa_result_t pa_error_unexpected_token_type(parser_t* parser, token_type_t expect
 pa_result_t pa_error_invalid_token_format(parser_t* parser, token_t token) {
     trace_msg_t* msg = trace_create_message(parser->trace, TM_ERROR, token.ref);   
     trace_msg_append_costr(msg, "unexpected token format: ");
-    trace_msg_append_token_type_name(msg, token.type);
+    tokenizer_trace_msg_append_token_type_name(msg, token.type);
     trace_msg_append_costr(msg, " ('");
     trace_msg_append(msg,
         srcref_ptr(token.ref),
@@ -136,7 +137,7 @@ pa_result_t pa_error_invalid_token_format(parser_t* parser, token_t token) {
 pa_result_t _pa_set_error(parser_t* parser, token_t token, char* expected_str) {
     trace_msg_t* msg = trace_create_message(parser->trace, TM_ERROR, token.ref);
     trace_msg_append_costr(msg, "unexpected statement: ");
-    trace_msg_append_token_type_name(msg, token.type);
+    tokenizer_trace_msg_append_token_type_name(msg, token.type);
     trace_msg_append_costr(msg, " ('");
     trace_msg_append(msg,
         srcref_ptr(token.ref),

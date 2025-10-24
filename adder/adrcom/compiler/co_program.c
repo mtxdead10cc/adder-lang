@@ -2,7 +2,8 @@
 #include "adrcom/compiler/co_compiler.h"
 
 #include <adrcom/shared/co_trace.h>
-#include <adrcom/shared/co_ast.h>
+
+#include <adrcom/ast/co_ast.h>
 
 #include <adrcom/parser/co_parser.h>
 

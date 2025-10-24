@@ -6,6 +6,8 @@
 #include <stdarg.h>
 #include <assert.h>
 
+#include "adrcom/parser/co_parser_types.h"
+
 #include <adrcom/shared/co_types.h>
 
 #define IS_LETTER(C) (((C) >= 'a' && (C) <= 'z') || ((C) >= 'A' && (C) <= 'Z'))
@@ -84,7 +86,6 @@ inline static bool lexer_match(lex_predicate_t predicate, lexeme_t actual) {
         default:        return false;
     }
 }
-
 
 
 #endif // GVM_LEXER_H_

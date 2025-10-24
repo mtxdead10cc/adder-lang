@@ -1,7 +1,7 @@
 #ifndef GVM_COMPILER_H_
 #define GVM_COMPILER_H_
 
-#include <adrcom/shared/co_ast.h>
+#include <adrcom/ast/co_ast.h>
 #include <adrcom/shared/co_types.h>
 
 #include <shared/sh_types.h>

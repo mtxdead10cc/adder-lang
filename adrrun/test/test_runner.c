@@ -10,7 +10,8 @@
 #include <shared/sh_program.h>
 #include <shared/sh_log.h>
 
-#include <adrcom/shared/co_ast.h>
+#include <adrcom/ast/co_ast.h>
+
 #include <adrcom/shared/co_trace.h>
 
 #include <adrcom/parser/co_parser.h>

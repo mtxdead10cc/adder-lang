@@ -5,6 +5,7 @@
 #include <shared/sh_types.h>
 
 #include <adrcom/shared/co_types.h>
+#include <adrcom/ast/co_ast_types.h>
 
 #include <stdbool.h>
 #include <stdint.h>

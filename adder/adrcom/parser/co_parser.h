@@ -10,11 +10,13 @@
 #include <shared/sh_types.h>
 #include <shared/sh_utils.h>
 
+#include "adrcom/parser/co_parser_types.h"
 #include "adrcom/parser/co_tokenizer.h"
 
 #include <adrcom/shared/co_trace.h>
 #include <adrcom/shared/co_types.h>
-#include <adrcom/shared/co_ast.h>
+
+#include <adrcom/ast/co_ast.h>
 
 typedef enum pa_result_type_t {
     PAR_NOTHING,

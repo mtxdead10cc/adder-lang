@@ -4,7 +4,8 @@
 #include <vm/vm_value_tools.h>
 #include <vm/vm_heap.h>
 
-#include <adrcom/shared/co_ast.h>
+#include <adrcom/ast/co_ast.h>
+
 #include <adrcom/shared/co_trace.h>
 
 #include <adrcom/parser/co_parser.h>

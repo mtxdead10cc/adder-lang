@@ -12,7 +12,8 @@
 #include <shared/sh_ffi.h>
 #include <shared/sh_ift.h>
 
-#include <adrcom/shared/co_ast.h>
+#include <adrcom/ast/co_ast.h>
+
 #include <adrcom/shared/co_trace.h>
 #include <adrcom/parser/co_parser.h>
 

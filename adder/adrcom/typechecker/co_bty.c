@@ -3,7 +3,8 @@
 #include <adrcom/shared/co_types.h>
 #include <adrcom/shared/co_utils.h>
 #include <adrcom/shared/co_trace.h>
-#include <adrcom/shared/co_ast.h>
+
+#include <adrcom/ast/co_ast.h>
 
 #include <shared/sh_log.h>
 #include <shared/sh_utils.h>

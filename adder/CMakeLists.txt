@@ -70,6 +70,21 @@ target_sources(adrcomshared PRIVATE
 target_link_libraries(adrcomshared PUBLIC m adrsha)
 target_compile_options(adrcomshared PRIVATE -Wall -Wpedantic -Wextra -Werror)
 
+# ADRCOM/AST
+
+add_library(adrcomast STATIC)
+
+target_include_directories(adrcomast
+PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_sources(adrcomast PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/ast/co_ast.c
+)
+
+target_link_libraries(adrcomast PUBLIC m adrsha)
+target_compile_options(adrcomast PRIVATE -Wall -Wpedantic -Wextra -Werror)
+
 # ADRCOM/PARSER
 
 add_library(adrcomparse STATIC)
@@ -98,7 +113,7 @@ target_sources(adrcomcheck PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/typechecker/co_bty.c
 )
 
-target_link_libraries(adrcomcheck PUBLIC m adrsha adrcomshared)
+target_link_libraries(adrcomcheck PUBLIC m adrsha adrcomshared adrcomast)
 target_compile_options(adrcomcheck PRIVATE -Wall -Wpedantic -Wextra -Werror)
 
 # ADRCOM/COMPILER
@@ -124,6 +139,7 @@ target_compile_options(adrcomcompiler PRIVATE -Wall -Wpedantic -Wextra -Werror)
 add_library(adrcom STATIC 
     "$<TARGET_OBJECTS:adrcomshared>"
     "$<TARGET_OBJECTS:adrcomparse>"
+    "$<TARGET_OBJECTS:adrcomast>"
     "$<TARGET_OBJECTS:adrcomcheck>"
     "$<TARGET_OBJECTS:adrcomcompiler>"
 )
