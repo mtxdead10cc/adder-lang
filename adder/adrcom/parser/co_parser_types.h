@@ -80,7 +80,6 @@ typedef enum token_type_t {
     TT_FINAL
 } token_type_t;
 
-
 typedef enum lex_ptype_t {
     LP_IS,
     LP_IS_NOT
@@ -108,5 +107,17 @@ typedef struct parser_t {
     trace_t*            trace;
     arena_t*            arena;
 } parser_t;
+
+typedef enum pa_result_type_t {
+    PAR_NOTHING,
+    PAR_AST_NODE,
+    PAR_BUILD_ERROR
+} pa_result_type_t;
+
+typedef struct pa_result_t {
+    pa_result_type_t    type; 
+    void*               data;
+    bool                group_expression; // exprs like "-(a + b)"
+} pa_result_t;
 
 #endif // GVM_PARSER_TYPES_H_

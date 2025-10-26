@@ -15,6 +15,7 @@
 #include <adrcom/shared/co_trace.h>
 
 #include <adrcom/parser/co_parser.h>
+#include <adrcom/parser/co_tokenizer.h>
 
 #include <adrcom/compiler/co_compiler.h>
 #include <adrcom/compiler/co_program.h>

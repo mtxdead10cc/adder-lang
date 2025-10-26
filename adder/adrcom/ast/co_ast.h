@@ -40,7 +40,6 @@ void ast_array_add(arena_t* a, ast_node_t* array, ast_node_t* node);
 ast_node_t* ast_arglist(arena_t* a);
 void ast_arglist_add(arena_t* a, ast_node_t* args, ast_node_t* node);
 
-
 ast_node_t* ast_return(arena_t* a, ast_node_t* ret);
 
 ast_node_t* ast_break(arena_t* a);

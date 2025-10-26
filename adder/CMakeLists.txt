@@ -94,11 +94,12 @@ PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_sources(adrcomparse PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/parser/co_parser_base.c
     ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/parser/co_parser.c
     ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/parser/co_tokenizer.c
 )
 
-target_link_libraries(adrcomparse PUBLIC m adrsha)
+target_link_libraries(adrcomparse PUBLIC m adrsha adrcomast)
 target_compile_options(adrcomparse PRIVATE -Wall -Wpedantic -Wextra -Werror)
 
 # ADRCOM/TYPE CHECKER
