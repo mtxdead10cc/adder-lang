@@ -8,6 +8,8 @@ PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_sources(adrsha PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_parse_tools.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_json.c
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_log.c
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_utils.c
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_asminfo.c
@@ -80,6 +82,7 @@ PUBLIC
 
 target_sources(adrcomast PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/ast/co_ast.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/ast/co_ast_expr.c
 )
 
 target_link_libraries(adrcomast PUBLIC m adrsha)

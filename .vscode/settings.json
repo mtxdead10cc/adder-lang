@@ -72,7 +72,9 @@
         "co_program.h": "c",
         "co_parser.h": "c",
         "termhax.h": "c",
-        "co_ast_types.h": "c"
+        "co_ast_types.h": "c",
+        "co_ast_builder.h": "c",
+        "co_ast_expr.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

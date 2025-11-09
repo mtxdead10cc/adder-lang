@@ -13,6 +13,7 @@
 #include <adrcom/ast/co_ast.h>
 
 #include <adrcom/shared/co_trace.h>
+#include <adrcom/ast/co_ast_expr.h>
 
 #include <adrcom/parser/co_parser.h>
 #include <adrcom/parser/co_tokenizer.h>
@@ -24,6 +25,7 @@
 
 #include <shared/sh_ffi.h>
 #include <shared/sh_ift.h>
+#include <shared/sh_json.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1454,6 +1456,64 @@ void test_vm_cleanup(test_case_t* this) {
     program_destroy(&program);
 }
 
+void test_ast_to_json(test_case_t* this) {
+
+    arena_t* a = arena_create(512);
+
+    ast_expr_t e = ast_expr(ATAG_BIN_ADD);
+    ast_expr_set(&e, AKEY_LEFT, ast_value_int(10));
+    ast_expr_set(&e, AKEY_RIGHT, ast_value_int(10));
+
+    char* json = ast_expr_to_json(&e, a);
+    printf("JSON: %s\n", json);
+
+    json_parse(json, strlen(json));
+
+    (void)(this);
+
+    arena_destroy(a);
+}
+
+
+void test_json(test_case_t* this) {
+
+    json_value_t* num = json_number_double(1234.56789);
+    json_value_t* bol = json_boolean(false);
+    json_value_t* str = json_string("text", 4);
+
+    json_value_t* arr = json_array(4);
+    json_array_append(arr, num);
+    json_array_append(arr, bol);
+    json_array_append(arr, str);
+    json_array_append(arr, json_object(0));
+
+    json_value_t* obj = json_object(4);
+    json_object_set(obj, json_string("num", 3), json_number_integer(-100000));
+    json_object_set(obj, json_string("bol", 3), json_boolean(true));
+    json_object_set(obj, json_string("str", 3), json_string("TEXT", 4));
+    json_object_set(obj, json_string("arr", 3), arr);
+
+    char* json = json_dumps(obj, 2);
+    TEST_ASSERT_MSG(this, json != NULL);
+    TEST_ASSERT_MSG(this, strlen(json) > 0);
+
+    printf("JSON: %s\n", json);
+
+    json_value_t* obj2 = json_parse(json, strlen(json));
+
+    char* json2 = json_dumps(obj2, 2);
+
+    TEST_ASSERT_MSG(this,
+        strcmp(json, json2) == 0,
+        "%s\n   NOT EQUAL TO\n%s",
+        json, json2);
+
+    free(json);
+    free(json2);
+    json_free_rec(obj);
+    json_free_rec(obj2);
+}
+
 
 test_results_t run_testcases(void) {
 
@@ -1521,6 +1581,11 @@ test_results_t run_testcases(void) {
         {
             .name = "xutils classes",
             .test = test_xu_classes,
+            .nfailed = 0
+        },
+        {
+            .name = "parse and dump json",
+            .test = test_json,
             .nfailed = 0
         }
     };
