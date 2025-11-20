@@ -136,6 +136,9 @@ ast_kvp_value_t ast_value_list_get(ast_kvp_value_t* list, int index);
 ast_expr_t  ast_expr(ast_expr_tag_t tag);
 void        ast_expr_set(ast_expr_t* node, ast_key_t key, ast_kvp_value_t value);
 ast_kvp_value_t ast_expr_get(ast_expr_t* node, ast_key_t key);
-char*       ast_expr_to_json(ast_expr_t* node, arena_t* allocator);
+
+typedef struct json_value_t json_value_t;
+
+json_value_t* ast_expr_to_json(ast_expr_t* node);
 
 #endif // AST_EXPR_H_

@@ -74,19 +74,22 @@ typedef struct json_value_t {
 
 char* json_tt_to_string(json_tt_t tt);
 
+json_value_t*   json_null(void);
 json_value_t*   json_string(char* value, ptrdiff_t len);
+json_value_t*   json_const_string(const char* value);
 json_value_t*   json_boolean(bool value);
 json_value_t*   json_number_double(double value);
 json_value_t*   json_number_integer(long value);
 
 json_value_t*   json_array(ptrdiff_t capacity);
-bool            json_array_append(json_value_t* json_array, json_value_t* value);
+bool            json_array_append(json_value_t* json_array, json_value_t* value, bool free_arg_on_fail);
 
 json_value_t*   json_object(ptrdiff_t capacity);
-bool            json_object_set(json_value_t* json_object, json_value_t* key, json_value_t* value);
+bool            json_object_set(json_value_t* json_object, json_value_t* key, json_value_t* value, bool free_args_on_fail);
 json_value_t*   json_object_get(json_value_t* json_object, char* key, ptrdiff_t key_len);
+json_value_t* json_object_get_const(json_value_t* json_object, const char* key);
 
-void            json_free_rec(json_value_t* json);
+void            json_free(json_value_t* json);
 
 char*           json_dumps(json_value_t* json, int indent);
 json_value_t*   json_parse(char* json_str, ptrdiff_t len);

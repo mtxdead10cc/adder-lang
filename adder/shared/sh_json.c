@@ -32,6 +32,10 @@ json_value_t* json_string(char* value, ptrdiff_t len) {
     return val;
 }
 
+json_value_t* json_const_string(const char* value) {
+    return json_string((char*)value, strlen(value));
+}
+
 json_value_t* json_null(void) {
     return json_value(JSON_VALUE_NULL);
 }
@@ -85,27 +89,46 @@ json_value_t* json_array(ptrdiff_t capacity) {
     return val;
 }
 
-bool json_array_append(json_value_t* json_array, json_value_t* value) {
+bool json_array_append(json_value_t* json_array, json_value_t* value, bool free_arg_on_fail) {
+
+    if( value == NULL )
+        return false;
+
     if( json_array == NULL )
-        return false;
+        goto free_arg_value_on_failure;
+
     if( json_array->type != JSON_VALUE_ARRAY )
-        return false;
+        goto free_arg_value_on_failure;
+
     json_array_t* array = &json_array->u.array;
     if( array->capacity <= array->size ) {
+        
         assert(array->capacity > 0);
         assert(array->size >= 0);
+
         ptrdiff_t newcap = array->capacity * 2;
         json_value_t** content = (json_value_t**) realloc(
             array->values,
             sizeof(json_value_t*) * newcap);
+
         if( content == NULL )
-            return false;
+            goto free_arg_value_on_failure;
+
         array->capacity = newcap;
         array->values = content;
     }
+
     array->values[array->size] = value;
     array->size += 1;
+
     return true;
+
+free_arg_value_on_failure:
+
+    if(free_arg_on_fail)
+        json_free(value);
+
+    return false;
 }
 
 json_value_t* json_object(ptrdiff_t capacity) {
@@ -135,16 +158,16 @@ json_value_t* json_object(ptrdiff_t capacity) {
     return val; 
 }
 
-bool json_object_append(json_value_t* json_object, json_value_t* key, json_value_t* value) {
+bool json_object_append(json_value_t* json_object, json_value_t* key, json_value_t* value, bool free_on_fail) {
 
     if( json_object == NULL )
-        return false;
+        goto free_args_on_failure;
 
     if( json_object->type != JSON_VALUE_OBJECT )
-        return false;
+        goto free_args_on_failure;
 
-    if( key == NULL )
-        return false;
+    if( key == NULL || value == NULL )
+        goto free_args_on_failure;
 
     json_object_t* object = &json_object->u.object;
     
@@ -156,13 +179,13 @@ bool json_object_append(json_value_t* json_object, json_value_t* key, json_value
             object->values,
             sizeof(json_value_t*) * newcap);
         if( values == NULL )
-            return false;
+            goto free_args_on_failure;
         json_value_t** keys = (json_value_t**) realloc(
             object->keys,
             sizeof(json_value_t*) * newcap);
         if( keys == NULL ) {
             free(values);
-            return false;
+            goto free_args_on_failure;
         }
         object->capacity = newcap;
         object->values = values;
@@ -174,6 +197,15 @@ bool json_object_append(json_value_t* json_object, json_value_t* key, json_value
     object->size += 1;
 
     return true;
+
+free_args_on_failure:
+
+    if(free_on_fail) {
+        json_free(key);
+        json_free(value);
+    }
+
+    return false;
 }
 
 bool json_string_value_equals(json_value_t* a, json_value_t* b) {
@@ -193,7 +225,16 @@ bool json_string_value_equals(json_value_t* a, json_value_t* b) {
     return true;
 }
 
-bool json_object_set(json_value_t* json_object, json_value_t* key, json_value_t* value) {
+bool json_object_set(json_value_t* json_object, json_value_t* key, json_value_t* value, bool free_args_on_fail) {
+
+    if( json_object == NULL || key == NULL || value == NULL ) {
+        if( free_args_on_fail ) {
+            json_free(key);
+            json_free(value);
+        }
+        return false;
+    }
+
     json_object_t* obj = &json_object->u.object;
     for(int i = 0; i < obj->size; i++) {
         if( json_string_value_equals(obj->keys[i], key) ) {
@@ -203,16 +244,25 @@ bool json_object_set(json_value_t* json_object, json_value_t* key, json_value_t*
             return true;
         }
     }
-    return json_object_append(json_object, key, value);
+
+    return json_object_append(json_object, key, value, free_args_on_fail);
 }
 
 json_value_t* json_object_get(json_value_t* json_object, char* key, ptrdiff_t key_len) {
+    if( key == NULL || json_object == NULL )
+        return NULL;
     json_object_t* obj = &json_object->u.object;
     for(int i = 0; i < obj->size; i++) {
         if( strncmp(key, obj->keys[i]->u.string.text, key_len) == 0 )
             return obj->values[i];
     }
     return NULL;
+}
+
+json_value_t* json_object_get_const(json_value_t* json_object, const char* key) {
+    if( key == NULL || json_object == NULL )
+        return NULL;
+    return json_object_get(json_object, (char*) key, strlen(key));
 }
 
 char* json_dumps_append_double(char* prev, double val) {
@@ -355,7 +405,9 @@ char* json_dumps(json_value_t* json, int indent) {
     return json_internal_dumps(json, 0, indent);
 }
 
-void json_free_rec(json_value_t* json) {
+void json_free(json_value_t* json) {
+    if(json == NULL)
+        return;
     switch(json->type) {
         case JSON_VALUE_BOOLEAN:
         case JSON_VALUE_NUMBER_DOUBLE:
@@ -373,7 +425,7 @@ void json_free_rec(json_value_t* json) {
         } break;
         case JSON_VALUE_ARRAY: {
             for(int i = 0; i < json->u.array.size; i++) {
-                json_free_rec(json->u.array.values[i]);
+                json_free(json->u.array.values[i]);
             }
             free(json->u.array.values);
             *json = (json_value_t) { 0 };
@@ -381,8 +433,8 @@ void json_free_rec(json_value_t* json) {
         } break;
         case JSON_VALUE_OBJECT: {
             for(int i = 0; i < json->u.object.size; i++) {
-                json_free_rec(json->u.object.keys[i]);
-                json_free_rec(json->u.object.values[i]);
+                json_free(json->u.object.keys[i]);
+                json_free(json->u.object.values[i]);
             }
             free(json->u.object.values);
             free(json->u.object.keys);
@@ -390,6 +442,8 @@ void json_free_rec(json_value_t* json) {
             free(json);
         } break;
         default:
+            // Free?
+            assert(false);
             break;
     }
 }
@@ -480,6 +534,8 @@ ptrdiff_t json_scan(char* text, ptrdiff_t remaining, int64_t* type_out) {
 
 json_value_t* json_parse_value(pt_state_t* state) {
 
+    //todo: out of memory handling
+
     pt_token_t tok = pt_state_peek(state, 0);
 
     switch(tok.type) {
@@ -523,7 +579,7 @@ json_value_t* json_parse_value(pt_state_t* state) {
                     break;
 
                 json_value_t* inner = json_parse_value(state);
-                json_array_append(result, inner);
+                json_array_append(result, inner, true);
                 pt_state_advance_if(state, JTT_SEPARATOR);
             }
 
@@ -551,7 +607,7 @@ json_value_t* json_parse_value(pt_state_t* state) {
                 pt_state_advance_if(state, JTT_KVP_SEPARATOR);
 
                 json_value_t* value = json_parse_value(state);
-                json_object_append(result, key, value);
+                json_object_append(result, key, value, true);
 
                 pt_state_advance_if(state, JTT_SEPARATOR);
             }
@@ -574,15 +630,6 @@ json_value_t* json_parse(char* json_str, ptrdiff_t len) {
 
     if( res > 0 )
         return NULL; // error | nothing parsed
-    
-    /*for(ptrdiff_t i = 0; i < p.token_count; i++) {
-        pt_token_t t = p.tokens[i];
-        printf("#%ld >> %-24s%.*s\n",
-            i,
-            json_tt_to_string(t.type),
-            (int) t.length,
-            t.text);
-    }*/
 
     json_value_t* result = json_parse_value(&p);
     

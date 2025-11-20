@@ -1458,20 +1458,33 @@ void test_vm_cleanup(test_case_t* this) {
 
 void test_ast_to_json(test_case_t* this) {
 
-    arena_t* a = arena_create(512);
-
     ast_expr_t e = ast_expr(ATAG_BIN_ADD);
     ast_expr_set(&e, AKEY_LEFT, ast_value_int(10));
-    ast_expr_set(&e, AKEY_RIGHT, ast_value_int(10));
+    ast_expr_set(&e, AKEY_RIGHT, ast_value_int(1111));
 
-    char* json = ast_expr_to_json(&e, a);
-    printf("JSON: %s\n", json);
+    json_value_t* jval = ast_expr_to_json(&e);
 
-    json_parse(json, strlen(json));
+    char* jsonstr = json_dumps(jval, 2);
+    TEST_ASSERT_MSG(this, jsonstr != NULL);
 
-    (void)(this);
+    printf("JSON: %s\n", jsonstr);
 
-    arena_destroy(a);
+    json_value_t* parsed = json_parse(jsonstr, strlen(jsonstr));
+
+    TEST_ASSERT_MSG(this, parsed != NULL);
+
+    TEST_ASSERT_MSG(this, parsed->type == JSON_VALUE_OBJECT);
+
+    json_value_t* left = json_object_get_const(parsed, "AKEY_LEFT");
+    json_value_t* right = json_object_get_const(parsed, "AKEY_RIGHT");
+
+    TEST_ASSERT_MSG(this, left != NULL);
+    TEST_ASSERT_MSG(this, right != NULL);
+
+    TEST_ASSERT_MSG(this, left->type == JSON_VALUE_NUMBER_INTEGER);
+    TEST_ASSERT_MSG(this, left->u.number_integer == 10);
+    TEST_ASSERT_MSG(this, right->type == JSON_VALUE_NUMBER_INTEGER);
+    TEST_ASSERT_MSG(this, left->u.number_integer == 10);
 }
 
 
@@ -1482,16 +1495,16 @@ void test_json(test_case_t* this) {
     json_value_t* str = json_string("text", 4);
 
     json_value_t* arr = json_array(4);
-    json_array_append(arr, num);
-    json_array_append(arr, bol);
-    json_array_append(arr, str);
-    json_array_append(arr, json_object(0));
+    json_array_append(arr, num, true);
+    json_array_append(arr, bol, true);
+    json_array_append(arr, str, true);
+    json_array_append(arr, json_object(0), true);
 
     json_value_t* obj = json_object(4);
-    json_object_set(obj, json_string("num", 3), json_number_integer(-100000));
-    json_object_set(obj, json_string("bol", 3), json_boolean(true));
-    json_object_set(obj, json_string("str", 3), json_string("TEXT", 4));
-    json_object_set(obj, json_string("arr", 3), arr);
+    json_object_set(obj, json_string("num", 3), json_number_integer(-100000), true);
+    json_object_set(obj, json_string("bol", 3), json_boolean(true), true);
+    json_object_set(obj, json_string("str", 3), json_string("TEXT", 4), true);
+    json_object_set(obj, json_string("arr", 3), arr, true);
 
     char* json = json_dumps(obj, 2);
     TEST_ASSERT_MSG(this, json != NULL);
@@ -1510,8 +1523,8 @@ void test_json(test_case_t* this) {
 
     free(json);
     free(json2);
-    json_free_rec(obj);
-    json_free_rec(obj2);
+    json_free(obj);
+    json_free(obj2);
 }
 
 

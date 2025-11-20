@@ -1,4 +1,5 @@
 #include "adrcom/ast/co_ast_expr.h"
+#include "shared/sh_json.h"
 
 ast_kvp_value_t ast_value_int(int value) {
     return (ast_kvp_value_t) {
@@ -119,7 +120,7 @@ ast_kvp_value_t ast_expr_get(ast_expr_t* node, ast_key_t key) {
     return node->map[key];
 }
 
-char* ast_kvp_value_tag_to_string(ast_kvp_value_tag_t tag) {
+const char* ast_kvp_value_tag_to_string(ast_kvp_value_tag_t tag) {
     switch (tag) {
         case AVAL_UNDEFINED:    return "undefined";
         case AVAL_EXPR:         return "expression";
@@ -133,68 +134,7 @@ char* ast_kvp_value_tag_to_string(ast_kvp_value_tag_t tag) {
     }
 }
 
-char* ast_kvp_value_to_json(ast_kvp_value_t value, arena_t* allocator) {
-    char* tag_name = ast_kvp_value_tag_to_string(value.tag);
-    switch(value.tag) {
-        case AVAL_INT:
-            return asprint(allocator,
-                "{ \"tag\": \"%s\", \"value\": %d }",
-                    tag_name, value.u.value_int);
-        case AVAL_FLOAT:
-            return asprint(allocator,
-                "{ \"tag\": \"%s\", \"value\": %f }",
-                    tag_name, value.u.value_float);
-        case AVAL_BOOL: 
-            return asprint(allocator,
-                "{ \"tag\": \"%s\", \"value\": %s }",
-                    tag_name,
-                    value.u.value_bool
-                        ? "true"
-                        : "false");
-        case AVAL_CHAR: 
-            return asprint(allocator,
-                "{ \"tag\": \"%s\", \"value\": \"%s\" }",
-                    tag_name, value.u.value_char);
-        case AVAL_EXPR:
-            return asprint(allocator,
-                "{ \"tag\": \"%s\", \"value\": %s }",
-                    tag_name, ast_expr_to_json(value.u.expr, allocator));
-        case AVAL_LIST: {
-            int count = value.u.list.size;
-            ast_kvp_value_t* content = value.u.list.content;
-            char* json = "";
-            for(int i = 0; i < count; i++) {
-                char* part = ast_kvp_value_to_json(content[i], allocator);
-                if( i == 0 )
-                    json = asprint(allocator, " %s", part);
-                else
-                    json = asprint(allocator, "%s, %s", json, part);
-            }
-            return asprint(allocator,
-                "{ \"tag\": \"%s\", \"value\": [%s ] }",
-                    tag_name, json);
-        } break;
-        case AVAL_SRCREF: {
-            srcref_t ref = value.u.srcref;
-            char* json;
-            json = asprint(allocator, "\"idx_start\": %d,", ref.idx_start);
-            json = asprint(allocator, "%s \"idx_end\": %d,", json, ref.idx_end);
-            json = asprint(allocator, "%s \"source\": \"%s\"",
-                json, ref.source != NULL
-                    ? ref.source
-                    : "");
-            return asprint(allocator,
-                "{ \"tag\": \"%s\", \"value\": { %s } }",
-                    tag_name, json);
-        } break;
-        default:
-            return asprint(allocator,
-                "{ \"tag\": \"%s\", \"value\": null }",
-                    tag_name);
-    }
-}
-
-char* ast_key_to_string(ast_key_t key) {
+const char* ast_key_to_string(ast_key_t key) {
     switch (key) {
         case AKEY_NAME:             return "name";
         case AKEY_SOURCE:           return "source";
@@ -216,7 +156,7 @@ char* ast_key_to_string(ast_key_t key) {
     }
 }
 
-char* ast_expr_tag_to_string(ast_expr_tag_t tag) {
+const char* ast_expr_tag_to_string(ast_expr_tag_t tag) {
     switch(tag) {
         case ATAG_VALUE_NONE:       return "VALUE_NONE";
         case ATAG_VALUE_INT:        return "VALUE_INT";
@@ -265,26 +205,190 @@ char* ast_expr_tag_to_string(ast_expr_tag_t tag) {
     }
 }
 
-char* ast_expr_to_json(ast_expr_t* node, arena_t* allocator) {
+json_value_t* ast_kvp_value_to_json(ast_kvp_value_t value) {
 
-    char* json = "";
-    char* tag = ast_expr_tag_to_string(node->tag);
-    
+    const char* tag_name = ast_kvp_value_tag_to_string(value.tag);
+
+    json_value_t* wrapper = json_object(4);
+    if( wrapper == NULL ) {
+        sh_log_error("ast_kvp_value_to_json: allocation failed");
+        return NULL;
+    }
+
+    bool export_ok = json_object_set(wrapper,
+        json_const_string("tag"),
+        json_const_string(tag_name),
+        true);
+
+    if( export_ok == false ) {
+        sh_log_error("ast_kvp_value_to_json: allocation failed");
+        json_free(wrapper);
+        return false;
+    }
+
+    switch(value.tag) {
+        case AVAL_INT: {
+            export_ok = json_object_set(wrapper,
+                json_const_string("value"),
+                json_number_integer(value.u.value_int),
+                true);
+        } break;
+        case AVAL_BOOL: {
+            export_ok = json_object_set(wrapper,
+                json_const_string("value"),
+                json_boolean(value.u.value_bool),
+                true);
+        } break;
+        case AVAL_CHAR: {
+            export_ok = json_object_set(wrapper,
+                json_const_string("value"),
+                json_string(&value.u.value_char, 1),
+                true);
+        } break;
+        case AVAL_FLOAT:{
+            export_ok = json_object_set(wrapper,
+                json_const_string("value"),
+                json_number_double(value.u.value_float),
+                true);
+        } break;
+        case AVAL_UNDEFINED:{
+            export_ok = json_object_set(wrapper,
+                json_const_string("value"),
+                json_null(),
+                true);
+        } break;
+        case AVAL_EXPR: {
+            export_ok = json_object_set(wrapper,
+                json_const_string("value"),
+                ast_expr_to_json(value.u.expr),
+                true);
+        } break;
+        case AVAL_SRCREF: {
+
+            json_value_t* obj = json_object(4);
+
+            export_ok = json_object_set(wrapper,
+                json_const_string("value"),
+                obj,
+                true);
+
+            if( export_ok == false ) {
+                json_free(obj);
+                obj = NULL;
+            }
+
+            export_ok = json_object_set(obj,
+                json_const_string("idx_start"),
+                json_number_integer(value.u.srcref.idx_start),
+                true);
+
+            export_ok = json_object_set(obj,
+                json_const_string("idx_end"),
+                json_number_integer(value.u.srcref.idx_end),
+                true);
+
+            export_ok = json_object_set(obj,
+                json_const_string("source"),
+                json_string(value.u.srcref.source,
+                    strlen(value.u.srcref.source)),
+                true);
+            
+        } break;
+        case AVAL_LIST: {
+
+            json_value_t* array = json_array(value.u.list.size);
+            export_ok = json_object_set(wrapper,
+                json_const_string("value"),
+                array,
+                true);
+
+            if( export_ok == false ) {
+                json_free(array);
+                array = NULL;
+            }
+
+            for(int i = 0; i < value.u.list.size; i++) {
+                ast_kvp_value_t ast_kval = value.u.list.content[i];
+                export_ok = export_ok && json_array_append(array,
+                    ast_kvp_value_to_json(ast_kval), true);
+            }
+
+        } break;
+    }
+
+    if( export_ok == false ) {
+        sh_log_error("ast_kvp_value_to_json: value allocation failed");
+        json_free(wrapper);
+        return NULL;
+    }
+
+    return wrapper;
+}
+
+json_value_t* ast_expr_to_json(ast_expr_t* node) {
+
+    assert(node != NULL);
+
+    if( node == NULL ) {
+        sh_log_error("ast_expr_to_json: ast node was null");
+        return NULL;
+    }
+
+    json_value_t* jnode = json_object(AKEY_COUNT);
+    if( node == NULL ) {
+        sh_log_error("ast_expr_to_json: out of memory");
+        return NULL;
+    }
+
+    const char* tag = ast_expr_tag_to_string(node->tag);
+    bool export_ok = json_object_set(jnode,
+            json_const_string("tag"),
+            json_const_string(tag),
+            true);
+
+    if( export_ok == false ) {
+        sh_log_error("ast_expr_to_json: failed to set tag");
+        return NULL;
+    }
+
+    json_value_t* jnode_map = json_object(AKEY_COUNT);
+    if( jnode_map == NULL ) {
+        json_free(jnode);
+        sh_log_error("ast_expr_to_json (map): out of memory");
+        return NULL;
+    }
+
+    export_ok = json_object_set(jnode,
+            json_const_string("map"),
+            jnode_map,
+            true);
+
+    if( export_ok == false ) {
+        json_free(jnode);
+        json_free(jnode_map);
+        sh_log_error("ast_expr_to_json: failed to set map");
+        return NULL;
+    }
+
     for(int i = 0; i < AKEY_COUNT; i++) {
         ast_kvp_value_t value = node->map[i];
         if( value.tag == AVAL_UNDEFINED )
             continue;
-        char* kvp_key = ast_key_to_string(i);
-        char* kvp_val = ast_kvp_value_to_json(value, allocator);
-        json = asprint(allocator, "%s \"%s\": %s,",
-            json, kvp_key, kvp_val);
+        export_ok = json_object_set(jnode_map,
+            json_const_string(ast_key_to_string(i)),
+            ast_kvp_value_to_json(value),
+            true);
+        if( export_ok == false ) {
+            json_free(jnode);
+            sh_log_error("ast_expr_to_json: failed to set"
+                         " (\"%s\": <value>) pair for node"
+                         " with tag %s",
+                         ast_key_to_string(i),
+                         ast_expr_tag_to_string(node->tag));
+            return NULL;
+        }
     }
 
-    size_t len = strlen(json);
-    if( len > 0 ) // remove last ','
-        json[len - 1] = '\0';
-    
-    return asprint(allocator,
-        "{ \"tag\": \"%s\", \"map\": {%s } }",
-            tag, json);
+    return jnode;
 }
+
