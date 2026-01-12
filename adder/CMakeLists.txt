@@ -11,7 +11,6 @@ target_sources(adrsha PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_parse_tools.c
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_json.c
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_log.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_utils.c
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_asminfo.c
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_program.c
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_arena.c
@@ -82,7 +81,6 @@ PUBLIC
 
 target_sources(adrcomast PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/ast/co_ast.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/ast/co_ast_expr.c
 )
 
 target_link_libraries(adrcomast PUBLIC m adrsha)
@@ -100,6 +98,7 @@ target_sources(adrcomparse PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/parser/co_parser_base.c
     ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/parser/co_parser.c
     ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/parser/co_tokenizer.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/parser/co_srcmap.c
 )
 
 target_link_libraries(adrcomparse PUBLIC m adrsha adrcomast)
@@ -130,11 +129,10 @@ PUBLIC
 
 target_sources(adrcomcompiler PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/compiler/co_compiler.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/compiler/co_srcmap.c
     ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/compiler/co_program.c
 )
 
-target_link_libraries(adrcomcompiler PUBLIC m adrsha)
+target_link_libraries(adrcomcompiler PUBLIC m adrsha adrcomparse adrcomast)
 target_compile_options(adrcomcompiler PRIVATE -Wall -Wpedantic -Wextra -Werror)
 
 

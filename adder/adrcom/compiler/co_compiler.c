@@ -1,5 +1,5 @@
 #include "adrcom/compiler/co_compiler.h"
-#include "adrcom/compiler/co_srcmap.h"
+#include "adrcom/parser/co_srcmap.h"
 
 #include <adrcom/shared/co_utils.h>
 #include <adrcom/shared/co_trace.h>
@@ -98,19 +98,6 @@ void irl_dump(cstr_t str, ir_list_t* list) {
     }
 }
 
-size_t get_node_content_length(ast_node_t* args) {
-    switch (args->type) {
-        case AST_ARGLIST:   return args->u.n_args.count;
-        case AST_ARRAY:     return args->u.n_array.count;
-        case AST_BLOCK:     return args->u.n_block.count;
-        case AST_FUN_CALL:
-        case AST_UNOP:
-        case AST_BINOP:
-        case AST_VALUE:     return 1;
-        default:            return 0;
-    }
-}
-
 typedef struct compiler_state_t {
     srcmap_t                localvars;
     srcmap_t                functions;
@@ -167,15 +154,15 @@ ir_index_t state_get_funcaddr(compiler_state_t* state, srcref_t name) {
     };
 }
 
-void codegen(ast_node_t* node, compiler_state_t* state);
+void codegen(ast_t* node, compiler_state_t* state);
 
-void codegen_binop(ast_binop_t node, compiler_state_t* state) {
+void codegen_binop(ast_t* node, compiler_state_t* state) {
     
     ABORT_ON_ERROR(state);
 
-    codegen(node.right, state);
-    codegen(node.left, state);
-    switch(node.type) {
+    codegen(node->as.items[1], state); // right
+    codegen(node->as.items[0], state); // left
+    switch(node->tag) {
         case AST_BIN_ADD: {
             irl_add(&state->instrs, (ir_inst_t){
                 .opcode = OP_ADD,
@@ -257,26 +244,26 @@ void codegen_binop(ast_binop_t node, compiler_state_t* state) {
         default: {
             trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, trace_no_ref());            
             trace_msg_append_costr(msg, "unhandled binary operation: ");
-            char* m = ast_binop_type_as_string(node.type);
-            trace_msg_append(msg, m, strlen(m));
+            const char* m = ast_tag_to_string(node->tag);
+            trace_msg_append(msg, (char*) m, strlen(m));
         } break;
     }
 }
 
-void codegen_unop(ast_unop_t node, compiler_state_t* state) {
+void codegen_unop(ast_t* node, compiler_state_t* state) {
     
     ABORT_ON_ERROR(state);
 
-    codegen(node.inner, state);
+    codegen(node->as.items[0], state);
     
-    switch(node.type) {
-        case AST_UN_NEG: {
+    switch(node->tag) {
+        case AST_UNA_NEG: {
             irl_add(&state->instrs, (ir_inst_t){
                 .opcode = OP_NEG,
                 .args = { 0 }
             });
         } break;
-        case AST_UN_NOT: {
+        case AST_UNA_NOT: {
             irl_add(&state->instrs, (ir_inst_t){
                 .opcode = OP_NOT,
                 .args = { 0 }
@@ -285,37 +272,37 @@ void codegen_unop(ast_unop_t node, compiler_state_t* state) {
         default: {
             trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, trace_no_ref());            
             trace_msg_append_costr(msg, "unhandled unary operation: ");
-            char* m = ast_unop_type_as_string(node.type);
-            trace_msg_append(msg, m, strlen(m));
+            const char* m = ast_tag_to_string(node->tag);
+            trace_msg_append(msg, (char*) m, strlen(m));
         } break;
     }
 }
 
-void codegen_value(ast_value_t node, compiler_state_t* state) {
+void codegen_value(ast_t* node, compiler_state_t* state) {
 
     ABORT_ON_ERROR(state);
 
     vb_result_t append_result = (vb_result_t) { 0 };
 
-    switch(node.type) {
-        case AST_VALUE_BOOL: {
-            append_result = valbuffer_insert_bool(&state->consts, node.u._bool);
+    switch(node->tag) {
+        case AST_BOOL: {
+            append_result = valbuffer_insert_bool(&state->consts, node->as.value_bool);
         } break;
-        case AST_VALUE_FLOAT: {
-            append_result = valbuffer_insert_float(&state->consts, node.u._float);
+        case AST_FLOAT: {
+            append_result = valbuffer_insert_float(&state->consts, node->as.value_float);
         } break;
-        case AST_VALUE_INT: {
-            append_result = valbuffer_insert_int(&state->consts, node.u._int);
+        case AST_INT: {
+            append_result = valbuffer_insert_int(&state->consts, node->as.value_int);
         } break;
-        case AST_VALUE_CHAR: {
-            append_result = valbuffer_insert_char(&state->consts, node.u._char);
+        case AST_CHAR: {
+            append_result = valbuffer_insert_char(&state->consts, node->as.value_char);
         } break;
         default: {
             trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, trace_no_ref());
             trace_msg_append_costr(msg, "unsupported value type: ");
-            char* typename = ast_value_type_string(node.type);
+            const char* typename = ast_tag_to_string(node->tag);
             trace_msg_append(msg,
-                typename, strlen(typename));
+                (char*) typename, strlen(typename));
             return;
         } break;
     }
@@ -427,13 +414,23 @@ void add_program_provided_function_definition(srcref_t name, compiler_state_t* s
     }
 }
 
-void codegen_fundecl(ast_fundecl_t node, compiler_state_t* state) {
+void codegen_fundecl(ast_t* node, compiler_state_t* state) {
 
     ABORT_ON_ERROR(state);
 
-    srcref_t funcname = node.name;
+    srcref_t funcname = ast_try_get_name(node);
 
-    assert((srcref_equals_string(funcname, "main") == false || node.exported) && "main function not marked as exported");
+    bool is_exported = (ast_try_get_flags(node) & AST_FLAG_EXPORT);
+    bool is_main = srcref_equals_string(funcname, "main");
+
+    if(is_exported == false && is_main) {
+        trace_msg_t* msg = trace_create_message(state->trace,
+            TM_INTERNAL_ERROR, funcname);
+        trace_msg_append_costr(msg,
+            "the main function was not "
+            "marked as exported.");
+        return;
+    }
 
     if ( state->localvars.count > 0 ) {
         trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, funcname);
@@ -456,10 +453,10 @@ void codegen_fundecl(ast_fundecl_t node, compiler_state_t* state) {
     
     srcmap_clear(&state->localvars);
 
-    codegen(node.argspec, state); // in order to "add" arg names
+    codegen(ast_try_get(node, AST_ARGLIST), state); // in order to "add" arg names
 
     uint32_t arg_count = (uint32_t) state->localvars.count;
-    codegen(node.body, state); // adds locals to frame
+    codegen(ast_try_get(node, AST_BLOCK), state); // adds locals to frame
 
     // if the last instruction is not a return statement
     // we insert a value less return at the end.
@@ -477,13 +474,14 @@ void codegen_fundecl(ast_fundecl_t node, compiler_state_t* state) {
     srcmap_clear(&state->localvars);
 }
 
-void codegen_funcall(ast_funcall_t node, compiler_state_t* state) {
+void codegen_funcall(ast_t* node, compiler_state_t* state) {
 
     ABORT_ON_ERROR(state);
 
-    codegen(node.args, state);
+    codegen(ast_try_get(node, AST_ARGLIST), state);
 
-    ir_index_t ir_index = state_get_funcaddr(state, node.name);
+    srcref_t name = ast_try_get_name(node);
+    ir_index_t ir_index = state_get_funcaddr(state, name);
 
     if( ir_index.tag == IRID_INS ) {
         // if tag invalid: could not find index
@@ -496,7 +494,7 @@ void codegen_funcall(ast_funcall_t node, compiler_state_t* state) {
     }
 
     int ext_index = ffi_definition_set_index_of(&state->host_supplied,
-        srcref_as_sstr(node.name));
+        srcref_as_sstr(name));
 
     if ( ext_index >= 0 ) {
         irl_add(&state->instrs, (ir_inst_t){
@@ -506,33 +504,31 @@ void codegen_funcall(ast_funcall_t node, compiler_state_t* state) {
         return;
     }
 
-    trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, node.name);
+    trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, name);
     trace_msg_append_costr(msg, "the function '");
-    trace_msg_append_srcref(msg, node.name);
+    trace_msg_append_srcref(msg, name);
     trace_msg_append_costr(msg, "' could not be found.");
 }
 
-void codegen_assignment(ast_assign_t node, compiler_state_t* state) {
+void codegen_assignment(ast_t* node, compiler_state_t* state) {
 
     ABORT_ON_ERROR(state);
 
-    codegen(node.right_value, state);
+    codegen(node->as.items[1], state); // right
 
-    srcref_t varname = ast_try_extract_name(node.left_var);
+    srcref_t varname = ast_try_get_name(node->as.items[0]); // left
     
+    ast_tag_t left_node_type = node->as.items[0]->tag;
 
-    ast_node_type_t left_node_type = node.left_var->type;
-
-    assert( left_node_type == AST_TYANNOT || left_node_type == AST_VAR_REF );
+    assert(left_node_type == AST_VARDECL || left_node_type == AST_VARREF);
     assert(srcref_is_valid(varname));
 
-    // if variable with type annotation:
+    // if variable declaration:
     //    it is a new var, so add it to known locals
     // if just a variable; already known (do not add)
 
-    if( left_node_type == AST_TYANNOT ) {
-        assert(node.left_var->u.n_tyannot.expr->type == AST_VAR_REF);
-        codegen(node.left_var, state); // add var to known locals
+    if( left_node_type == AST_VARDECL ) {
+        codegen(node->as.items[0], state); // add var to known locals
     }
 
     assert(state->localvars.count > 0 && "local vars was empty");
@@ -545,11 +541,15 @@ void codegen_assignment(ast_assign_t node, compiler_state_t* state) {
     });
 }
 
-void codegen_foreach(ast_foreach_t node, compiler_state_t* state) {
+#define AST_IDX_FOR_VAR  0
+#define AST_IDX_FOR_COLL 1
+#define AST_IDX_FOR_BODY 2
+
+void codegen_foreach(ast_t* node, compiler_state_t* state) {
     
     ABORT_ON_ERROR(state);
 
-    codegen(node.collection, state);
+    codegen(node->as.items[AST_IDX_FOR_COLL], state); // loop collection
     irl_add(&state->instrs, (ir_inst_t){
         .opcode = OP_MAKE_ITER,
         .args = { 0 }
@@ -558,8 +558,8 @@ void codegen_foreach(ast_foreach_t node, compiler_state_t* state) {
         .opcode = OP_ITER_NEXT,
         .args = { 0 }
     });
-    codegen(node.vardecl, state); // add varname
-    srcref_t varname = ast_try_extract_name(node.vardecl);
+    codegen(node->as.items[AST_IDX_FOR_VAR], state); // add vardecl
+    srcref_t varname = ast_try_get_name(node->as.items[0]);
     assert(srcref_is_valid(varname));
     ir_index_t varindex = state_get_localvar(state, varname);
     assert(varindex.tag == IRID_VAR && "variable not found");
@@ -567,7 +567,7 @@ void codegen_foreach(ast_foreach_t node, compiler_state_t* state) {
         .opcode = OP_STORE_LOCAL,
         .args = { varindex.idx, 0 }
     });
-    codegen(node.during, state);
+    codegen(node->as.items[AST_IDX_FOR_BODY], state); // loop body
     irl_add(&state->instrs, (ir_inst_t){
         .opcode = OP_JUMP,
         .args = { loop_start_index.idx, 0 }
@@ -575,12 +575,12 @@ void codegen_foreach(ast_foreach_t node, compiler_state_t* state) {
     irl_get(&state->instrs, loop_start_index)->args[0] = state->instrs.count;
 }
 
-int get_if_chain_length(ast_node_t* current) {
+int get_if_chain_length(ast_t* current) {
     int count = 0;
     while(current != NULL) {
-        if( current->type == AST_IF_CHAIN ) {
+        if( current->tag == AST_IFCHAIN ) {
             count ++;
-            current = current->u.n_if.next;
+            current = current->as.items[2]; // next
         } else {
             break;
         }
@@ -588,18 +588,22 @@ int get_if_chain_length(ast_node_t* current) {
     return count;
 }
 
-void codegen_if_chain(ast_node_t* node, compiler_state_t* state) {
+#define AST_IDX_IF_COND 0
+#define AST_IDX_IF_TRUE 1
+#define AST_IDX_IF_NEXT 2
+
+void codegen_if_chain(ast_t* node, compiler_state_t* state) {
     
     ABORT_ON_ERROR(state);
 
     int chain_len = get_if_chain_length(node);
     ir_index_t exit_indices[chain_len];
 
-    ast_node_t* current = node;
+    ast_t* current = node;
     int count = 0;
     ir_index_t if_next_index;
 
-    while( current->type == AST_IF_CHAIN ) {
+    while( current->tag == AST_IFCHAIN ) {
 
         // 1. if not cond <jump: next>      (or jump to end if no else or else if)
         // 2. body                          (always generate)
@@ -609,7 +613,7 @@ void codegen_if_chain(ast_node_t* node, compiler_state_t* state) {
         // N+1. end
 
         // 1)
-        codegen(current->u.n_if.cond, state);
+        codegen(current->as.items[AST_IDX_IF_COND], state);
 
         if_next_index = irl_add(
             &state->instrs,
@@ -619,12 +623,12 @@ void codegen_if_chain(ast_node_t* node, compiler_state_t* state) {
             });
 
         // 2)
-        codegen(current->u.n_if.iftrue, state);
+        codegen(current->as.items[AST_IDX_IF_TRUE], state);
 
-        current = current->u.n_if.next;
+        current = current->as.items[AST_IDX_IF_NEXT];
 
         // 3)
-        if( current->type == AST_IF_CHAIN || ast_is_valid_else_block(current) ) {
+        if( current->tag == AST_IFCHAIN || ast_is_valid_else_block(current) ) {
             // if we're at the last block 
             // we make sure to not jump 
             // since we get a corrupt jump 
@@ -652,30 +656,39 @@ void codegen_if_chain(ast_node_t* node, compiler_state_t* state) {
     }
 }
 
-void codegen_return_stmt(ast_return_t stmt, compiler_state_t* state) {
+#define AST_IDX_RETURN_EXPR 0
+
+void codegen_return_stmt(ast_t* stmt, compiler_state_t* state) {
     uint32_t ret_size = 0;
-    switch (stmt.result->type) {
-        case AST_VALUE:
-        case AST_VAR_REF:
-        case AST_ARRAY:
-        case AST_FUN_CALL:
-        case AST_BINOP:
-        case AST_UNOP: {
+    ast_t* inner = stmt->as.items[AST_IDX_RETURN_EXPR];
+    switch (inner->tag) {
+        case AST_IFCHAIN:
+        case AST_FOREACH:
+        case AST_ASSIGN:
+        case AST_TYDESCR:
+        case AST_FUNDECL:
+        case AST_VARDECL:
+        case AST_RETURN:
+        case AST_ARGLIST: {
+            ret_size = 0;
+        } break;
+        case AST_VARREF:
+        case AST_FUNCALL: {
             ret_size = 1;
         } break;
         case AST_BLOCK: {
-            ret_size = stmt.result->u.n_block.count;
+            ret_size = inner->size;
         } break;
-        case AST_IF_CHAIN:
-        case AST_FOREACH:
-        case AST_ASSIGN:
-        case AST_TYANNOT:
-        case AST_FUN_DECL:
-        case AST_FUN_EXDECL:
-        case AST_RETURN:
-        case AST_ARGLIST:
-        case AST_BREAK: {
-            ret_size = 0;
+        default: {
+            assert(inner->tag != AST_SRCREF && "can a srcref be returned?");
+            if(ast_is_value(inner))
+                ret_size = 1;
+            else if(ast_is_binop(inner))
+                ret_size = 1;
+            else if(ast_is_unop(inner))
+                ret_size = 1;
+            else
+                ret_size = 0;
         } break;
     }
     if( ret_size == 0 ) {
@@ -684,7 +697,7 @@ void codegen_return_stmt(ast_return_t stmt, compiler_state_t* state) {
             .args = { 0 }
         });
     } else { 
-        codegen(stmt.result, state);
+        codegen(inner, state);
         irl_add(&state->instrs, (ir_inst_t){
             .opcode = OP_RETURN_VALUE,
             .args = { 0 }
@@ -692,29 +705,23 @@ void codegen_return_stmt(ast_return_t stmt, compiler_state_t* state) {
     }
 }
 
-void codegen(ast_node_t* node, compiler_state_t* state) {
+void codegen(ast_t* node, compiler_state_t* state) {
 
     ABORT_ON_ERROR(state);
 
-    switch(node->type) {
-        case AST_BINOP: {
-            codegen_binop(node->u.n_binop, state);
-        } break;
-        case AST_UNOP: {
-            codegen_unop(node->u.n_unop, state);
-        } break;
+    switch(node->tag) {
         case AST_ASSIGN: {
-            codegen_assignment(node->u.n_assign, state);
+            codegen_assignment(node, state);
         } break;
         case AST_RETURN: {
-            codegen_return_stmt(node->u.n_return, state);
+            codegen_return_stmt(node, state);
         } break;
         case AST_ARRAY: {
-            size_t count = node->u.n_array.count;
-            for(size_t i = 0; i < count; i++) {
-                codegen(node->u.n_array.content[i], state);
+            int count = node->size;
+            for(int i = 0; i < count; i++) {
+                codegen(node->as.items[i], state);
             }
-            vb_result_t app_res = valbuffer_insert_int(&state->consts, (int)count);
+            vb_result_t app_res = valbuffer_insert_int(&state->consts, count);
             if( app_res.out_of_memory ) {
                 trace_out_of_memory_error(state->trace);
                 return;
@@ -730,62 +737,56 @@ void codegen(ast_node_t* node, compiler_state_t* state) {
             });
         } break;
         case AST_BLOCK: {
-            size_t count = node->u.n_block.count;
-            for(size_t i = 0; i < count; i++) {
-                codegen(node->u.n_block.content[i], state);
+            int count = node->size;
+            for(int i = 0; i < count; i++) {
+                codegen(node->as.items[i], state);
             }
         } break;
         case AST_ARGLIST: {
-            size_t count = node->u.n_args.count;
-            for(size_t i = 0; i < count; i++) {
-                codegen(node->u.n_args.content[i], state);
+            int count = node->size;
+            for(int i = 0; i < count; i++) {
+                codegen(node->as.items[i], state);
             }
         } break;
-        case AST_IF_CHAIN: {
+        case AST_IFCHAIN: {
             codegen_if_chain(node, state);
         } break;
         case AST_FOREACH: {
-            codegen_foreach(node->u.n_foreach, state);
+            codegen_foreach(node, state);
         } break;
-        case AST_FUN_DECL: {
-            codegen_fundecl(node->u.n_fundecl, state);
-            if(node->u.n_fundecl.exported)
-                add_program_provided_function_definition(node->u.n_fundecl.name, state);
+        case AST_FUNDECL: {
+            codegen_fundecl(node, state);
+            if((ast_try_get_flags(node) & AST_FLAG_EXPORT) > 0)
+                add_program_provided_function_definition(ast_try_get_name(node), state);
+            else if((ast_try_get_flags(node) & AST_FLAG_IMPORT) > 0)
+                add_host_provided_function_definition(ast_try_get_name(node), state);
         } break;
-        case AST_FUN_CALL: {
-            codegen_funcall(node->u.n_funcall, state);
+        case AST_FUNCALL: {
+            codegen_funcall(node, state);
         } break;
-        case AST_FUN_EXDECL: {
-            add_host_provided_function_definition(node->u.n_funexdecl.name, state);
-        } break;
-        case AST_VAR_REF: {
-            ir_index_t var_index = state_get_localvar(state, node->u.n_varref.name);
+        case AST_VARREF: {
+            ir_index_t var_index = state_get_localvar(state, ast_try_get_name(node));
             assert(var_index.tag == IRID_VAR && "variable not found");
             irl_add(&state->instrs, (ir_inst_t){
                 .opcode = OP_LOAD_LOCAL,
                 .args = { var_index.idx, 0 }
             });
         } break;
-        case AST_VALUE: {
-            codegen_value(node->u.n_value, state);
+        case AST_VARDECL: {
+            // just add valiable name to frame local var set.
+            state_add_localvar(state, ast_try_get_name(node));
         } break;
-        case AST_TYANNOT: {
-            if( node->u.n_tyannot.expr->type == AST_VAR_REF ) {
-                ast_node_t* var = node->u.n_tyannot.expr;
-                // just add valiable name to frame local var set.
-                state_add_localvar(state, var->u.n_varref.name);
-            } else {
-                // this is a function annotated with its return type
-                ast_node_t* expr = node->u.n_tyannot.expr;
-                (void)(expr); // unused in release builds
-                assert( expr->type == AST_FUN_DECL || expr->type == AST_FUN_EXDECL );
-                codegen(node->u.n_tyannot.expr, state);
-            }
+        case AST_TYDESCR: {
+            /* nothing to do here */
         } break;
-        case AST_BREAK: {
-            assert(false && "break op is not implemented yet");
+        default: {
+            if(ast_is_value(node))
+                codegen_value(node, state);
+            else if(ast_is_binop(node))
+                codegen_binop(node, state);
+            else if(ast_is_unop(node))
+                codegen_unop(node, state);
         } break;
-
     }
 }
 
@@ -876,7 +877,7 @@ program_t write_program(compiler_state_t* state, uint32_t* idx2addr) {
 }
 
 
-program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace) {
+program_t gvm_compile(arena_t* arena, ast_t* node, trace_t* trace) {
 
     program_t program = { 0 };
 

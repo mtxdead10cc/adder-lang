@@ -8,7 +8,5 @@
 
 #define VM_ENV_NFUNC_TABLE_SIZE    128
 
-#define VM_DEFAULT_STRLEN 128
-
 
 #endif

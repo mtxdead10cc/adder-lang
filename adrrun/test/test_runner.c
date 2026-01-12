@@ -13,7 +13,7 @@
 #include <adrcom/ast/co_ast.h>
 
 #include <adrcom/shared/co_trace.h>
-#include <adrcom/ast/co_ast_expr.h>
+#include <adrcom/ast/co_ast_builder.h>
 
 #include <adrcom/parser/co_parser.h>
 #include <adrcom/parser/co_tokenizer.h>
@@ -425,74 +425,75 @@ void test_ast(test_case_t* this) {
 
     arena_t* arena = arena_create(1024);
 
-    ast_node_t* decl_args = ast_arglist(arena);
+    ast_t* decl_args = ast_arglist(arena, 4);
 
-    ast_arglist_add(arena, decl_args,
-        ast_tyannot(arena,
-            ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT)),
-            ast_varref(arena, 
-                srcref(buf, 4, 1))));
+    ast_arglist_append(arena, decl_args,
+        ast_variable_declaration(arena, 
+            ast_type_descriptor(arena, srcref_const(LANG_TYPENAME_FLOAT), NULL),  
+            srcref(buf, 4, 1)));
 
-    ast_arglist_add(arena, decl_args,
-        ast_tyannot(arena,
-            ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT)),
-            ast_varref(arena, 
-                srcref(buf, 5, 1))));
+    ast_arglist_append(arena, decl_args,
+        ast_variable_declaration(arena, 
+            ast_type_descriptor(arena, srcref_const(LANG_TYPENAME_FLOAT), NULL), 
+            srcref(buf, 5, 1)));
 
-    ast_node_t* body = ast_block(arena);
+    ast_t* body = ast_block(arena, 5);
 
-    ast_block_add(arena, body, 
-        ast_assign(arena, 
-            ast_tyannot(arena,
-                ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT)),
-                    ast_varref(arena, 
-                        srcref(buf, 6, 3))),
-            ast_binop(arena, AST_BIN_ADD,
-                ast_varref(arena, srcref(buf, 5, 1)),
-                ast_varref(arena, srcref(buf, 4, 1)))));
+    ast_block_append(arena, body, 
+        ast_assignment(arena, 
+            ast_variable_declaration(arena, 
+                ast_type_descriptor(arena, srcref_const(LANG_TYPENAME_FLOAT), NULL),
+                srcref(buf, 6, 3)),
+            ast_binary_operation(arena, AST_BIN_ADD,
+                ast_variable_reference(arena, srcref(buf, 5, 1)),
+                ast_variable_reference(arena, srcref(buf, 4, 1)))));
 
-    ast_block_add(arena, body,
-        ast_if(arena, 
-            ast_binop(arena, AST_BIN_LT,
-                ast_varref(arena, srcref(buf, 6, 3)),
+    ast_block_append(arena, body,
+        ast_if_chain(arena, 
+            ast_binary_operation(arena, AST_BIN_LT,
+                ast_variable_reference(arena, srcref(buf, 6, 3)),
                 ast_float(arena, 0.0f)),
             ast_return(arena, ast_float(arena, 0.0f)),
-            ast_block(arena)));
+            ast_block(arena, 0)));
 
-    ast_node_t* array = ast_array(arena);
-    ast_array_add(arena, array, ast_float(arena, 1));
-    ast_array_add(arena, array, ast_float(arena, 1));
-    ast_array_add(arena, array, ast_float(arena, 1));
-    ast_array_add(arena, array, ast_float(arena, 1));
+    ast_t* array = ast_array(arena, 4);
+    ast_array_append(arena, array, ast_float(arena, 1));
+    ast_array_append(arena, array, ast_float(arena, 1));
+    ast_array_append(arena, array, ast_float(arena, 1));
+    ast_array_append(arena, array, ast_float(arena, 1));
 
-    ast_block_add(arena, body,
+    ast_block_append(arena, body,
         ast_foreach(arena, 
-            ast_tyannot(arena,
-                ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT)),
-                    ast_varref(arena, 
-                        srcref(buf, 9, 1))),
+            ast_variable_declaration(arena,
+                ast_type_descriptor(arena, srcref_const(LANG_TYPENAME_FLOAT), NULL),
+                srcref(buf, 9, 1)),
             array,
-            ast_assign(arena, 
-                ast_varref(arena, srcref(buf, 6, 3)),
-                ast_binop(arena, AST_BIN_ADD,
-                    ast_varref(arena, srcref(buf, 6, 3)),
-                    ast_varref(arena, srcref(buf, 9, 1))))
+            ast_assignment(arena, 
+                ast_variable_reference(arena, srcref(buf, 6, 3)),
+                ast_binary_operation(arena, AST_BIN_ADD,
+                    ast_variable_reference(arena, srcref(buf, 6, 3)),
+                    ast_variable_reference(arena, srcref(buf, 9, 1))))
         ));
     
-    ast_block_add(arena, body,
-        ast_return(arena, ast_varref(arena, srcref(buf, 6, 3))));
+    ast_block_append(arena, body,
+        ast_return(arena, ast_variable_reference(arena, srcref(buf, 6, 3))));
 
-    ast_node_t* fun = ast_tyannot(arena,
-        ast_annot(arena, srcref_const(LANG_TYPENAME_FLOAT)),
-        ast_exported_fundecl(arena,
-            srcref(buf, 0, 4),
-            decl_args,
-            body));
+    ast_t* fundecl = ast_function_declaration(arena,
+        ast_type_descriptor(arena, srcref_const(LANG_TYPENAME_FLOAT), NULL),
+        srcref(buf, 0, 4),
+        decl_args,
+        AST_FLAG_EXPORT);
+    
+    ast_t* fundef = ast_function_definition(arena, fundecl, body);
+    ast_t* block = ast_block(arena, 1);
+    TEST_ASSERT_MSG(this,
+         ast_block_append(arena, block, fundef),
+        "#1.0 failed to add to block.");
 
     trace_t trace = { 0 };
     trace_init(&trace, 16);
 
-    program_t program = gvm_compile(arena, ast_block_with(arena, fun), &trace);
+    program_t program = gvm_compile(arena, block, &trace);
     if( trace_get_error_count(&trace) > 0 ) {
         define_cstr(str, 2048);
         trace_sprint(str, &trace);
@@ -506,7 +507,7 @@ void test_ast(test_case_t* this) {
 
     TEST_ASSERT_MSG(this,
         vm_create(&vm, 32),
-        "#1.0 failed to create VM.");
+        "#1.1 failed to create VM.");
 
     vm_env_t env = { 0 };
     vm_env_setup(&env, &program, NULL);
@@ -811,14 +812,18 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         return is_known_todo;
     }
 
-    ast_node_t* node = par_extract_node(result);
+    ast_t* node = par_extract_node(result);
 
     program_t program = gvm_compile(arena, node, &trace);
     if( trace_get_error_count(&trace) > 0 && is_known_todo == false ) {
         define_cstr(str, 2048);
         trace_sprint(str, &trace);
         sh_log_error("COMPILER\n%s", str.ptr);
-        ast_dump(node);
+        json_value_t* json = ast_to_json(node);
+        char* jstr = json_dumps(json, 2);
+        sh_log_error("AST\n%s", jstr);
+        free(jstr);
+        json_free(json);
     }
 
     if( is_known_todo ) {
@@ -905,7 +910,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     }
     
     if( match_ok == false && is_known_todo == false ) {
-        ast_dump(node);
+        ast_print(node);
         program_disassemble(&program);
     }
 
@@ -1099,21 +1104,21 @@ void test_inference(test_case_t* this) {
     trace_t trace = { 0 };
     trace_init(&trace, 5);
 
-    ast_annot_t* arr_annot = ast_annot(a, srcref_const("array"));
-    ast_annot_add_child(a, arr_annot, ast_annot(a, srcref_const("float")));
+    ast_t* tyargs = ast_arglist(a, 1);
+    ast_arglist_append(a, tyargs, ast_type_descriptor(a, srcref_const("float"), NULL));
+    ast_t* type = ast_type_descriptor(a, srcref_const("array"), tyargs);
+    
+    ast_t* arr = ast_array(a, 5);
+    ast_array_append(a, arr, ast_int(a, 1));
+    ast_array_append(a, arr, ast_int(a, 2));
+    ast_array_append(a, arr, ast_int(a, 3));
+    ast_array_append(a, arr, ast_int(a, 4));
+    ast_array_append(a, arr, ast_int(a, 5));
 
-    ast_node_t* arr = ast_array(a);
-    ast_array_add(a, arr, ast_int(a, 1));
-    ast_array_add(a, arr, ast_int(a, 2));
-    ast_array_add(a, arr, ast_int(a, 3));
-    ast_array_add(a, arr, ast_int(a, 4));
-    ast_array_add(a, arr, ast_int(a, 5));
-
-    ast_node_t* n = ast_assign(a,
-        ast_tyannot(a,
-            arr_annot,
-            ast_varref(a, 
-                srcref_const("var"))),
+    ast_t* n = ast_assignment(a,
+        ast_variable_declaration(a,
+            type,
+            srcref_const("var")),
         arr);
 
     bty_ctx_t* ctx = bty_ctx_create(a, &trace, 16);
@@ -1130,12 +1135,12 @@ void test_inference(test_case_t* this) {
 
     ctx = bty_ctx_create(a, &trace, 16);
     
-    n = ast_binop(a,
+    n = ast_binary_operation(a,
         AST_BIN_OR,
-        ast_binop(a, AST_BIN_AND,
+        ast_binary_operation(a, AST_BIN_AND,
             ast_bool(a, false),
             ast_bool(a, true)),
-        ast_binop(a, AST_BIN_EQ,
+        ast_binary_operation(a, AST_BIN_EQ,
             ast_int(a, 0),
             ast_int(a, 1)));
 
@@ -1458,11 +1463,13 @@ void test_vm_cleanup(test_case_t* this) {
 
 void test_ast_to_json(test_case_t* this) {
 
-    ast_expr_t e = ast_expr(ATAG_BIN_ADD);
-    ast_expr_set(&e, AKEY_LEFT, ast_value_int(10));
-    ast_expr_set(&e, AKEY_RIGHT, ast_value_int(1111));
+    arena_t* a = arena_create(512);
+    ast_t* e = ast_binary_operation(a,
+        AST_BIN_ADD,
+        ast_int(a, 10),
+        ast_int(a, 1111));
 
-    json_value_t* jval = ast_expr_to_json(&e);
+    json_value_t* jval = ast_to_json(e);
 
     char* jsonstr = json_dumps(jval, 2);
     TEST_ASSERT_MSG(this, jsonstr != NULL);

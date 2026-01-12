@@ -5,7 +5,7 @@
 #include <shared/sh_types.h>
 
 #include <adrcom/shared/co_types.h>
-#include <adrcom/ast/co_ast_types.h>
+#include <adrcom/ast/co_ast.h>
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -98,8 +98,8 @@ bty_type_t* bty_ctx_lookup(bty_ctx_t* ctx, srcref_t name);
 bty_ctx_t* bty_ctx_clone(bty_ctx_t* src);
 
 void bty_ctx_dump(cstr_t str, bty_ctx_t* ctx);
-bty_type_t* bty_synthesize(bty_ctx_t* c, ast_node_t* n);
-bool bty_typecheck(bty_ctx_t* ctx, ast_node_t* program);
+bty_type_t* bty_synthesize(bty_ctx_t* c, ast_t* n);
+bool bty_typecheck(bty_ctx_t* ctx, ast_t* program);
 
 
 #endif // CO_BTY_H_

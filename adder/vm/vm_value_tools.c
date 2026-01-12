@@ -1,4 +1,5 @@
-#include "vm.h"
+#include "vm/vm.h"
+#include "vm/vm_value_tools.h"
 
 #include <shared/sh_types.h>
 #include <shared/sh_value.h>

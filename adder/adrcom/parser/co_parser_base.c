@@ -117,16 +117,10 @@ pa_result_t pa_consume(parser_t* parser, token_type_t expected) {
     return par_nothing();
 }
 
-pa_result_t par_node(ast_node_t* node, srcref_t* override) {
-
-    if( override == NULL )
-        node->ref = ast_extract_srcref(node);
-    else
-        node->ref = *override;
-
+pa_result_t par_node(ast_t* node) {
     return (pa_result_t) {
         .type = PAR_AST_NODE,
-        .data = node,
+        .node = node,
         .group_expression = false
     };
 }
@@ -134,7 +128,7 @@ pa_result_t par_node(ast_node_t* node, srcref_t* override) {
 pa_result_t par_nothing(void) {
     return (pa_result_t) {
         .type = PAR_NOTHING,
-        .data = NULL,
+        .node = NULL,
         .group_expression = false
     };
 }
@@ -142,7 +136,7 @@ pa_result_t par_nothing(void) {
 pa_result_t par_error(void) {
     return (pa_result_t) {
         .type = PAR_BUILD_ERROR,
-        .data = NULL,
+        .node = NULL,
         .group_expression = false
     };
 }
@@ -159,9 +153,9 @@ bool par_is_node(pa_result_t res) {
     return res.type == PAR_AST_NODE;
 }
 
-ast_node_t* par_extract_node(pa_result_t res) {
+ast_t* par_extract_node(pa_result_t res) {
     assert(res.type == PAR_AST_NODE);
-    return (ast_node_t*) res.data;
+    return (ast_t*) res.node;
 }
 
 pa_result_t par_error_out_of_tokens(parser_t* parser) {

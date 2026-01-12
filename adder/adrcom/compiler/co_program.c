@@ -12,31 +12,31 @@
 #include <shared/sh_value.h>
 #include <shared/sh_log.h>
 #include <shared/sh_arena.h>
+#include <shared/sh_json.h>
 
 #include <unistd.h>
-
 
 #include <dlfcn.h>
 #include <time.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
-char* unop_name(ast_unop_type_t type) {
+char* unop_name(ast_t* n) {
     // TODO:
     // these should match the source code symbols
     // in the language itself
-    switch(type) {
-        case AST_UN_NEG: return "-";
-        case AST_UN_NOT: return "not";
+    switch(n->tag) {
+        case AST_UNA_NEG: return "-";
+        case AST_UNA_NOT: return "not";
         default: return "";
     }
 }
 
-char* binop_name(ast_binop_type_t type) {
+char* binop_name(ast_t* n) {
     // TODO:
     // these should match the source code symbols
     // in the language itself
-    switch(type) {
+    switch(n->tag) {
         case AST_BIN_ADD:   return "+";
         case AST_BIN_SUB:   return "-";
         case AST_BIN_MUL:   return "*";
@@ -55,180 +55,23 @@ char* binop_name(ast_binop_type_t type) {
     }
 }
 
-inline static char* sprint_annot(arena_t* a, ast_annot_t* v) {
-    if( v->childcount > 0 ) {
-        char* res = sprint_annot(a, v->children[0]);
-        int count = v->childcount;
+inline static char* sprint_type_descriptor(arena_t* a, ast_t* v) {
+    srcref_t name = ast_try_get_name(v);
+    if( v->size > 0 ) {
+        char* res = sprint_type_descriptor(a, v->as.items[0]);
+        int count = v->size;
         for(int i = 1; i < count; i++) {
             res = asprint(a, "%s, %s",
-                res, sprint_annot(a, v->children[i]));
+                res, sprint_type_descriptor(a, v->as.items[i]));
         }
         return asprint(a, "%.*s<%s>",
-            (int) srcref_len(v->name),
-            srcref_ptr(v->name),
+            (int) srcref_len(name),
+            srcref_ptr(name),
             res);
     }
     return asprint(a, "%.*s",
-        (int) srcref_len(v->name),
-        srcref_ptr(v->name));
-}
-
-char* sprint_ast(arena_t* a, int ind, ast_node_t* n) {
-    switch(n->type) {
-        case AST_VAR_REF: {
-            ast_varref_t v = n->u.n_varref;
-            return asprint(a, "%.*s",
-                (int) srcref_len(v.name),
-                srcref_ptr(v.name));
-        } break;
-        case AST_ASSIGN: {
-            ast_assign_t v = n->u.n_assign;
-            return asprint(a, "%s = %s",
-                sprint_ast(a, ind, v.left_var),
-                sprint_ast(a, ind, v.right_value));
-        } break;
-        case AST_VALUE: {
-            ast_value_t v = n->u.n_value;
-            switch(v.type) {
-                case AST_VALUE_BOOL:    return asprint(a, "%s", v.u._bool ? "true" : "false");
-                case AST_VALUE_CHAR:    return asprint(a, "%c", v.u._char);
-                case AST_VALUE_FLOAT:   return asprint(a, "%f", v.u._float);
-                case AST_VALUE_INT:     return asprint(a, "%d", v.u._int);
-                case AST_VALUE_NONE:    return asprint(a, "none");
-                default:                return asprint(a, "<unk>");
-            }
-        } break;
-        case AST_FUN_CALL: {
-            ast_funcall_t v = n->u.n_funcall;
-            return asprint(a, "%.*s(%s)",
-                (int) srcref_len(v.name), srcref_ptr(v.name),
-                sprint_ast(a, ind, v.args));
-        } break;
-        case AST_ARGLIST: {
-            ast_arglist_t v = n->u.n_args;
-            int count = v.count;
-            char* res = "";
-            for(int i = 0; i < count; i++) {
-                if( i > 0 ) {
-                    res = asprint(a,
-                        "%s, %s", res,
-                        sprint_ast(a, ind,
-                            v.content[i]));
-                } else {
-                    res = sprint_ast(a, ind,
-                            v.content[i]);
-                }
-            }
-            return res;
-        } break;
-        case AST_FUN_DECL: {
-            ast_fundecl_t v = n->u.n_fundecl;
-            return asprint(a, "%.*s(%s) %s",
-                (int) srcref_len(v.name), srcref_ptr(v.name),
-                sprint_ast(a, ind, v.argspec),
-                sprint_ast(a, ind+1, v.body));
-        } break;
-        case AST_FUN_EXDECL: {
-            ast_funexdecl_t v = n->u.n_funexdecl;
-            return asprint(a, "%.*s(%s)",
-                (int) srcref_len(v.name), srcref_ptr(v.name),
-                sprint_ast(a, ind, v.argspec));
-        } break;
-        case AST_BLOCK: {
-            ast_block_t v = n->u.n_block;
-            int count = v.count;
-            if( count == 0 )
-                return "{ }";
-            char* res = asprint(a, "{\n%*s",
-                max(ind-1, 0), "");
-            for(int i = 0; i < count; i++) {
-                res = asprint(a,
-                    "%s%*s%s\n", res, ind + 1, "",
-                    sprint_ast(a, ind,
-                        v.content[i]));
-            }
-            res = asprint(a, "%s%*s",
-                res, ind, "");
-            return asprint(a, "%s}", res);
-        } break;
-        case AST_ARRAY: {
-            ast_array_t v = n->u.n_array;
-            int count = v.count;
-            if( count == 0 )
-                return "[]";
-            char* res = sprint_ast(a, ind, v.content[0]);;
-            for(int i = 1; i < count; i++) {
-                res = asprint(a,
-                    "%s, %s", res,
-                    sprint_ast(a, ind,
-                        v.content[i]));
-            }
-            return asprint(a, "[%s]", res);
-        } break;
-        case AST_RETURN: {
-            ast_return_t v = n->u.n_return;
-            return asprint(a, "return %s",
-                sprint_ast(a, ind, v.result));
-        } break;
-        case AST_BREAK: {
-            return asprint(a, "break");
-        } break;
-        case AST_UNOP: {
-            ast_unop_t v = n->u.n_unop;
-            return asprint(a, "%s%s",
-                unop_name(v.type),
-                sprint_ast(a, ind, v.inner));
-        } break;
-        case AST_BINOP: {
-            ast_binop_t v = n->u.n_binop;
-            return asprint(a, "(%s %s %s)",
-                sprint_ast(a, ind, v.left),
-                binop_name(v.type),
-                sprint_ast(a, ind, v.right));
-        } break;
-        case AST_FOREACH: {
-            ast_foreach_t v = n->u.n_foreach;
-            return asprint(a, "for(%s in %s) %s",
-                sprint_ast(a, ind, v.vardecl),
-                sprint_ast(a, ind, v.collection),
-                sprint_ast(a, ind+1, v.during));
-        } break;
-        case AST_IF_CHAIN: {
-            ast_node_t* current = n;
-            char* res = "";
-            int count = 0;
-            while (current->type == AST_IF_CHAIN) {
-                ast_if_t v = n->u.n_if;
-                if( count == 0 ) {
-                    res = asprint(a, "if(%s) %s",
-                        sprint_ast(a, ind, v.cond),
-                        sprint_ast(a, ind+1, v.iftrue));
-                } else {
-                    res = asprint(a, "%s else if(%s) %s",
-                        res,
-                        sprint_ast(a, ind, v.cond),
-                        sprint_ast(a, ind+1, v.iftrue));
-                }
-                count ++;
-                current = current->u.n_if.next;
-            }
-            if( ast_is_valid_else_block(current) ) {
-                res = asprint(a, "%s else %s",
-                        res,
-                        sprint_ast(a, ind+1, current));
-            }
-            return res;
-        } break;
-        case AST_TYANNOT: {
-            ast_tyannot_t v = n->u.n_tyannot;
-            return asprint(a, "%s %s",
-                sprint_annot(a, v.type),
-                sprint_ast(a, ind, v.expr));
-        } break;
-        default: {
-            return "<?>";
-        }
-    }
+        (int) srcref_len(name),
+        srcref_ptr(name));
 }
 
 bool program_file_exists(char *path) {
@@ -423,13 +266,14 @@ program_t program_compile(source_code_t* code, bool print_ast) {
         return (program_t) { 0 };
     }
 
-    ast_node_t* program_node = par_extract_node(result);
+    ast_t* program_node = par_extract_node(result);
     
     if( print_ast ) {
-        arena_t* arena = arena_create(512);
-        sh_log_info("DEBUG - AST\n%s\n",
-            sprint_ast(arena, 0, program_node));
-        arena_destroy(arena);
+        json_value_t* value = ast_to_json(program_node);
+        char* str = json_dumps(value, 2);
+        sh_log_info("DEBUG - AST\n%s\n", str);
+        json_free(value);
+        free(str);
     }
 
     program_t program = gvm_compile(arena, program_node, &trace);

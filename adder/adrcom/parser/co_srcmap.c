@@ -1,4 +1,4 @@
-#include "adrcom/compiler/co_srcmap.h"
+#include "adrcom/parser/co_srcmap.h"
 
 #include <shared/sh_utils.h>
 

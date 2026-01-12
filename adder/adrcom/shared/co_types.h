@@ -7,12 +7,6 @@
 
 #include <shared/sh_types.h>
 
-typedef struct srcref_t {
-    char*   source;
-    size_t  idx_start;
-    size_t  idx_end;
-} srcref_t;
-
 #define TRACE_MSG_MAX_LEN 256
 
 typedef enum trace_msg_type_t {

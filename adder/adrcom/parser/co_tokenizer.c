@@ -3,7 +3,7 @@
 #include "adrcom/parser/co_parser_types.h"
 
 #include <adrcom/shared/co_trace.h>
-#include <adrcom/compiler/co_srcmap.h>
+#include <adrcom/parser/co_srcmap.h>
 
 #include <shared/sh_utils.h>
 

@@ -114,9 +114,11 @@ typedef enum pa_result_type_t {
     PAR_BUILD_ERROR
 } pa_result_type_t;
 
+typedef struct ast_t ast_t;
+
 typedef struct pa_result_t {
     pa_result_type_t    type; 
-    void*               data;
+    ast_t*              node;
     bool                group_expression; // exprs like "-(a + b)"
 } pa_result_t;
 

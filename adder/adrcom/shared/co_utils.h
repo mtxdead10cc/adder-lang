@@ -9,6 +9,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+typedef struct srcref_t srcref_t;
+
 typedef struct srcref_map_t {
     size_t          count;
     size_t          capacity;
@@ -54,28 +56,5 @@ vb_result_t valbuffer_append_array(valbuffer_t* buffer, val_t* values, size_t co
 size_t string_count_until(char* text, char stopchar);
 size_t valbuffer_sequence_from_qouted_string(char* text, val_t* result, size_t result_capacity);
 void valbuffer_sequence_from_string(char* text, val_t* result, size_t length);
-
-#define srcref_is_valid(REF) ((REF).source != NULL)
-
-srcref_t srcref(char* text, size_t start, size_t len);
-srcref_t srcref_const(const char* text);
-srcref_t srcref_combine(srcref_t a, srcref_t b);
-size_t   srcref_len(srcref_t ref);
-char*    srcref_ptr(srcref_t ref);
-bool     srcref_equals(srcref_t a, srcref_t b);
-bool     srcref_equals_string(srcref_t a, const char* b_str);
-bool     srcref_contains_char(srcref_t ref, char c);
-bool     srcref_as_float(srcref_t ref, float* value);
-bool     srcref_as_bool(srcref_t ref, bool* value);
-bool     srcref_starts_with_string(srcref_t a, const char* prefix);
-bool     srcref_ends_with_string(srcref_t a, const char* suffix);
-srcref_t srcref_trim_left(srcref_t a, size_t len);
-srcref_t srcref_trim_right(srcref_t a, size_t len);
-
-
-void     srcref_sprint(cstr_t str, srcref_t ref);
-int      srcref_snprint(char* str, size_t slen, srcref_t ref);
-//int      srcref_fprint(FILE* stream, srcref_t ref);
-sstr_t   srcref_as_sstr(srcref_t ref);
 
 #endif // CO_UTILS_H_

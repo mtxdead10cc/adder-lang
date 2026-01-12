@@ -1,6 +1,7 @@
 #include "shared/sh_ffi.h"
 #include "shared/sh_ift.h"
 #include "shared/sh_log.h"
+#include "shared/sh_str.h"
 
 #include <stdarg.h>
 #include <stdlib.h>

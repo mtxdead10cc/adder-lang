@@ -7,6 +7,6 @@
 #include <shared/sh_types.h>
 #include <shared/sh_arena.h>
 
-program_t gvm_compile(arena_t* arena, ast_node_t* node, trace_t* trace);
+program_t gvm_compile(arena_t* arena, ast_t* node, trace_t* trace);
 
 #endif // GVM_COMPILER_H_

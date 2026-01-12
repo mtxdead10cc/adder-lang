@@ -6,6 +6,7 @@
 #include <stddef.h>
 
 #include "shared/sh_config.h"
+#include "shared/sh_str.h"
 
 typedef struct arena_t arena_t;
 typedef struct arena_t {
@@ -103,15 +104,6 @@ typedef enum vm_op_t {
     OP_CALL_NATIVE,
     OP_OPCODE_COUNT
 } vm_op_t;
-
-typedef struct sstr_t {
-    char str[VM_DEFAULT_STRLEN];
-} sstr_t;
-
-typedef struct cstr_t {
-    char* ptr;
-    int maxlen;
-} cstr_t;
 
 #define IFTYPE_MAX_TAGS 32
 
