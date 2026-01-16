@@ -13,7 +13,6 @@
 #include <adrcom/ast/co_ast.h>
 
 #include <adrcom/shared/co_trace.h>
-#include <adrcom/ast/co_ast_builder.h>
 
 #include <adrcom/parser/co_parser.h>
 #include <adrcom/parser/co_tokenizer.h>
@@ -425,25 +424,25 @@ void test_ast(test_case_t* this) {
 
     arena_t* arena = arena_create(1024);
 
-    ast_t* decl_args = ast_arglist(arena, 4);
+    ast_t* decl_args = ast_arglist(arena);
 
     ast_arglist_append(arena, decl_args,
         ast_variable_declaration(arena, 
             ast_type_descriptor(arena, srcref_const(LANG_TYPENAME_FLOAT), NULL),  
-            srcref(buf, 4, 1)));
+            ast_variable_reference(arena, srcref(buf, 4, 1))));
 
     ast_arglist_append(arena, decl_args,
         ast_variable_declaration(arena, 
             ast_type_descriptor(arena, srcref_const(LANG_TYPENAME_FLOAT), NULL), 
-            srcref(buf, 5, 1)));
+            ast_variable_reference(arena, srcref(buf, 5, 1))));
 
-    ast_t* body = ast_block(arena, 5);
+    ast_t* body = ast_block(arena);
 
     ast_block_append(arena, body, 
         ast_assignment(arena, 
             ast_variable_declaration(arena, 
                 ast_type_descriptor(arena, srcref_const(LANG_TYPENAME_FLOAT), NULL),
-                srcref(buf, 6, 3)),
+                ast_variable_reference(arena, srcref(buf, 6, 3))),
             ast_binary_operation(arena, AST_BIN_ADD,
                 ast_variable_reference(arena, srcref(buf, 5, 1)),
                 ast_variable_reference(arena, srcref(buf, 4, 1)))));
@@ -454,9 +453,9 @@ void test_ast(test_case_t* this) {
                 ast_variable_reference(arena, srcref(buf, 6, 3)),
                 ast_float(arena, 0.0f)),
             ast_return(arena, ast_float(arena, 0.0f)),
-            ast_block(arena, 0)));
+            ast_block(arena)));
 
-    ast_t* array = ast_array(arena, 4);
+    ast_t* array = ast_array(arena);
     ast_array_append(arena, array, ast_float(arena, 1));
     ast_array_append(arena, array, ast_float(arena, 1));
     ast_array_append(arena, array, ast_float(arena, 1));
@@ -466,7 +465,7 @@ void test_ast(test_case_t* this) {
         ast_foreach(arena, 
             ast_variable_declaration(arena,
                 ast_type_descriptor(arena, srcref_const(LANG_TYPENAME_FLOAT), NULL),
-                srcref(buf, 9, 1)),
+                ast_variable_reference(arena, srcref(buf, 9, 1))),
             array,
             ast_assignment(arena, 
                 ast_variable_reference(arena, srcref(buf, 6, 3)),
@@ -478,14 +477,14 @@ void test_ast(test_case_t* this) {
     ast_block_append(arena, body,
         ast_return(arena, ast_variable_reference(arena, srcref(buf, 6, 3))));
 
-    ast_t* fundecl = ast_function_declaration(arena,
+    ast_t* funsig = ast_function_signature(arena,
         ast_type_descriptor(arena, srcref_const(LANG_TYPENAME_FLOAT), NULL),
         srcref(buf, 0, 4),
         decl_args,
-        AST_FLAG_EXPORT);
+        AST_FUNSIGN_FFI_VAL_EXPORT);
     
-    ast_t* fundef = ast_function_definition(arena, fundecl, body);
-    ast_t* block = ast_block(arena, 1);
+    ast_t* fundef = ast_function_definition(arena, funsig, body);
+    ast_t* block = ast_block(arena);
     TEST_ASSERT_MSG(this,
          ast_block_append(arena, block, fundef),
         "#1.0 failed to add to block.");
@@ -819,11 +818,10 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         define_cstr(str, 2048);
         trace_sprint(str, &trace);
         sh_log_error("COMPILER\n%s", str.ptr);
-        json_value_t* json = ast_to_json(node);
+        json_value_t* json = ast_to_json(arena, node);
         char* jstr = json_dumps(json, 2);
         sh_log_error("AST\n%s", jstr);
         free(jstr);
-        json_free(json);
     }
 
     if( is_known_todo ) {
@@ -1104,11 +1102,11 @@ void test_inference(test_case_t* this) {
     trace_t trace = { 0 };
     trace_init(&trace, 5);
 
-    ast_t* tyargs = ast_arglist(a, 1);
+    ast_t* tyargs = ast_arglist(a);
     ast_arglist_append(a, tyargs, ast_type_descriptor(a, srcref_const("float"), NULL));
     ast_t* type = ast_type_descriptor(a, srcref_const("array"), tyargs);
     
-    ast_t* arr = ast_array(a, 5);
+    ast_t* arr = ast_array(a);
     ast_array_append(a, arr, ast_int(a, 1));
     ast_array_append(a, arr, ast_int(a, 2));
     ast_array_append(a, arr, ast_int(a, 3));
@@ -1118,7 +1116,7 @@ void test_inference(test_case_t* this) {
     ast_t* n = ast_assignment(a,
         ast_variable_declaration(a,
             type,
-            srcref_const("var")),
+            ast_variable_reference(a, srcref_const("var"))),
         arr);
 
     bty_ctx_t* ctx = bty_ctx_create(a, &trace, 16);
@@ -1469,14 +1467,14 @@ void test_ast_to_json(test_case_t* this) {
         ast_int(a, 10),
         ast_int(a, 1111));
 
-    json_value_t* jval = ast_to_json(e);
+    json_value_t* jval = ast_to_json(a, e);
 
     char* jsonstr = json_dumps(jval, 2);
     TEST_ASSERT_MSG(this, jsonstr != NULL);
 
     printf("JSON: %s\n", jsonstr);
 
-    json_value_t* parsed = json_parse(jsonstr, strlen(jsonstr));
+    json_value_t* parsed = json_parse(a, jsonstr, strlen(jsonstr));
 
     TEST_ASSERT_MSG(this, parsed != NULL);
 
@@ -1489,29 +1487,31 @@ void test_ast_to_json(test_case_t* this) {
     TEST_ASSERT_MSG(this, right != NULL);
 
     TEST_ASSERT_MSG(this, left->type == JSON_VALUE_NUMBER_INTEGER);
-    TEST_ASSERT_MSG(this, left->u.number_integer == 10);
+    TEST_ASSERT_MSG(this, left->as.number_integer == 10);
     TEST_ASSERT_MSG(this, right->type == JSON_VALUE_NUMBER_INTEGER);
-    TEST_ASSERT_MSG(this, left->u.number_integer == 10);
+    TEST_ASSERT_MSG(this, left->as.number_integer == 10);
 }
 
 
 void test_json(test_case_t* this) {
 
-    json_value_t* num = json_number_double(1234.56789);
-    json_value_t* bol = json_boolean(false);
-    json_value_t* str = json_string("text", 4);
+    arena_t* a = arena_create(512);
 
-    json_value_t* arr = json_array(4);
-    json_array_append(arr, num, true);
-    json_array_append(arr, bol, true);
-    json_array_append(arr, str, true);
-    json_array_append(arr, json_object(0), true);
+    json_value_t* num = json_number_double(a, 1234.56789);
+    json_value_t* bol = json_boolean(a, false);
+    json_value_t* str = json_string(a, "text", 4);
 
-    json_value_t* obj = json_object(4);
-    json_object_set(obj, json_string("num", 3), json_number_integer(-100000), true);
-    json_object_set(obj, json_string("bol", 3), json_boolean(true), true);
-    json_object_set(obj, json_string("str", 3), json_string("TEXT", 4), true);
-    json_object_set(obj, json_string("arr", 3), arr, true);
+    json_value_t* arr = json_array(a, 4);
+    json_array_append(arr, num);
+    json_array_append(arr, bol);
+    json_array_append(arr, str);
+    json_array_append(arr, json_object(a, 0));
+
+    json_value_t* obj = json_object(a, 4);
+    json_object_set(obj, json_string(a, "num", 3), json_number_integer(a, -100000));
+    json_object_set(obj, json_string(a, "bol", 3), json_boolean(a, true));
+    json_object_set(obj, json_string(a, "str", 3), json_string(a, "TEXT", 4));
+    json_object_set(obj, json_string(a, "arr", 3), arr);
 
     char* json = json_dumps(obj, 2);
     TEST_ASSERT_MSG(this, json != NULL);
@@ -1519,7 +1519,7 @@ void test_json(test_case_t* this) {
 
     printf("JSON: %s\n", json);
 
-    json_value_t* obj2 = json_parse(json, strlen(json));
+    json_value_t* obj2 = json_parse(a, json, strlen(json));
 
     char* json2 = json_dumps(obj2, 2);
 
@@ -1530,8 +1530,8 @@ void test_json(test_case_t* this) {
 
     free(json);
     free(json2);
-    json_free(obj);
-    json_free(obj2);
+
+    arena_destroy(a);
 }
 
 
@@ -1569,16 +1569,6 @@ test_results_t run_testcases(void) {
             .nfailed = 0
         },
         {
-            .name = "co ast",
-            .test = test_ast,
-            .nfailed = 0
-        },
-        {
-            .name = "co tokenizer",
-            .test = test_tokenizer,
-            .nfailed = 0
-        },
-        {
             .name = "utils test",
             .test = test_utils,
             .nfailed = 0
@@ -1606,6 +1596,16 @@ test_results_t run_testcases(void) {
         {
             .name = "parse and dump json",
             .test = test_json,
+            .nfailed = 0
+        },
+        {
+            .name = "co ast",
+            .test = test_ast,
+            .nfailed = 0
+        },
+        {
+            .name = "co tokenizer",
+            .test = test_tokenizer,
             .nfailed = 0
         }
     };

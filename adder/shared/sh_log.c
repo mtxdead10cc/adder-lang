@@ -25,19 +25,20 @@ void sh_log_init(sh_logprintfn_t printfn) {
     logobj.print = printfn;
 }
 
-void print_wrapper(sh_log_tag_t tag, char* fmt, va_list args) {
+bool print_wrapper(sh_log_tag_t tag, char* fmt, va_list args) {
+    
     const char* pre = sh_log_preabmle(tag);
     int pre_len = strnlen(pre, 19);
     int fmt_len = strnlen(fmt, SH_LOG_MAX_MESSAGE_LENGTH);
     int len = pre_len + fmt_len;
-    
+
     char buf[len + 2];
     strncpy(buf, pre, pre_len);
     strncpy(buf + pre_len, fmt, fmt_len);
 
     int last = len - 1;
     if( len == 0 )
-        return;
+        return true;
     
     while (last > 0) {
         if( buf[last] != '\n' )
@@ -51,11 +52,17 @@ void print_wrapper(sh_log_tag_t tag, char* fmt, va_list args) {
         logobj.print(tag, buf, args);
     else
         vprintf(buf, args);
+
+    return fmt_len < SH_LOG_MAX_MESSAGE_LENGTH;
 }
 
 void _sh_log_message(sh_log_tag_t tag, char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    print_wrapper(tag, fmt, args);
+    if(print_wrapper(tag, fmt, args) == false) {
+        print_wrapper(SH_LOG_WARNING,
+            "previous log message was truncated",
+             (va_list){ 0 });
+    }
     va_end(args);
 }

@@ -76,5 +76,8 @@
         "co_ast_builder.h": "c",
         "co_ast_expr.h": "c"
     },
-    "C_Cpp.errorSquiggles": "disabled"
+    "C_Cpp.errorSquiggles": "disabled",
+    "python.analysis.include": [
+        "/usr/share/gdb"
+    ]
 }

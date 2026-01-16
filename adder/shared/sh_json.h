@@ -32,10 +32,12 @@ typedef enum json_tt_t {
 } json_tt_t;
 
 typedef struct json_value_t json_value_t;
+typedef struct arena_t arena_t;
 
 typedef struct json_object_t {
     ptrdiff_t       size;
     ptrdiff_t       capacity;
+    arena_t*        allocator;
     json_value_t**  keys;
     json_value_t**  values;
 } json_object_t;
@@ -43,20 +45,18 @@ typedef struct json_object_t {
 typedef struct json_array_t {
     ptrdiff_t       size;
     ptrdiff_t       capacity;
+    arena_t*        allocator;
     json_value_t**  values;
 } json_array_t;
 
 typedef struct json_string_t {
-    char*       text;
-    ptrdiff_t   length;
+    char*           text;
+    ptrdiff_t       length;
 } json_string_t;
 
 typedef struct json_error_t {
-    json_tt_t         expected;
-    struct {
-        char*         text;
-        ptrdiff_t     length;
-    } got;
+    json_tt_t       expected;
+    json_string_t   got;
 } json_error_t;
 
 typedef struct json_value_t {
@@ -69,29 +69,27 @@ typedef struct json_value_t {
         double        number_double;
         long          number_integer;
         bool          boolean;
-    } u;
+    } as;
 } json_value_t;
 
 char* json_tt_to_string(json_tt_t tt);
 
-json_value_t*   json_null(void);
-json_value_t*   json_string(char* value, ptrdiff_t len);
-json_value_t*   json_const_string(const char* value);
-json_value_t*   json_boolean(bool value);
-json_value_t*   json_number_double(double value);
-json_value_t*   json_number_integer(long value);
+json_value_t*   json_null(arena_t* allocator);
+json_value_t*   json_string(arena_t* allocator, char* value, ptrdiff_t len);
+json_value_t*   json_const_string(arena_t* allocator, const char* value);
+json_value_t*   json_boolean(arena_t* allocator, bool value);
+json_value_t*   json_number_double(arena_t* allocator, double value);
+json_value_t*   json_number_integer(arena_t* allocator, long value);
 
-json_value_t*   json_array(ptrdiff_t capacity);
-bool            json_array_append(json_value_t* json_array, json_value_t* value, bool free_arg_on_fail);
+json_value_t*   json_array(arena_t* allocator, ptrdiff_t capacity);
+bool            json_array_append(json_value_t* json_array, json_value_t* value);
 
-json_value_t*   json_object(ptrdiff_t capacity);
-bool            json_object_set(json_value_t* json_object, json_value_t* key, json_value_t* value, bool free_args_on_fail);
+json_value_t*   json_object(arena_t* allocator, ptrdiff_t capacity);
+bool            json_object_set(json_value_t* json_object, json_value_t* key, json_value_t* value);
 json_value_t*   json_object_get(json_value_t* json_object, char* key, ptrdiff_t key_len);
-json_value_t* json_object_get_const(json_value_t* json_object, const char* key);
-
-void            json_free(json_value_t* json);
+json_value_t*   json_object_get_const(json_value_t* json_object, const char* key);
 
 char*           json_dumps(json_value_t* json, int indent);
-json_value_t*   json_parse(char* json_str, ptrdiff_t len);
+json_value_t*   json_parse(arena_t* allocator, char* json_str, ptrdiff_t len);
 
 #endif // SH_JSON_H_

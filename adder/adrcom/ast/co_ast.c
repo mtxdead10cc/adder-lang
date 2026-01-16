@@ -10,48 +10,52 @@ ast_t* ast_leaf(arena_t* allocator, ast_tag_t tag) {
 
 ast_t* ast(arena_t* allocator, ast_tag_t tag, int size) {
     ast_t* node = (ast_t*) aalloc(allocator, sizeof(ast_t));
-    int capacity = ast_calculate_capacity(size);
-    assert(capacity >= size);
     *node = (ast_t) {
         .tag = tag,
         .size = size,
-        .as.items = (ast_t**) aalloc(allocator, capacity * sizeof(ast_t*))
+        .as.items = (ast_t**) aalloc(allocator,
+            ast_calculate_capacity(size) * sizeof(ast_t*))
     };
     return node;
 }
 
 
-srcref_t ast_agg_srcrefs(ast_t* node) {
+srcref_t _ast_agg_srcrefs(ast_t* node, int d) {
+
+    assert(d < 100);
+
+    if(node->tag == AST_SYMBOL)
+        return node->as.srcref;
+
+    if(node->tag == AST_STRING)
+        return node->as.srcref;
+
+    if(node->size == 0)
+        return (srcref_t) {0};
 
     srcref_t agg = { 0 };
 
     for(int i = 0; i < node->size; i++) {
-
-        if(node->as.items[i]->tag == AST_UNDEFINED)
-            continue;
-        if(node->as.items[i]->tag == AST_SRCREF)
-            agg = srcref_combine(agg, node->as.items[i]->as.srcref);
-        else if(node->as.items[i]->tag == AST_STRING)
-            agg = srcref_combine(agg, node->as.items[i]->as.srcref);
-        else if( node->as.items[i]->size > 0 ) {
-            for(int j = 0; j < node->as.items[i]->size; j++) {
-                agg = srcref_combine(agg,
-                    ast_agg_srcrefs(node->as.items[i]->as.items[j]));
-            }
-        }
+        assert(node->as.items[i] != node);
+        agg = srcref_combine(agg,
+            _ast_agg_srcrefs(node->as.items[i], d+1));
     }
 
     return agg;
 }
 
+srcref_t ast_agg_srcrefs(ast_t* node) {
+    return _ast_agg_srcrefs(node, 0);
+}
+
 srcref_t ast_try_get_name(ast_t* n) {
     switch(n->tag) {
-        case AST_SRCREF:    return n->as.srcref;
+        case AST_SYMBOL:    return n->as.srcref;
         case AST_VARDECL:   /* FALLTHROUGH */
         case AST_VARREF:    /* FALLTHROUGH */
         case AST_FUNCALL:   /* FALLTHROUGH */
-        case AST_FUNDECL:   /* FALLTHROUGH */
-        case AST_FUNDEF: {
+        case AST_FUNSIGN:   /* FALLTHROUGH */
+        case AST_FUNDEFN: {
             for(int i = 0; i < n->size; i++) {
                 srcref_t srcref = ast_try_get_name(n->as.items[i]);
                 if( srcref_is_valid(srcref) )
@@ -73,12 +77,6 @@ ast_t* ast_try_get(ast_t* n, ast_tag_t tag) {
     return NULL;
 }
 
-ast_flags_t ast_try_get_flags(ast_t* n) {
-    ast_t* result = ast_try_get(n, AST_FLAGS);
-    if(result != NULL)
-        return result->as.flags;
-    return AST_FLAG_NOFLAG;
-}
 
 const char* ast_tag_to_string(ast_tag_t tag) {
     switch(tag) {
@@ -89,7 +87,7 @@ const char* ast_tag_to_string(ast_tag_t tag) {
         case AST_BOOL:                      return "AST_BOOL";
         case AST_CHAR:                      return "AST_CHAR";
         case AST_STRING:                    return "AST_STRING";
-        case AST_SRCREF:                    return "AST_SRCREF";
+        case AST_SYMBOL:                    return "AST_SYMBOL";
         case AST_ARRAY:                     return "AST_ARRAY";
         case AST__END_VALUES:               return "AST__END_VALUES";
         case AST__BEGIN_UNARY_OPERATORS:    return "AST__BEGIN_UNARY_OPERATORS";
@@ -115,7 +113,9 @@ const char* ast_tag_to_string(ast_tag_t tag) {
         case AST__BEGIN_HIGH_LEVEL:         return "AST__BEGIN_HIGH_LEVEL";
         case AST_TYDESCR:                   return "AST_TYDESCR";
         case AST_VARREF:                    return "AST_VARREF";
-        case AST_FUNDECL:                   return "AST_FUNDECL";
+        case AST_VARDECL:                   return "AST_VARDECL";
+        case AST_FUNDEFN:                   return "AST_FUNDEFN";
+        case AST_FUNSIGN:                   return "AST_FUNSIGN";
         case AST_FUNCALL:                   return "AST_FUNCALL";
         case AST_FOREACH:                   return "AST_FOREACH";
         case AST_BLOCK:                     return "AST_BLOCK";
@@ -128,205 +128,105 @@ const char* ast_tag_to_string(ast_tag_t tag) {
     }
 }
 
-json_value_t* ast_value_to_json(ast_t* value) {
+json_value_t* json_value_wrapper(arena_t* ator, const char* tag_name, json_value_t* value) {
 
-    const char* tag_name = ast_tag_to_string(value->tag);
+    if(ator == NULL || value == NULL)
+        return NULL;
 
-    json_value_t* wrapper = json_object(4);
-    if( wrapper == NULL ) {
-        sh_log_error("ast_value_to_json: allocation failed");
+    json_value_t* wrapper = json_object(ator, 2);
+    json_value_t* wrptagkey = json_const_string(ator, "tag");
+    json_value_t* wrptagname = json_const_string(ator, tag_name);
+    json_value_t* valuekey = json_const_string(ator, "value");
+
+    if( json_object_set(wrapper, wrptagkey, wrptagname) == false ) {
+        sh_log_error("ast_value_wrapper: allocation/insert key failed");
         return NULL;
     }
 
-    bool export_ok = json_object_set(wrapper,
-        json_const_string("tag"),
-        json_const_string(tag_name),
-        true);
-
-    if( export_ok == false ) {
-        sh_log_error("ast_value_to_json: allocation failed");
-        json_free(wrapper);
-        return false;
-    }
-
-    switch(value->tag) {
-        case AST_INT: {
-            export_ok = json_object_set(wrapper,
-                json_const_string("value"),
-                json_number_integer(value->as.value_int),
-                true);
-        } break;
-        case AST_BOOL: {
-            export_ok = json_object_set(wrapper,
-                json_const_string("value"),
-                json_boolean(value->as.value_bool),
-                true);
-        } break;
-        case AST_CHAR: {
-            export_ok = json_object_set(wrapper,
-                json_const_string("value"),
-                json_string(&value->as.value_char, 1),
-                true);
-        } break;
-        case AST_STRING: {
-            export_ok = json_object_set(wrapper,
-                json_const_string("value"),
-                json_string(
-                    srcref_ptr(value->as.srcref),
-                    srcref_len(value->as.srcref)),
-                true);
-        } break;
-        case AST_FLOAT: {
-            export_ok = json_object_set(wrapper,
-                json_const_string("value"),
-                json_number_double(value->as.value_float),
-                true);
-        } break;
-        case AST_UNDEFINED:{
-            export_ok = json_object_set(wrapper,
-                json_const_string("value"),
-                json_null(),
-                true);
-        } break;
-        case AST_SRCREF: {
-
-            json_value_t* obj = json_object(4);
-
-            export_ok = json_object_set(wrapper,
-                json_const_string("value"),
-                obj,
-                true);
-
-            if( export_ok == false ) {
-                json_free(obj);
-                obj = NULL;
-            }
-
-            export_ok = json_object_set(obj,
-                json_const_string("idx_start"),
-                json_number_integer(value->as.srcref.idx_start),
-                true);
-
-            export_ok = json_object_set(obj,
-                json_const_string("idx_end"),
-                json_number_integer(value->as.srcref.idx_end),
-                true);
-
-            export_ok = json_object_set(obj,
-                json_const_string("text"),
-                json_string(
-                    srcref_ptr(value->as.srcref),
-                    srcref_len(value->as.srcref)),
-                true);
-            
-        } break;
-        case AST_ARRAY: {
-
-            json_value_t* array = json_array(value->size);
-            export_ok = json_object_set(wrapper,
-                json_const_string("value"),
-                array,
-                true);
-
-            if( export_ok == false ) {
-                json_free(array);
-                array = NULL;
-            }
-
-            for(int i = 0; i < value->size; i++) {
-                ast_t* ast_expr = value->as.items[i];
-                export_ok = export_ok && json_array_append(array,
-                    ast_to_json(ast_expr), true);
-            }
-
-        } break;
-
-        default:
-            sh_log_error("ast_value_to_json: %s is not a value tag", tag_name);
-            break;
-    }
-
-    if( export_ok == false ) {
-        sh_log_error("ast_value_to_json: value allocation failed");
-        json_free(wrapper);
+    if( json_object_set(wrapper, valuekey, value) == false ) {
+        sh_log_error("ast_value_wrapper: allocation/insert value failed");
         return NULL;
     }
 
     return wrapper;
 }
 
-json_value_t* ast_to_json(ast_t* node) {
+json_value_t* ast_to_json(arena_t* ator, ast_t* value) {
 
-    assert(node != NULL);
-
-    if( node == NULL ) {
-        sh_log_error("ast_to_json: ast node was null");
+    if(ator == NULL || value == NULL)
         return NULL;
+
+    const char* tag_name = ast_tag_to_string(value->tag);
+
+    switch(value->tag) {
+        case AST_INT:    return json_value_wrapper(ator, tag_name,
+            json_number_integer(ator, value->as.value_int));
+        case AST_BOOL:   return json_value_wrapper(ator, tag_name,
+            json_boolean(ator, value->as.value_bool));
+        case AST_CHAR:   return json_value_wrapper(ator, tag_name,
+            json_string(ator, &value->as.value_char, 1));
+        case AST_STRING: return json_value_wrapper(ator, tag_name,
+            json_string(ator, 
+                srcref_ptr(value->as.srcref),
+                srcref_len(value->as.srcref)));
+        case AST_FLOAT: return json_value_wrapper(ator, tag_name,
+            json_number_double(ator, value->as.value_float));
+        case AST_UNDEFINED: return json_value_wrapper(ator, tag_name,
+            json_null(ator));
+        case AST_SYMBOL: {
+            json_value_t* obj = json_object(ator, 3);
+            bool eok = obj != NULL;
+            eok = eok && json_object_set(obj,
+                json_const_string(ator, "idx_start"),
+                json_number_integer(ator, value->as.srcref.idx_start));
+            eok = eok && json_object_set(obj,
+                json_const_string(ator, "idx_end"),
+                json_number_integer(ator, value->as.srcref.idx_end));
+            eok = eok && json_object_set(obj,
+                json_const_string(ator, "text"),
+                json_string(ator, 
+                    srcref_ptr(value->as.srcref),
+                    srcref_len(value->as.srcref)));
+            if(eok == false)
+                return NULL;
+            return json_value_wrapper(ator, tag_name, obj);
+        } break;
+        case AST_ARRAY: {
+            json_value_t* array = json_array(ator, value->size > 0 ? value->size : 1);
+            for(int i = 0; i < value->size; i++) {
+                ast_t* ast_expr = value->as.items[i];
+                if(json_array_append(array, ast_to_json(ator, ast_expr)) == false)
+                    return NULL;
+            }
+            return json_value_wrapper(ator, tag_name, array);
+        } break;
+        default: {
+
+            if(value->size == 1) {
+                return json_value_wrapper(ator, tag_name,
+                    ast_to_json(ator, value->as.items[0]));
+            }
+
+            json_value_t* items = json_array(ator, value->size > 0 ? value->size : 1);
+            for(int i = 0; i < value->size; i++) {
+                ast_t* ast_expr = value->as.items[i];
+                if(json_array_append(items, ast_to_json(ator, ast_expr)) == false)
+                    return NULL;
+            }
+            
+            return json_value_wrapper(ator, tag_name, items);
+
+        } break;
     }
-
-    if(node->size == 0)
-        return ast_value_to_json(node);
-
-    json_value_t* jnode = json_object(node->size);
-    if( node == NULL ) {
-        sh_log_error("ast_to_json: out of memory");
-        return NULL;
-    }
-
-    const char* tag = ast_tag_to_string(node->tag);
-    bool export_ok = json_object_set(jnode,
-            json_const_string("tag"),
-            json_const_string(tag),
-            true);
-
-    if( export_ok == false ) {
-        sh_log_error("ast_to_json: failed to set tag");
-        return NULL;
-    }
-
-    json_value_t* jnode_map = json_object(node->size);
-    if( jnode_map == NULL ) {
-        json_free(jnode);
-        sh_log_error("ast_to_json (map): out of memory");
-        return NULL;
-    }
-
-    export_ok = json_object_set(jnode,
-            json_const_string("map"),
-            jnode_map,
-            true);
-
-    if( export_ok == false ) {
-        json_free(jnode);
-        json_free(jnode_map);
-        sh_log_error("ast_to_json: failed to set map");
-        return NULL;
-    }
-
-    for(int i = 0; i < node->size; i++) {
-        export_ok = json_object_set(jnode_map,
-            json_const_string(ast_tag_to_string(node->as.items[i]->tag)),
-            ast_value_to_json(node->as.items[i]),
-            true);
-        if( export_ok == false ) {
-            json_free(jnode);
-            sh_log_error("ast_to_json: failed to set"
-                         " (\"%s\": <value>) pair for node"
-                         " with tag %s",
-                         ast_tag_to_string(node->as.items[i]->tag),
-                         ast_tag_to_string(node->tag));
-            return NULL;
-        }
-    }
-
-    return jnode;
 }
 
+
 void ast_print(ast_t* node) {
-    json_value_t* json = ast_to_json(node);
+    arena_t* arena = arena_create(512);
+    json_value_t* json = ast_to_json(arena, node);
     char* jstr = json_dumps(json, 2);
     sh_log(jstr);
     free(jstr);
-    json_free(json);
+    arena_destroy(arena);
 }
 

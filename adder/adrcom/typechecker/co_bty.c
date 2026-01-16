@@ -55,6 +55,7 @@ bty_type_t* bty_bool(void) {
 }
 
 bty_type_t* bty_from_const_array(arena_t* a, ast_t* ar) {
+
     if( ar->size == 0 )
         return bty_list(a, bty_error(a, BTY_ERR_TYPECHECK));
 
@@ -79,10 +80,83 @@ bty_type_t* bty_from_const_expr(arena_t* a, ast_t* e) {
         case AST_BOOL:    return bty_bool();
         case AST_CHAR:    return bty_char();
         case AST_FLOAT:   return bty_float();
+        case AST_STRING:  return bty_list(a, bty_char());
         case AST_ARRAY:   return bty_from_const_array(a, e);
         default:          return NULL;
     }
 }
+
+bty_type_t* bty_from_tydescr(arena_t* a, trace_t* t, ast_t* n) {
+
+    if(n->tag == AST_FUNDEFN) {
+
+        ast_t* funsign = n->as.items[AST_FUNDEFN_FUNSIGN];
+
+        return bty_from_tydescr(a, t, funsign);
+
+    } else if(n->tag == AST_FUNSIGN) {
+
+        bty_type_t* fundecl = bty_func(a);
+        bty_type_t* retyp = bty_from_tydescr(a, t, n->as.items[AST_FUNSIGN_TYDESCR]);
+        assert(retyp != NULL);
+
+        bty_func_set_return_type(fundecl, retyp);
+        ast_t* arglist = n->as.items[AST_FUNSIGN_ARGLIST];
+        for (int i = 0; i < arglist->size; i++) {
+            ast_t* var = arglist->as.items[i];
+            bty_type_t* vart = bty_from_tydescr(a, t, var);
+            assert(vart != NULL);
+            bty_func_add_arg(a, fundecl, vart);
+        }
+
+        return fundecl;
+
+    } else if(n->tag == AST_VARDECL) {
+
+        ast_t* tydescr = n->as.items[AST_VARDECL_TYDESCR];
+
+        return bty_from_tydescr(a, t, tydescr);
+
+    } else if(n->tag == AST_TYDESCR) {
+
+        srcref_t name = n->as.items[AST_TYDESCR_SYMBOL]->as.srcref;
+
+        if(srcref_equals_string(name, LANG_TYPENAME_ARRAY)) {
+            ast_t* arglist = n->as.items[AST_TYDESCR_ARGLIST];
+            if( arglist->size != 1 ) {
+                trace_msg_t* m = trace_create_message(t, TM_ERROR, name);
+                trace_msg_append_costr(m, "invalid type annotation");
+                return NULL;
+            }
+            bty_type_t* inner = bty_from_tydescr(a, t, arglist->as.items[0]);
+            if( inner == NULL ) {
+                trace_msg_t* m = trace_create_message(t, TM_ERROR, name);
+                trace_msg_append_costr(m, "invalid type annotation (list content)");
+                return NULL;
+            }
+            return bty_list(a, inner);
+        } else if(srcref_equals_string(name, LANG_TYPENAME_STRING)) {
+            return bty_list(a, bty_char());
+        } else if(srcref_equals_string(name, LANG_TYPENAME_VOID)) {
+            return bty_void();
+        } else if(srcref_equals_string(name, LANG_TYPENAME_INT)) {
+            return bty_int();
+        } else if(srcref_equals_string(name, LANG_TYPENAME_FLOAT)) {
+            return bty_float();
+        } else if(srcref_equals_string(name, LANG_TYPENAME_BOOL)) {
+            return bty_bool();
+        } else if(srcref_equals_string(name, LANG_TYPENAME_CHAR)) {
+            return bty_char();
+        }
+
+        trace_msg_t* m = trace_create_message(t, TM_ERROR, name);
+        trace_msg_append_costr(m, "unhandled type signature");
+        return NULL;
+    }
+
+    return NULL;
+}
+
 
 bty_type_t* bty_func(arena_t* a) {
     bty_type_t* fun = (bty_type_t*) aalloc(a, sizeof(bty_type_t));
@@ -471,6 +545,13 @@ void bty_ctx_dump(cstr_t str, bty_ctx_t* ctx) {
     }
 }
 
+bool ast_verify_child(ast_t* n, int index, ast_tag_t exptag) {
+    if(n == NULL)
+        return false;
+    if(index < 0 || index >= n->size)
+        return false;
+    return n->as.items[index]->tag == exptag;
+}
 
 /* DESCRIPTION
  *  The checking function calls the inference function when it 
@@ -480,49 +561,18 @@ void bty_ctx_dump(cstr_t str, bty_ctx_t* ctx) {
  *  encounters a type annotation.
  */
 
-bty_type_t* ast_extract_type_descriptor_as_bty(arena_t* a, trace_t* t, ast_t* n) {
-
-    ast_t* tydescr = ast_try_get(n, AST_TYDESCR);
-    if(tydescr == NULL)
-        return NULL;
-
-    srcref_t name = tydescr->as.items[0]->as.srcref;
-
-    if(srcref_equals_string(name, LANG_TYPENAME_ARRAY)) {
-        if( tydescr->as.items[1]->size != 1 ) {
-            trace_msg_t* m = trace_create_message(t, TM_ERROR, name);
-            trace_msg_append_costr(m, "invalid type annotation");
-            return NULL;
-        }
-        bty_type_t* inner = ast_extract_type_descriptor_as_bty(a, t, tydescr->as.items[1]);
-        if( inner == NULL ) {
-            trace_msg_t* m = trace_create_message(t, TM_ERROR, name);
-            trace_msg_append_costr(m, "invalid type annotation (list content)");
-            return NULL;
-        }
-        return bty_list(a, inner);
-    } else if(srcref_equals_string(name, LANG_TYPENAME_STRING)) {
-        return bty_list(a, bty_char());
-    } else if(srcref_equals_string(name, LANG_TYPENAME_VOID)) {
-        return bty_void();
-    } else if(srcref_equals_string(name, LANG_TYPENAME_INT)) {
-        return bty_int();
-    } else if(srcref_equals_string(name, LANG_TYPENAME_FLOAT)) {
-        return bty_float();
-    } else if(srcref_equals_string(name, LANG_TYPENAME_BOOL)) {
-        return bty_bool();
-    } else if(srcref_equals_string(name, LANG_TYPENAME_CHAR)) {
-        return bty_char();
-    }
-
-    trace_msg_t* m = trace_create_message(t, TM_ERROR, name);
-    trace_msg_append_costr(m, "unhandled type signature");
-    return NULL;
-}
-
 bty_type_t* bty_synth_var_reference(bty_ctx_t* c, ast_t* v) {
-    assert(v->as.items[0]->tag == AST_SRCREF);
-    srcref_t name = v->as.items[0]->as.srcref;
+
+    assert(v->tag == AST_VARREF);
+
+    if(ast_verify_child(v, AST_VARREF_SYMBOL, AST_SYMBOL) == false) {
+        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, trace_no_ref());
+        trace_msg_append_costr(m, "received invalid variable reference");
+        return bty_error(c->arena, BTY_ERR_INTERNAL);
+    }
+    
+    ast_t* s = v->as.items[AST_VARREF_SYMBOL];
+    srcref_t name = s->as.srcref;
     bty_type_t* ty = bty_ctx_lookup(c, name);
     if( ty == NULL ) {
         trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, name);
@@ -551,9 +601,8 @@ bty_type_t* bty_synth_all_same_or_null(bty_ctx_t* c, ast_t** coll, int len) {
 // here instead of 'custom' checking subtype
 bty_type_t* bty_synth_unop(bty_ctx_t* c, ast_t* n) {
     assert(ast_is_unop(n));
-    bty_type_t* ty = bty_synthesize(c, n->as.items[0]);
-    // TODO: LOCATION!!!!
-    srcref_t location = (srcref_t) {0};
+    bty_type_t* ty = bty_synthesize(c, n->as.items[AST_UNAOP_INNER]);
+    srcref_t location = ast_agg_srcrefs(n);
     switch(n->tag) {
         case AST_UNA_NOT: {
             if( bty_is_subtype(ty, bty_bool()) == false ) {
@@ -604,8 +653,8 @@ bty_type_t* bty_synth_binop(bty_ctx_t* c, ast_t* n) {
 
     assert(ast_is_binop(n));
 
-    bty_type_t* lty = bty_synthesize(c, n->as.items[0]);
-    bty_type_t* rty = bty_synthesize(c, n->as.items[1]);
+    bty_type_t* lty = bty_synthesize(c, n->as.items[AST_BINOP_LEFT]);
+    bty_type_t* rty = bty_synthesize(c, n->as.items[AST_BINOP_RIGHT]);
 
     bty_type_t* ty = NULL;
 
@@ -615,8 +664,7 @@ bty_type_t* bty_synth_binop(bty_ctx_t* c, ast_t* n) {
     if( bty_is_subtype(rty, lty) )
         ty = lty;
 
-    // TODO: LOCATION!!!!
-    srcref_t location = (srcref_t) {0};
+    srcref_t location = ast_agg_srcrefs(n);
     
     if( ty == NULL ) {
         trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, location);
@@ -663,11 +711,12 @@ bty_type_t* bty_synth_binop(bty_ctx_t* c, ast_t* n) {
 
 bty_type_t* bty_synth_funcall(bty_ctx_t* c, ast_t* fc) {
 
-    assert(fc->as.items[0]->tag == AST_FUNCALL);
-    assert(fc->as.items[1]->tag == AST_ARGLIST);
-    srcref_t name = fc->as.items[0]->as.srcref;
+    assert(fc->tag == AST_FUNCALL);
 
-    if( fc->as.items[1]->tag != AST_ARGLIST ) {
+    srcref_t name = fc->as.items[AST_FUNCALL_SYMBOL]->as.srcref;
+    ast_t* args = fc->as.items[AST_FUNCALL_ARGLIST];
+
+    if( args->tag != AST_ARGLIST ) {
         trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, name);
         trace_msg_append_costr(m, "invalid argument(s)");
         return bty_error(c->arena, BTY_ERR_INTERNAL);
@@ -683,15 +732,14 @@ bty_type_t* bty_synth_funcall(bty_ctx_t* c, ast_t* fc) {
     }
 
     assert(fnty->tag == BTY_FUNC);
-    ast_t* al = fc->as.items[1];
-    if( al->size != fnty->u.fun.argc ) {
+    if( args->size != fnty->u.fun.argc ) {
         trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, name);
         trace_msg_append_costr(m, "argument count mismatch");
         return bty_error(c->arena, BTY_ERR_TYPECHECK);
     }
 
     for(int i = 0; i < fnty->u.fun.argc; i++) {
-        bty_check(c, al->as.items[i], fnty->u.fun.args[i]);
+        bty_check(c, args->as.items[i], fnty->u.fun.args[i]);
     }
 
     return fnty->u.fun.ret;
@@ -779,9 +827,9 @@ bty_type_t* bty_synth_if(bty_ctx_t* c, ast_t* n) {
     };
 
     while ( is_valid_if_link(n) ) {
-        bty_check(c, n->as.items[0], bty_bool());
-        bty_synth_aggregate(&agg, c, n->as.items[1], true);
-        n = n->as.items[2];
+        bty_check(c, n->as.items[AST_IFCHAIN_COND], bty_bool());
+        bty_synth_aggregate(&agg, c, n->as.items[AST_IFCHAIN_IFTRUE], true);
+        n = n->as.items[AST_IFCHAIN_IFNEXT];
     }
 
     if( is_valid_else_block(n) ) {
@@ -842,9 +890,9 @@ bty_type_t* bty_synth_body(bty_ctx_t* c, ast_t* n) {
 bty_type_t* bty_synth_foreach(bty_ctx_t* c, ast_t* n) {
     assert(n->tag == AST_FOREACH);
     bty_ctx_t* loop_ctx = bty_ctx_clone(c);
-    bty_type_t* vt = bty_synthesize(loop_ctx, n->as.items[0]);
-    bty_check(c, n->as.items[1], bty_list(c->arena, vt));
-    return bty_synthesize(loop_ctx, n->as.items[2]);
+    bty_type_t* vt = bty_synthesize(loop_ctx, n->as.items[AST_FOREACH_VAR]);
+    bty_check(c, n->as.items[AST_FOREACH_COLL], bty_list(c->arena, vt));
+    return bty_synthesize(loop_ctx, n->as.items[AST_FOREACH_BODY]);
 }
 
 bty_type_t* bty_synth_array(bty_ctx_t* c, ast_t* n) {
@@ -859,13 +907,13 @@ bty_type_t* bty_synth_array(bty_ctx_t* c, ast_t* n) {
 }
 
 bty_type_t* bty_synth_assign(bty_ctx_t* c, ast_t* n) {
-    bty_type_t* ty = bty_synthesize(c, n->as.items[0]);
-    bty_check(c, n->as.items[1], ty);
+    bty_type_t* ty = bty_synthesize(c, n->as.items[AST_ASSIGN_LEFT]);
+    bty_check(c, n->as.items[AST_ASSIGN_RIGHT], ty);
     return bty_void();
 }
 
 bty_type_t* bty_synth_return(bty_ctx_t* c, ast_t* n) {
-    bty_type_t* type = bty_synthesize(c, n->as.items[0]);
+    bty_type_t* type = bty_synthesize(c, n->as.items[AST_RETURN_EXPR]);
     if( type->tag == BTY_VOID )
         return bty_void();
     return bty_return(c->arena, type);
@@ -873,60 +921,59 @@ bty_type_t* bty_synth_return(bty_ctx_t* c, ast_t* n) {
 
 bty_type_t* bty_synthesize(bty_ctx_t* c, ast_t* n) {
 
-    bty_type_t* synth_result = NULL;
-
     switch(n->tag) {
-        case AST_ARRAY:     synth_result = bty_synth_array(c, n);           break;
-        case AST_ASSIGN:    synth_result = bty_synth_assign(c, n);          break;
-        case AST_RETURN:    synth_result = bty_synth_return(c, n);          break;
-        case AST_VARREF:    synth_result = bty_synth_var_reference(c, n);   break;
-        case AST_FUNCALL:   synth_result = bty_synth_funcall(c, n);         break;
-        case AST_IFCHAIN:   synth_result = bty_synth_if(c, n);              break;
-        case AST_BLOCK:     synth_result = bty_synth_body(c, n);            break;
-        case AST_FOREACH:   synth_result = bty_synth_foreach(c, n);         break;
+        case AST_ARRAY:   return bty_synth_array(c, n);
+        case AST_ASSIGN:  return bty_synth_assign(c, n); 
+        case AST_RETURN:  return bty_synth_return(c, n); 
+        case AST_VARREF:  return bty_synth_var_reference(c, n);
+        case AST_FUNCALL: return bty_synth_funcall(c, n);
+        case AST_IFCHAIN: return bty_synth_if(c, n);
+        case AST_BLOCK:   return bty_synth_body(c, n);
+        case AST_FOREACH: return bty_synth_foreach(c, n);
         default: {
             if( ast_is_unop(n) )
-                synth_result = bty_synth_unop(c, n);
+                return bty_synth_unop(c, n);
             else if( ast_is_binop(n) )
-                synth_result = bty_synth_binop(c, n);
+                return bty_synth_binop(c, n);
             else {
-                synth_result = bty_from_const_expr(c->arena, n);
-                if( synth_result == NULL )
-                    synth_result = bty_error(c->arena, BTY_ERR_INTERNAL);
+                bty_type_t* const_type = bty_from_const_expr(c->arena, n);
+                if( const_type != NULL )
+                    return const_type;
             }
-        }
+        } break;
     }
 
-    if(synth_result != NULL)
-        return synth_result;
+    bty_type_t* descr = bty_from_tydescr(c->arena, c->trace, n);
 
-    bty_type_t* annotype = ast_extract_type_descriptor_as_bty(c->arena, c->trace, n);
     srcref_t name = ast_try_get_name(n);
 
-    if( annotype == NULL || srcref_is_valid(name) == false ) {
+    if( descr == NULL || srcref_is_valid(name) == false ) {
         trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_agg_srcrefs(n));
         trace_msg_append_costr(m, "type-error: invalid type annotation(s)");
         return bty_error(c->arena, BTY_ERR_TYPECHECK);
     }
 
-    if( bty_ctx_insert(c, name, annotype) == false ) {
+    if( bty_ctx_insert(c, name, descr) == false ) {
         trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_agg_srcrefs(n));
         trace_msg_append_fmt(m, "type-error: the name '%.*s' is already in use in this context",
             srcref_len(name),
             srcref_ptr(name));
     }
 
-    bty_check(c, n->as.items[1], annotype);
-    
-    return annotype;
+    if(n->tag == AST_VARDECL)
+        return descr;
+
+    bty_check(c, n, descr);
+
+    return descr;
 }
 
 
-void bty_check_fundecl(bty_ctx_t* c, ast_t* n, bty_type_t* et) {
+void bty_check_fundef(bty_ctx_t* c, ast_t* n, bty_type_t* et) {
 
     assert(et->tag == BTY_FUNC);
 
-    if ( n->tag != AST_FUNDECL ) {
+    if ( n->tag != AST_FUNDEFN ) {
         trace_msg_t* m = trace_create_message(c->trace,
             TM_INTERNAL_ERROR, 
             ast_agg_srcrefs(n));
@@ -936,15 +983,14 @@ void bty_check_fundecl(bty_ctx_t* c, ast_t* n, bty_type_t* et) {
         return;
     }
 
-    if( (n->as.items[3]->as.flags & AST_FLAG_IMPORT) > 0 ) {
-        return; // cant eval imported functions
-    }
+    ast_t* funsign = n->as.items[AST_FUNDEFN_FUNSIGN];
+    ast_t* funbody = n->as.items[AST_FUNDEFN_BODY];
 
-    if( srcref_equals_string(ast_try_get_name(n), "main") ) {
-        if( (ast_try_get_flags(n) & AST_FLAG_EXPORT) == 0 ) {
+    if( srcref_equals_string(ast_try_get_name(funsign), "main") ) {
+        if( ast_is_exported(n) == false ) {
             trace_msg_t* m = trace_create_message(c->trace,
             TM_ERROR, 
-            ast_agg_srcrefs(n));
+            ast_agg_srcrefs(funsign));
             trace_msg_append_costr(m,
                 "type-error: the main function ast"
                 " node should have been marked as"
@@ -955,62 +1001,66 @@ void bty_check_fundecl(bty_ctx_t* c, ast_t* n, bty_type_t* et) {
 
     bty_fun_t ft = et->u.fun;
 
-    ast_t* al = ast_try_get(n, AST_ARGLIST);
+    if( ast_is_exported(n) )
+        bty_func_set_exported(et); // this is sort of unexpected, do we need to modify the type this way? 
+    
+    ast_t* funargs = ast_try_get(funsign, AST_ARGLIST);
 
-    assert( al != NULL );
-    assert( al->tag == AST_ARGLIST );
+    assert( funargs != NULL );
+    assert( funargs->tag == AST_ARGLIST );
 
-    if( al->size != ft.argc ) {
+    if( funargs->size != ft.argc ) {
         trace_msg_t* m = trace_create_message(c->trace,
             TM_ERROR, 
             ast_agg_srcrefs(n));
         trace_msg_append_fmt(m,
             "type-error: expected %d args, but got %lu",
             ft.argc,
-            al->size);
+            funargs->size);
         return;
     }
 
-    ast_t* bl = ast_try_get(n, AST_BLOCK);
-
     bty_ctx_t* body_ctx = bty_ctx_clone(c);
 
-    int count = al->size;
+    int count = funargs->size;
     for(int i = 0; i < count; i++) {
-        bty_check(body_ctx, al->as.items[i], ft.args[i]);
+        bty_check(body_ctx, funargs->as.items[i], ft.args[i]);
     }
 
     if( ft.ret->tag == BTY_VOID ) {
-        bty_check(body_ctx, bl, bty_void());    
+        bty_check(body_ctx, funbody, bty_void());    
     } else {
-        bty_check(body_ctx, bl,
+        bty_check(body_ctx, funbody,
             bty_always(c->arena, 
                 bty_return(c->arena, ft.ret)));
     }
 }
 
-
 void bty_check(bty_ctx_t* c, ast_t* n, bty_type_t* et) {
-
-    if( et->tag == BTY_FUNC ) {
-        bty_check_fundecl(c, n, et);
+    if(n->tag == AST_FUNDEFN) {
+        bty_check_fundef(c, n, et);
+    } else if(n->tag == AST_FUNSIGN && ast_is_imported(n) ) {
+        // need to think about export-marking!!
+        // need to compare with type as well.
         return;
+    } else {
+        bty_type_t* ty = bty_synthesize(c, n);
+        if( bty_is_subtype(ty, et) == false ) {
+            trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_agg_srcrefs(n));
+            trace_msg_append_fmt(m,
+                "type-error: expected %s but got %s\n",
+                sprint_bty_type(c->arena, et),
+                sprint_bty_type(c->arena, ty));
+        }
     }
-
-    bty_type_t* ty = bty_synthesize(c, n);
-    if( bty_is_subtype(ty, et) == false ) {
-        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_agg_srcrefs(n));
-        trace_msg_append_fmt(m,
-            "type-error: expected %s but got %s\n",
-            sprint_bty_type(c->arena, et),
-            sprint_bty_type(c->arena, ty));
-        return;
-    }
-    
 }
 
 bool is_toplevel_definition(ast_t* n) {
-    return n->tag == AST_FUNDECL;
+    switch(n->tag) {
+        case AST_FUNDEFN: return true;
+        case AST_FUNSIGN: return ast_is_imported(n);
+        default:          return false;
+    }
 }
 
 int bty_count_entrypoints(bty_ctx_t* ctx) {
@@ -1028,10 +1078,14 @@ int bty_count_entrypoints(bty_ctx_t* ctx) {
 bool bty_typecheck(bty_ctx_t* ctx, ast_t* program) {
 
     assert(program->tag == AST_BLOCK);
-    size_t count = program->size;
+    int count = program->size;
 
-    for(size_t i = 0; i < count; i++) {
+    for(int i = 0; i < count; i++) {
+        
         ast_t* def = program->as.items[i];
+        
+        assert(def != NULL);
+
         srcref_t ref = ast_agg_srcrefs(def);
 
         if( is_toplevel_definition(def) == false ) {

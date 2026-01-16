@@ -269,10 +269,9 @@ program_t program_compile(source_code_t* code, bool print_ast) {
     ast_t* program_node = par_extract_node(result);
     
     if( print_ast ) {
-        json_value_t* value = ast_to_json(program_node);
+        json_value_t* value = ast_to_json(arena, program_node);
         char* str = json_dumps(value, 2);
         sh_log_info("DEBUG - AST\n%s\n", str);
-        json_free(value);
         free(str);
     }
 
