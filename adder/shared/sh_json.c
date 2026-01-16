@@ -10,6 +10,7 @@
 #include <stdbool.h>
 
 json_value_t* json_string(arena_t* allocator, char* value, ptrdiff_t len) {
+    assert(len >= 0);
     json_value_t* jval = (json_value_t*) aalloc(allocator, sizeof(json_value_t));
     if( jval == NULL )
         return NULL;
@@ -273,8 +274,8 @@ json_value_t* json_object_get_const(json_value_t* json_object, const char* key) 
 
 char* json_dumps_append_double(char* prev, double val) {
     char* prevstr = prev != NULL ? prev : ""; 
-    char* next = malloc(snprintf(NULL, 0, "%s%lf", prevstr, val) + 1);
-    sprintf(next, "%s%lf", prevstr, val);
+    char* next = malloc(snprintf(NULL, 0, "%s%.8g", prevstr, val) + 1);
+    sprintf(next, "%s%.8g", prevstr, val);
     if( prev != NULL )
         free(prev);
     return next;

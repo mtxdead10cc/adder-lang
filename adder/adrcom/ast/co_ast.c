@@ -124,7 +124,7 @@ const char* ast_tag_to_string(ast_tag_t tag) {
         case AST_RETURN:                    return "AST_RETURN";
         case AST_ASSIGN:                    return "AST_ASSIGN";
         case AST__END_HIGH_LEVEL:           return "AST__END_HIGH_LEVEL";
-        default:                            return "<UNKNOWN AST TAG>";
+        default:                            return "AST <UNKNOWN TAG>";
     }
 }
 
@@ -133,10 +133,15 @@ json_value_t* json_value_wrapper(arena_t* ator, const char* tag_name, json_value
     if(ator == NULL || value == NULL)
         return NULL;
 
+    assert(strnlen(tag_name, 5) >= 4); // "AST_", removing the 4 initial chars
+
     json_value_t* wrapper = json_object(ator, 2);
     json_value_t* wrptagkey = json_const_string(ator, "tag");
-    json_value_t* wrptagname = json_const_string(ator, tag_name);
-    json_value_t* valuekey = json_const_string(ator, "value");
+    json_value_t* wrptagname = json_const_string(ator, tag_name + 4);
+    json_value_t* valuekey = json_const_string(ator,
+        (value->type == JSON_VALUE_ARRAY)
+            ? "items"
+            : "value");
 
     if( json_object_set(wrapper, wrptagkey, wrptagname) == false ) {
         sh_log_error("ast_value_wrapper: allocation/insert key failed");
@@ -167,8 +172,8 @@ json_value_t* ast_to_json(arena_t* ator, ast_t* value) {
             json_string(ator, &value->as.value_char, 1));
         case AST_STRING: return json_value_wrapper(ator, tag_name,
             json_string(ator, 
-                srcref_ptr(value->as.srcref),
-                srcref_len(value->as.srcref)));
+                srcref_ptr(value->as.srcref) + 1,
+                srcref_len(value->as.srcref) - 2));
         case AST_FLOAT: return json_value_wrapper(ator, tag_name,
             json_number_double(ator, value->as.value_float));
         case AST_UNDEFINED: return json_value_wrapper(ator, tag_name,
@@ -201,21 +206,13 @@ json_value_t* ast_to_json(arena_t* ator, ast_t* value) {
             return json_value_wrapper(ator, tag_name, array);
         } break;
         default: {
-
-            if(value->size == 1) {
-                return json_value_wrapper(ator, tag_name,
-                    ast_to_json(ator, value->as.items[0]));
-            }
-
             json_value_t* items = json_array(ator, value->size > 0 ? value->size : 1);
             for(int i = 0; i < value->size; i++) {
                 ast_t* ast_expr = value->as.items[i];
                 if(json_array_append(items, ast_to_json(ator, ast_expr)) == false)
                     return NULL;
             }
-            
             return json_value_wrapper(ator, tag_name, items);
-
         } break;
     }
 }
