@@ -9,7 +9,7 @@ endif()
 set(CMAKE_C_STANDARD 11)
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wformat -Wpedantic -Werror -Werror=format-security -ffunction-sections -funwind-tables -fstack-protector-strong -fPIC -no-canonical-prefixes")
-set(CMAKE_CXX_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -march=native -funroll-loops -ftree-vectorize")
 
 add_subdirectory(adder)
@@ -23,6 +23,8 @@ add_subdirectory(examples/host)
 #    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:adrsha> ${CMAKE_CURRENT_SOURCE_DIR}/lib/$<TARGET_FILE_NAME:adrsha>
 #    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:adrrun> ${CMAKE_CURRENT_SOURCE_DIR}/bin/$<TARGET_FILE_NAME:adrrun>
 #)
+
+
 
 string(TOLOWER "${CMAKE_SYSTEM_NAME}" ARCH_NAME)
 

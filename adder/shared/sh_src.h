@@ -114,6 +114,16 @@ inline static bool srcref_equals_string(srcref_t a, const char* b_str) {
     return strncmp(a_str, b_str, len) == 0;
 }
 
+inline static bool srcref_equals_string_n(srcref_t a, char* b_str, size_t b_len) {
+    if( srcref_is_valid(a) == false )
+        return false;
+    size_t len = srcref_len(a);
+    if( len != b_len )
+        return false;
+    char* a_str = srcref_ptr(a);
+    return strncmp(a_str, b_str, len) == 0;
+}
+
 inline static bool srcref_contains_char(srcref_t ref, char c) {
     if( srcref_is_valid(ref) == false )
         return false;

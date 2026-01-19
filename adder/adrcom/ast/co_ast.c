@@ -158,7 +158,60 @@ json_value_t* json_value_wrapper(arena_t* ator, const char* tag_name, json_value
     return wrapper;
 }
 
-json_value_t* ast_to_json(arena_t* ator, ast_t* value) {
+json_value_t* srcref_to_json(arena_t* ator, ast_t* value, json_value_t* sources) {
+
+    int index = -1;
+
+    char*  src_id = value->as.srcref.src->path;
+    size_t src_len = value->as.srcref.src->path_length;
+
+    for (int i = 0; i < sources->as.array.size; i++) {
+        json_value_t* item = sources->as.array.values[i];
+        assert(json_is_string(item));
+        if(json_is_string(item) == false)
+            continue;
+        char* present = item->as.string.text;
+        if(src_len != (size_t) item->as.string.length)
+            continue;
+        if(strncmp(src_id, present, src_len) == 0) {
+            index = i;
+            break;
+        }
+    }
+
+    if(index < 0) {
+        index = sources->as.array.size;
+        bool res = json_array_append(sources,
+            json_string(ator, src_id, src_len));
+        assert(res);
+    }
+
+    json_value_t* obj = json_object(ator, 4);
+
+    bool eok = obj != NULL;
+
+    eok = eok && json_object_set(obj,
+        json_const_string(ator, "idx_start"),
+        json_number(ator, value->as.srcref.idx_start));
+
+    eok = eok && json_object_set(obj,
+        json_const_string(ator, "idx_end"),
+        json_number(ator, value->as.srcref.idx_end));
+
+    eok = eok && json_object_set(obj,
+        json_const_string(ator, "source"),
+        json_number(ator, index));
+
+    eok = eok && json_object_set(obj,
+        json_const_string(ator, "text"),
+        json_string(ator, 
+            srcref_ptr(value->as.srcref),
+            srcref_len(value->as.srcref)));
+
+    return eok ? obj : NULL;
+}
+
+json_value_t* ast_to_json_internal(arena_t* ator, ast_t* value, json_value_t* sources) {
 
     if(ator == NULL || value == NULL)
         return NULL;
@@ -172,42 +225,49 @@ json_value_t* ast_to_json(arena_t* ator, ast_t* value) {
             json_boolean(ator, value->as.value_bool));
         case AST_CHAR:       return json_value_wrapper(ator, tag_name,
             json_string(ator, &value->as.value_char, 1));
-        case AST_STRING:     return json_value_wrapper(ator, tag_name,
-            json_string(ator, 
-                srcref_ptr(value->as.srcref) + 1,
-                srcref_len(value->as.srcref) - 2));
         case AST_FLOAT:      return json_value_wrapper(ator, tag_name,
             json_number(ator, value->as.value_float));
         case AST_UNDEFINED:  return json_value_wrapper(ator, tag_name,
             json_null(ator));
+        case AST_STRING: // Fallthrough
         case AST_SYMBOL: {
-            json_value_t* obj = json_object(ator, 3);
-            bool eok = obj != NULL;
-            eok = eok && json_object_set(obj,
-                json_const_string(ator, "idx_start"),
-                json_number(ator, value->as.srcref.idx_start));
-            eok = eok && json_object_set(obj,
-                json_const_string(ator, "idx_end"),
-                json_number(ator, value->as.srcref.idx_end));
-            eok = eok && json_object_set(obj,
-                json_const_string(ator, "text"),
-                json_string(ator, 
-                    srcref_ptr(value->as.srcref),
-                    srcref_len(value->as.srcref)));
-            if(eok == false)
-                return NULL;
-            return json_value_wrapper(ator, tag_name, obj);
+            return json_value_wrapper(ator, tag_name,
+                srcref_to_json(ator, value, sources));
         } break;
         default: {
             json_value_t* items = json_array(ator, value->size > 0 ? value->size : 1);
             for(int i = 0; i < value->size; i++) {
                 ast_t* ast_expr = value->as.items[i];
-                if(json_array_append(items, ast_to_json(ator, ast_expr)) == false)
+                if(json_array_append(items, ast_to_json_internal(ator, ast_expr, sources)) == false)
                     return NULL;
             }
             return json_value_wrapper(ator, tag_name, items);
         } break;
     }
+}
+
+json_value_t* ast_to_json(arena_t* ator, ast_t* value) {
+
+    if(ator == NULL || value == NULL)
+        return NULL;
+    
+    json_value_t* sources = json_array(ator, 5);
+    json_value_t* ast = ast_to_json_internal(ator, value, sources);
+    json_value_t* result = json_object(ator, 2);
+
+    bool eok = sources != NULL
+            && ast != NULL
+            && result != NULL;
+    
+    eok = eok && json_object_set(result,
+        json_const_string(ator, "sources"),
+        sources);
+
+    eok = eok && json_object_set(result,
+        json_const_string(ator, "ast"),
+        ast);
+
+    return eok ? result : NULL;
 }
 
 typedef struct jtlut_entry_t {
@@ -268,6 +328,7 @@ ast_t* ast_from_json_internal(arena_t* ator, jtlut_entry_t* table, json_value_t*
     ast_tag_t tag = ast_tag_from_json(table, json);
 
     if(ast_tag_is_value(tag)) {
+
         json_value_t* jval = json_object_get(json, "value");
 
         if(json_is_number(jval)) {

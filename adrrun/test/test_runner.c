@@ -494,6 +494,8 @@ void test_ast(test_case_t* this) {
          ast_block_append(arena, block, fundef),
         "#1.0 failed to add to block.");
 
+    ast_print(block);
+
     trace_t trace = { 0 };
     trace_init(&trace, 16);
 
