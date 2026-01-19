@@ -60,9 +60,7 @@ void tokens_destroy(token_collection_t* collection) {
 }
 
 typedef struct tokenizer_state_t {
-    char*           buffer;
-    size_t          buffer_size;
-    char*           filepath;
+    src_t*          source;
     size_t          cursor;
     srcmap_t        kw_map_alpha;
     srcmap_t        kw_map_symbolic;
@@ -70,26 +68,26 @@ typedef struct tokenizer_state_t {
 
 size_t sweep_while(tokenizer_state_t* state, size_t start_offset, lex_predicate_t lex) {
     size_t cursor = state->cursor + start_offset;
-    size_t stop = state->buffer_size - 1;
-    while ( cursor <= stop && lexer_match(lex, lexer_scan(state->buffer[cursor])) ) {
+    size_t stop = state->source->buff_length - 1;
+    while ( cursor <= stop && lexer_match(lex, lexer_scan(state->source->buff[cursor])) ) {
         cursor ++;
     }
     return cursor - state->cursor - start_offset;
 }
 
 bool match_cursor(tokenizer_state_t* state, lex_predicate_t lex) {
-    if( state->cursor >= state->buffer_size ) {
+    if( state->cursor >= state->source->buff_length ) {
         return false;
     }
-    return lexer_match(lex, lexer_scan(state->buffer[state->cursor]));
+    return lexer_match(lex, lexer_scan(state->source->buff[state->cursor]));
 }
 
 bool match_cursor_and_next(tokenizer_state_t* state, lex_predicate_t lex_0, lex_predicate_t lex_1) {
-    if( state->cursor + 1 >= state->buffer_size ) {
+    if( state->cursor + 1 >= state->source->buff_length ) {
         return false;
     }
-    return  lexer_match(lex_0, lexer_scan(state->buffer[state->cursor + 0]))
-         && lexer_match(lex_1, lexer_scan(state->buffer[state->cursor + 1]));
+    return  lexer_match(lex_0, lexer_scan(state->source->buff[state->cursor + 0]))
+         && lexer_match(lex_1, lexer_scan(state->source->buff[state->cursor + 1]));
 }
 
 token_t sweep_make_token(
@@ -105,7 +103,7 @@ token_t sweep_make_token(
     len = len + offset + trailing;
     state->cursor = start + len;
     return (token_t) {
-        .ref = srcref(state->buffer, start, len),
+        .ref = srcref(state->source, start, len),
         .type = token_type
     };
 }
@@ -123,26 +121,28 @@ void sweep_discard_token(
     state->cursor = start + len;
 }
 
-srcmap_t create_keyword_token_map(void) {
-    srcmap_t map;
-    srcmap_init(&map, 50);
+void bind_token(srcmap_t* map, char* key, token_type_t val) {
+    sstr_t sskey = sstr(key);
+    bool res = srcmap_insert(map, sskey, sm_val(val));
+    assert(res);
+}
 
-    srcmap_insert(&map, srcref_const("if"),     sm_val(TT_KW_IF));
-    srcmap_insert(&map, srcref_const("else"),   sm_val(TT_KW_ELSE));
-    srcmap_insert(&map, srcref_const("for"),    sm_val(TT_KW_FOR));
-    srcmap_insert(&map, srcref_const("in"),     sm_val(TT_KW_IN));
-    srcmap_insert(&map, srcref_const("fun"),    sm_val(TT_KW_FUN_DEF));
-    srcmap_insert(&map, srcref_const("return"), sm_val(TT_KW_RETURN));
-    srcmap_insert(&map, srcref_const("break"),  sm_val(TT_KW_BREAK));
-    srcmap_insert(&map, srcref_const("true"),   sm_val(TT_BOOLEAN));
-    srcmap_insert(&map, srcref_const("false"),  sm_val(TT_BOOLEAN));
-    srcmap_insert(&map, srcref_const("not"),    sm_val(TT_UNOP_NOT));
-    srcmap_insert(&map, srcref_const("and"),    sm_val(TT_BINOP_AND));
-    srcmap_insert(&map, srcref_const("or"),     sm_val(TT_BINOP_OR));
-    srcmap_insert(&map, srcref_const("import"), sm_val(TT_IMPORT));
-    srcmap_insert(&map, srcref_const("export"), sm_val(TT_EXPORT));
-    
-    return map;
+void init_keyword_token_map(srcmap_t* map) {
+    srcmap_init(map, 50);
+    bind_token(map, "if",     TT_KW_IF);
+    bind_token(map, "else",   TT_KW_ELSE);
+    bind_token(map, "for",    TT_KW_FOR);
+    bind_token(map, "in",     TT_KW_IN);
+    bind_token(map, "fun",    TT_KW_FUN_DEF);
+    bind_token(map, "return", TT_KW_RETURN);
+    bind_token(map, "break",  TT_KW_BREAK);
+    bind_token(map, "true",   TT_BOOLEAN);
+    bind_token(map, "false",  TT_BOOLEAN);
+    bind_token(map, "not",    TT_UNOP_NOT);
+    bind_token(map, "and",    TT_BINOP_AND);
+    bind_token(map, "or",     TT_BINOP_OR);
+    bind_token(map, "import", TT_IMPORT);
+    bind_token(map, "export", TT_EXPORT);
 }
 
 token_t lookup_alpha_token(tokenizer_state_t* state) {
@@ -151,42 +151,42 @@ token_t lookup_alpha_token(tokenizer_state_t* state) {
         lp_is(LCAT_LETTER|LCAT_UNDERSCORE|LCAT_NUMBER));
     assert(len > 0 && "unexpected sweep_while progress");
     state->cursor = start + len;
-    srcref_t ref = srcref(state->buffer, start, len);
-    srcmap_value_t* lookup_result = srcmap_lookup(&state->kw_map_alpha, ref);
+    srcref_t ref = srcref(state->source, start, len);
+    sstr_t sstr = srcref_as_sstr(ref);
+    srcmap_value_t* lookup_result = srcmap_lookup(&state->kw_map_alpha, sstr);
+    token_type_t token_type = lookup_result != NULL
+        ? lookup_result->data
+        : TT_SYMBOL;
     return (token_t) {
         .ref = ref,
-        .type = lookup_result != NULL ? lookup_result->data : TT_SYMBOL
+        .type = token_type
     };
 }
 
-srcmap_t create_symbolic_token_map(void) {
-    srcmap_t map;
-    srcmap_init(&map, 50);
-
-    srcmap_insert(&map, srcref_const("->"), sm_val(TT_ARROW));
-    srcmap_insert(&map, srcref_const("=="), sm_val(TT_CMP_EQ));
-    srcmap_insert(&map, srcref_const("!="), sm_val(TT_CMP_NEQ));
-    srcmap_insert(&map, srcref_const("<="), sm_val(TT_CMP_LT_EQ));
-    srcmap_insert(&map, srcref_const(">="), sm_val(TT_CMP_GT_EQ));
-    srcmap_insert(&map, srcref_const("<"),  sm_val(TT_CMP_LT));
-    srcmap_insert(&map, srcref_const(">"),  sm_val(TT_CMP_GT));
-    srcmap_insert(&map, srcref_const("("),  sm_val(TT_OPEN_PAREN));
-    srcmap_insert(&map, srcref_const(")"),  sm_val(TT_CLOSE_PAREN));
-    srcmap_insert(&map, srcref_const("{"),  sm_val(TT_OPEN_CURLY));
-    srcmap_insert(&map, srcref_const("}"),  sm_val(TT_CLOSE_CURLY));
-    srcmap_insert(&map, srcref_const("["),  sm_val(TT_OPEN_SBRACKET));
-    srcmap_insert(&map, srcref_const("]"),  sm_val(TT_CLOSE_SBRACKET));
-    srcmap_insert(&map, srcref_const("="),  sm_val(TT_ASSIGN));
-    srcmap_insert(&map, srcref_const(","),  sm_val(TT_SEPARATOR));
-    srcmap_insert(&map, srcref_const("#"),  sm_val(TT_HASH_SIGN));
-    srcmap_insert(&map, srcref_const(";"),  sm_val(TT_STATEMENT_END));
-    srcmap_insert(&map, srcref_const("*"),  sm_val(TT_BINOP_MUL));
-    srcmap_insert(&map, srcref_const("/"),  sm_val(TT_BINOP_DIV));
-    srcmap_insert(&map, srcref_const("%"),  sm_val(TT_BINOP_MOD));
-    srcmap_insert(&map, srcref_const("+"),  sm_val(TT_BINOP_PLUS));
-    srcmap_insert(&map, srcref_const("-"),  sm_val(TT_BINOP_MINUS));
-
-    return map;
+void init_symbolic_token_map(srcmap_t* map) {
+    srcmap_init(map, 50);
+    bind_token(map, "->", TT_ARROW);
+    bind_token(map, "==", TT_CMP_EQ);
+    bind_token(map, "!=", TT_CMP_NEQ);
+    bind_token(map, "<=", TT_CMP_LT_EQ);
+    bind_token(map, ">=", TT_CMP_GT_EQ);
+    bind_token(map, "<",  TT_CMP_LT);
+    bind_token(map, ">",  TT_CMP_GT);
+    bind_token(map, "(",  TT_OPEN_PAREN);
+    bind_token(map, ")",  TT_CLOSE_PAREN);
+    bind_token(map, "{",  TT_OPEN_CURLY);
+    bind_token(map, "}",  TT_CLOSE_CURLY);
+    bind_token(map, "[",  TT_OPEN_SBRACKET);
+    bind_token(map, "]",  TT_CLOSE_SBRACKET);
+    bind_token(map, "=",  TT_ASSIGN);
+    bind_token(map, ",",  TT_SEPARATOR);
+    bind_token(map, "#",  TT_HASH_SIGN);
+    bind_token(map, ";",  TT_STATEMENT_END);
+    bind_token(map, "*",  TT_BINOP_MUL);
+    bind_token(map, "/",  TT_BINOP_DIV);
+    bind_token(map, "%",  TT_BINOP_MOD);
+    bind_token(map, "+",  TT_BINOP_PLUS);
+    bind_token(map, "-",  TT_BINOP_MINUS);
 }
 
 size_t get_symbolic_token_len(tokenizer_state_t* state) {
@@ -212,8 +212,9 @@ token_t lookup_symbolic_token(tokenizer_state_t* state) {
     size_t start = state->cursor;
     size_t len = get_symbolic_token_len(state);
     state->cursor = start + len;
-    srcref_t ref = srcref(state->buffer, start, len);
-    srcmap_value_t* lookup_result = srcmap_lookup(&state->kw_map_symbolic, ref);
+    srcref_t ref = srcref(state->source, start, len);
+    sstr_t sstr = srcref_as_sstr(ref);
+    srcmap_value_t* lookup_result = srcmap_lookup(&state->kw_map_symbolic, sstr);
     return (token_t) {
         .ref = ref,
         .type = lookup_result != NULL ? lookup_result->data : TT_SYMBOL
@@ -225,26 +226,28 @@ void destroy_token_map(srcmap_t* map) {
 }
 
 srcref_t get_current_srcref(tokenizer_state_t* state) {
-    size_t next_index = min(state->cursor + 1, state->buffer_size-1);
-    return srcref(state->buffer, state->cursor, next_index);
+    size_t next_index = min(state->cursor + 1, state->source->buff_length-1);
+    return srcref(state->source, state->cursor, next_index);
 }
 
 bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
 
     tokenizer_state_t state = (tokenizer_state_t) {
-        .buffer = args->text,
-        .buffer_size = args->text_length,
+        .source = args->source,
         .cursor = 0,
-        .kw_map_alpha = create_keyword_token_map(),
-        .kw_map_symbolic = create_symbolic_token_map()
+        .kw_map_alpha = {0},
+        .kw_map_symbolic = {0}
     };
 
-    if( tokens_append(collection, (token_t){TT_INITIAL, srcref(args->text, 0, 0)}) == false ) {
+    init_keyword_token_map(&state.kw_map_alpha);
+    init_symbolic_token_map(&state.kw_map_symbolic);
+
+    if( tokens_append(collection, (token_t){TT_INITIAL, srcref(args->source, 0, 0)}) == false ) {
         trace_out_of_memory_error(args->trace);
         return false;
     }
 
-    while ( state.cursor < state.buffer_size && trace_get_error_count(args->trace) == 0 ) {
+    while ( state.cursor < state.source->buff_length && trace_get_error_count(args->trace) == 0 ) {
         
         size_t last_cursor_pos = state.cursor;
         bool alloc_ok = true;

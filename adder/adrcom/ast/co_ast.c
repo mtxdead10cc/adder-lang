@@ -1,5 +1,6 @@
 #include "adrcom/ast/co_ast.h"
 #include "shared/sh_json.h"
+#include <stdlib.h>
 
 ast_t* ast_leaf(arena_t* allocator, ast_tag_t tag) {
     ast_t* node = (ast_t*) aalloc(allocator, sizeof(ast_t));
@@ -124,6 +125,7 @@ const char* ast_tag_to_string(ast_tag_t tag) {
         case AST_RETURN:                    return "AST_RETURN";
         case AST_ASSIGN:                    return "AST_ASSIGN";
         case AST__END_HIGH_LEVEL:           return "AST__END_HIGH_LEVEL";
+        case AST__COUNT:                    return "AST__COUNT";
         default:                            return "AST <UNKNOWN TAG>";
     }
 }
@@ -164,29 +166,29 @@ json_value_t* ast_to_json(arena_t* ator, ast_t* value) {
     const char* tag_name = ast_tag_to_string(value->tag);
 
     switch(value->tag) {
-        case AST_INT:    return json_value_wrapper(ator, tag_name,
-            json_number_integer(ator, value->as.value_int));
-        case AST_BOOL:   return json_value_wrapper(ator, tag_name,
+        case AST_INT:        return json_value_wrapper(ator, tag_name,
+            json_number(ator, value->as.value_int));
+        case AST_BOOL:       return json_value_wrapper(ator, tag_name,
             json_boolean(ator, value->as.value_bool));
-        case AST_CHAR:   return json_value_wrapper(ator, tag_name,
+        case AST_CHAR:       return json_value_wrapper(ator, tag_name,
             json_string(ator, &value->as.value_char, 1));
-        case AST_STRING: return json_value_wrapper(ator, tag_name,
+        case AST_STRING:     return json_value_wrapper(ator, tag_name,
             json_string(ator, 
                 srcref_ptr(value->as.srcref) + 1,
                 srcref_len(value->as.srcref) - 2));
-        case AST_FLOAT: return json_value_wrapper(ator, tag_name,
-            json_number_double(ator, value->as.value_float));
-        case AST_UNDEFINED: return json_value_wrapper(ator, tag_name,
+        case AST_FLOAT:      return json_value_wrapper(ator, tag_name,
+            json_number(ator, value->as.value_float));
+        case AST_UNDEFINED:  return json_value_wrapper(ator, tag_name,
             json_null(ator));
         case AST_SYMBOL: {
             json_value_t* obj = json_object(ator, 3);
             bool eok = obj != NULL;
             eok = eok && json_object_set(obj,
                 json_const_string(ator, "idx_start"),
-                json_number_integer(ator, value->as.srcref.idx_start));
+                json_number(ator, value->as.srcref.idx_start));
             eok = eok && json_object_set(obj,
                 json_const_string(ator, "idx_end"),
-                json_number_integer(ator, value->as.srcref.idx_end));
+                json_number(ator, value->as.srcref.idx_end));
             eok = eok && json_object_set(obj,
                 json_const_string(ator, "text"),
                 json_string(ator, 
@@ -195,15 +197,6 @@ json_value_t* ast_to_json(arena_t* ator, ast_t* value) {
             if(eok == false)
                 return NULL;
             return json_value_wrapper(ator, tag_name, obj);
-        } break;
-        case AST_ARRAY: {
-            json_value_t* array = json_array(ator, value->size > 0 ? value->size : 1);
-            for(int i = 0; i < value->size; i++) {
-                ast_t* ast_expr = value->as.items[i];
-                if(json_array_append(array, ast_to_json(ator, ast_expr)) == false)
-                    return NULL;
-            }
-            return json_value_wrapper(ator, tag_name, array);
         } break;
         default: {
             json_value_t* items = json_array(ator, value->size > 0 ? value->size : 1);
@@ -217,6 +210,93 @@ json_value_t* ast_to_json(arena_t* ator, ast_t* value) {
     }
 }
 
+typedef struct jtlut_entry_t {
+    char*       str;
+    ast_tag_t   tag;
+} jtlut_entry_t;
+
+int jtlut_cmp(const void* a, const void* b) {
+    return strcmp(
+        ((jtlut_entry_t*) a)->str,
+        ((jtlut_entry_t*) b)->str);
+}
+
+void jtlut_init(jtlut_entry_t* table, int count) {
+    for(int i = 0; i < count; i++) {
+        table[i].str = (char*) ast_tag_to_string((ast_tag_t)i) + 4;
+        table[i].tag = (ast_tag_t) i;
+    }
+    qsort(table,
+        count,
+        sizeof(jtlut_entry_t),
+        jtlut_cmp);
+}
+
+ast_tag_t jtlut_binsearch(jtlut_entry_t* table, char* str, int sta, int end) {
+    
+    int dif = end - sta;
+    if( dif <= 6 ) {
+        for(int i = sta; i <= end; i++) {
+            if(jtlut_cmp(str, table[i].str) == 0)
+                return table[i].tag;
+        }
+        return AST_UNDEFINED;
+    }
+
+    int mid = sta + (dif / 2);
+    int cmp = jtlut_cmp(str, table[mid].str);
+    if(cmp < 0)
+        return jtlut_binsearch(table, str, sta, mid);
+    else if(cmp > 0)
+        return jtlut_binsearch(table, str, mid, end);
+    else
+        return table[mid].tag;
+
+}
+
+ast_tag_t ast_tag_from_json(jtlut_entry_t* table, json_value_t* json) {
+    if(json_is_object(json) == false)
+        return AST_UNDEFINED;
+    json_value_t* jtag = json_object_get(json, "tag");
+    if(json_is_string(jtag) == false)
+        return AST_UNDEFINED;
+    return jtlut_binsearch(table, jtag->as.string.text, 0, AST__COUNT);
+}
+
+ast_t* ast_from_json_internal(arena_t* ator, jtlut_entry_t* table, json_value_t* json) {
+
+    ast_tag_t tag = ast_tag_from_json(table, json);
+
+    if(ast_tag_is_value(tag)) {
+        json_value_t* jval = json_object_get(json, "value");
+
+        if(json_is_number(jval)) {
+            if(tag == AST_INT)
+                return ast_int(ator, (int) jval->as.number);
+            else if (tag == AST_FLOAT)
+                return ast_float(ator, jval->as.number);
+            else
+                assert(false); // return error here
+        }
+
+        /*if(json_is_string(jval)) { // how to handle srcrefs?
+            if(tag == AST_STRING)
+                return ast_string(ator, );
+            else if (tag == AST_SYMBOL)
+                return ast_float(ator, );
+            else
+                assert(false); // return error here
+        }*/
+    }
+
+    return NULL;
+}
+
+ast_t* ast_from_json(arena_t* ator, json_value_t* json) {
+    jtlut_entry_t table[AST__COUNT] = {0};
+    jtlut_init(table, AST__COUNT);
+    return ast_from_json_internal(ator, table, json);
+}
 
 void ast_print(ast_t* node) {
     arena_t* arena = arena_create(512);
@@ -225,5 +305,279 @@ void ast_print(ast_t* node) {
     sh_log(jstr);
     free(jstr);
     arena_destroy(arena);
+}
+
+bool ast_tag_is_unop(ast_tag_t tag) {
+    return tag > AST__BEGIN_UNARY_OPERATORS
+        && tag < AST__END_UNARY_OPERATORS;
+}
+
+bool ast_is_unop(ast_t* node) {
+    return ast_tag_is_unop(node->tag);
+}
+
+bool ast_tag_is_binop(ast_tag_t tag) {
+    return tag > AST__BEGIN_BINARY_OPERATORS
+        && tag < AST__END_BINARY_OPERATORS;
+}
+
+bool ast_is_binop(ast_t* node) {
+    return ast_tag_is_binop(node->tag);
+}
+
+bool ast_tag_is_value(ast_tag_t tag) {
+    return tag > AST__BEGIN_VALUES
+        && tag < AST__END_VALUES;
+}
+
+bool ast_is_value(ast_t* node) {
+    return ast_tag_is_value(node->tag);
+}
+
+bool ast_tag_is_list(ast_tag_t tag) {
+    return tag == AST_ARRAY
+        || tag == AST_BLOCK
+        || tag == AST_ARGLIST;
+}
+
+bool ast_is_list(ast_t* node) {
+    return ast_tag_is_list(node->tag);
+}
+
+bool ast_is_valid_else_block(ast_t* node) {
+    if( node == NULL )
+        return false;
+    return node->tag == AST_BLOCK
+        && node->size > 0;
+}
+
+/////////////// BUILDERS /////////////////
+
+ast_t* ast_int(arena_t* arena, int value) {
+    ast_t* node = ast_leaf(arena, AST_INT);
+    node->as.value_int = value;
+    return node;
+}
+
+ast_t* ast_float(arena_t* arena, float value) {
+    ast_t* node = ast_leaf(arena, AST_FLOAT);
+    node->as.value_float = value;
+    return node;
+}
+
+ast_t* ast_bool(arena_t* arena, bool value) {
+    ast_t* node = ast_leaf(arena, AST_BOOL);
+    node->as.value_bool = value;
+    return node;
+}
+
+ast_t* ast_char(arena_t* arena, char value) {
+    ast_t* node = ast_leaf(arena, AST_CHAR);
+    node->as.value_char = value;
+    return node;
+}
+
+ast_t* ast_string(arena_t* arena, srcref_t value) {
+    ast_t* node = ast_leaf(arena, AST_STRING);
+    node->as.srcref = value;
+    return node;
+}
+
+ast_t* ast_symbol(arena_t* arena, srcref_t value) {
+    assert(srcref_is_valid(value));
+    ast_t* node = ast_leaf(arena, AST_SYMBOL);
+    node->as.srcref = value;
+    return node;
+}
+
+ast_t* ast_variable_reference(arena_t* arena, srcref_t ref) {
+    assert(srcref_is_valid(ref));
+    ast_t* n = ast(arena, AST_VARREF, 1);
+    n->as.items[AST_VARREF_SYMBOL] = ast_symbol(arena, ref);
+    return n;
+}
+
+ast_t* ast_variable_declaration(arena_t* arena, ast_t* type, ast_t* varref) {
+    ast_t* n = ast(arena, AST_VARDECL, 2);
+    n->as.items[AST_VARDECL_TYDESCR] = type;
+    n->as.items[AST_VARDECL_VARREF] = varref;
+    return n;
+}
+
+ast_t* _ast_list(arena_t* arena, ast_tag_t tag) {
+    assert(ast_tag_is_list(tag));
+    ast_t* node = ast(arena, tag, 0);
+    return node;
+}
+
+bool _ast_list_append(arena_t* arena, ast_t* list, ast_t* value) {
+
+    if( list == NULL )
+        return false;
+
+    if( ast_is_list(list) == false )
+        return false;
+
+    int capacity = ast_calculate_capacity(list->size);
+    if( capacity <= 0 )
+        return false;
+
+    if( capacity == list->size ) {
+        ptrdiff_t newcap = ast_calculate_capacity(list->size + 1);
+        assert(list->size >= 0 && newcap > list->size);
+        ast_t** items = arealloc(arena,
+            list->as.items,
+            sizeof(ast_t*) * newcap);
+        if( items == NULL )
+            return false;
+        list->as.items = items;
+    }
+    
+    list->as.items[list->size] = value;
+    list->size += 1;
+
+    return true;
+}
+
+ast_t* ast_array(arena_t* arena) {
+    return _ast_list(arena, AST_ARRAY);
+}
+
+bool ast_array_append(arena_t* arena, ast_t* array, ast_t* value) {
+    return _ast_list_append(arena, array, value);
+}
+
+ast_t* ast_arglist(arena_t* arena) {
+    return _ast_list(arena, AST_ARGLIST);
+}
+
+bool ast_arglist_append(arena_t* arena, ast_t* args, ast_t* value) {
+    return _ast_list_append(arena, args, value);
+}
+
+ast_t* ast_block(arena_t* arena) {
+    return _ast_list(arena, AST_BLOCK);
+}
+
+bool ast_block_append(arena_t* arena, ast_t* block, ast_t* value) {
+    return _ast_list_append(arena, block, value);
+}
+
+ast_t* ast_function_call(arena_t* arena, srcref_t name, ast_t* arglist) {
+    assert(srcref_is_valid(name));
+    assert(arglist->tag == AST_ARGLIST);
+    ast_t* n = ast(arena, AST_FUNCALL, 2);
+    n->as.items[AST_FUNCALL_SYMBOL] = ast_symbol(arena, name);
+    n->as.items[AST_FUNCALL_ARGLIST] = arglist;
+    return n;
+}
+
+ast_t* ast_unary_operation(arena_t* arena, ast_tag_t op, ast_t* inner) {
+    assert(ast_tag_is_unop(op));
+    ast_t* n = ast(arena, op, 1);
+    n->as.items[AST_UNAOP_INNER] = inner;
+    return n;
+}
+
+ast_t* ast_binary_operation(arena_t* arena, ast_tag_t op, ast_t* left, ast_t* right) {
+    assert(ast_tag_is_binop(op));
+    ast_t* n = ast(arena, op, 2);
+    n->as.items[AST_BINOP_LEFT] = left;
+    n->as.items[AST_BINOP_RIGHT] = right;
+    return n;
+}
+
+ast_t* ast_type_descriptor(arena_t* arena, srcref_t name, ast_t* arglist) {
+    assert(srcref_is_valid(name));
+    if(arglist == NULL)
+        arglist = ast_arglist(arena);
+    assert(arglist->tag == AST_ARGLIST);
+    ast_t* n = ast(arena, AST_TYDESCR, 2);
+    n->as.items[AST_TYDESCR_SYMBOL] = ast_symbol(arena, name);
+    n->as.items[AST_TYDESCR_ARGLIST] = arglist;
+    return n;
+}
+
+ast_t* ast_assignment(arena_t* arena, ast_t* left, ast_t* right) {
+    ast_t* n = ast(arena, AST_ASSIGN, 2);
+    n->as.items[AST_ASSIGN_LEFT] = left;
+    n->as.items[AST_ASSIGN_RIGHT] = right;
+    return n;
+}
+
+ast_t* ast_if_chain(arena_t* arena, ast_t* condition, ast_t* if_true, ast_t* if_next) {
+    ast_t* n = ast(arena, AST_IFCHAIN, 3);
+    n->as.items[AST_IFCHAIN_COND] = condition;
+    n->as.items[AST_IFCHAIN_IFTRUE] = if_true;
+    n->as.items[AST_IFCHAIN_IFNEXT] = if_next;
+    return n;
+}
+
+ast_t* ast_foreach(arena_t* arena, ast_t* var, ast_t* collection, ast_t* loop_body) {
+    assert(var->tag == AST_VARREF || var->tag == AST_VARDECL);
+    //assert(loop_body->tag == AST_BLOCK);
+    ast_t* n = ast(arena, AST_FOREACH, 3);
+    n->as.items[AST_FOREACH_VAR] = var;
+    n->as.items[AST_FOREACH_COLL] = collection;
+    n->as.items[AST_FOREACH_BODY] = loop_body;
+    return n;
+}
+
+ast_t* ast_return(arena_t* arena, ast_t* return_expr) {
+    ast_t* n = ast(arena, AST_RETURN, 1);
+    n->as.items[AST_RETURN_EXPR] = return_expr;
+    return n;
+}
+
+ast_t* ast_function_signature(arena_t* arena, ast_t* type, srcref_t name, ast_t* arglist, int ffistate) {
+    assert(srcref_is_valid(name));
+    assert(arglist->tag == AST_ARGLIST);
+    ast_t* n = ast(arena, AST_FUNSIGN, 4);
+    n->as.items[AST_FUNSIGN_TYDESCR] = type;
+    n->as.items[AST_FUNSIGN_SYMBOL] = ast_symbol(arena, name);
+    n->as.items[AST_FUNSIGN_ARGLIST] = arglist;
+    n->as.items[AST_FUNSIGN_FFI] = ast_int(arena, ffistate);
+    return n;
+}
+
+ast_t* ast_function_definition(arena_t* arena, ast_t* funsign, ast_t* body) {
+    assert(funsign->tag == AST_FUNSIGN);
+    assert(body->tag == AST_BLOCK);
+    ast_t* n = ast(arena, AST_FUNDEFN, 2);
+    n->as.items[AST_FUNDEFN_FUNSIGN] = funsign;
+    n->as.items[AST_FUNDEFN_BODY] = body;
+    return n;
+}
+
+void ast_set_exported(ast_t* n) {
+    if(n->tag == AST_FUNDEFN)
+        n = n->as.items[AST_FUNDEFN_FUNSIGN];
+    if(n->tag == AST_FUNSIGN)
+        n->as.items[AST_FUNSIGN_FFI]->as.value_int = AST_FUNSIGN_FFI_VAL_EXPORT;
+}
+
+void ast_set_imported(ast_t* n) {
+    if(n->tag == AST_FUNDEFN)
+        n = n->as.items[AST_FUNDEFN_FUNSIGN];
+    if(n->tag == AST_FUNSIGN)
+        n->as.items[AST_FUNSIGN_FFI]->as.value_int = AST_FUNSIGN_FFI_VAL_IMPORT;
+}
+
+bool ast_is_exported(ast_t* n) {
+    int ffi_state = 0;
+    if(n->tag == AST_FUNDEFN)
+        n = n->as.items[AST_FUNDEFN_FUNSIGN];
+    if(n->tag == AST_FUNSIGN)
+        ffi_state = n->as.items[AST_FUNSIGN_FFI]->as.value_int;
+    return ffi_state == AST_FUNSIGN_FFI_VAL_EXPORT;
+}
+
+bool ast_is_imported(ast_t* n) {
+        int ffi_state = 0;
+    if(n->tag == AST_FUNDEFN)
+        n = n->as.items[AST_FUNDEFN_FUNSIGN];
+    if(n->tag == AST_FUNSIGN)
+        ffi_state = n->as.items[AST_FUNSIGN_FFI]->as.value_int;
+    return ffi_state == AST_FUNSIGN_FFI_VAL_IMPORT;
 }
 

@@ -160,53 +160,67 @@ inline static sstr_t sstr(char* str) {
     return sstr;
 }
 
-inline static int sstr_len(sstr_t* sstr) {
+inline static int sstr_len(sstr_t sstr) {
+    return strnlen(sstr.str, SSTR_MAX_LEN);
+}
+
+inline static int sstr_plen(sstr_t* sstr) {
     return strnlen(sstr->str, SSTR_MAX_LEN);
 }
 
-inline static bool sstr_equal_str(sstr_t* sstr, char* str) {
-    if( sstr->str[0] != str[0] )
+inline static bool sstr_equal_str(sstr_t sstr, char* str) {
+    if( sstr.str[0] != str[0] )
         return false;
     size_t len = sstr_len(sstr);
     if( len != strnlen(str, SSTR_MAX_LEN) )
         return false;
-    return strncmp(sstr->str, str, len) == 0;
+    return strncmp(sstr.str, str, len) == 0;
 }
 
-inline static bool sstr_equal(sstr_t* a, sstr_t* b) {
-    if( a->str[0] != b->str[0] )
+inline static bool sstr_equal(sstr_t a, sstr_t b) {
+    if( a.str[0] != b.str[0] )
         return false;
     int len = sstr_len(a);
     if( len != sstr_len(b) )
         return false;
-    return strncmp(a->str, b->str, len) == 0;
+    return strncmp(a.str, b.str, len) == 0;
 }
 
-inline static char* sstr_ptr(sstr_t* sstr) {
+inline static char* sstr_pptr(sstr_t* sstr) {
     return sstr->str;
 }
 
-inline static void sstr_copy(sstr_t* dest, sstr_t* src) {
+#define sstr_ptr(SSTR) ((SSTR).str)
+
+inline static bool sstr_is_empty(sstr_t sstr) {
+    return sstr.str[0] == '\0';
+}
+
+inline static void sstr_pcopy(sstr_t* dest, sstr_t* src) {
     memcpy(dest->str, src->str, SSTR_MAX_LEN);
 }
 
-inline static void sstr_replace(sstr_t* sstr, char* text) {
+inline static void sstr_preplace(sstr_t* sstr, char* text) {
     memcpy(sstr->str, text, strnlen(text, SSTR_MAX_LEN));
 }
 
-inline static void sstr_clear(sstr_t* sstr) {
+inline static void sstr_pclear(sstr_t* sstr) {
     memset(sstr->str, 0, SSTR_MAX_LEN);
 }
 
-inline static int sstr_index_of(sstr_t* sstr, char c) {
+inline static int sstr_compare(sstr_t a, sstr_t b) {
+    return strncmp(a.str, b.str, SSTR_MAX_LEN);
+}
+
+inline static int sstr_index_of(sstr_t sstr, char c) {
     for(int i = 0; i < SSTR_MAX_LEN; i++) {
-        if( sstr->str[i] == c )
+        if( sstr.str[i] == c )
             return i;
     }
     return -1;
 }
 
-inline static sstr_t sstr_substr(sstr_t* sstr, int start, int end) {
+inline static sstr_t sstr_substr(sstr_t sstr, int start, int end) {
     if( end > SSTR_MAX_LEN )
         end = SSTR_MAX_LEN;
     int count = end - start;
@@ -214,16 +228,16 @@ inline static sstr_t sstr_substr(sstr_t* sstr, int start, int end) {
         return (sstr_t) { 0 };
     sstr_t res = { 0 };
     for(int i = 0; i < count; i++) {
-        res.str[i] = sstr->str[i + start];
+        res.str[i] = sstr.str[i + start];
     }
     return res;
 }
 
-inline static int sstr_append(sstr_t* on, sstr_t* addition) {
+inline static int sstr_pappend(sstr_t* on, sstr_t* addition) {
     if( on == NULL )
         return -SSTR_MAX_LEN;
-    int offs = sstr_len(on);
-    int addlen = (int) sstr_len(addition);
+    int offs = sstr_plen(on);
+    int addlen = (int) sstr_plen(addition);
     int remaining = SSTR_MAX_LEN - (offs + addlen);
     int len = STR_MIN(SSTR_MAX_LEN - offs, addlen);
     if( len > 0 )
@@ -231,10 +245,10 @@ inline static int sstr_append(sstr_t* on, sstr_t* addition) {
     return remaining;
 }
 
-inline static int sstr_append_str(sstr_t* on, char* addition) {
+inline static int sstr_pappend_str(sstr_t* on, char* addition) {
     if( on == NULL )
         return -SSTR_MAX_LEN;
-    int offs = sstr_len(on);
+    int offs = sstr_plen(on);
     int addlen = strnlen(addition, SSTR_MAX_LEN);
     int remaining = SSTR_MAX_LEN - (offs + addlen);
     int len = STR_MIN(SSTR_MAX_LEN - offs, addlen);
@@ -243,10 +257,10 @@ inline static int sstr_append_str(sstr_t* on, char* addition) {
     return remaining;
 }
 
-inline static int sstr_append_nstr(sstr_t* on, char* addition, int addlen) {
+inline static int sstr_pappend_nstr(sstr_t* on, char* addition, int addlen) {
     if( on == NULL )
         return -SSTR_MAX_LEN;
-    int offs = sstr_len(on);
+    int offs = sstr_plen(on);
     int remaining = SSTR_MAX_LEN - (offs + addlen);
     int len = STR_MIN(SSTR_MAX_LEN - offs, addlen);
     if( len > 0 )
@@ -254,10 +268,10 @@ inline static int sstr_append_nstr(sstr_t* on, char* addition, int addlen) {
     return remaining;
 }
 
-inline static int sstr_append_fmt(sstr_t* on, const char* fmt, ...) {
+inline static int sstr_pappend_fmt(sstr_t* on, const char* fmt, ...) {
     if( on == NULL )
         return -SSTR_MAX_LEN;
-    int len = (int) sstr_len(on);
+    int len = (int) sstr_plen(on);
     int remaining = SSTR_MAX_LEN - len;
     va_list args;
     va_start(args, fmt);
@@ -269,182 +283,6 @@ inline static int sstr_append_fmt(sstr_t* on, const char* fmt, ...) {
     va_end(args);
     return remaining;
 }
-
-
-////////////// SRCREF ////////////////
-
-typedef struct srcref_t {
-    char*   source;
-    size_t  idx_start;
-    size_t  idx_end;
-} srcref_t;
-
-#define srcref_is_valid(REF) ((REF).source != NULL)
-
-inline static srcref_t srcref(char* text, size_t start, size_t len) {
-    return (srcref_t) {
-        .idx_start = start,
-        .idx_end = start + len,
-        .source = text
-    };
-}
-
-inline static srcref_t srcref_const(const char* text) {
-    return (srcref_t) {
-        .idx_start = 0,
-        .idx_end = strlen(text),
-        .source = (char*) text
-    };
-}
-
-inline static srcref_t srcref_combine(srcref_t a, srcref_t b) {
-    if( srcref_is_valid(a) == false )
-        return b;
-    if( srcref_is_valid(b) == false )
-        return a;
-    if( a.source != b.source )
-        return (srcref_t) { 0 };
-    //assert(a.source == b.source && "can't combine srcres from different sources");
-    return (srcref_t) {
-        .idx_end    = (a.idx_end > b.idx_end)       ? a.idx_end     : b.idx_end,
-        .idx_start  = (a.idx_start < b.idx_start)   ? a.idx_start   : b.idx_start,
-        .source     = a.source
-    };
-}
-
-inline static size_t srcref_len(srcref_t ref) {
-    if( ref.idx_end >= ref.idx_start )
-        return ref.idx_end - ref.idx_start;
-    else
-        return 0;
-}
-
-inline static char* srcref_ptr(srcref_t ref) {
-    if( srcref_is_valid(ref) == false )
-        return NULL;
-    return ref.source + ref.idx_start;
-}
-
-
-inline static void srcref_sprint(cstr_t str, srcref_t ref) {
-    if( srcref_is_valid(ref) ) { 
-        size_t len = srcref_len(ref);
-        char buf[len + 1];
-        strncpy(buf, srcref_ptr(ref), len);
-        buf[len] = '\0';
-        cstr_append_fmt(str, "%s", buf);
-    } else {
-        cstr_append_fmt(str, "<invalid-srcref>");
-    }
-}
-
-inline static bool srcref_equals(srcref_t a, srcref_t b) {
-    if( srcref_is_valid(a) == false
-     || srcref_is_valid(b) == false )
-        return false;
-    size_t len = srcref_len(a);
-    if( len != srcref_len(b) )
-        return false;
-    char* a_str = srcref_ptr(a);
-    char* b_str = srcref_ptr(b);
-    return strncmp(a_str, b_str, len) == 0;
-}
-
-inline static bool srcref_equals_string(srcref_t a, const char* b_str) {
-    if( srcref_is_valid(a) == false )
-        return false;
-    size_t len = srcref_len(a);
-    if( len != strlen(b_str) )
-        return false;
-    char* a_str = srcref_ptr(a);
-    return strncmp(a_str, b_str, len) == 0;
-}
-
-inline static bool srcref_contains_char(srcref_t ref, char c) {
-    if( srcref_is_valid(ref) == false )
-        return false;
-    size_t len = srcref_len(ref);
-    char* ptr = srcref_ptr(ref);
-    for(size_t i = 0; i < len; i++) {
-        if(ptr[i] == c)
-            return true;
-    }
-    return false;
-}
-
-inline static bool srcref_as_float(srcref_t ref, float* value) {
-    if( srcref_is_valid(ref) == false )
-        return false;
-    size_t len = srcref_len(ref);
-    char buf[len+1];
-    strncpy(buf, ref.source + ref.idx_start, len);
-    buf[len] = '\0';
-    if( sscanf(buf, "%f", value) > 0 ) {
-        return true;
-    }
-    return false;
-}
-
-inline static bool srcref_as_bool(srcref_t ref, bool* value) {
-    if( srcref_is_valid(ref) == false )
-        return false;
-    if(srcref_equals_string(ref, "true")) {
-        *value = true;
-        return true;
-    } else if(srcref_equals_string(ref, "false")) {
-        *value = false;
-        return true;
-    }
-    return false;
-}
-
-inline static int srcref_snprint(char* str, size_t slen, srcref_t ref) {
-    if( srcref_is_valid(ref) )
-        return snprintf(str, slen, "%.*s", (int) srcref_len(ref), srcref_ptr(ref));
-    else
-        return snprintf(str, slen, "<invalid-srcref>");
-}
-
-inline static sstr_t srcref_as_sstr(srcref_t ref) {
-    sstr_t sstr = {0};
-    if( srcref_is_valid(ref) == false )
-        return sstr;
-    size_t len = STR_MIN(srcref_len(ref), SSTR_MAX_LEN);
-    strncpy(sstr.str, srcref_ptr(ref), len);
-    return sstr;
-}
-
-inline static bool srcref_starts_with_string(srcref_t a, const char* prefix) {
-    if( srcref_is_valid(a) == false )
-        return false;
-    return strncmp(srcref_ptr(a), prefix, strnlen(prefix, srcref_len(a))) == 0;
-}
-
-inline static bool srcref_ends_with_string(srcref_t a, const char* suffix) {
-    if( srcref_is_valid(a) == false )
-        return false;
-    size_t rlen = srcref_len(a);
-    size_t slen = strnlen(suffix, rlen);
-    size_t offs = rlen - slen;
-    return strncmp(srcref_ptr(a) + offs, suffix, rlen) == 0;
-}
-
-inline static srcref_t srcref_trim_left(srcref_t a, size_t len) {
-    if(srcref_len(a) >= len)
-        a.idx_start += len;
-    else
-        a.idx_start = a.idx_end;
-    return a;
-}
-
-inline static srcref_t srcref_trim_right(srcref_t a, size_t len) {
-    if(srcref_len(a) >= len)
-        a.idx_end -= len;
-    else
-        a.idx_end = a.idx_start;
-    return a;
-}
-
 
 
 #endif // STR_H_

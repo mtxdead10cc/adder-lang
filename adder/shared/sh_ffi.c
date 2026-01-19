@@ -37,7 +37,7 @@ bool ffi_init(ffi_t* ffi) {
 int ffi_native_exports_index_of(ffi_native_exports_t* host, sstr_t name) {
     int count = host->count;
     for(int i = 0; i < count; i++) {
-        if( sstr_equal(&host->def[i].name, &name) )
+        if( sstr_equal(host->def[i].name, name) )
             return i;
     }
     return -1;
@@ -86,7 +86,7 @@ ift_t* ffi_native_exports_get_type(ffi_native_exports_t* host, sstr_t name) {
 int ffi_definition_set_index_of(ffi_definition_set_t* set, sstr_t name) {
     int count = set->count;
     for(int i = 0; i < count; i++) {
-        if( sstr_equal(&set->def[i].name, &name) )
+        if( sstr_equal(set->def[i].name, name) )
             return i;
     }
     return -1;
@@ -153,9 +153,9 @@ void ffi_print(ffi_t* ffi) {
     for(int i = 0; i < ffi->supplied.count; i++) {
         sstr_t v = ift_type_to_sstr(ffi->supplied.def[i].type);
         sh_log_info("\t%.*s: %.*s\n",
-            sstr_len(&ffi->supplied.def[i].name),
-            sstr_ptr(&ffi->supplied.def[i].name),
-            sstr_len(&v),
-            sstr_ptr(&v));
+            sstr_len(ffi->supplied.def[i].name),
+            sstr_ptr(ffi->supplied.def[i].name),
+            sstr_len(v),
+            sstr_ptr(v));
     }
 }

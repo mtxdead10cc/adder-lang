@@ -6,6 +6,7 @@
 #include <adrcom/ast/co_ast.h>
 
 #include <shared/sh_types.h>
+#include <shared/sh_src.h>
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -13,7 +14,7 @@
 #include <limits.h>
 #include <stdio.h>
 
-pa_result_t pa_init(parser_t* parser, arena_t* arena, trace_t* trace, char* text, size_t text_length, char* filepath);
+pa_result_t pa_init(parser_t* parser, arena_t* arena, trace_t* trace, src_t* source);
 void        pa_destroy(parser_t* parser);
 
 bool        pa_is_at_end(parser_t* parser);

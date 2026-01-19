@@ -24,7 +24,6 @@ inline static bool trace_init(trace_t* trace, size_t capacity) {
     trace->messages = messages;
     trace->message_count = 0;
     trace->message_capacity = capacity;
-    trace->current_source_path = NULL;
     trace->error_count = 0;
     return true;
 }
@@ -34,10 +33,6 @@ inline static void trace_destroy(trace_t* trace) {
         free(trace->messages);
     }
     memset(trace, 0, sizeof(trace_t));
-}
-
-inline static void trace_set_current_source_path(trace_t* trace, char* path) {
-    trace->current_source_path = path;
 }
 
 inline static srcref_t trace_no_ref(void) {
@@ -57,7 +52,7 @@ inline static trace_msg_t* trace_create_message(trace_t* trace, trace_msg_type_t
     msg->type = type;
     if( type >= TM_ERROR )
         trace->error_count ++;
-    msg->source_path = trace->current_source_path;
+    msg->source_path = src_loc.src->path;
     msg->source_location = src_loc;
     msg->length = 0;
     return msg;
@@ -118,8 +113,8 @@ inline static int trace_msg_append_srcref(trace_msg_t* msg, srcref_t ref) {
 
 inline static int trace_msg_append_sstr(trace_msg_t* msg, sstr_t* sstr) {
     return trace_msg_append(msg,
-        sstr_ptr(sstr),
-        sstr_len(sstr));
+        sstr_pptr(sstr),
+        sstr_plen(sstr));
 }
 
 inline static int trace_msg_append_ift_type(trace_msg_t* msg, ift_t type) {
@@ -129,7 +124,7 @@ inline static int trace_msg_append_ift_type(trace_msg_t* msg, ift_t type) {
 
 inline static int trace_sprint_location(cstr_t cstr, srcref_t ref, char* filepath) {
 
-    if( ref.source == NULL ) {
+    if( ref.src == NULL ) {
         return 0;
     }
 
@@ -143,7 +138,7 @@ inline static int trace_sprint_location(cstr_t cstr, srcref_t ref, char* filepat
     size_t column = 0;
 
     for (size_t i = 0; i < ref.idx_start; i++) {
-        if(ref.source[i] == '\n') {
+        if(ref.src->buff[i] == '\n') {
             line ++;
             column = 0;
         } else {

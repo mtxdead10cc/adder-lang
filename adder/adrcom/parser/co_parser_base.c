@@ -17,27 +17,23 @@
 #include <stdlib.h>
 #include <string.h>
 
-pa_result_t pa_init(parser_t* parser, arena_t* arena, trace_t* trace, char* text, size_t text_length, char* filepath) {
+pa_result_t pa_init(parser_t* parser, arena_t* arena, trace_t* trace, src_t* source) {
 
     parser->trace = trace;
-
-    trace_set_current_source_path(trace, filepath);
     
     if( tokens_init(&parser->collection, 16) == false ) {
         trace_out_of_memory_error(trace);
         return par_error();
     }
 
-    if( text == NULL ) {
+    if( source == NULL ) {
         trace_msg_t* msg = trace_create_message(trace, TM_ERROR, trace_no_ref());
         trace_msg_append_costr(msg, "the input text buffer pointer was null.");
         return par_error();
     }
 
     tokenizer_args_t args = (tokenizer_args_t) {
-        .filepath = filepath,
-        .text = text,
-        .text_length = text_length,
+        .source = source,
         .include_comments = false,
         .include_spaces = false,
         .trace = trace

@@ -95,122 +95,43 @@ time_t program_file_get_modtime(char *file_path) {
 source_code_t program_source_from_memory(char* source_code, int length) {
 
     source_code_t src = (source_code_t) {
-        .file_path = (char*) malloc( 16 * sizeof(char) ),
         .modtime = 0UL,
-        .source_code = (char*) malloc( length * sizeof(char) ),
-        .source_length = length   
+        .source = src_create("memory-buffer", source_code, length)
     };
 
-    // i'm fine with using goto for error handling in C
-    if( src.file_path == NULL || src.source_code == NULL )
-        goto alloc_failed;
-    strncpy(src.file_path, "memory-buffer", 14);
-    strncpy(src.source_code, source_code, length);
+    if( src.source == NULL )
+        return (source_code_t) {0};
+
     return src;
-
-alloc_failed:
-
-    if( src.file_path != NULL )
-        free(src.file_path);
-    if( src.source_code != NULL )
-        free(src.source_code);
-    return (source_code_t) { 0 };
 }
 
 source_code_t program_source_read_from_file(char* file_path) {
 
-    FILE* f = fopen(file_path, "r");
-    
-    if( f == NULL ) {
-        sh_log_error("program_source_read_from_file: file not found\n\t%s", file_path);
-        return (source_code_t) { 0 };
+    src_t* source = src_load(file_path);
+
+    if(source == NULL) {
+        sh_log_error("program_source_read_from_file: failed to load source");
+        return (source_code_t) {0};
     }
-
-    char *source_text = malloc(1);
-    long source_length = 0L;
-    int retry_counter = 100; 
-    while( retry_counter > 0 ) {
-        fseek(f, 0, SEEK_END);
-        long fsize = ftell(f);
-        fseek(f, 0, SEEK_SET);
-        source_text = realloc(source_text, fsize + 1);
-        if( fread(source_text, fsize, 1, f) > 0 ) {
-            retry_counter = -10;
-            source_text[fsize] = '\0';
-            source_length = fsize;
-        } else {
-            usleep(100000);
-            retry_counter --;
-        }
-    }
-
-    fclose(f);
-
-    if( retry_counter == 0 ) {
-        sh_log_error("program_source_read_from_file: failed to read file\n\t%s", file_path);
-        if( source_text != NULL )
-            free(source_text);
-        return (source_code_t) { 0 };
-    }
-
-    if( source_length <= 0 || source_length > INT32_MAX ) {
-        sh_log_error("program_source_read_from_file: the file was too large "
-            "(todo: fix source_code_t etc.)\n\t%s",
-            file_path);
-        if( source_text != NULL )
-            free(source_text);
-        return (source_code_t) { 0 };
-    }
-
-    size_t path_length = strnlen(file_path, 2048);
-    char* path_clone = (char*) malloc((path_length + 1) * sizeof(char));
-
-    if( path_length == 2048 || path_clone == NULL ) {
-        sh_log_error("program_source_read_from_file: failed to create a copy of the file path\n");
-        if( path_clone != NULL )
-            free(path_clone);
-        if( source_text != NULL )
-            free(source_text);
-        return (source_code_t) { 0 };
-    }
-
-    memset(path_clone, 0, (path_length + 1) * sizeof(char));
-    strncpy(path_clone, file_path, path_length);
 
     return (source_code_t) {
-        .file_path = path_clone,
         .modtime = program_file_get_modtime(file_path),
-        .source_code = source_text,
-        .source_length = (int) source_length
+        .source = source
     };
 }
 
 bool program_source_is_valid(source_code_t* code) {
     if( code == NULL )
         return false;
-    if( code->source_length <= 0 )
-        return false;
-    if( code->source_code == NULL )
-        return false;
-    if( code->file_path == NULL )
+    if( code->source == NULL )
         return false;
     return true;
 }
 
 void program_source_free(source_code_t* code) {
-
     if( code == NULL )
         return;
-
-    if( code->source_code != NULL )
-        free(code->source_code);
-    
-    code->source_code = NULL;
-
-    if( code->file_path != NULL )
-        free(code->file_path);
-    
-    code->file_path = NULL;
+    src_destroy(code->source);
 }
 
 program_t program_compile(source_code_t* code, bool print_ast) {
@@ -232,9 +153,7 @@ program_t program_compile(source_code_t* code, bool print_ast) {
     pa_result_t result = pa_init(&parser,
         arena,
         &trace,
-        code->source_code,
-        code->source_length,
-        code->file_path);
+        code->source);
 
     if( par_is_error(result) ) {
         define_cstr(str, 2048);

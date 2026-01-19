@@ -464,15 +464,15 @@ typedef struct res_t {
     int index;
 } res_t;
 
-int srcrefcmp(char* actual, srcref_t ref) {
+int srcrefcmp(char* actual, sstr_t* sstr) {
     int actual_len = strlen(actual);
-    int ref_len = srcref_len(ref);
+    int ref_len = sstr_plen(sstr);
     if( actual_len == ref_len )
-        return strncmp(actual, srcref_ptr(ref), ref_len);
+        return strncmp(actual, sstr_pptr(sstr), ref_len);
     return ref_len - actual_len;
 }
 
-res_t bty_ctx_binsearch(bty_ctx_kvp_t* kvps, int low, int high, srcref_t name) {
+res_t bty_ctx_binsearch(bty_ctx_kvp_t* kvps, int low, int high, sstr_t* name) {
     if ( high >= low ) {
         int mid = low + (high - low) / 2;
         if (srcrefcmp(kvps[mid].name, name) == 0)
@@ -507,17 +507,17 @@ void bty_ctx_make_room_at(bty_ctx_t* ctx, int index) {
     ctx->size++;
 }
 
-bool bty_ctx_insert(bty_ctx_t* ctx, srcref_t name, bty_type_t* type) {
+bool bty_ctx_insert(bty_ctx_t* ctx, sstr_t name, bty_type_t* type) {
 
     if( bty_ctx_ensure_capacity(ctx, 1) == false )
         return false;
 
-    res_t res = bty_ctx_binsearch(ctx->kvps, 0, (int) ctx->size - 1, name);
+    res_t res = bty_ctx_binsearch(ctx->kvps, 0, (int) ctx->size - 1, &name);
     if( res.found == false ) {
         bty_ctx_make_room_at(ctx, res.index);
         ctx->kvps[res.index] = (bty_ctx_kvp_t) {
             .name = asprint(ctx->arena, "%.*s",
-                (int) srcref_len(name), srcref_ptr(name)),
+                (int) sstr_len(name), sstr_ptr(name)),
             .type = type
         };
         return true;
@@ -526,8 +526,8 @@ bool bty_ctx_insert(bty_ctx_t* ctx, srcref_t name, bty_type_t* type) {
     return false;
 }
 
-bty_type_t* bty_ctx_lookup(bty_ctx_t* ctx, srcref_t name) {
-    res_t res = bty_ctx_binsearch(ctx->kvps, 0, (int) ctx->size - 1, name);
+bty_type_t* bty_ctx_lookup(bty_ctx_t* ctx, sstr_t name) {
+    res_t res = bty_ctx_binsearch(ctx->kvps, 0, (int) ctx->size - 1, &name);
     if( res.found ) {
         return ctx->kvps[res.index].type;
     }
@@ -573,7 +573,7 @@ bty_type_t* bty_synth_var_reference(bty_ctx_t* c, ast_t* v) {
     
     ast_t* s = v->as.items[AST_VARREF_SYMBOL];
     srcref_t name = s->as.srcref;
-    bty_type_t* ty = bty_ctx_lookup(c, name);
+    bty_type_t* ty = bty_ctx_lookup(c, srcref_as_sstr(name));
     if( ty == NULL ) {
         trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, name);
         trace_msg_append_costr(m, "reference to undefined variable: ");
@@ -722,7 +722,7 @@ bty_type_t* bty_synth_funcall(bty_ctx_t* c, ast_t* fc) {
         return bty_error(c->arena, BTY_ERR_INTERNAL);
     }
 
-    bty_type_t* fnty = bty_ctx_lookup(c, name);
+    bty_type_t* fnty = bty_ctx_lookup(c, srcref_as_sstr(name));
     if( fnty == NULL ) {
         trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, name);
         trace_msg_append_fmt(m, "function '%.*s' could not be found",
@@ -953,7 +953,7 @@ bty_type_t* bty_synthesize(bty_ctx_t* c, ast_t* n) {
         return bty_error(c->arena, BTY_ERR_TYPECHECK);
     }
 
-    if( bty_ctx_insert(c, name, descr) == false ) {
+    if( bty_ctx_insert(c, srcref_as_sstr(name), descr) == false ) {
         trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_agg_srcrefs(n));
         trace_msg_append_fmt(m, "type-error: the name '%.*s' is already in use in this context",
             srcref_len(name),

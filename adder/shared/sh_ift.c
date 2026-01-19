@@ -259,8 +259,8 @@ sstr_t ift_type_to_sstr(ift_t type) {
         case IFT_LST: {
             sstr_t s = sstr("array");
             sstr_t c = ift_type_to_sstr(ift_list_get_content_type(type));
-            sstr_append_fmt(&s, "<%.*s>",
-                sstr_len(&c), sstr_ptr(&c));
+            sstr_pappend_fmt(&s, "<%.*s>",
+                sstr_len(c), sstr_ptr(c));
             return s;
         } break;
         case IFT_FUN: {
@@ -268,13 +268,13 @@ sstr_t ift_type_to_sstr(ift_t type) {
             int nargs = ift_func_arg_count(type);
             for(int i = 0; i < nargs; i++) {
                 if( i > 0 )
-                    sstr_append_str(&s, ", ");
+                    sstr_pappend_str(&s, ", ");
                 sstr_t at = ift_type_to_sstr(ift_func_get_arg(type, i));
-                sstr_append(&s, &at);
+                sstr_pappend(&s, &at);
             }
-            sstr_append_str(&s, ") -> ");
+            sstr_pappend_str(&s, ") -> ");
             sstr_t rt = ift_type_to_sstr(ift_func_get_return_type(type));
-            sstr_append(&s, &rt);
+            sstr_pappend(&s, &rt);
             return s;
         }
     }

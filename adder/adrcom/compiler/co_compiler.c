@@ -111,14 +111,14 @@ typedef struct compiler_state_t {
 
 #define ABORT_ON_ERROR(STATE) do { if(trace_get_error_count((STATE)->trace) > 0) return; } while(false)
 
-bool state_add_localvar(compiler_state_t* state, srcref_t name) {
+bool state_add_localvar(compiler_state_t* state, sstr_t name) {
     srcmap_value_t value = (srcmap_value_t) {
         .data = (uint32_t) state->localvars.count
     };
     return srcmap_insert(&state->localvars, name, value);
 }
 
-ir_index_t state_get_localvar(compiler_state_t* state, srcref_t name) {
+ir_index_t state_get_localvar(compiler_state_t* state, sstr_t name) {
     srcmap_value_t* val = srcmap_lookup(&state->localvars, name);
     if( val != NULL ) {
         return (ir_index_t) {
@@ -132,7 +132,7 @@ ir_index_t state_get_localvar(compiler_state_t* state, srcref_t name) {
     };
 }
 
-bool state_add_funcaddr(compiler_state_t* state, srcref_t name, ir_index_t index) {
+bool state_add_funcaddr(compiler_state_t* state, sstr_t name, ir_index_t index) {
     assert(index.tag == IRID_INS && "received incorrect index type");
     srcmap_value_t value = (srcmap_value_t) {
         .data = (uint32_t) index.idx
@@ -140,7 +140,7 @@ bool state_add_funcaddr(compiler_state_t* state, srcref_t name, ir_index_t index
     return srcmap_insert(&state->functions, name, value);
 }
 
-ir_index_t state_get_funcaddr(compiler_state_t* state, srcref_t name) {
+ir_index_t state_get_funcaddr(compiler_state_t* state, sstr_t name) {
     srcmap_value_t* val = srcmap_lookup(&state->functions, name);
     if( val != NULL ) {
         return (ir_index_t) {
@@ -346,7 +346,7 @@ ift_t bty_to_ffi_type(bty_type_t* t) {
 void add_host_provided_function_definition(srcref_t name, compiler_state_t* state) {
     ABORT_ON_ERROR(state);
 
-    bty_type_t* bty_type = bty_ctx_lookup(state->tyctx, name);
+    bty_type_t* bty_type = bty_ctx_lookup(state->tyctx, srcref_as_sstr(name));
     ift_t lang_type = bty_to_ffi_type(bty_type);
 
     if( bty_type == NULL || ift_is_unknown(lang_type) ) {
@@ -381,7 +381,7 @@ void add_host_provided_function_definition(srcref_t name, compiler_state_t* stat
 void add_program_provided_function_definition(srcref_t name, compiler_state_t* state) {
     ABORT_ON_ERROR(state);
 
-    bty_type_t* bty_type = bty_ctx_lookup(state->tyctx, name);
+    bty_type_t* bty_type = bty_ctx_lookup(state->tyctx, srcref_as_sstr(name));
     ift_t lang_type = bty_to_ffi_type(bty_type);
 
     if( bty_type == NULL || ift_is_unknown(lang_type) ) {
@@ -444,7 +444,7 @@ void codegen_fundef(ast_t* node, compiler_state_t* state) {
         .args = { 0 }
     });
 
-    bool ok = state_add_funcaddr(state, funcname, frame_index);
+    bool ok = state_add_funcaddr(state, srcref_as_sstr(funcname), frame_index);
 
     (void)(ok); // unused in release builds
 
@@ -481,7 +481,7 @@ void codegen_funcall(ast_t* node, compiler_state_t* state) {
     codegen(ast_try_get(node, AST_ARGLIST), state);
 
     srcref_t name = ast_try_get_name(node);
-    ir_index_t ir_index = state_get_funcaddr(state, name);
+    ir_index_t ir_index = state_get_funcaddr(state, srcref_as_sstr(name));
 
     if( ir_index.tag == IRID_INS ) {
         // if tag invalid: could not find index
@@ -533,7 +533,7 @@ void codegen_assignment(ast_t* node, compiler_state_t* state) {
 
     assert(state->localvars.count > 0 && "local vars was empty");
 
-    ir_index_t index = state_get_localvar(state, varname);
+    ir_index_t index = state_get_localvar(state, srcref_as_sstr(varname));
     assert(index.tag == IRID_VAR && "varname not found");
     irl_add(&state->instrs, (ir_inst_t){
         .opcode = OP_STORE_LOCAL,
@@ -557,7 +557,7 @@ void codegen_foreach(ast_t* node, compiler_state_t* state) {
     codegen(node->as.items[AST_FOREACH_VAR], state); // add vardecl
     srcref_t varname = ast_try_get_name(node->as.items[0]);
     assert(srcref_is_valid(varname));
-    ir_index_t varindex = state_get_localvar(state, varname);
+    ir_index_t varindex = state_get_localvar(state, srcref_as_sstr(varname));
     assert(varindex.tag == IRID_VAR && "variable not found");
     irl_add(&state->instrs, (ir_inst_t){
         .opcode = OP_STORE_LOCAL,
@@ -783,7 +783,8 @@ void codegen(ast_t* node, compiler_state_t* state) {
             codegen_funcall(node, state);
         } break;
         case AST_VARREF: {
-            ir_index_t var_index = state_get_localvar(state, ast_try_get_name(node));
+            srcref_t name = ast_try_get_name(node);
+            ir_index_t var_index = state_get_localvar(state, srcref_as_sstr(name));
             assert(var_index.tag == IRID_VAR && "variable not found");
             irl_add(&state->instrs, (ir_inst_t){
                 .opcode = OP_LOAD_LOCAL,
@@ -792,7 +793,8 @@ void codegen(ast_t* node, compiler_state_t* state) {
         } break;
         case AST_VARDECL: {
             // just add valiable name to frame local var set.
-            state_add_localvar(state, ast_try_get_name(node));
+            srcref_t name = ast_try_get_name(node);
+            state_add_localvar(state, srcref_as_sstr(name));
         } break;
         case AST_TYDESCR: {
             /* nothing to do here */
@@ -846,10 +848,7 @@ void create_index_to_addr_map(ir_list_t* instrs, uint32_t* idx2addr, uint32_t si
 
 void set_entrypoints(compiler_state_t* state, uint32_t* idx2addr, uint32_t* dest) {
     for( int i = 0; i < state->program_supplied.count; i++ ) {
-        srcref_t name = srcref(
-            sstr_ptr(&state->program_supplied.def[i].name), 0, 
-            sstr_len(&state->program_supplied.def[i].name));
-        ir_index_t index = state_get_funcaddr(state, name);
+        ir_index_t index = state_get_funcaddr(state, state->program_supplied.def[i].name);
         assert( index.tag == IRID_INS );
         dest[i] = idx2addr[index.idx];
     }

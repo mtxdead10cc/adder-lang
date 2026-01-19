@@ -13,13 +13,6 @@
 #include "adrcom/parser/co_lexer.h"
 #include "adrcom/parser/co_parser_types.h"
 
-inline static token_t token_const(const char* content, token_type_t type) {
-    return (token_t) {
-        .ref = srcref_const(content),
-        .type = type
-    };
-}
-
 inline static bool token_equals(token_t a, token_t b) {
     return a.type == b.type && srcref_equals(a.ref, b.ref);
 }
@@ -95,9 +88,7 @@ void tokens_destroy(token_collection_t* collection);
 typedef struct tokenizer_args_t {
     bool include_comments;
     bool include_spaces;
-    char* text;
-    size_t text_length;
-    char* filepath;
+    src_t* source; 
     trace_t* trace;
 } tokenizer_args_t;
 

@@ -124,7 +124,7 @@ int program_find_entrypoint_by_name_and_type(program_t* prog, sstr_t name, ift_t
     for(int i = 0; i < prog->exports.count; i++) {
 
         ffi_definition_t def = prog->exports.def[i];
-        if( sstr_equal(&name, &def.name) == false )
+        if( sstr_equal(name, def.name) == false )
             continue;
 
         if( retcheck ) {
@@ -146,7 +146,7 @@ int program_find_entrypoint_by_name(program_t* prog, sstr_t name) {
         return -1;
     for(int i = 0; i < prog->exports.count; i++) {
         ffi_definition_t def = prog->exports.def[i];
-        if( sstr_equal(&name, &def.name) == false )
+        if( sstr_equal(name, def.name) == false )
             continue;
         return i;
     }

@@ -34,7 +34,7 @@ json_value_t* json_null(arena_t* allocator) {
         return NULL;
     *jval = (json_value_t) {
         .type = JSON_VALUE_NULL,
-        .as.number_integer = 0
+        .as.number = 0.0
     };
     return jval;
 }
@@ -50,24 +50,13 @@ json_value_t* json_boolean(arena_t* allocator, bool value) {
     return jval;
 }
 
-json_value_t* json_number_double(arena_t* allocator, double value) {
+json_value_t* json_number(arena_t* allocator, double value) {
     json_value_t* jval = (json_value_t*) aalloc(allocator, sizeof(json_value_t));
     if( jval == NULL )
         return NULL;
     *jval = (json_value_t) {
-        .type = JSON_VALUE_NUMBER_DOUBLE,
-        .as.number_double = value
-    };
-    return jval;
-}
-
-json_value_t* json_number_integer(arena_t* allocator, long value) {
-    json_value_t* jval = (json_value_t*) aalloc(allocator, sizeof(json_value_t));
-    if( jval == NULL )
-        return NULL;
-    *jval = (json_value_t) {
-        .type = JSON_VALUE_NUMBER_INTEGER,
-        .as.number_integer = value
+        .type = JSON_VALUE_NUMBER,
+        .as.number = value
     };
     return jval;
 }
@@ -255,7 +244,7 @@ bool json_object_set(json_value_t* json_object, json_value_t* key, json_value_t*
     return json_object_append(json_object, key, value);
 }
 
-json_value_t* json_object_get(json_value_t* json_object, char* key, ptrdiff_t key_len) {
+json_value_t* json_object_getn(json_value_t* json_object, char* key, ptrdiff_t key_len) {
     if( key == NULL || json_object == NULL )
         return NULL;
     json_object_t* obj = &json_object->as.object;
@@ -266,10 +255,40 @@ json_value_t* json_object_get(json_value_t* json_object, char* key, ptrdiff_t ke
     return NULL;
 }
 
-json_value_t* json_object_get_const(json_value_t* json_object, const char* key) {
+json_value_t* json_object_get(json_value_t* json_object, const char* key) {
     if( key == NULL || json_object == NULL )
         return NULL;
-    return json_object_get(json_object, (char*) key, strlen(key));
+    return json_object_getn(json_object, (char*) key, strlen(key));
+}
+
+bool json_is_bool(json_value_t* json) {
+    if(json == NULL)
+        return false;
+    return json->type == JSON_VALUE_BOOLEAN;
+}
+
+bool json_is_number(json_value_t* json) {
+    if(json == NULL)
+        return false;
+    return json->type == JSON_VALUE_NUMBER;
+}
+
+bool json_is_string(json_value_t* json) {
+    if(json == NULL)
+        return false;
+    return json->type == JSON_VALUE_STRING;
+}
+
+bool json_is_object(json_value_t* json) {
+    if(json == NULL)
+        return false;
+    return json->type == JSON_VALUE_OBJECT;
+}
+
+bool json_is_array(json_value_t* json) {
+    if(json == NULL)
+        return false;
+    return json->type == JSON_VALUE_ARRAY;
 }
 
 char* json_dumps_append_double(char* prev, double val) {
@@ -325,10 +344,8 @@ char* json_internal_dumps(json_value_t* json, int level, int indent) {
     switch(json->type) {
         case JSON_VALUE_NULL:
             return json_dumps_append_string(NULL, "null");
-        case JSON_VALUE_NUMBER_DOUBLE:
-            return json_dumps_append_double(NULL, json->as.number_double);
-        case JSON_VALUE_NUMBER_INTEGER:
-            return json_dumps_append_integer(NULL, json->as.number_integer);
+        case JSON_VALUE_NUMBER:
+            return json_dumps_append_double(NULL, json->as.number);
         case JSON_VALUE_STRING: {
             json_string_t jstr = json->as.string;
             char* str = json_dumps_append_string(NULL, "\"");
@@ -417,8 +434,7 @@ char* json_dumps(json_value_t* json, int indent) {
 char* json_tt_to_string(json_tt_t tt) {
     switch(tt) {
         case JTT_NULL:              return "JTT_NULL";
-        case JTT_NUMBER_INTEGER:    return "JTT_NUMBER_INTEGER";
-        case JTT_NUMBER_DOUBLE:     return "JTT_NUMBER_DOUBLE";
+        case JTT_NUMBER:            return "JTT_NUMBER";
         case JTT_STRING:            return "JTT_STRING";
         case JTT_BOOL:              return "JTT_BOOL";
         case JTT_SEPARATOR:         return "JTT_SEPARATOR";
@@ -482,9 +498,7 @@ ptrdiff_t json_scan(char* text, ptrdiff_t remaining, int64_t* type_out) {
 
     consumed = pt_scan_number(text, remaining);
     if( consumed > 0 ) {
-        *type_out = JTT_NUMBER_INTEGER;
-        if( pt_string_contains_char(text, consumed, '.') )
-            *type_out = JTT_NUMBER_DOUBLE;
+        *type_out = JTT_NUMBER;
         return consumed;
     }
 
@@ -511,13 +525,8 @@ json_value_t* json_parse_value(arena_t* allocator, pt_state_t* state) {
             pt_state_advance(state);
             return result;
         } break;
-        case JTT_NUMBER_DOUBLE: {
-            json_value_t* result = json_number_double(allocator, strtod(tok.text, NULL));
-            pt_state_advance(state);
-            return result;
-        } break;
-        case JTT_NUMBER_INTEGER: {
-            json_value_t* result = json_number_integer(allocator, (long) strtod(tok.text, NULL));
+        case JTT_NUMBER: {
+            json_value_t* result = json_number(allocator, strtod(tok.text, NULL));
             pt_state_advance(state);
             return result;
         } break;

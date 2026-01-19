@@ -4,12 +4,31 @@ from gdb import Value
 def srcref_to_string(srcref:Value) -> str:
     idx_start: Value = srcref['idx_start']
     idx_end: Value = srcref['idx_end']
-    source:Value = srcref['source']
+    source:Value = srcref['src']
     if source.address == 0:
         return "<srcref-null>"
-    source = (source + idx_start)
-    result = source.string(length=idx_end-idx_start)
+    buffer = (source["buff"] + idx_start)
+    result = buffer.string(length=idx_end-idx_start)
     return f"{result}"
+
+
+class SrcPrinter:
+    def __init__(self, val):
+        self.val = val
+
+    def children(self):
+        yield "path_length", self.val['path_length']
+        yield "buff_length", self.val['buff_length']
+        yield "path", self.val['path'].string(length=self.val['path_length'])
+        yield "buff", self.val['buff'].string(length=self.val['buff_length'])
+
+    def display_hint(self):
+        return 'array'
+
+    def to_string(self):
+        buffer = self.val["buff"]
+        result = buffer.string(length=self.val["buff_length"])
+        return f"{result}"
 
 class SrcrefPrinter:
     def __init__(self, val):
@@ -18,7 +37,7 @@ class SrcrefPrinter:
     def children(self):
         yield "idx_start", self.val['idx_start']
         yield "idx_end", self.val['idx_end']
-        yield "source", self.val['source']
+        yield "src", self.val['src']
 
     def display_hint(self):
         return 'string'
@@ -214,6 +233,8 @@ def lookup_type(val: Value):
     tstr = str(val.type)
     if tstr == 'ast_t *':
         return AstPrinter(val)
+    elif tstr == 'src_t *':
+        return SrcPrinter(val)
     elif tstr == 'srcref_t *':
         return SrcrefPrinter(val)
     elif tstr == 'srcref_t':

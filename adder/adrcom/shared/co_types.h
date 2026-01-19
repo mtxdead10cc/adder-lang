@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #include <shared/sh_types.h>
+#include <shared/sh_src.h>
 
 #define TRACE_MSG_MAX_LEN 256
 
@@ -30,7 +31,6 @@ typedef struct trace_t {
     size_t       message_count;
     size_t       message_capacity;
     trace_msg_t* messages;
-    char*        current_source_path;
     size_t       error_count;
 } trace_t;
 

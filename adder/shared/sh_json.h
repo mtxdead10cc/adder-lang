@@ -8,8 +8,7 @@
 typedef enum json_value_type_t {
     JSON_VALUE_NULL,
     JSON_VALUE_STRING,
-    JSON_VALUE_NUMBER_DOUBLE,
-    JSON_VALUE_NUMBER_INTEGER,
+    JSON_VALUE_NUMBER,
     JSON_VALUE_BOOLEAN,
     JSON_VALUE_ARRAY,
     JSON_VALUE_OBJECT,
@@ -19,16 +18,15 @@ typedef enum json_value_type_t {
 typedef enum json_tt_t {
     JTT_UNKNOWN         = 0x0000,
     JTT_NULL            = 0x0001,
-    JTT_NUMBER_INTEGER  = 0x0002,
-    JTT_NUMBER_DOUBLE   = 0x0004,
-    JTT_STRING          = 0x0008,
-    JTT_BOOL            = 0x0010,
-    JTT_SEPARATOR       = 0x0020,
-    JTT_ARRAY_OPEN      = 0x0040,
-    JTT_ARRAY_CLOSE     = 0x0080,
-    JTT_OBJECT_OPEN     = 0x0100,
-    JTT_OBJECT_CLOSE    = 0x0200,
-    JTT_KVP_SEPARATOR   = 0x0400
+    JTT_NUMBER          = 0x0002,
+    JTT_STRING          = 0x0004,
+    JTT_BOOL            = 0x0008,
+    JTT_SEPARATOR       = 0x0010,
+    JTT_ARRAY_OPEN      = 0x0020,
+    JTT_ARRAY_CLOSE     = 0x0040,
+    JTT_OBJECT_OPEN     = 0x0080,
+    JTT_OBJECT_CLOSE    = 0x0100,
+    JTT_KVP_SEPARATOR   = 0x0200
 } json_tt_t;
 
 typedef struct json_value_t json_value_t;
@@ -66,8 +64,7 @@ typedef struct json_value_t {
         json_array_t  array;
         json_string_t string;
         json_error_t  error;
-        double        number_double;
-        long          number_integer;
+        double        number;
         bool          boolean;
     } as;
 } json_value_t;
@@ -78,16 +75,21 @@ json_value_t*   json_null(arena_t* allocator);
 json_value_t*   json_string(arena_t* allocator, char* value, ptrdiff_t len);
 json_value_t*   json_const_string(arena_t* allocator, const char* value);
 json_value_t*   json_boolean(arena_t* allocator, bool value);
-json_value_t*   json_number_double(arena_t* allocator, double value);
-json_value_t*   json_number_integer(arena_t* allocator, long value);
+json_value_t*   json_number(arena_t* allocator, double value);
+
+bool json_is_bool(json_value_t* json);
+bool json_is_number(json_value_t* json);
+bool json_is_string(json_value_t* json);
+bool json_is_object(json_value_t* json);
+bool json_is_array(json_value_t* json);
 
 json_value_t*   json_array(arena_t* allocator, ptrdiff_t capacity);
 bool            json_array_append(json_value_t* json_array, json_value_t* value);
 
 json_value_t*   json_object(arena_t* allocator, ptrdiff_t capacity);
 bool            json_object_set(json_value_t* json_object, json_value_t* key, json_value_t* value);
-json_value_t*   json_object_get(json_value_t* json_object, char* key, ptrdiff_t key_len);
-json_value_t*   json_object_get_const(json_value_t* json_object, const char* key);
+json_value_t*   json_object_getn(json_value_t* json_object, char* key, ptrdiff_t key_len);
+json_value_t*   json_object_get(json_value_t* json_object, const char* key);
 
 char*           json_dumps(json_value_t* json, int indent);
 json_value_t*   json_parse(arena_t* allocator, char* json_str, ptrdiff_t len);

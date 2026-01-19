@@ -2,15 +2,14 @@
 #define GVM_PROGRAM_H_
 
 #include <shared/sh_types.h>
+#include <shared/sh_src.h>
 
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
 
 typedef struct source_code_t {
-    char* file_path;
-    int   source_length;
-    char* source_code;
+    src_t* source;
     time_t modtime;
 } source_code_t;
 

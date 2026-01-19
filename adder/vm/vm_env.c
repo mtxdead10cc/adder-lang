@@ -59,22 +59,22 @@ bool vm_env_setup(vm_env_t* env, program_t* program, ffi_t* ffi) {
 
         if( index < 0 ) {
             sh_log_error("'%.*s' could not be found in FFI.",
-                sstr_len(&def.name), sstr_ptr(&def.name));
+                sstr_len(def.name), sstr_ptr(def.name));
             missing ++;
             continue;
         }
 
         if( ift_type_equals(&def.type, &ffi->supplied.def[index].type) == false ) {
             sstr_t s = sstr("type not matching for '");
-            sstr_append(&s, &def.name);
-            sstr_append_str(&s, "' FFI: '");
+            sstr_pappend(&s, &def.name);
+            sstr_pappend_str(&s, "' FFI: '");
             sstr_t tmp = ift_type_to_sstr(ffi->supplied.def[index].type);
-            sstr_append(&s, &tmp);
-            sstr_append_str(&s, "' program: '");
+            sstr_pappend(&s, &tmp);
+            sstr_pappend_str(&s, "' program: '");
             tmp = ift_type_to_sstr(def.type);
-            sstr_append(&s, &tmp);
-            sstr_append_str(&s, "'");
-            sh_log_error("%.*s", sstr_len(&s), sstr_ptr(&s));
+            sstr_pappend(&s, &tmp);
+            sstr_pappend_str(&s, "'");
+            sh_log_error("%.*s", sstr_len(s), sstr_ptr(s));
             missing ++;
         }
     }

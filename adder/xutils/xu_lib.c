@@ -355,7 +355,7 @@ bool xu_quick_run(char* filepath, xu_quickopts_t opts) {
                 ift_t ftype = xu_ift_from_callstring(callstr);
                 sstr_t calltype_str = ift_type_to_sstr(ftype);
                 sstr_t progtype_str = ift_type_to_sstr(entrypoint.type);
-                calltype_str = sstr_substr(&calltype_str, 0, sstr_index_of(&calltype_str, ')') + 1);
+                calltype_str = sstr_substr(calltype_str, 0, sstr_index_of(calltype_str, ')') + 1);
                 int nlen = xu_callstr_name_length(callstr);
                 sh_log_error(
                     "the function '%.*s' was found, but "
@@ -479,10 +479,10 @@ xu_class_t xu_class_create(xu_classlist_t* classes, source_code_t* code, int cla
 
     //program_disassemble(&classes->programs[ref]);
 
-    if( program_file_exists(code->file_path) ) {
+    if( program_file_exists(code->source->path) ) {
         // check if source from a real file
-        int len = strnlen(code->file_path, 2048-1);
-        memcpy(classes->paths[ref], code->file_path, len);
+        int len = strnlen(code->source->path, 2048-1);
+        memcpy(classes->paths[ref], code->source->path, len);
         classes->paths[ref][len] = '\0';
     } else {
         // or memory buffer

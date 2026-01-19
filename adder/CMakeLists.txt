@@ -16,6 +16,8 @@ target_sources(adrsha PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_arena.c
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_ffi.c
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_ift.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_utils.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/sh_src.c
 )
 
 target_link_libraries(adrsha PUBLIC m)

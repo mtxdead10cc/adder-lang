@@ -93,8 +93,8 @@ bool bty_is_list(bty_type_t* ty);
 char* sprint_bty_type(arena_t* a, bty_type_t* ty);
 
 bty_ctx_t* bty_ctx_create(arena_t* a, trace_t* t, int capacity);
-bool bty_ctx_insert(bty_ctx_t* ctx, srcref_t name, bty_type_t* type);
-bty_type_t* bty_ctx_lookup(bty_ctx_t* ctx, srcref_t name);
+bool bty_ctx_insert(bty_ctx_t* ctx, sstr_t name, bty_type_t* type);
+bty_type_t* bty_ctx_lookup(bty_ctx_t* ctx, sstr_t name);
 bty_ctx_t* bty_ctx_clone(bty_ctx_t* src);
 
 void bty_ctx_dump(cstr_t str, bty_ctx_t* ctx);

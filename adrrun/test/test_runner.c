@@ -162,7 +162,8 @@ void test_heap_memory(test_case_t* this) {
 
 void test_utils(test_case_t* this) {
 
-    srcref_t ref = srcref_const("[##hello##]");
+    src_t* src = src_create_const("test_utils_buffer", "[##hello##]");
+    srcref_t ref = srcref_full_range(src);
 
     TEST_ASSERT_MSG(this,
         srcref_starts_with_string(ref, "[##"),
@@ -197,50 +198,50 @@ void test_utils(test_case_t* this) {
 
     sstr_t s = sstr("");
     sstr_t sadd = sstr("ABC");
-    int rem = sstr_append(&s, &sadd);
+    int rem = sstr_pappend(&s, &sadd);
 
     TEST_ASSERT_MSG(this,
         rem == (SSTR_MAX_LEN - 3),
         "#4.1 sstr append remaining failed");
 
     TEST_ASSERT_MSG(this,
-        sstr_equal_str(&s, "ABC"),
+        sstr_equal_str(s, "ABC"),
         "#4.2 sstr append failed");
 
-    rem = sstr_append_nstr(&s, "EFGH", 1);
+    rem = sstr_pappend_nstr(&s, "EFGH", 1);
     
     TEST_ASSERT_MSG(this,
         rem == (SSTR_MAX_LEN - 4),
         "#4.3 sstr n-append remaining failed");
 
     TEST_ASSERT_MSG(this,
-        sstr_equal_str(&s, "ABCE"),
+        sstr_equal_str(s, "ABCE"),
         "#4.4 sstr n-append failed");
 
-    rem = sstr_append_str(&s, "F");
+    rem = sstr_pappend_str(&s, "F");
     
     TEST_ASSERT_MSG(this,
         rem == (SSTR_MAX_LEN - 5),
         "#4.5 sstr append c-str remaining failed");
 
     TEST_ASSERT_MSG(this,
-        sstr_equal_str(&s, "ABCEF"),
+        sstr_equal_str(s, "ABCEF"),
         "#4.6 sstr append c-str failed");
 
-    rem = sstr_append_fmt(&s, "%.3f", 1.1111f);
+    rem = sstr_pappend_fmt(&s, "%.3f", 1.1111f);
     
     TEST_ASSERT_MSG(this,
         rem == (SSTR_MAX_LEN - 10),
         "#4.7 sstr append fmt remaining failed");
 
     TEST_ASSERT_MSG(this,
-        sstr_equal_str(&s, "ABCEF1.111"),
+        sstr_equal_str(s, "ABCEF1.111"),
         "#4.8 sstr append fmt failed");
 
     int count = (SSTR_MAX_LEN - 10);
 
     assert(SSTR_MAX_LEN <= 500 && "update this test");
-    rem = sstr_append_fmt(&s, "%.*s",
+    rem = sstr_pappend_fmt(&s, "%.*s",
         count,
         "--------------------"
         "--------------------"
@@ -281,6 +282,8 @@ void test_utils(test_case_t* this) {
     TEST_ASSERT_MSG(this,
         check_count == count,
         "#4.10 sstr append fmt remaining failed");
+
+    src_destroy(src);
 }
 
 
@@ -420,7 +423,9 @@ void test_vm(test_case_t* this) {
 }
 
 void test_ast(test_case_t* this) {
-    char* buf = "mainABtmpI";
+    
+    src_t* src = src_create_const("test_ast_buffer",
+        "mainABtmpI" LANG_TYPENAME_FLOAT);
 
     arena_t* arena = arena_create(1024);
 
@@ -428,29 +433,29 @@ void test_ast(test_case_t* this) {
 
     ast_arglist_append(arena, decl_args,
         ast_variable_declaration(arena, 
-            ast_type_descriptor(arena, srcref_const(LANG_TYPENAME_FLOAT), NULL),  
-            ast_variable_reference(arena, srcref(buf, 4, 1))));
+            ast_type_descriptor(arena, src_linsearch(src, LANG_TYPENAME_FLOAT), NULL),  
+            ast_variable_reference(arena, srcref(src, 4, 1))));
 
     ast_arglist_append(arena, decl_args,
         ast_variable_declaration(arena, 
-            ast_type_descriptor(arena, srcref_const(LANG_TYPENAME_FLOAT), NULL), 
-            ast_variable_reference(arena, srcref(buf, 5, 1))));
+            ast_type_descriptor(arena, src_linsearch(src, LANG_TYPENAME_FLOAT), NULL), 
+            ast_variable_reference(arena, srcref(src, 5, 1))));
 
     ast_t* body = ast_block(arena);
 
     ast_block_append(arena, body, 
         ast_assignment(arena, 
             ast_variable_declaration(arena, 
-                ast_type_descriptor(arena, srcref_const(LANG_TYPENAME_FLOAT), NULL),
-                ast_variable_reference(arena, srcref(buf, 6, 3))),
+                ast_type_descriptor(arena, src_linsearch(src, LANG_TYPENAME_FLOAT), NULL),
+                ast_variable_reference(arena, srcref(src, 6, 3))),
             ast_binary_operation(arena, AST_BIN_ADD,
-                ast_variable_reference(arena, srcref(buf, 5, 1)),
-                ast_variable_reference(arena, srcref(buf, 4, 1)))));
+                ast_variable_reference(arena, srcref(src, 5, 1)),
+                ast_variable_reference(arena, srcref(src, 4, 1)))));
 
     ast_block_append(arena, body,
         ast_if_chain(arena, 
             ast_binary_operation(arena, AST_BIN_LT,
-                ast_variable_reference(arena, srcref(buf, 6, 3)),
+                ast_variable_reference(arena, srcref(src, 6, 3)),
                 ast_float(arena, 0.0f)),
             ast_return(arena, ast_float(arena, 0.0f)),
             ast_block(arena)));
@@ -464,22 +469,22 @@ void test_ast(test_case_t* this) {
     ast_block_append(arena, body,
         ast_foreach(arena, 
             ast_variable_declaration(arena,
-                ast_type_descriptor(arena, srcref_const(LANG_TYPENAME_FLOAT), NULL),
-                ast_variable_reference(arena, srcref(buf, 9, 1))),
+                ast_type_descriptor(arena, src_linsearch(src, LANG_TYPENAME_FLOAT), NULL),
+                ast_variable_reference(arena, srcref(src, 9, 1))),
             array,
             ast_assignment(arena, 
-                ast_variable_reference(arena, srcref(buf, 6, 3)),
+                ast_variable_reference(arena, srcref(src, 6, 3)),
                 ast_binary_operation(arena, AST_BIN_ADD,
-                    ast_variable_reference(arena, srcref(buf, 6, 3)),
-                    ast_variable_reference(arena, srcref(buf, 9, 1))))
+                    ast_variable_reference(arena, srcref(src, 6, 3)),
+                    ast_variable_reference(arena, srcref(src, 9, 1))))
         ));
     
     ast_block_append(arena, body,
-        ast_return(arena, ast_variable_reference(arena, srcref(buf, 6, 3))));
+        ast_return(arena, ast_variable_reference(arena, srcref(src, 6, 3))));
 
     ast_t* funsig = ast_function_signature(arena,
-        ast_type_descriptor(arena, srcref_const(LANG_TYPENAME_FLOAT), NULL),
-        srcref(buf, 0, 4),
+        ast_type_descriptor(arena, src_linsearch(src, LANG_TYPENAME_FLOAT), NULL),
+        srcref(src, 0, 4),
         decl_args,
         AST_FUNSIGN_FFI_VAL_EXPORT);
     
@@ -531,6 +536,7 @@ void test_ast(test_case_t* this) {
     program_destroy(&program);
     vm_destroy(&vm);
     vm_env_destroy(&env);
+    src_destroy(src);
 }
 
 typedef struct toktest_t {
@@ -545,6 +551,22 @@ void test_tokenizer(test_case_t* this) {
     tokens_init(&coll, 16);
 
     toktest_t subtests[] = {
+        {
+            .text = "hej_325_sdg true False false//test234325",
+            .tokens_types = (token_type_t[]){
+                TT_INITIAL,
+                TT_SYMBOL,
+                TT_SPACE,
+                TT_BOOLEAN,
+                TT_SPACE,
+                TT_SYMBOL,
+                TT_SPACE,
+                TT_BOOLEAN,
+                TT_FINAL
+            },
+            .incl_comments = false,
+            .incl_space = true
+        },
         {
             .text = "hej\n1//test\n2",
             .tokens_types = (token_type_t[]){
@@ -572,22 +594,6 @@ void test_tokenizer(test_case_t* this) {
                 TT_FINAL
             },
             .incl_comments = true,
-            .incl_space = true
-        },
-        {
-            .text = "hej_325_sdg true False false//test234325",
-            .tokens_types = (token_type_t[]){
-                TT_INITIAL,
-                TT_SYMBOL,
-                TT_SPACE,
-                TT_BOOLEAN,
-                TT_SPACE,
-                TT_SYMBOL,
-                TT_SPACE,
-                TT_BOOLEAN,
-                TT_FINAL
-            },
-            .incl_comments = false,
             .incl_space = true
         },
         {
@@ -668,14 +674,16 @@ void test_tokenizer(test_case_t* this) {
     trace_init(&trace, 16);
 
     for(size_t i = 0; i < nsubcases; i++) {
+
+        src_t* source = src_create("test/test/test.txt",
+            subtests[i].text,
+            strlen(subtests[i].text));
         
         tokenizer_args_t args = (tokenizer_args_t) {
-            .filepath = "test/test/test.txt",
             .include_comments = subtests[i].incl_comments,
             .include_spaces = subtests[i].incl_space,
-            .text = subtests[i].text,
-            .text_length = strlen(subtests[i].text),
-            .trace = &trace
+            .trace = &trace,
+            .source = source
         };
 
         trace_clear(&trace);
@@ -708,6 +716,7 @@ void test_tokenizer(test_case_t* this) {
                 (unsigned int) coll.count);
 
         tokens_destroy(&coll);
+        src_destroy(source);
 
         define_cstr(str, 2048);
         trace_sprint(str, &trace);
@@ -769,8 +778,9 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         "failed to setup FFI");
 
     bool is_known_todo = strcmp(test_category, "todo") == 0;
+    src_t* source = src_create(tc_name, source_code, strlen(source_code));
 
-    pa_result_t result = pa_init(&parser, arena, &trace, source_code, strlen(source_code), tc_filepath);
+    pa_result_t result = pa_init(&parser, arena, &trace, source);
 
     if( is_known_todo ) {
         TEST_MSG(par_is_error(result) == false,
@@ -808,6 +818,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         arena_destroy(arena);
         pa_destroy(&parser);
         trace_destroy(&trace);
+        src_destroy(source);
         return is_known_todo;
     }
 
@@ -840,6 +851,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
         arena_destroy(arena);
         trace_destroy(&trace);
         ffi_destroy(&ffi);
+        src_destroy(source);
         return is_known_todo;
     }
 
@@ -919,6 +931,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     trace_destroy(&trace);
     ffi_destroy(&ffi);
     vm_env_destroy(&env);
+    src_destroy(source);
 
     return true;
 }
@@ -1040,7 +1053,7 @@ void test_arena_alloc(test_case_t* this) {
 }
 
 bool check_ctx_lookup(bty_ctx_t* ctx, const char* name, bty_tag_t expected) {
-    bty_type_t* res = bty_ctx_lookup(ctx, srcref_const(name));
+    bty_type_t* res = bty_ctx_lookup(ctx, sstr((char*) name));
     if( res == NULL )
         return false;
     return res->tag == expected;
@@ -1055,15 +1068,15 @@ void test_typing_context(test_case_t* this) {
     bty_ctx_t* c = bty_ctx_create(a, &trace, 1);
 
     TEST_ASSERT_MSG(this,
-        bty_ctx_insert(c, srcref_const("a"), bty_int()),
+        bty_ctx_insert(c, sstr("a"), bty_int()),
         "#1.1 bty_ctx_insert");
 
     TEST_ASSERT_MSG(this,
-        bty_ctx_insert(c, srcref_const("sdaga"), bty_bool()),
+        bty_ctx_insert(c, sstr("sdaga"), bty_bool()),
         "#1.2 bty_ctx_insert");
 
     TEST_ASSERT_MSG(this,
-        bty_ctx_insert(c, srcref_const("0sdgfg"), bty_float()),
+        bty_ctx_insert(c, sstr("0sdgfg"), bty_float()),
         "#1.3 bty_ctx_insert");
 
     TEST_ASSERT_MSG(this,
@@ -1097,14 +1110,16 @@ void test_typing_context(test_case_t* this) {
 }
 
 void test_inference(test_case_t* this) {
+
+    src_t* source = src_create_const("test_inference_buffer", "floatarrayvar");
     arena_t* a = arena_create(2048);
 
     trace_t trace = { 0 };
     trace_init(&trace, 5);
 
     ast_t* tyargs = ast_arglist(a);
-    ast_arglist_append(a, tyargs, ast_type_descriptor(a, srcref_const("float"), NULL));
-    ast_t* type = ast_type_descriptor(a, srcref_const("array"), tyargs);
+    ast_arglist_append(a, tyargs, ast_type_descriptor(a, src_linsearch(source, "float"), NULL));
+    ast_t* type = ast_type_descriptor(a, src_linsearch(source, "array"), tyargs);
     
     ast_t* arr = ast_array(a);
     ast_array_append(a, arr, ast_int(a, 1));
@@ -1116,7 +1131,7 @@ void test_inference(test_case_t* this) {
     ast_t* n = ast_assignment(a,
         ast_variable_declaration(a,
             type,
-            ast_variable_reference(a, srcref_const("var"))),
+            ast_variable_reference(a, src_linsearch(source, "var"))),
         arr);
 
     bty_ctx_t* ctx = bty_ctx_create(a, &trace, 16);
@@ -1158,6 +1173,7 @@ void test_inference(test_case_t* this) {
 
     trace_destroy(&trace);
     arena_destroy(a);
+    src_destroy(source);
 }
 
 void test_ift_types(test_case_t* this) {
@@ -1480,16 +1496,16 @@ void test_ast_to_json(test_case_t* this) {
 
     TEST_ASSERT_MSG(this, parsed->type == JSON_VALUE_OBJECT);
 
-    json_value_t* left = json_object_get_const(parsed, "AKEY_LEFT");
-    json_value_t* right = json_object_get_const(parsed, "AKEY_RIGHT");
+    json_value_t* left = json_object_get(parsed, "AKEY_LEFT");
+    json_value_t* right = json_object_get(parsed, "AKEY_RIGHT");
 
     TEST_ASSERT_MSG(this, left != NULL);
     TEST_ASSERT_MSG(this, right != NULL);
 
-    TEST_ASSERT_MSG(this, left->type == JSON_VALUE_NUMBER_INTEGER);
-    TEST_ASSERT_MSG(this, left->as.number_integer == 10);
-    TEST_ASSERT_MSG(this, right->type == JSON_VALUE_NUMBER_INTEGER);
-    TEST_ASSERT_MSG(this, left->as.number_integer == 10);
+    TEST_ASSERT_MSG(this, left->type == JSON_VALUE_NUMBER);
+    TEST_ASSERT_MSG(this, left->as.number == 10.0);
+    TEST_ASSERT_MSG(this, right->type == JSON_VALUE_NUMBER);
+    TEST_ASSERT_MSG(this, right->as.number == 10.0);
 }
 
 
@@ -1497,7 +1513,7 @@ void test_json(test_case_t* this) {
 
     arena_t* a = arena_create(512);
 
-    json_value_t* num = json_number_double(a, 1234.56789);
+    json_value_t* num = json_number(a, 1234.56789);
     json_value_t* bol = json_boolean(a, false);
     json_value_t* str = json_string(a, "text", 4);
 
@@ -1508,7 +1524,7 @@ void test_json(test_case_t* this) {
     json_array_append(arr, json_object(a, 0));
 
     json_value_t* obj = json_object(a, 4);
-    json_object_set(obj, json_string(a, "num", 3), json_number_integer(a, -100000));
+    json_object_set(obj, json_string(a, "num", 3), json_number(a, -100000));
     json_object_set(obj, json_string(a, "bol", 3), json_boolean(a, true));
     json_object_set(obj, json_string(a, "str", 3), json_string(a, "TEXT", 4));
     json_object_set(obj, json_string(a, "arr", 3), arr);
@@ -1538,6 +1554,11 @@ void test_json(test_case_t* this) {
 test_results_t run_testcases(void) {
 
     test_case_t test_cases[] = {
+        {
+            .name = "co tokenizer",
+            .test = test_tokenizer,
+            .nfailed = 0
+        },
         {
             .name = "vm full heap",
             .test = test_vm_full_heap,
@@ -1601,11 +1622,6 @@ test_results_t run_testcases(void) {
         {
             .name = "co ast",
             .test = test_ast,
-            .nfailed = 0
-        },
-        {
-            .name = "co tokenizer",
-            .test = test_tokenizer,
             .nfailed = 0
         }
     };
