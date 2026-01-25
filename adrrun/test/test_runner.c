@@ -11,6 +11,7 @@
 #include <shared/sh_log.h>
 
 #include <adrcom/ast/co_ast.h>
+#include <adrcom/ast/co_ast_json.h>
 
 #include <adrcom/shared/co_trace.h>
 
@@ -494,7 +495,7 @@ void test_ast(test_case_t* this) {
          ast_block_append(arena, block, fundef),
         "#1.0 failed to add to block.");
 
-    ast_print(block);
+    ast_print_json(block);
 
     trace_t trace = { 0 };
     trace_init(&trace, 16);
@@ -922,7 +923,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     }
     
     if( match_ok == false && is_known_todo == false ) {
-        ast_print(node);
+        ast_print_json(node);
         program_disassemble(&program);
     }
 

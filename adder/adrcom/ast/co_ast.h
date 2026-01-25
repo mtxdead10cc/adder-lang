@@ -107,17 +107,11 @@ inline static int ast_calculate_capacity(int size) {
 ast_t*      ast_leaf(arena_t* allocator, ast_tag_t tag);
 ast_t*      ast(arena_t* allocator, ast_tag_t tag, int size);
 
-srcref_t    ast_agg_srcrefs(ast_t* n);
+srcref_t    ast_aggregate_srcref(ast_t* n);
 srcref_t    ast_try_get_name(ast_t* n);
 ast_t*      ast_try_get(ast_t* n, ast_tag_t tag);
 
 const char* ast_tag_to_string(ast_tag_t tag);
-void        ast_print(ast_t* node);
-
-typedef struct json_value_t json_value_t;
-
-json_value_t* ast_to_json(arena_t* ator, ast_t* node);
-ast_t*        ast_from_json(arena_t* ator, json_value_t* json);
 
 bool ast_tag_is_unop(ast_tag_t tag);
 bool ast_is_unop(ast_t* node);

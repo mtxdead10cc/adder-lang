@@ -21,9 +21,7 @@ ast_t* ast(arena_t* allocator, ast_tag_t tag, int size) {
 }
 
 
-srcref_t _ast_agg_srcrefs(ast_t* node, int d) {
-
-    assert(d < 100);
+srcref_t ast_aggregate_srcref(ast_t* node) {
 
     if(node->tag == AST_SYMBOL)
         return node->as.srcref;
@@ -39,15 +37,12 @@ srcref_t _ast_agg_srcrefs(ast_t* node, int d) {
     for(int i = 0; i < node->size; i++) {
         assert(node->as.items[i] != node);
         agg = srcref_combine(agg,
-            _ast_agg_srcrefs(node->as.items[i], d+1));
+            ast_aggregate_srcref(node->as.items[i]));
     }
 
     return agg;
 }
 
-srcref_t ast_agg_srcrefs(ast_t* node) {
-    return _ast_agg_srcrefs(node, 0);
-}
 
 srcref_t ast_try_get_name(ast_t* n) {
     switch(n->tag) {
@@ -128,244 +123,6 @@ const char* ast_tag_to_string(ast_tag_t tag) {
         case AST__COUNT:                    return "AST__COUNT";
         default:                            return "AST <UNKNOWN TAG>";
     }
-}
-
-json_value_t* json_value_wrapper(arena_t* ator, const char* tag_name, json_value_t* value) {
-
-    if(ator == NULL || value == NULL)
-        return NULL;
-
-    assert(strnlen(tag_name, 5) >= 4); // "AST_", removing the 4 initial chars
-
-    json_value_t* wrapper = json_object(ator, 2);
-    json_value_t* wrptagkey = json_const_string(ator, "tag");
-    json_value_t* wrptagname = json_const_string(ator, tag_name + 4);
-    json_value_t* valuekey = json_const_string(ator,
-        (value->type == JSON_VALUE_ARRAY)
-            ? "items"
-            : "value");
-
-    if( json_object_set(wrapper, wrptagkey, wrptagname) == false ) {
-        sh_log_error("ast_value_wrapper: allocation/insert key failed");
-        return NULL;
-    }
-
-    if( json_object_set(wrapper, valuekey, value) == false ) {
-        sh_log_error("ast_value_wrapper: allocation/insert value failed");
-        return NULL;
-    }
-
-    return wrapper;
-}
-
-json_value_t* srcref_to_json(arena_t* ator, ast_t* value, json_value_t* sources) {
-
-    int index = -1;
-
-    char*  src_id = value->as.srcref.src->path;
-    size_t src_len = value->as.srcref.src->path_length;
-
-    for (int i = 0; i < sources->as.array.size; i++) {
-        json_value_t* item = sources->as.array.values[i];
-        assert(json_is_string(item));
-        if(json_is_string(item) == false)
-            continue;
-        char* present = item->as.string.text;
-        if(src_len != (size_t) item->as.string.length)
-            continue;
-        if(strncmp(src_id, present, src_len) == 0) {
-            index = i;
-            break;
-        }
-    }
-
-    if(index < 0) {
-        index = sources->as.array.size;
-        bool res = json_array_append(sources,
-            json_string(ator, src_id, src_len));
-        assert(res);
-    }
-
-    json_value_t* obj = json_object(ator, 4);
-
-    bool eok = obj != NULL;
-
-    eok = eok && json_object_set(obj,
-        json_const_string(ator, "idx_start"),
-        json_number(ator, value->as.srcref.idx_start));
-
-    eok = eok && json_object_set(obj,
-        json_const_string(ator, "idx_end"),
-        json_number(ator, value->as.srcref.idx_end));
-
-    eok = eok && json_object_set(obj,
-        json_const_string(ator, "source"),
-        json_number(ator, index));
-
-    eok = eok && json_object_set(obj,
-        json_const_string(ator, "text"),
-        json_string(ator, 
-            srcref_ptr(value->as.srcref),
-            srcref_len(value->as.srcref)));
-
-    return eok ? obj : NULL;
-}
-
-json_value_t* ast_to_json_internal(arena_t* ator, ast_t* value, json_value_t* sources) {
-
-    if(ator == NULL || value == NULL)
-        return NULL;
-
-    const char* tag_name = ast_tag_to_string(value->tag);
-
-    switch(value->tag) {
-        case AST_INT:        return json_value_wrapper(ator, tag_name,
-            json_number(ator, value->as.value_int));
-        case AST_BOOL:       return json_value_wrapper(ator, tag_name,
-            json_boolean(ator, value->as.value_bool));
-        case AST_CHAR:       return json_value_wrapper(ator, tag_name,
-            json_string(ator, &value->as.value_char, 1));
-        case AST_FLOAT:      return json_value_wrapper(ator, tag_name,
-            json_number(ator, value->as.value_float));
-        case AST_UNDEFINED:  return json_value_wrapper(ator, tag_name,
-            json_null(ator));
-        case AST_STRING: // Fallthrough
-        case AST_SYMBOL: {
-            return json_value_wrapper(ator, tag_name,
-                srcref_to_json(ator, value, sources));
-        } break;
-        default: {
-            json_value_t* items = json_array(ator, value->size > 0 ? value->size : 1);
-            for(int i = 0; i < value->size; i++) {
-                ast_t* ast_expr = value->as.items[i];
-                if(json_array_append(items, ast_to_json_internal(ator, ast_expr, sources)) == false)
-                    return NULL;
-            }
-            return json_value_wrapper(ator, tag_name, items);
-        } break;
-    }
-}
-
-json_value_t* ast_to_json(arena_t* ator, ast_t* value) {
-
-    if(ator == NULL || value == NULL)
-        return NULL;
-    
-    json_value_t* sources = json_array(ator, 5);
-    json_value_t* ast = ast_to_json_internal(ator, value, sources);
-    json_value_t* result = json_object(ator, 2);
-
-    bool eok = sources != NULL
-            && ast != NULL
-            && result != NULL;
-    
-    eok = eok && json_object_set(result,
-        json_const_string(ator, "sources"),
-        sources);
-
-    eok = eok && json_object_set(result,
-        json_const_string(ator, "ast"),
-        ast);
-
-    return eok ? result : NULL;
-}
-
-typedef struct jtlut_entry_t {
-    char*       str;
-    ast_tag_t   tag;
-} jtlut_entry_t;
-
-int jtlut_cmp(const void* a, const void* b) {
-    return strcmp(
-        ((jtlut_entry_t*) a)->str,
-        ((jtlut_entry_t*) b)->str);
-}
-
-void jtlut_init(jtlut_entry_t* table, int count) {
-    for(int i = 0; i < count; i++) {
-        table[i].str = (char*) ast_tag_to_string((ast_tag_t)i) + 4;
-        table[i].tag = (ast_tag_t) i;
-    }
-    qsort(table,
-        count,
-        sizeof(jtlut_entry_t),
-        jtlut_cmp);
-}
-
-ast_tag_t jtlut_binsearch(jtlut_entry_t* table, char* str, int sta, int end) {
-    
-    int dif = end - sta;
-    if( dif <= 6 ) {
-        for(int i = sta; i <= end; i++) {
-            if(jtlut_cmp(str, table[i].str) == 0)
-                return table[i].tag;
-        }
-        return AST_UNDEFINED;
-    }
-
-    int mid = sta + (dif / 2);
-    int cmp = jtlut_cmp(str, table[mid].str);
-    if(cmp < 0)
-        return jtlut_binsearch(table, str, sta, mid);
-    else if(cmp > 0)
-        return jtlut_binsearch(table, str, mid, end);
-    else
-        return table[mid].tag;
-
-}
-
-ast_tag_t ast_tag_from_json(jtlut_entry_t* table, json_value_t* json) {
-    if(json_is_object(json) == false)
-        return AST_UNDEFINED;
-    json_value_t* jtag = json_object_get(json, "tag");
-    if(json_is_string(jtag) == false)
-        return AST_UNDEFINED;
-    return jtlut_binsearch(table, jtag->as.string.text, 0, AST__COUNT);
-}
-
-ast_t* ast_from_json_internal(arena_t* ator, jtlut_entry_t* table, json_value_t* json) {
-
-    ast_tag_t tag = ast_tag_from_json(table, json);
-
-    if(ast_tag_is_value(tag)) {
-
-        json_value_t* jval = json_object_get(json, "value");
-
-        if(json_is_number(jval)) {
-            if(tag == AST_INT)
-                return ast_int(ator, (int) jval->as.number);
-            else if (tag == AST_FLOAT)
-                return ast_float(ator, jval->as.number);
-            else
-                assert(false); // return error here
-        }
-
-        /*if(json_is_string(jval)) { // how to handle srcrefs?
-            if(tag == AST_STRING)
-                return ast_string(ator, );
-            else if (tag == AST_SYMBOL)
-                return ast_float(ator, );
-            else
-                assert(false); // return error here
-        }*/
-    }
-
-    return NULL;
-}
-
-ast_t* ast_from_json(arena_t* ator, json_value_t* json) {
-    jtlut_entry_t table[AST__COUNT] = {0};
-    jtlut_init(table, AST__COUNT);
-    return ast_from_json_internal(ator, table, json);
-}
-
-void ast_print(ast_t* node) {
-    arena_t* arena = arena_create(512);
-    json_value_t* json = ast_to_json(arena, node);
-    char* jstr = json_dumps(json, 2);
-    sh_log(jstr);
-    free(jstr);
-    arena_destroy(arena);
 }
 
 bool ast_tag_is_unop(ast_tag_t tag) {

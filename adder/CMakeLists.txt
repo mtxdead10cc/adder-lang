@@ -83,6 +83,7 @@ PUBLIC
 
 target_sources(adrcomast PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/ast/co_ast.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/adrcom/ast/co_ast_json.c
 )
 
 target_link_libraries(adrcomast PUBLIC m adrsha)

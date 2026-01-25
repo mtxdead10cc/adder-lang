@@ -4,6 +4,7 @@
 #include <adrcom/shared/co_trace.h>
 
 #include <adrcom/ast/co_ast.h>
+#include <adrcom/ast/co_ast_json.h>
 
 #include <adrcom/parser/co_parser.h>
 

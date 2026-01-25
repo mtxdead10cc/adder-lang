@@ -83,8 +83,11 @@ bool json_is_string(json_value_t* json);
 bool json_is_object(json_value_t* json);
 bool json_is_array(json_value_t* json);
 
+ptrdiff_t       json_get_size(json_value_t* json);
+
 json_value_t*   json_array(arena_t* allocator, ptrdiff_t capacity);
 bool            json_array_append(json_value_t* json_array, json_value_t* value);
+json_value_t*   json_array_get(json_value_t* array, ptrdiff_t index);
 
 json_value_t*   json_object(arena_t* allocator, ptrdiff_t capacity);
 bool            json_object_set(json_value_t* json_object, json_value_t* key, json_value_t* value);
