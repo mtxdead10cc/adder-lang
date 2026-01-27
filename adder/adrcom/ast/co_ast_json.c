@@ -22,36 +22,42 @@ bool srcset_init(srcset_t* set, int capacity) {
     return true;
 }
 
+void srcset_destroy(srcset_t* set) {
+    if(set->paths != NULL)
+        free(set->paths);
+    *set = (srcset_t) {0};
+}
+
 int srcset_find_index(srcset_t* set, srcpath_t path) {
     for(size_t i = 0; i < set->size; i++) {
         if(set->paths[i].length != path.length)
             continue;
-        if(strncmp(set->paths[i].path, path.path, path.length) != 0)
-            continue;
-        return i;
+        if(strncmp(set->paths[i].path, path.path, path.length) == 0)
+            return i;
     }
     return -1;
 }
 
-bool srcset_add(srcset_t* set, srcpath_t path) {
+int srcset_add(srcset_t* set, srcpath_t path) {
     
     int index = srcset_find_index(set, path);
-    if( index > 0 )
-        return true;
+    if( index >= 0 )
+        return index;
 
     if( set->size >= set->capacity ) {
         int capacity = set->size * 2;
         srcpath_t* paths = (srcpath_t*) realloc(set->paths,
             capacity * sizeof(srcpath_t));
         if(paths == NULL)
-            return false;
+            return -1;
         set->capacity = capacity;
         set->paths = paths;
     }
 
-    set->paths[set->size] = path;
+    index = set->size;
+    set->paths[index] = path;
     set->size += 1;
-    return true;
+    return index;
 }
 
 json_value_t* json_value_wrapper(arena_t* ator, const char* tag_name, json_value_t* value) {
@@ -84,18 +90,16 @@ json_value_t* json_value_wrapper(arena_t* ator, const char* tag_name, json_value
 
 json_value_t* srcref_to_json(arena_t* ator, ast_t* value, srcset_t* set) {
 
-    int index = -1;
-
     srcpath_t path = (srcpath_t) {
         .path = value->as.srcref.src->path,
         .length = value->as.srcref.src->path_length
     };
 
-    bool eok = srcset_add(set, path);
+    int index = srcset_add(set, path);
 
     json_value_t* obj = json_object(ator, 4);
 
-    eok = eok && obj != NULL;
+    bool eok = index >= 0 && obj != NULL;
 
     eok = eok && json_object_set(obj,
         json_const_string(ator, "idx_start"),
@@ -173,6 +177,8 @@ json_value_t* ast_to_json(arena_t* ator, ast_t* value) {
                 set.paths[i].length));
     }
 
+    srcset_destroy(&set);
+
     json_value_t* result = json_object(ator, 2);
 
     json_object_set(result,
@@ -208,19 +214,30 @@ void jtlut_init(jtlut_entry_t* table, int count) {
         jtlut_cmp);
 }
 
+size_t strcnt(char* string, char stopchar) {
+    size_t maxlen = strlen(string);
+    for(size_t i = 0; i < maxlen; i++) {
+        if(string[i] == stopchar)
+            return i;
+    }
+    return maxlen;
+}
+
 ast_tag_t jtlut_binsearch(jtlut_entry_t* table, char* str, int sta, int end) {
-    
+
+    size_t str_len = strcnt(str, '"');
+
     int dif = end - sta;
     if( dif <= 6 ) {
         for(int i = sta; i <= end; i++) {
-            if(jtlut_cmp(str, table[i].str) == 0)
+            if(strncmp(str, table[i].str, str_len) == 0)
                 return table[i].tag;
         }
         return AST_UNDEFINED;
     }
 
     int mid = sta + (dif / 2);
-    int cmp = jtlut_cmp(str, table[mid].str);
+    int cmp = strncmp(str, table[mid].str, str_len);
     if(cmp < 0)
         return jtlut_binsearch(table, str, sta, mid);
     else if(cmp > 0)
@@ -230,90 +247,145 @@ ast_tag_t jtlut_binsearch(jtlut_entry_t* table, char* str, int sta, int end) {
 
 }
 
-ast_tag_t ast_tag_from_json(jtlut_entry_t* table, json_value_t* json) {
+typedef struct ast_json_params_t {
+    arena_t*        arena;
+    jtlut_entry_t*  table;
+    src_t**         srcs;
+    size_t          srccount;
+} ast_json_params_t;
+
+ast_tag_t ast_tag_from_json(ast_json_params_t* params, json_value_t* json) {
     if(json_is_object(json) == false)
         return AST_UNDEFINED;
     json_value_t* jtag = json_object_get(json, "tag");
     if(json_is_string(jtag) == false)
         return AST_UNDEFINED;
-    return jtlut_binsearch(table, jtag->as.string.text, 0, AST__COUNT);
+    return jtlut_binsearch(params->table, jtag->as.string.text, 0, AST__COUNT-1);
 }
 
-srcref_t srcref_from_json(src_t** sources, json_value_t* json) {
+srcref_t srcref_from_json(ast_json_params_t* params, json_value_t* json) {
+
     if(json_is_object(json) == false)
         return (srcref_t){0};
+
     json_value_t* source_index = json_object_get(json, "source");
     if(json_is_number(source_index) == false)
         return (srcref_t){0};
+
     json_value_t* start_idx = json_object_get(json, "idx_start");
     if(json_is_number(start_idx) == false)
         return (srcref_t){0};
+
     json_value_t* end_idx = json_object_get(json, "idx_end");
     if(json_is_number(end_idx) == false)
         return (srcref_t){0};
+
+    size_t srcptr_index = source_index->as.number;
+    if(srcptr_index >= params->srccount)
+        return (srcref_t){0};
+
     return (srcref_t) {
         .idx_end = (size_t) end_idx->as.number,
         .idx_start = (size_t) start_idx->as.number,
-        .src = sources[(int)source_index->as.number]
+        .src = params->srcs[srcptr_index]
     };
 }
 
-ast_t* ast_from_json_internal(arena_t* ator, jtlut_entry_t* table, src_t** sources, json_value_t* json) {
+ast_t* ast_value_int(ast_json_params_t* params, json_value_t* json) {
+    json_value_t* value = json_object_get(json, "value");
+    if(json_is_number(value) == false)
+        return NULL;
+    return ast_int(params->arena, (value->as.number + 0.5));
+}
 
-    ast_tag_t tag = ast_tag_from_json(table, json);
+ast_t* ast_value_float(ast_json_params_t* params, json_value_t* json) {
+    json_value_t* value = json_object_get(json, "value");
+    if(json_is_number(value) == false)
+        return NULL;
+    return ast_float(params->arena, value->as.number);
+}
 
-    if(ast_tag_is_value(tag)) {
+ast_t* ast_value_string(ast_json_params_t* params, json_value_t* json) {
+    json_value_t* value = json_object_get(json, "value");
+    if(json_is_object(value) == false)
+        return NULL;
+    srcref_t ref = srcref_from_json(params, value);
+    if(srcref_is_valid(ref) == false)
+        return NULL;
+    return ast_string(params->arena, ref);
+}
 
-        json_value_t* jval = json_object_get(json, "value");
+ast_t* ast_value_symbol(ast_json_params_t* params, json_value_t* json) {
+    json_value_t* value = json_object_get(json, "value");
+    if(json_is_object(value) == false)
+        return NULL;
+    srcref_t ref = srcref_from_json(params, value);
+    if(srcref_is_valid(ref) == false)
+        return NULL;
+    return ast_symbol(params->arena, ref);
+}
 
-        if(json_is_number(jval)) {
-            if(tag == AST_INT)
-                return ast_int(ator, (int) jval->as.number);
-            else if (tag == AST_FLOAT)
-                return ast_float(ator, jval->as.number);
-            else
-                assert(false); // return error here
-        } else if(json_is_string(jval)) {
-            srcref_t ref = srcref_from_json(sources, jval);
-            assert(srcref_is_valid(ref)); // error
-            if(tag == AST_STRING)
-                return ast_string(ator, ref);
-            else if(tag==AST_SYMBOL)
-                return ast_symbol(ator, ref);
-            else
-                assert(false); // error
-        } else if(json_is_bool(jval)) {
-            return ast_bool(ator, jval->as.boolean);
-        } else if(json_is_array(jval)) {
-            ast_t* arr = ast_array(ator); // error
-            ptrdiff_t size = json_get_size(jval);
+ast_t* ast_value_bool(ast_json_params_t* params, json_value_t* json) {
+    json_value_t* value = json_object_get(json, "value");
+    if(json_is_bool(value) == false)
+        return NULL;
+    return ast_bool(params->arena, value->as.boolean);
+}
+
+ast_t* ast_value_char(ast_json_params_t* params, json_value_t* json) {
+    json_value_t* value = json_object_get(json, "value");
+    if(json_is_string(value) == false)
+        return NULL;
+    if(value->as.string.length < 1)
+        return NULL;
+    return ast_char(params->arena, value->as.string.text[0]);
+}
+
+ast_t* ast_from_json_internal(ast_json_params_t* params, json_value_t* json) {
+
+    // todo: proper validation of fields
+    // todo: common error structure
+
+    ast_tag_t tag = ast_tag_from_json(params, json);
+
+    switch(tag) {
+        case AST_UNDEFINED: return NULL;
+        case AST_FLOAT:     return ast_value_float(params, json);
+        case AST_INT:       return ast_value_int(params, json);
+        case AST_BOOL:      return ast_value_bool(params, json);
+        case AST_CHAR:      return ast_value_char(params, json);
+        case AST_STRING:    return ast_value_string(params, json);
+        case AST_SYMBOL:    return ast_value_symbol(params, json);
+        case AST_ARRAY: {
+            json_value_t* value = json_object_get(json, "items");
+            if(json_is_array(value) == false)
+                return NULL;
+            ast_t* arr = ast_array(params->arena); // error
+            ptrdiff_t size = json_get_size(value);
             for(ptrdiff_t i = 0; i < size; i++) {
-                json_value_t* val = json_array_get(jval, i);
-                ast_t* astval = ast_from_json_internal(ator, table, sources, val);
-                assert(astval != NULL); // error
-                ast_array_append(ator, arr, astval); // error
+                json_value_t* arrval = json_array_get(value, i);
+                ast_t* arrastval = ast_from_json_internal(params, arrval);
+                assert(arrastval != NULL); // error
+                ast_array_append(params->arena, arr, arrastval); // error
             }
             return arr;
         }
-
-        return NULL;
-
-    } else {
-
-        json_value_t* jitems = json_object_get(json, "items");
-
-        int size = json_get_size(jitems);
-        // TODO: validate json size == expected ast size
-        ast_t* node = ast(ator, tag, size);
-        for(int i = 0; i < size; i++) {
-            json_value_t* item = json_array_get(jitems, i);
-            ast_t* astitem = ast_from_json_internal(ator, table, sources, item);
-            assert(astitem != NULL); // error
-            node->as.items[i] = astitem;
+        default: {
+            json_value_t* jitems = json_object_get(json, "items");
+            if(jitems == NULL)
+                return NULL;
+            int size = json_get_size(jitems);
+            // TODO: validate json size == expected ast size
+            ast_t* node = ast(params->arena, tag, size);
+            for(int i = 0; i < size; i++) {
+                json_value_t* item = json_array_get(jitems, i);
+                ast_t* astitem = ast_from_json_internal(params, item);
+                assert(astitem != NULL); // error
+                node->as.items[i] = astitem;
+            }
+            return node; 
         }
-
-        return node;
-    }
+    }   
 }
 
 bool srcset_from_json(srcset_t* set, json_value_t* sources) {
@@ -335,9 +407,8 @@ bool srcset_from_json(srcset_t* set, json_value_t* sources) {
             .path = value->as.string.text,
             .length = value->as.string.length
         };
-        if( srcset_add(set, path) == false ) {
+        if( srcset_add(set, path) < 0 )
             sh_log_error("srcset_from_json: internal error");
-        }
     }
 
     return (size_t) len == set->size;
@@ -362,8 +433,21 @@ ast_t* ast_from_json(arena_t* ator, json_value_t* json, mksrc_fn_t srcmaker, voi
             set.paths[i].path,
             set.paths[i].length);
     }
+
+    ast_json_params_t params = {
+        .arena = ator,
+        .table = table,
+        .srccount = set.size,
+        .srcs = sources
+    };
+
+    srcset_destroy(&set);
+
+    json_value_t* json_ast = json_object_get(json, "ast");
+    if( json_is_object(json_ast) == false )
+        return NULL;
     
-    return ast_from_json_internal(ator, table, sources, json);
+    return ast_from_json_internal(&params, json_ast);
 }
 
 void ast_print_json(ast_t* node) {

@@ -495,7 +495,7 @@ void test_ast(test_case_t* this) {
          ast_block_append(arena, block, fundef),
         "#1.0 failed to add to block.");
 
-    ast_print_json(block);
+    //ast_print_json(block);
 
     trace_t trace = { 0 };
     trace_init(&trace, 16);
@@ -1531,6 +1531,9 @@ void test_json(test_case_t* this) {
     json_object_set(obj, json_string(a, "bol", 3), json_boolean(a, true));
     json_object_set(obj, json_string(a, "str", 3), json_string(a, "TEXT", 4));
     json_object_set(obj, json_string(a, "arr", 3), arr);
+    json_object_set(obj, json_string(a, "ob1", 3), json_object(a, 0));
+    json_object_set(obj, json_string(a, "ob2", 3), json_object(a, 0));
+    json_object_set(obj, json_string(a, "ob3", 3), json_object(a, 0));
 
     char* json = json_dumps(obj, 2);
     TEST_ASSERT_MSG(this, json != NULL);
@@ -1553,6 +1556,92 @@ void test_json(test_case_t* this) {
     arena_destroy(a);
 }
 
+src_t* test_srcmaker(void* user, char* path, size_t plen) {
+    (void)(path);
+    (void)(plen);
+    return (src_t*) user;
+}
+
+void test_ast_json(test_case_t* this) {
+    
+    arena_t* arena = arena_create(512);
+    
+    char* code = "float main() {\n"
+    "  array<float> a = [0.1, 0.2, 0.3];\n"
+    "  float g = 0.0;\n"
+    "  float t = 0.0;\n"
+    "  for(float e in a) {\n"
+    "    if(e <= 0.23) {\n"
+    "      g = g + e;\n"
+    "    } else if(e >= 0) {\n"
+    "      t = t + 10;\n"
+    "    }\n"
+    "  }\n"
+    "  return g - t;\n"
+    "}";
+
+    parser_t parser  = { 0 };
+    trace_t trace  = { 0 };
+
+    trace_init(&trace, 16);
+
+
+    src_t* source = src_create("test_ast_json", code, strlen(code));
+
+    pa_result_t result = pa_init(&parser, arena, &trace, source);
+
+    TEST_ASSERT_MSG(this,
+        par_is_error(result) == false,
+        "parser init failed");
+
+    result = pa_parse_program(&parser);
+
+    TEST_ASSERT_MSG(this,
+        par_is_node(result),
+        "parsing failed");
+
+    ast_t* ast1 = par_extract_node(result);
+
+    TEST_ASSERT_MSG(this,
+        ast1 != NULL,
+        "ast1 was null");
+
+    json_value_t* json1 = ast_to_json(arena, ast1);
+    char* str1 = json_dumps(json1, 0);
+
+    json_value_t* json1_parsed = json_parse(arena, str1, strlen(str1));
+    
+    char* str_parsed = json_dumps(json1_parsed, 0);
+
+    TEST_ASSERT_MSG(this,
+        strcmp(str1, str_parsed) == 0,
+        "str_parsed != str1");
+
+    ast_t* ast2 = ast_from_json(arena, json1_parsed, test_srcmaker, source);
+
+    TEST_ASSERT_MSG(this,
+        ast2 != NULL,
+        "parsed ast was null");
+
+    if(ast2 != NULL) {
+        json_value_t* json2 = ast_to_json(arena, ast2);
+        char* str2 = json_dumps(json2, 0);
+
+        TEST_ASSERT_MSG(this,
+            strcmp(str1, str2) == 0,
+            "str1 != str2\n\nstr1 => %s\n\nstr2 => %s",
+             str1, str2);
+
+        free(str2);
+    }
+
+    free(str1);
+    free(str_parsed);
+    pa_destroy(&parser);
+    arena_destroy(arena);
+    src_destroy(source);
+    trace_destroy(&trace);
+}
 
 test_results_t run_testcases(void) {
 
@@ -1625,6 +1714,11 @@ test_results_t run_testcases(void) {
         {
             .name = "co ast",
             .test = test_ast,
+            .nfailed = 0
+        },
+        {
+            .name = "ast to json and back",
+            .test = test_ast_json,
             .nfailed = 0
         }
     };

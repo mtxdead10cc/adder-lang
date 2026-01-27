@@ -269,6 +269,16 @@ json_value_t* json_object_get(json_value_t* json_object, const char* key) {
     return json_object_getn(json_object, (char*) key, strlen(key));
 }
 
+bool json_object_has(json_value_t* json_object, const char* key, json_value_type_t value_type) {
+    if( key == NULL || json_object == NULL )
+        return false;
+    json_value_t* value = json_object_getn(json_object,
+        (char*) key, strlen(key));
+    if( value == NULL )
+        return false;
+    return value->type == value_type;
+}
+
 ptrdiff_t json_get_size(json_value_t* json) {
     switch(json->type) {
         case JSON_VALUE_ARRAY:
@@ -494,6 +504,8 @@ char* json_dumps_append_object(char* prev, json_value_t* json, int level, int in
 
     str = json_dumps_append_string(str, "}");
 
+    assert(str[strlen(str)-1] == '}');
+
     return str;
 }
 
@@ -657,7 +669,8 @@ json_value_t* json_parse_value(arena_t* allocator, pt_state_t* state) {
                     break;
 
                 json_value_t* inner = json_parse_value(allocator, state);
-                json_array_append(result, inner);
+                bool ok = json_array_append(result, inner);
+                assert(ok);
                 pt_state_advance_if(state, JTT_SEPARATOR);
             }
 

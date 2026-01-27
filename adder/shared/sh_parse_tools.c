@@ -85,8 +85,7 @@ ptrdiff_t pt_scan_number(char* text, ptrdiff_t remaining) {
     ptrdiff_t maxlen = 0;
     while (maxlen < remaining) {
         char c = text[maxlen];
-        bool accept = true;
-        accept = accept || pt_char_number(c);
+        bool accept =      pt_char_number(c);
         accept = accept || pt_char_whitespace(c);
         accept = accept || pt_char_any_of(c, "-+.xX");
         if( accept == false )
@@ -94,12 +93,12 @@ ptrdiff_t pt_scan_number(char* text, ptrdiff_t remaining) {
         maxlen ++;
     }
 
-    maxlen -= 1;
-    if( maxlen <= 0 || maxlen > 256 )
+    if( maxlen <= 0 )
         return 0;
 
-    char tmp[256] = { 0 };
+    char tmp[maxlen+1];
     strncpy(tmp, text, maxlen);
+    tmp[maxlen] = '\0';
     
     char* end = tmp;
     strtod(tmp, &end);
@@ -131,7 +130,7 @@ bool pt_state_advance_if(pt_state_t* state, int64_t tt) {
 }
 
 bool pt_state_has_tokens(pt_state_t* state) {
-    return state->index < state->token_count;
+    return state->index < (state->token_count - 1);
 }
 
 pt_result_code_t pt_state_init(pt_state_t* state, pt_token_gen_t tokr, char* text, ptrdiff_t text_length) {

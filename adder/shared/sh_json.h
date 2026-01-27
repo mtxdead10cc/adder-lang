@@ -93,6 +93,7 @@ json_value_t*   json_object(arena_t* allocator, ptrdiff_t capacity);
 bool            json_object_set(json_value_t* json_object, json_value_t* key, json_value_t* value);
 json_value_t*   json_object_getn(json_value_t* json_object, char* key, ptrdiff_t key_len);
 json_value_t*   json_object_get(json_value_t* json_object, const char* key);
+bool            json_object_has(json_value_t* json_object, const char* key, json_value_type_t value_type);
 
 char*           json_dumps(json_value_t* json, int indent);
 json_value_t*   json_parse(arena_t* allocator, char* json_str, ptrdiff_t len);
