@@ -4,7 +4,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define AST_DEBUG_ENABLE_ANSI_COLOR
+#define AST_DEBUG_ENABLE_ANSI_COLOR  1
+#define AST_DEBUG_CODE_INDENT_SPACES 2
 
 typedef struct ast_t ast_t;
 typedef struct cstr_t cstr_t;

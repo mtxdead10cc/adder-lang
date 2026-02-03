@@ -2,7 +2,7 @@
 #include "adrcom/ast/co_ast.h"
 #include <stdarg.h>
 
-#ifdef AST_DEBUG_ENABLE_ANSI_COLOR
+#if AST_DEBUG_ENABLE_ANSI_COLOR > 0
 # define STYLE(STYLE, COLOR, TEXT) "\033["STYLE";"COLOR"m"TEXT"\033[0m"
 #else
 # define STYLE(STYLE, COLOR, TEXT) TEXT
@@ -75,7 +75,7 @@ size_t append_code_items(cstr_t* s, char* sep, ast_t* n) {
 size_t append_indent(cstr_t* s, int indent) {
     if(indent <= 0)
         return 0;
-    indent = indent * 2;
+    indent = indent * AST_DEBUG_CODE_INDENT_SPACES;
     char buf[indent+1];
     memset(buf, ' ', indent);
     buf[indent] = '\0';
