@@ -17,6 +17,8 @@
 
 #include <adrcom/ast/co_ast.h>
 
+#include <shared/sh_diag.h>
+
 pa_result_t pa_parse_expression(parser_t* parser);
 pa_result_t pa_parse_statement(parser_t* parser);
 

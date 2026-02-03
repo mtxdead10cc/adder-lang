@@ -71,9 +71,10 @@ json_value_t* json_error(arena_t* allocator, json_tt_t expected, pt_token_t toke
         .type = JSON_VALUE_ERROR,
         .as.error = (json_error_t) {
             .expected = expected,
-            .got = (json_string_t) {
+            .got = {
                 .length = token.length,
-                .text = token.text
+                .buffer = token.buffer,
+                .start = token.start_offset
             }
         }
     };
@@ -513,10 +514,10 @@ char* json_dumps_append_error(char* prev, json_error_t error) {
     char* str = json_dumps_append_string(prev, "< expected '");
     str = json_dumps_append_string(str, json_tt_to_string(error.expected));
     str = json_dumps_append_string(str, "' but got ");
-    if( error.got.text != NULL ) {
+    if( error.got.buffer != NULL ) {
         str = json_dumps_append_string(str, "'");
         str = json_dumps_append_lenstring(str,
-            error.got.text,
+            error.got.buffer + error.got.start,
             (int)error.got.length);
         str = json_dumps_append_string(str, "'");
     } else {
@@ -631,11 +632,13 @@ ptrdiff_t json_scan(char* text, ptrdiff_t remaining, int64_t* type_out) {
 json_value_t* json_parse_value(arena_t* allocator, pt_state_t* state) {
 
     pt_token_t tok = pt_state_peek(state, 0);
+    char* tokenstr = tok.buffer + tok.start_offset;
+    ptrdiff_t tokenlen = tok.length;
 
     switch(tok.type) {
         case JTT_BOOL: {
             json_value_t* result = NULL;
-            if( pt_str_eq(tok.text, tok.length, "true") )
+            if( pt_str_eq(tokenstr, tokenlen, "true") )
                 result = json_boolean(allocator, true);
             else
                 result = json_boolean(allocator, false);
@@ -643,13 +646,13 @@ json_value_t* json_parse_value(arena_t* allocator, pt_state_t* state) {
             return result;
         } break;
         case JTT_NUMBER: {
-            json_value_t* result = json_number(allocator, strtod(tok.text, NULL));
+            json_value_t* result = json_number(allocator, strtod(tokenstr, NULL));
             pt_state_advance(state);
             return result;
         } break;
         case JTT_STRING: {
-            assert(tok.length >= 2);
-            json_value_t* result = json_string(allocator, tok.text+1, tok.length-2);
+            assert(tokenlen >= 2);
+            json_value_t* result = json_string(allocator, tokenstr+1, tokenlen-2);
             pt_state_advance(state);
             return result;
         } break;

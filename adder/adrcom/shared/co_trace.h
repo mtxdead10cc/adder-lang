@@ -150,12 +150,12 @@ inline static int trace_sprint_location(cstr_t cstr, srcref_t ref, char* filepat
     column += 1;
 
     if( filepath != NULL ) {
-        return cstr_append_fmt(cstr, "%s:%d:%d: ",
+        return cstr_append_fmt(&cstr, "%s:%d:%d: ",
             filepath,
             (uint32_t) line,
             (uint32_t) column);
     } else {
-        return cstr_append_fmt(cstr, "<unknown file>:%d:%d: ",
+        return cstr_append_fmt(&cstr, "<unknown file>:%d:%d: ",
             (uint32_t) line,
             (uint32_t) column);
     }
@@ -164,11 +164,11 @@ inline static int trace_sprint_location(cstr_t cstr, srcref_t ref, char* filepat
 inline static int trace_sprint_prefix(cstr_t cstr, trace_msg_t* msg) {
     switch(msg->type) {
         case TM_NONE:           return 0;
-        case TM_OUT_OF_MEMORY:  return cstr_append_fmt(cstr, "ERROR: OUT OF SYSTEM MEMORY ");
-        case TM_INTERNAL_ERROR: return cstr_append_fmt(cstr, "ERROR (INTERNAL PANIC): ");
-        case TM_WARNING:        return cstr_append_fmt(cstr, "WARNING: ");
-        case TM_INFO:           return cstr_append_fmt(cstr, "INFO: ");
-        default:                return cstr_append_fmt(cstr, "ERROR: ");
+        case TM_OUT_OF_MEMORY:  return cstr_append_fmt(&cstr, "ERROR: OUT OF SYSTEM MEMORY ");
+        case TM_INTERNAL_ERROR: return cstr_append_fmt(&cstr, "ERROR (INTERNAL PANIC): ");
+        case TM_WARNING:        return cstr_append_fmt(&cstr, "WARNING: ");
+        case TM_INFO:           return cstr_append_fmt(&cstr, "INFO: ");
+        default:                return cstr_append_fmt(&cstr, "ERROR: ");
     }
 }
 
@@ -183,9 +183,9 @@ inline static int trace_sprint_msg(cstr_t cstr, trace_msg_t* msg) {
         return pres;
     
     if( msg->length >= TRACE_MSG_MAX_LEN ) {
-        return cstr_append_fmt(cstr, "%.*s\n", TRACE_MSG_MAX_LEN, msg->message);
+        return cstr_append_fmt(&cstr, "%.*s\n", TRACE_MSG_MAX_LEN, msg->message);
     } else if (msg->length > 0) {
-        return cstr_append_fmt(cstr, "%.*s\n", (int) msg->length, msg->message);
+        return cstr_append_fmt(&cstr, "%.*s\n", (int) msg->length, msg->message);
     }
 
     return 0;

@@ -5,13 +5,13 @@
 pt_token_t pt_tokenizer_get_token(pt_token_gen_t tokr, char* text, ptrdiff_t text_current, ptrdiff_t text_length) {
 
     ptrdiff_t remaining = text_length - text_current;
-    char* start_ptr     = text + text_current;
     int64_t tt          = -1;
 
-    ptrdiff_t consumed = tokr(start_ptr, remaining, &tt);
+    ptrdiff_t consumed = tokr(text + text_current, remaining, &tt);
     if( tt >= 0 && consumed > 0 ) {
         return (pt_token_t) {
-            .text = start_ptr,
+            .buffer = text,
+            .start_offset = text_current,
             .length = consumed,
             .type = tt
         };

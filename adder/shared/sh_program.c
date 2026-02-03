@@ -16,18 +16,18 @@ void sprint_value(cstr_t str, val_t* memory, val_t val) {
         array_t array = val_into_array(val);
         val_t* buffer = memory + MEM_ADDR_TO_INDEX(array.address);
         if( buffer == NULL ) {
-            cstr_append_fmt(str, "<null buffer>");
+            cstr_append_fmt(&str, "<null buffer>");
             return;
         }
         int length = array.length;
         bool is_list = buffer[0].type != VAL_CHAR;
         if(is_list) {
-            cstr_append_fmt(str, "[ ");
+            cstr_append_fmt(&str, "[ ");
             for(int i = 0; i < length; i++) {
                 sprint_value(str, memory, buffer[i]);
-                cstr_append_fmt(str, " ");
+                cstr_append_fmt(&str, " ");
             }
-            cstr_append_fmt(str, "]");
+            cstr_append_fmt(&str, "]");
         } else { // string
             for(int i = 0; i < length; i++) {
                 sprint_value(str, memory, buffer[i]);
@@ -37,37 +37,37 @@ void sprint_value(cstr_t str, val_t* memory, val_t val) {
         switch (val.type)
         {
         case VAL_NUMBER:
-            cstr_append_fmt(str, "%f", val_into_number(val));
+            cstr_append_fmt(&str, "%f", val_into_number(val));
             break;
         case VAL_CHAR:
-            cstr_append_fmt(str, "%c", val_into_char(val));
+            cstr_append_fmt(&str, "%c", val_into_char(val));
             break;
         case VAL_BOOL:
-            cstr_append_fmt(str, "%s", val_into_bool(val) ? "TRUE" : "FALSE");
+            cstr_append_fmt(&str, "%s", val_into_bool(val) ? "TRUE" : "FALSE");
             break;
         case VAL_IVEC2: {
             ivec2_t v = val_into_ivec2(val);
-            cstr_append_fmt(str, "(%i, %i)", v.x, v.y);
+            cstr_append_fmt(&str, "(%i, %i)", v.x, v.y);
         } break;
         case VAL_ITER: {
             iter_t v = val_into_iter(val);
-            cstr_append_fmt(str, "{curr:0x%08X, rem:%i}", v.current, v.remaining);
+            cstr_append_fmt(&str, "{curr:0x%08X, rem:%i}", v.current, v.remaining);
         } break;
         case VAL_FRAME: {
             frame_t frame = val_into_frame(val);
-            cstr_append_fmt(str, "<pc: %i, nargs: %i, nlocals: %i>",
+            cstr_append_fmt(&str, "<pc: %i, nargs: %i, nlocals: %i>",
                 frame.return_pc,
                 frame.num_args,
                 frame.num_locals);
         } break;
         case VAL_ARRAY: {
             array_t a = val_into_array(val);
-            cstr_append_fmt(str, "[addr: 0x%08X, len: %d]",
+            cstr_append_fmt(&str, "[addr: 0x%08X, len: %d]",
                 a.address, a.length);
             break;
         } break;
         default:
-            cstr_append_fmt(str, "<unk>");
+            cstr_append_fmt(&str, "<unk>");
             break;
         }
     }
@@ -81,8 +81,8 @@ bool program_is_valid(program_t* prog) {
 
 void program_disassemble(program_t* program) {
     
-    define_cstr(str, DASM_LEN);
-    cstr_append_fmt(str, "[DISASSEMBLY]\n");
+    mk_cstr(str, DASM_LEN);
+    cstr_append_fmt(&str, "[DISASSEMBLY]\n");
 
     int current_byte = 0;
     val_t* consts = program->cons.buffer;
@@ -92,25 +92,25 @@ void program_disassemble(program_t* program) {
         vm_op_t opcode = instructions[current_byte];
         int arg_count = get_op_arg_count(opcode);
         if( arg_count < 0 ) {
-            cstr_append_fmt(str, "<op %i not found>", opcode);
+            cstr_append_fmt(&str, "<op %i not found>", opcode);
             current_byte ++;
             continue;
         }
         char* name = get_op_name(opcode);
         op_argtype_t* argtypes = get_op_arg_types(opcode);
-        cstr_append_fmt(str, "#%5i| %-16s", current_byte, name);
+        cstr_append_fmt(&str, "#%5i| %-16s", current_byte, name);
         current_byte ++;
         for (int i = 0; i < arg_count; i++) {
             int val = (int) READ_U32(instructions, current_byte);
-            cstr_append_fmt(str, " %-9i", val);
+            cstr_append_fmt(&str, " %-9i", val);
             current_byte += 4;
             if( argtypes[i] == OP_ARG_CONSTANT ) {
-                cstr_append_fmt(str, " (");
+                cstr_append_fmt(&str, " (");
                 sprint_value(str, consts, consts[val]);
-                cstr_append_fmt(str, ")");
+                cstr_append_fmt(&str, ")");
             }
         }
-        cstr_append_fmt(str, "\n");
+        cstr_append_fmt(&str, "\n");
     }
 
     sh_log_info(str.ptr);

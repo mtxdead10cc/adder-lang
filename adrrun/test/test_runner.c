@@ -12,6 +12,7 @@
 
 #include <adrcom/ast/co_ast.h>
 #include <adrcom/ast/co_ast_json.h>
+#include <adrcom/ast/co_ast_debug.h>
 
 #include <adrcom/shared/co_trace.h>
 
@@ -502,7 +503,7 @@ void test_ast(test_case_t* this) {
 
     program_t program = gvm_compile(arena, block, &trace);
     if( trace_get_error_count(&trace) > 0 ) {
-        define_cstr(str, 2048);
+        mk_cstr(str, 2048);
         trace_sprint(str, &trace);
         sh_log_error("COMPILER\n%s", str.ptr);
     }
@@ -721,7 +722,7 @@ void test_tokenizer(test_case_t* this) {
         tokens_destroy(&coll);
         src_destroy(source);
 
-        define_cstr(str, 2048);
+        mk_cstr(str, 2048);
         trace_sprint(str, &trace);
         if( strlen(str.ptr) > 0 )
             sh_log_error("%s", str.ptr);
@@ -732,7 +733,7 @@ void test_tokenizer(test_case_t* this) {
 
 void test_printfn(ffi_hndl_meta_t md, int argcount, val_t* args) {
     (void)(argcount);
-    define_cstr(str, 512);
+    mk_cstr(str, 512);
     vm_sprint_val(str, md.vm, args[0]);
     sh_log("> %s", str.ptr);
 }
@@ -811,10 +812,10 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
 
     if( parsing_ok == false ) {
         if( is_known_todo == false ) {
-            define_cstr(str, 2048);
-            cstr_append_fmt(str, "[trace]\n");
+            mk_cstr(str, 2048);
+            cstr_append_fmt(&str, "[trace]\n");
             trace_sprint(str, &trace);
-            cstr_append_fmt(str, "[tokens]\n");
+            cstr_append_fmt(&str, "[tokens]\n");
             tokens_sprint(str, &parser.collection);
             sh_log_error("PARSER\n%s", str.ptr);
         }
@@ -829,7 +830,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
 
     program_t program = gvm_compile(arena, node, &trace);
     if( trace_get_error_count(&trace) > 0 && is_known_todo == false ) {
-        define_cstr(str, 2048);
+        mk_cstr(str, 2048);
         trace_sprint(str, &trace);
         sh_log_error("COMPILER\n%s", str.ptr);
         json_value_t* json = ast_to_json(arena, node);
@@ -1169,7 +1170,7 @@ void test_inference(test_case_t* this) {
         "#1.1 synth error");
 
     if( trace_get_error_count(&trace) > 0 ) {
-        define_cstr(str, 2048);
+        mk_cstr(str, 2048);
         trace_sprint(str, &trace);
         sh_log_error("TYPECHECKING\n%s", str.ptr);
     }
@@ -1605,6 +1606,20 @@ void test_ast_json(test_case_t* this) {
     TEST_ASSERT_MSG(this,
         ast1 != NULL,
         "ast1 was null");
+
+    // TMP
+    int dbglen1 = ast_to_string(NULL, ast1, AST_DBG_CODE);
+    mk_cstr(dbg, dbglen1);
+
+    int dbglen2 = ast_to_string(&dbg, ast1, AST_DBG_CODE);
+
+    TEST_ASSERT_MSG(this,
+        dbglen1 == dbglen2,
+        "ast debug string: %d != %d",
+        dbglen1, dbglen2);
+
+    printf("%s\n", dbg.ptr);
+
 
     json_value_t* json1 = ast_to_json(arena, ast1);
     char* str1 = json_dumps(json1, 0);

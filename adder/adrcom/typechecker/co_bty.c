@@ -535,10 +535,10 @@ bty_type_t* bty_ctx_lookup(bty_ctx_t* ctx, sstr_t name) {
 }
 
 void bty_ctx_dump(cstr_t str, bty_ctx_t* ctx) {
-    cstr_append_fmt(str, "ctx_dump (size=%d, capacity=%d)\n",
+    cstr_append_fmt(&str, "ctx_dump (size=%d, capacity=%d)\n",
         ctx->size, ctx->capacity);
     for(int i = 0; i < ctx->size; i++) {
-        cstr_append_fmt(str, "  \"%s\": %s\n",
+        cstr_append_fmt(&str, "  \"%s\": %s\n",
             ctx->kvps[i].name,
             sprint_bty_type(ctx->arena,
                 ctx->kvps[i].type));

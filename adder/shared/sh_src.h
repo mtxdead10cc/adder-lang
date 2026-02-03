@@ -86,9 +86,9 @@ inline static void srcref_sprint(cstr_t str, srcref_t ref) {
         char buf[len + 1];
         strncpy(buf, srcref_ptr(ref), len);
         buf[len] = '\0';
-        cstr_append_fmt(str, "%s", buf);
+        cstr_append_fmt(&str, "%s", buf);
     } else {
-        cstr_append_fmt(str, "<invalid-srcref>");
+        cstr_append_fmt(&str, "<invalid-srcref>");
     }
 }
 
@@ -207,6 +207,41 @@ inline static srcref_t srcref_trim_right(srcref_t a, size_t len) {
     else
         a.idx_end = a.idx_start;
     return a;
+}
+
+typedef struct srcloc_t {
+    size_t line;
+    size_t column;
+    char*  path;
+    size_t path_length;
+} srcloc_t;
+
+inline static srcloc_t srcref_get_location(srcref_t a) {
+
+    if( srcref_is_valid(a) == false )
+        return (srcloc_t) { 0 };
+
+    srcloc_t loc = (srcloc_t) {
+        .column = 1,
+        .line = 1,
+        .path = a.src->path,
+        .path_length = a.src->path_length
+    };
+
+    size_t stop = a.src->buff_length;
+    if( stop > a.idx_end )
+        stop = a.idx_end;
+
+    for(size_t i = 0; i < stop; i++) {
+        if(a.src->buff[i] == '\n') {
+            loc.line += 1;
+            loc.column = 1;
+        } else {
+            loc.column += 1;
+        }
+    }
+
+    return loc;
 }
 
 #endif // SH_SRC_H__

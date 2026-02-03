@@ -127,17 +127,42 @@ typedef struct cstr_t {
     int maxlen;
 } cstr_t;
 
-#define define_cstr(name, size)  \
-    char   name##buf[size] = {0};\
+#define mk_cstr(name, size)       \
+    char   name##buf[(size + 1)]; \
+    memset(name##buf, 0, size);   \
+    name##buf[size] =       '\0'; \
     cstr_t name = (cstr_t){.ptr=name##buf, .maxlen=size};
 
-inline static int cstr_append_fmt(cstr_t str, const char* fmt, ...) {
-    int len = strnlen(str.ptr, str.maxlen);
+inline static int cstr_vappend_fmt(cstr_t* str, const char* fmt, va_list args) {
+    
+    int len = 0;
+    char* ptr = NULL;
+    size_t maxsize = 0;
+
+    if(str != NULL) {
+        len = strnlen(str->ptr, str->maxlen);
+        ptr = str->ptr + len;
+        maxsize = str->maxlen-len;
+    }
+
+    return vsnprintf(ptr, maxsize, fmt, args);
+}
+
+inline static int cstr_append_fmt(cstr_t* str, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    int w = vsnprintf(str.ptr + len, str.maxlen-len, fmt, args);
+    int w = cstr_vappend_fmt(str, fmt, args);
     va_end(args);
     return w;
+}
+
+inline static bool cstr_ends_with_char(cstr_t* str, char c) {
+    if(str == NULL)
+        return false;
+    size_t len = strnlen(str->ptr, str->maxlen);
+    if(len == 0)
+        return false;
+    return str->ptr[len - 1] == c;
 }
 
 ////////////// SSTR ////////////////

@@ -14,6 +14,7 @@
 #include <shared/sh_utils.h>
 #include <shared/sh_arena.h>
 #include <shared/sh_log.h>
+#include <shared/sh_diag.h>
 
 typedef enum ast_tag_t {
 

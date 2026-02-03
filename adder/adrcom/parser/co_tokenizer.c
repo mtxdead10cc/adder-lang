@@ -41,9 +41,9 @@ bool tokens_append(token_collection_t* collection, token_t token) {
 
 void tokens_sprint(cstr_t str, token_collection_t* collection) {
     for(size_t i = 0; i < collection->count; i++) {
-        cstr_append_fmt(str, "(%s '", token_get_type_name(collection->tokens[i].type));
+        cstr_append_fmt(&str, "(%s '", token_get_type_name(collection->tokens[i].type));
         srcref_sprint(str, collection->tokens[i].ref);
-        cstr_append_fmt(str, "')\n");
+        cstr_append_fmt(&str, "')\n");
     }
 }
 

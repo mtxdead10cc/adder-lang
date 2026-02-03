@@ -31,21 +31,21 @@
 #include "xutils/xu_lib.h"
 
 void xu_ffi_print(ffi_hndl_meta_t md, int argcount, val_t* args) {
-    define_cstr(str, 512);
+    mk_cstr(str, 512);
     for(int i = 0; i < argcount; i++) {
         if( i > 0 )
-            cstr_append_fmt(str, " ");
+            cstr_append_fmt(&str, " ");
         vm_sprint_val(str, md.vm, args[i]);
     }
     sh_log("> %s", str.ptr);
 }
 
 val_t xu_ffi_to_string(ffi_hndl_meta_t md, int argcount, val_t* args) {
-    define_cstr(str, 512);
+    mk_cstr(str, 512);
 
     for(int i = 0; i < argcount; i++) {
         if( i > 0 )
-            cstr_append_fmt(str, " ");
+            cstr_append_fmt(&str, " ");
         vm_sprint_val(str, md.vm, args[i]);
     }
 
@@ -396,7 +396,7 @@ bool xu_quick_run(char* filepath, xu_quickopts_t opts) {
                 val_t result = vm_execute(&vm, &env, &entrypoint, &program);
                 ift_t return_type = ift_func_get_return_type(entrypoint.type);
                 if( ift_is_void(return_type) == false ) {
-                    define_cstr(str, 2048);
+                    mk_cstr(str, 2048);
                     vm_sprint_val(str, &vm, result);
                     sh_log(" => %s", str.ptr);
                 }

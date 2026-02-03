@@ -90,11 +90,11 @@ ir_inst_t* irl_get_last(ir_list_t* list) {
 void irl_dump(cstr_t str, ir_list_t* list) {
     for(uint32_t i = 0; i < list->count; i++) {
         int argcount = get_op_arg_count(list->irs[i].opcode);
-        cstr_append_fmt(str, "%03d #  ('%s'", i, get_op_name(list->irs[i].opcode));
+        cstr_append_fmt(&str, "%03d #  ('%s'", i, get_op_name(list->irs[i].opcode));
         for (int j = 0; j < argcount; j++) {
-            cstr_append_fmt(str, " %d", list->irs[i].args[j]);
+            cstr_append_fmt(&str, " %d", list->irs[i].args[j]);
         }
-        cstr_append_fmt(str, ")\n");
+        cstr_append_fmt(&str, ")\n");
     }
 }
 

@@ -53,8 +53,12 @@ typedef struct json_string_t {
 } json_string_t;
 
 typedef struct json_error_t {
-    json_tt_t       expected;
-    json_string_t   got;
+    json_tt_t   expected;
+    struct {
+        char*   buffer;
+        size_t  start;
+        size_t  length;
+    } got;
 } json_error_t;
 
 typedef struct json_value_t {

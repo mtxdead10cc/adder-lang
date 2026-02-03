@@ -6,7 +6,8 @@
 #include <stdbool.h>
 
 typedef struct pt_token_t {
-    char*       text;
+    char*       buffer;
+    ptrdiff_t   start_offset;
     ptrdiff_t   length;
     int64_t     type;
 } pt_token_t;

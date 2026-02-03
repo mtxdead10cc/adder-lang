@@ -120,15 +120,15 @@ void srcmap_clear(srcmap_t* map) {
 }
 
 void srcmap_print(cstr_t str, srcmap_t* map) {
-    cstr_append_fmt(str, "[srcmap_t (size=%d)]\n", (uint32_t) map->count);
+    cstr_append_fmt(&str, "[srcmap_t (size=%d)]\n", (uint32_t) map->count);
     for(size_t i = 0; i < map->capacity; i++) {
-        cstr_append_fmt(str, "%i > ", (uint32_t) i);
+        cstr_append_fmt(&str, "%i > ", (uint32_t) i);
         if( sstr_is_empty(map->keys[i]) ) {
-            cstr_append_fmt(str, "<empty>");
+            cstr_append_fmt(&str, "<empty>");
         } else {
-            cstr_append_fmt(str, "%s", sstr_ptr(map->keys[i]));
+            cstr_append_fmt(&str, "%s", sstr_ptr(map->keys[i]));
         }
-        cstr_append_fmt(str, "\n");
+        cstr_append_fmt(&str, "\n");
     }
 }
 

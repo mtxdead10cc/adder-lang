@@ -63,15 +63,15 @@ void heap_gc_collect(vm_t* vm) {
 void heap_print_usage(vm_t* vm) {
     int pages = CALC_GC_MARK_U64_COUNT(vm->mem.heap.size);
     int num_bits = sizeof(uint64_t) * CHAR_BIT;
-    define_cstr(str, 2048);
+    mk_cstr(str, 2048);
     for(int i = 0; i < pages; i++) {
-        cstr_append_fmt(str, "  ");
+        cstr_append_fmt(&str, "  ");
         for(int j = 0; j < num_bits; j++) {
             uint64_t marks = vm->mem.heap.gc_marks[i];
             bool on = ((1UL << j) & marks) > 0;
-            cstr_append_fmt(str, "%s", on ? "1" : "0");
+            cstr_append_fmt(&str, "%s", on ? "1" : "0");
         }
-        cstr_append_fmt(str, "\n");
+        cstr_append_fmt(&str, "\n");
     }
     sh_log_info("HEAP USAGE BITS\n%s", str.ptr);
 }

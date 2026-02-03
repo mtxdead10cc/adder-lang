@@ -1,6 +1,7 @@
 #include "adrcom/ast/co_ast.h"
 #include "shared/sh_json.h"
 #include <stdlib.h>
+#include <stdarg.h>
 
 ast_t* ast_leaf(arena_t* allocator, ast_tag_t tag) {
     ast_t* node = (ast_t*) aalloc(allocator, sizeof(ast_t));
@@ -19,7 +20,6 @@ ast_t* ast(arena_t* allocator, ast_tag_t tag, int size) {
     };
     return node;
 }
-
 
 srcref_t ast_aggregate_srcref(ast_t* node) {
 
@@ -173,30 +173,40 @@ bool ast_is_valid_else_block(ast_t* node) {
 
 ast_t* ast_int(arena_t* arena, int value) {
     ast_t* node = ast_leaf(arena, AST_INT);
+    if(node == NULL)
+        return NULL;
     node->as.value_int = value;
     return node;
 }
 
 ast_t* ast_float(arena_t* arena, float value) {
     ast_t* node = ast_leaf(arena, AST_FLOAT);
+    if(node == NULL)
+        return NULL;
     node->as.value_float = value;
     return node;
 }
 
 ast_t* ast_bool(arena_t* arena, bool value) {
     ast_t* node = ast_leaf(arena, AST_BOOL);
+    if(node == NULL)
+        return NULL;
     node->as.value_bool = value;
     return node;
 }
 
 ast_t* ast_char(arena_t* arena, char value) {
     ast_t* node = ast_leaf(arena, AST_CHAR);
+    if(node == NULL)
+        return NULL;
     node->as.value_char = value;
     return node;
 }
 
 ast_t* ast_string(arena_t* arena, srcref_t value) {
     ast_t* node = ast_leaf(arena, AST_STRING);
+    if(node == NULL)
+        return NULL;
     node->as.srcref = value;
     return node;
 }
@@ -204,6 +214,8 @@ ast_t* ast_string(arena_t* arena, srcref_t value) {
 ast_t* ast_symbol(arena_t* arena, srcref_t value) {
     assert(srcref_is_valid(value));
     ast_t* node = ast_leaf(arena, AST_SYMBOL);
+    if(node == NULL)
+        return NULL;
     node->as.srcref = value;
     return node;
 }
@@ -391,11 +403,10 @@ bool ast_is_exported(ast_t* n) {
 }
 
 bool ast_is_imported(ast_t* n) {
-        int ffi_state = 0;
+    int ffi_state = 0;
     if(n->tag == AST_FUNDEFN)
         n = n->as.items[AST_FUNDEFN_FUNSIGN];
     if(n->tag == AST_FUNSIGN)
         ffi_state = n->as.items[AST_FUNSIGN_FFI]->as.value_int;
     return ffi_state == AST_FUNSIGN_FFI_VAL_IMPORT;
 }
-

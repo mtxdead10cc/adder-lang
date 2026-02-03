@@ -5,6 +5,7 @@
 
 #include <adrcom/ast/co_ast.h>
 #include <adrcom/ast/co_ast_json.h>
+#include <adrcom/ast/co_ast_debug.h>
 
 #include <adrcom/parser/co_parser.h>
 
@@ -157,7 +158,7 @@ program_t program_compile(source_code_t* code, bool print_ast) {
         code->source);
 
     if( par_is_error(result) ) {
-        define_cstr(str, 2048);
+        mk_cstr(str, 2048);
         trace_sprint(str, &trace);
         sh_log_error("PARSER\n%s", str);
         trace_destroy(&trace);
@@ -168,7 +169,7 @@ program_t program_compile(source_code_t* code, bool print_ast) {
     result = pa_parse_program(&parser);
 
     if( par_is_error(result) ) {
-        define_cstr(str, 2048);
+        mk_cstr(str, 2048);
         trace_sprint(str, &trace);
         sh_log_error("PARSER\n%s", str);
         trace_destroy(&trace);
@@ -177,7 +178,7 @@ program_t program_compile(source_code_t* code, bool print_ast) {
     }
 
     if( par_is_nothing(result) ) {
-        define_cstr(str, 2048);
+        mk_cstr(str, 2048);
         trace_sprint(str, &trace);
         sh_log_error("PARSER\n%s", str);
         sh_log_error("the parser did not produce anything.");
@@ -189,16 +190,15 @@ program_t program_compile(source_code_t* code, bool print_ast) {
     ast_t* program_node = par_extract_node(result);
     
     if( print_ast ) {
-        json_value_t* value = ast_to_json(arena, program_node);
-        char* str = json_dumps(value, 2);
-        sh_log_info("DEBUG - AST\n%s\n", str);
-        free(str);
+        mk_cstr(dbgstr, ast_to_string(NULL, program_node, AST_DBG_SEXPR));
+        ast_to_string(&dbgstr, program_node, AST_DBG_SEXPR);
+        sh_log_info("DEBUG - AST\n%s\n", dbgstr.ptr);
     }
 
     program_t program = gvm_compile(arena, program_node, &trace);
     
     if( trace_get_message_count(&trace) > 0 ) {
-        define_cstr(str, 2048);
+        mk_cstr(str, 2048);
         trace_sprint(str, &trace);
         sh_log_error("COMPILER\n%s", str);
     }
