@@ -7,6 +7,7 @@ ast_t* ast_leaf(arena_t* allocator, ast_tag_t tag) {
     ast_t* node = (ast_t*) aalloc(allocator, sizeof(ast_t));
     *node = (ast_t) { 0 };
     node->tag = tag;
+    node->diagnostics = NULL;
     return node;
 }
 
@@ -15,10 +16,53 @@ ast_t* ast(arena_t* allocator, ast_tag_t tag, int size) {
     *node = (ast_t) {
         .tag = tag,
         .size = size,
+        .diagnostics = NULL,
         .as.items = (ast_t**) aalloc(allocator,
             ast_calculate_capacity(size) * sizeof(ast_t*))
     };
     return node;
+}
+
+bool _ast_attach_diag(arena_t* allocator, ast_t* node, diag_kind_t kind, diphrase_t phrase, dimsg_t* msg, size_t msglen) {
+
+    if(node->diagnostics == NULL) {
+        node->diagnostics = (ast_diags_t*) aalloc(allocator, sizeof(ast_diags_t));
+        if( node->diagnostics == NULL )
+            return false;
+        int init_size_one = 1;
+        node->diagnostics->list = (diag_t**) aalloc(allocator,
+            sizeof(diag_t*) * ast_calculate_capacity(init_size_one));
+        if( node->diagnostics->list == NULL ) {
+            node->diagnostics = NULL;
+            return false;
+        }
+        node->diagnostics->size = 0;
+        node->diagnostics->list[0] = mk_diag(allocator, kind, phrase, msg, msglen);
+        if(node->diagnostics->list[0] == NULL)
+            return false;
+        node->diagnostics->size = init_size_one;
+        return true;
+    }
+
+    int old_cap = ast_calculate_capacity(node->diagnostics->size);
+    
+    if(old_cap < (node->diagnostics->size + 1)) {
+        int new_cap = ast_calculate_capacity(node->diagnostics->size + 1);
+        diag_t** new_lst = (diag_t**) arealloc(allocator,
+            node->diagnostics->list,
+            sizeof(diag_t*) * new_cap);
+        if( new_lst == NULL )
+            return false;
+        node->diagnostics->list = new_lst;
+    }
+
+    int new_index = node->diagnostics->size;
+    node->diagnostics->list[new_index] = mk_diag(allocator, kind, phrase, msg, msglen);
+    if(node->diagnostics->list[new_index] == NULL)
+        return false;
+
+    node->diagnostics->size += 1;
+    return true;
 }
 
 srcref_t ast_aggregate_srcref(ast_t* node) {

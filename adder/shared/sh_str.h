@@ -142,7 +142,7 @@ inline static int cstr_vappend_fmt(cstr_t* str, const char* fmt, va_list args) {
     if(str != NULL) {
         len = strnlen(str->ptr, str->maxlen);
         ptr = str->ptr + len;
-        maxsize = str->maxlen-len;
+        maxsize = str->maxlen-len+1;
     }
 
     return vsnprintf(ptr, maxsize, fmt, args);
@@ -154,6 +154,31 @@ inline static int cstr_append_fmt(cstr_t* str, const char* fmt, ...) {
     int w = cstr_vappend_fmt(str, fmt, args);
     va_end(args);
     return w;
+}
+
+inline static int cstr_append(cstr_t* str, const char* text) {
+    int len = strlen(text);
+    if(str == NULL)
+        return len;
+    int current = strnlen(str->ptr, str->maxlen);
+    char* ptr = str->ptr + current;
+    int remaining = str->maxlen - current;
+    if(remaining < len)
+        len = remaining;
+    strncpy(ptr, text, len);
+    return len;
+}
+
+inline static int cstr_append_len(cstr_t* str, char* text, int len) {
+    if(str == NULL)
+        return len;
+    int current = strnlen(str->ptr, str->maxlen);
+    char* ptr = str->ptr + current;
+    int remaining = str->maxlen - current;
+    if(remaining < len)
+        len = remaining;
+    strncpy(ptr, text, len);
+    return len;
 }
 
 inline static bool cstr_ends_with_char(cstr_t* str, char c) {

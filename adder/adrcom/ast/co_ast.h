@@ -79,12 +79,17 @@ typedef enum ast_tag_t {
 
 } ast_tag_t;
 
-
 typedef struct ast_t ast_t;
+
+typedef struct ast_diags_t {
+    int      size;
+    diag_t** list;
+} ast_diags_t;
 
 typedef struct ast_t {
     ast_tag_t       tag;
     int             size;
+    ast_diags_t*    diagnostics;
     union {
         ast_t**     items;
         srcref_t    srcref;
@@ -111,6 +116,25 @@ ast_t*      ast(arena_t* allocator, ast_tag_t tag, int size);
 srcref_t    ast_aggregate_srcref(ast_t* n);
 srcref_t    ast_try_get_name(ast_t* n);
 ast_t*      ast_try_get(ast_t* n, ast_tag_t tag);
+
+bool        _ast_attach_diag(arena_t* allocator,
+                             ast_t* node,
+                             diag_kind_t kind,
+                             diphrase_t phrase,
+                             dimsg_t* msg,
+                             size_t msglen);
+
+#define ast_attach_error(ARENA, NODE, PHRASE, ...)  \
+    _ast_attach_diag((ARENA),                       \
+        (NODE), DIAG_ERROR, (PHRASE),               \
+        VA_ARRAY(dimsg_t, __VA_ARGS__),             \
+        VA_ARRAYLEN(dimsg_t, __VA_ARGS__))
+
+#define ast_attach_warning(ARENA, NODE, PHRASE, ...)\
+    _ast_attach_diag((ARENA),                       \
+        (NODE), DIAG_WARNING, (PHRASE),             \
+        VA_ARRAY(dimsg_t, __VA_ARGS__),             \
+        VA_ARRAYLEN(dimsg_t, __VA_ARGS__))
 
 const char* ast_tag_to_string(ast_tag_t tag);
 

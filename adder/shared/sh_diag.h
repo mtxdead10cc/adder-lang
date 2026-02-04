@@ -112,7 +112,7 @@ inline static diphrase_t _diag_make_phrase(struct diag_phrase_params *args) {
     &((struct diag_phrase_params){ ._sentinel = 0, __VA_ARGS__ }))
 
 
-inline static diag_t* _internal_diag(arena_t* arena, diag_kind_t kind, diphrase_t phrase, dimsg_t* message, size_t size) {
+inline static diag_t* mk_diag(arena_t* arena, diag_kind_t kind, diphrase_t phrase, dimsg_t* message, size_t size) {
     diag_t* d = (diag_t*) aalloc(arena, sizeof(diag_t) + (sizeof(dimsg_t) * size));
     if( d == NULL )
         return NULL;
@@ -124,12 +124,12 @@ inline static diag_t* _internal_diag(arena_t* arena, diag_kind_t kind, diphrase_
     return d;
 }
 
-#define diag_error(ARENA, PHRASE, ...) _internal_diag( \
+#define diag_error(ARENA, PHRASE, ...) mk_diag( \
 	(ARENA), DIAG_ERROR, (PHRASE),     \
     VA_ARRAY(dimsg_t, __VA_ARGS__),    \
     VA_ARRAYLEN(dimsg_t, __VA_ARGS__))
 
-#define diag_warning(ARENA, PHRASE, ...) _internal_diag( \
+#define diag_warning(ARENA, PHRASE, ...) mk_diag( \
 	(ARENA), DIAG_WARNING, (PHRASE),     \
     VA_ARRAY(dimsg_t, __VA_ARGS__),    \
     VA_ARRAYLEN(dimsg_t, __VA_ARGS__))
@@ -181,7 +181,7 @@ inline static size_t diag_message_to_string(dimsg_t* msg, cstr_t* str) {
         };
         case DIMSG_SRCREF_TEXT: {
             int printed = cstr_append_fmt(str, "%.*s",
-                (int) srcref_len(msg->as.srcref),
+                srcref_len(msg->as.srcref),
                 srcref_ptr(msg->as.srcref));
             if(printed < 0)
                 return 0;
@@ -207,9 +207,9 @@ inline static size_t diag_message_to_string(dimsg_t* msg, cstr_t* str) {
 
 inline static const char* diag_kind_to_string(diag_t* diag) {
     switch(diag->kind) {
-        case DIAG_ERROR:   return "ERROR";
-        case DIAG_WARNING: return "WARNING";
-        case DIAG_INFO:    return "INFO";
+        case DIAG_ERROR:   return "\033[0;31mERROR\033[0m";
+        case DIAG_WARNING: return "\033[0;33mWARNING\033[0m";
+        case DIAG_INFO:    return "\033[0;33mINFO\033[0m";
         default: return "<UNKNOWN-TAG>";
     }
 }
