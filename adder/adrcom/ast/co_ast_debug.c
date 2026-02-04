@@ -41,9 +41,7 @@ size_t _check(int ret) {
 }
 
 size_t _append_style_begin(cstr_t* str, txt_style_t ts) {
-
-#if AST_DEBUG_ENABLE_ANSI_COLOR > 0
-
+    
     if((ts & TXT_ENABLED) == 0)
         return 0;
 
@@ -59,24 +57,12 @@ size_t _append_style_begin(cstr_t* str, txt_style_t ts) {
     len += _check(cstr_append_fmt(str, "%dm", base + (int)(ts & 0xFF)));
 
     return len;
-#else
-
-    (void) str;
-    (void) ts;
-    return 0;
-
-#endif
 }
 
 size_t _append_style_end(cstr_t* str, txt_style_t ts) {
-#if AST_DEBUG_ENABLE_ANSI_COLOR > 0
     if((ts & TXT_ENABLED) == 0)
         return 0;
     return _check(cstr_append(str, "\033[0m"));
-#else
-    (void) str;
-    return 0;
-#endif
 }
 
 size_t append_styled_fmt(cstr_t* str, txt_style_t style, char* fmt, ...) {
