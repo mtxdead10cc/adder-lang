@@ -28,6 +28,7 @@ typedef enum ast_tag_t {
     AST_CHAR,
     AST_STRING,
     AST_SYMBOL,
+    AST_FLAGS,
     AST_ARRAY,
 
     AST__END_VALUES,
@@ -86,17 +87,24 @@ typedef struct ast_diags_t {
     diag_t** list;
 } ast_diags_t;
 
-typedef struct ast_t {
-    ast_tag_t       tag;
-    int             size;
-    ast_diags_t*    diagnostics;
+typedef struct ast_value_t {
+    srcref_t    srcref;
     union {
-        ast_t**     items;
-        srcref_t    srcref;
-        int         value_int;
-        bool        value_bool;
-        float       value_float;
-        char        value_char;
+        int         _int;
+        bool        _bool;
+        float       _float;
+        char        _char;
+        uint32_t    _flags; 
+    } as;
+} ast_value_t;
+
+typedef struct ast_t {
+    ast_tag_t           tag;
+    int                 size;
+    ast_diags_t*        diagnostics;
+    union {
+        ast_t**         items;
+        ast_value_t     value;
     } as;
 } ast_t;
 
@@ -150,12 +158,18 @@ bool ast_is_valid_else_block(ast_t* node);
 
 /////////////// BUILDERS /////////////////
 
-ast_t* ast_int(arena_t* arena, int value);
-ast_t* ast_float(arena_t* arena, float value);
-ast_t* ast_bool(arena_t* arena, bool value);
-ast_t* ast_char(arena_t* arena, char value);
+ast_t* ast_int(arena_t* arena, int value, srcref_t ref);
+ast_t* ast_float(arena_t* arena, float value, srcref_t ref);
+ast_t* ast_bool(arena_t* arena, bool value, srcref_t ref);
+ast_t* ast_char(arena_t* arena, char value, srcref_t ref);
 ast_t* ast_string(arena_t* arena, srcref_t value);
 ast_t* ast_symbol(arena_t* arena, srcref_t value);
+ast_t* ast_flags(arena_t* arena, uint32_t flags, srcref_t ref);
+
+int64_t ast_find_flags(ast_t* node, int depth);
+
+bool ast_is_exported(ast_t* node);
+bool ast_is_imported(ast_t* node);
 
 #define AST_VARREF_SYMBOL 0
 
@@ -220,19 +234,14 @@ ast_t* ast_return(arena_t* arena, ast_t* return_expr);
 #define AST_FUNSIGN_ARGLIST  2
 #define AST_FUNSIGN_FFI      3
 
-#define AST_FUNSIGN_FFI_VAL_EXPORT 1
-#define AST_FUNSIGN_FFI_VAL_IMPORT 2
+#define AST_FUNSIGN_FFI_FLAG_IMPORT 0x01
+#define AST_FUNSIGN_FFI_FLAG_EXPORT 0x02
 
-ast_t* ast_function_signature(arena_t* arena, ast_t* type, srcref_t name, ast_t* arglist, int ffistate);
+ast_t* ast_function_signature(arena_t* arena, ast_t* type, srcref_t name, ast_t* arglist, ast_t* flags);
 
 #define AST_FUNDEFN_FUNSIGN 0
 #define AST_FUNDEFN_BODY    1
 
 ast_t* ast_function_definition(arena_t* arena, ast_t* funsign, ast_t* body);
-
-void ast_set_exported(ast_t* n);
-void ast_set_imported(ast_t* n);
-bool ast_is_exported(ast_t* n);
-bool ast_is_imported(ast_t* n);
 
 #endif // AST_EXPR_H_

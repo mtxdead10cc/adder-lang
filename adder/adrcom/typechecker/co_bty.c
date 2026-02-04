@@ -119,7 +119,7 @@ bty_type_t* bty_from_tydescr(arena_t* a, trace_t* t, ast_t* n) {
 
     } else if(n->tag == AST_TYDESCR) {
 
-        srcref_t name = n->as.items[AST_TYDESCR_SYMBOL]->as.srcref;
+        srcref_t name = n->as.items[AST_TYDESCR_SYMBOL]->as.value.srcref;
 
         if(srcref_equals_string(name, LANG_TYPENAME_ARRAY)) {
             ast_t* arglist = n->as.items[AST_TYDESCR_ARGLIST];
@@ -572,7 +572,7 @@ bty_type_t* bty_synth_var_reference(bty_ctx_t* c, ast_t* v) {
     }
     
     ast_t* s = v->as.items[AST_VARREF_SYMBOL];
-    srcref_t name = s->as.srcref;
+    srcref_t name = s->as.value.srcref;
     bty_type_t* ty = bty_ctx_lookup(c, srcref_as_sstr(name));
     if( ty == NULL ) {
         trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, name);
@@ -713,7 +713,7 @@ bty_type_t* bty_synth_funcall(bty_ctx_t* c, ast_t* fc) {
 
     assert(fc->tag == AST_FUNCALL);
 
-    srcref_t name = fc->as.items[AST_FUNCALL_SYMBOL]->as.srcref;
+    srcref_t name = fc->as.items[AST_FUNCALL_SYMBOL]->as.value.srcref;
     ast_t* args = fc->as.items[AST_FUNCALL_ARGLIST];
 
     if( args->tag != AST_ARGLIST ) {
@@ -967,7 +967,6 @@ bty_type_t* bty_synthesize(bty_ctx_t* c, ast_t* n) {
 
     return descr;
 }
-
 
 void bty_check_fundef(bty_ctx_t* c, ast_t* n, bty_type_t* et) {
 

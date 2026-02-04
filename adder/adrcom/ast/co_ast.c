@@ -68,10 +68,10 @@ bool _ast_attach_diag(arena_t* allocator, ast_t* node, diag_kind_t kind, diphras
 srcref_t ast_aggregate_srcref(ast_t* node) {
 
     if(node->tag == AST_SYMBOL)
-        return node->as.srcref;
+        return node->as.value.srcref;
 
     if(node->tag == AST_STRING)
-        return node->as.srcref;
+        return node->as.value.srcref;
 
     if(node->size == 0)
         return (srcref_t) {0};
@@ -90,7 +90,7 @@ srcref_t ast_aggregate_srcref(ast_t* node) {
 
 srcref_t ast_try_get_name(ast_t* n) {
     switch(n->tag) {
-        case AST_SYMBOL:    return n->as.srcref;
+        case AST_SYMBOL:    return n->as.value.srcref;
         case AST_VARDECL:   /* FALLTHROUGH */
         case AST_VARREF:    /* FALLTHROUGH */
         case AST_FUNCALL:   /* FALLTHROUGH */
@@ -128,6 +128,7 @@ const char* ast_tag_to_string(ast_tag_t tag) {
         case AST_CHAR:                      return "AST_CHAR";
         case AST_STRING:                    return "AST_STRING";
         case AST_SYMBOL:                    return "AST_SYMBOL";
+        case AST_FLAGS:                     return "AST_FLAGS";
         case AST_ARRAY:                     return "AST_ARRAY";
         case AST__END_VALUES:               return "AST__END_VALUES";
         case AST__BEGIN_UNARY_OPERATORS:    return "AST__BEGIN_UNARY_OPERATORS";
@@ -215,35 +216,39 @@ bool ast_is_valid_else_block(ast_t* node) {
 
 /////////////// BUILDERS /////////////////
 
-ast_t* ast_int(arena_t* arena, int value) {
+ast_t* ast_int(arena_t* arena, int value, srcref_t ref) {
     ast_t* node = ast_leaf(arena, AST_INT);
     if(node == NULL)
         return NULL;
-    node->as.value_int = value;
+    node->as.value.as._int = value;
+    node->as.value.srcref = ref;
     return node;
 }
 
-ast_t* ast_float(arena_t* arena, float value) {
+ast_t* ast_float(arena_t* arena, float value, srcref_t ref) {
     ast_t* node = ast_leaf(arena, AST_FLOAT);
     if(node == NULL)
         return NULL;
-    node->as.value_float = value;
+    node->as.value.as._float = value;
+    node->as.value.srcref = ref;
     return node;
 }
 
-ast_t* ast_bool(arena_t* arena, bool value) {
+ast_t* ast_bool(arena_t* arena, bool value, srcref_t ref) {
     ast_t* node = ast_leaf(arena, AST_BOOL);
     if(node == NULL)
         return NULL;
-    node->as.value_bool = value;
+    node->as.value.as._bool = value;
+    node->as.value.srcref = ref;
     return node;
 }
 
-ast_t* ast_char(arena_t* arena, char value) {
+ast_t* ast_char(arena_t* arena, char value, srcref_t ref) {
     ast_t* node = ast_leaf(arena, AST_CHAR);
     if(node == NULL)
         return NULL;
-    node->as.value_char = value;
+    node->as.value.as._char = value;
+    node->as.value.srcref = ref;
     return node;
 }
 
@@ -251,7 +256,7 @@ ast_t* ast_string(arena_t* arena, srcref_t value) {
     ast_t* node = ast_leaf(arena, AST_STRING);
     if(node == NULL)
         return NULL;
-    node->as.srcref = value;
+    node->as.value.srcref = value;
     return node;
 }
 
@@ -260,8 +265,52 @@ ast_t* ast_symbol(arena_t* arena, srcref_t value) {
     ast_t* node = ast_leaf(arena, AST_SYMBOL);
     if(node == NULL)
         return NULL;
-    node->as.srcref = value;
+    node->as.value.srcref = value;
     return node;
+}
+
+ast_t* ast_flags(arena_t* arena, uint32_t flags, srcref_t ref) {
+    ast_t* node = ast_leaf(arena, AST_FLAGS);
+    if(node == NULL)
+        return NULL;
+    node->as.value.as._flags = flags;
+    node->as.value.srcref = ref;
+    return node;
+}
+
+int64_t ast_find_flags(ast_t* node, int depth) {
+
+    if(node == NULL)
+        return -1;
+
+    if(node->tag == AST_FLAGS)
+        return node->as.value.as._flags;
+
+    if(depth > 1) {
+        for(int i = 0; i < node->size; i++) {
+            int64_t f = ast_find_flags(
+                node->as.items[i],
+                depth - 1);
+            if( f >= 0 )
+                return f;
+        }
+    }
+
+    return -1;
+}
+
+bool ast_is_exported(ast_t* n) {
+    int64_t flags = ast_find_flags(n, 3);
+    if( flags < 0 )
+        return false;
+    return (flags & AST_FUNSIGN_FFI_FLAG_EXPORT) > 0;
+}
+
+bool ast_is_imported(ast_t* n) {
+    int64_t flags = ast_find_flags(n, 3);
+    if( flags < 0 )
+        return false;
+    return (flags & AST_FUNSIGN_FFI_FLAG_IMPORT) > 0;
 }
 
 ast_t* ast_variable_reference(arena_t* arena, srcref_t ref) {
@@ -403,14 +452,14 @@ ast_t* ast_return(arena_t* arena, ast_t* return_expr) {
     return n;
 }
 
-ast_t* ast_function_signature(arena_t* arena, ast_t* type, srcref_t name, ast_t* arglist, int ffistate) {
+ast_t* ast_function_signature(arena_t* arena, ast_t* type, srcref_t name, ast_t* arglist, ast_t* flags) {
     assert(srcref_is_valid(name));
     assert(arglist->tag == AST_ARGLIST);
     ast_t* n = ast(arena, AST_FUNSIGN, 4);
     n->as.items[AST_FUNSIGN_TYDESCR] = type;
     n->as.items[AST_FUNSIGN_SYMBOL] = ast_symbol(arena, name);
     n->as.items[AST_FUNSIGN_ARGLIST] = arglist;
-    n->as.items[AST_FUNSIGN_FFI] = ast_int(arena, ffistate);
+    n->as.items[AST_FUNSIGN_FFI] = flags;
     return n;
 }
 
@@ -423,34 +472,3 @@ ast_t* ast_function_definition(arena_t* arena, ast_t* funsign, ast_t* body) {
     return n;
 }
 
-void ast_set_exported(ast_t* n) {
-    if(n->tag == AST_FUNDEFN)
-        n = n->as.items[AST_FUNDEFN_FUNSIGN];
-    if(n->tag == AST_FUNSIGN)
-        n->as.items[AST_FUNSIGN_FFI]->as.value_int = AST_FUNSIGN_FFI_VAL_EXPORT;
-}
-
-void ast_set_imported(ast_t* n) {
-    if(n->tag == AST_FUNDEFN)
-        n = n->as.items[AST_FUNDEFN_FUNSIGN];
-    if(n->tag == AST_FUNSIGN)
-        n->as.items[AST_FUNSIGN_FFI]->as.value_int = AST_FUNSIGN_FFI_VAL_IMPORT;
-}
-
-bool ast_is_exported(ast_t* n) {
-    int ffi_state = 0;
-    if(n->tag == AST_FUNDEFN)
-        n = n->as.items[AST_FUNDEFN_FUNSIGN];
-    if(n->tag == AST_FUNSIGN)
-        ffi_state = n->as.items[AST_FUNSIGN_FFI]->as.value_int;
-    return ffi_state == AST_FUNSIGN_FFI_VAL_EXPORT;
-}
-
-bool ast_is_imported(ast_t* n) {
-    int ffi_state = 0;
-    if(n->tag == AST_FUNDEFN)
-        n = n->as.items[AST_FUNDEFN_FUNSIGN];
-    if(n->tag == AST_FUNSIGN)
-        ffi_state = n->as.items[AST_FUNSIGN_FFI]->as.value_int;
-    return ffi_state == AST_FUNSIGN_FFI_VAL_IMPORT;
-}

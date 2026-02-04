@@ -10,6 +10,8 @@
 #include <stdbool.h>
 
 json_value_t* json_string(arena_t* allocator, char* value, ptrdiff_t len) {
+    if(value == NULL || len < 0)
+        return NULL;
     assert(len >= 0);
     json_value_t* jval = (json_value_t*) aalloc(allocator, sizeof(json_value_t));
     if( jval == NULL )
@@ -25,6 +27,8 @@ json_value_t* json_string(arena_t* allocator, char* value, ptrdiff_t len) {
 }
 
 json_value_t* json_const_string(arena_t* allocator, const char* value) {
+    if(value == NULL)
+        return NULL;
     return json_string(allocator, (char*)value, strlen(value));
 }
 
@@ -88,6 +92,9 @@ json_value_t* json_array(arena_t* allocator, ptrdiff_t capacity) {
     if( array == NULL )
         return NULL;
 
+    if(capacity <= 0)
+        capacity = 1;
+
     json_value_t** content = (json_value_t**) aalloc(allocator, sizeof(json_value_t*) * capacity);
     if( content == NULL )
         return NULL;
@@ -107,7 +114,7 @@ json_value_t* json_array(arena_t* allocator, ptrdiff_t capacity) {
 
 bool json_array_append(json_value_t* json_array, json_value_t* value) {
 
-    if( json_array == NULL )
+    if( json_array == NULL || value == NULL )
         return false;
 
     if( json_array->type != JSON_VALUE_ARRAY )
@@ -180,7 +187,7 @@ json_value_t* json_object(arena_t* allocator, ptrdiff_t capacity) {
 
 bool json_object_append(json_value_t* json_object, json_value_t* key, json_value_t* value) {
 
-    if( json_object == NULL )
+    if( json_object == NULL || key == NULL || value == NULL )
         return false;
 
     if( json_object->type != JSON_VALUE_OBJECT )
@@ -221,6 +228,10 @@ bool json_object_append(json_value_t* json_object, json_value_t* key, json_value
 }
 
 bool json_string_value_equals(json_value_t* a, json_value_t* b) {
+    if( (a == NULL) ^ (b == NULL) )
+        return false;
+    if( a == b )
+        return true;
     if( a->type != JSON_VALUE_STRING )
         return false;
     if( b->type != a->type )
@@ -239,7 +250,7 @@ bool json_string_value_equals(json_value_t* a, json_value_t* b) {
 
 bool json_object_set(json_value_t* json_object, json_value_t* key, json_value_t* value) {
 
-    if(json_object == NULL)
+    if( json_object == NULL || key == NULL || value == NULL )
         return false;
 
     json_object_t* obj = &json_object->as.object;
@@ -402,7 +413,7 @@ long json_est_size(json_value_t* json, long abort_after) {
             }
             return est;
         } break;
-        default:  return 1000;
+        default:  return 100;
     }
 }
 

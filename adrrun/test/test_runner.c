@@ -427,7 +427,7 @@ void test_vm(test_case_t* this) {
 void test_ast(test_case_t* this) {
     
     src_t* src = src_create_const("test_ast_buffer",
-        "mainABtmpI" LANG_TYPENAME_FLOAT);
+        "mainABtmpI1.0" LANG_TYPENAME_FLOAT);
 
     arena_t* arena = arena_create(1024);
 
@@ -458,15 +458,15 @@ void test_ast(test_case_t* this) {
         ast_if_chain(arena, 
             ast_binary_operation(arena, AST_BIN_LT,
                 ast_variable_reference(arena, srcref(src, 6, 3)),
-                ast_float(arena, 0.0f)),
-            ast_return(arena, ast_float(arena, 0.0f)),
+                ast_float(arena, 0.0f, src_linsearch(src, "1.0"))),
+            ast_return(arena, ast_float(arena, 0.0f, src_linsearch(src, "1.0"))),
             ast_block(arena)));
 
     ast_t* array = ast_array(arena);
-    ast_array_append(arena, array, ast_float(arena, 1));
-    ast_array_append(arena, array, ast_float(arena, 1));
-    ast_array_append(arena, array, ast_float(arena, 1));
-    ast_array_append(arena, array, ast_float(arena, 1));
+    ast_array_append(arena, array, ast_float(arena, 1, src_linsearch(src, "1")));
+    ast_array_append(arena, array, ast_float(arena, 1, src_linsearch(src, "1")));
+    ast_array_append(arena, array, ast_float(arena, 1, src_linsearch(src, "1")));
+    ast_array_append(arena, array, ast_float(arena, 1, src_linsearch(src, "1")));
 
     ast_block_append(arena, body,
         ast_foreach(arena, 
@@ -488,7 +488,7 @@ void test_ast(test_case_t* this) {
         ast_type_descriptor(arena, src_linsearch(src, LANG_TYPENAME_FLOAT), NULL),
         srcref(src, 0, 4),
         decl_args,
-        AST_FUNSIGN_FFI_VAL_EXPORT);
+        ast_flags(arena, AST_FUNSIGN_FFI_FLAG_EXPORT, src_linsearch(src, "main")));
     
     ast_t* fundef = ast_function_definition(arena, funsig, body);
     ast_t* block = ast_block(arena);
@@ -1115,7 +1115,7 @@ void test_typing_context(test_case_t* this) {
 
 void test_inference(test_case_t* this) {
 
-    src_t* source = src_create_const("test_inference_buffer", "floatarrayvar");
+    src_t* source = src_create_const("test_inference_buffer", "floatarrayvar012345truefalse");
     arena_t* a = arena_create(2048);
 
     trace_t trace = { 0 };
@@ -1126,11 +1126,11 @@ void test_inference(test_case_t* this) {
     ast_t* type = ast_type_descriptor(a, src_linsearch(source, "array"), tyargs);
     
     ast_t* arr = ast_array(a);
-    ast_array_append(a, arr, ast_int(a, 1));
-    ast_array_append(a, arr, ast_int(a, 2));
-    ast_array_append(a, arr, ast_int(a, 3));
-    ast_array_append(a, arr, ast_int(a, 4));
-    ast_array_append(a, arr, ast_int(a, 5));
+    ast_array_append(a, arr, ast_int(a, 1, src_linsearch(source, "1")));
+    ast_array_append(a, arr, ast_int(a, 2, src_linsearch(source, "2")));
+    ast_array_append(a, arr, ast_int(a, 3, src_linsearch(source, "3")));
+    ast_array_append(a, arr, ast_int(a, 4, src_linsearch(source, "4")));
+    ast_array_append(a, arr, ast_int(a, 5, src_linsearch(source, "5")));
 
     ast_t* n = ast_assignment(a,
         ast_variable_declaration(a,
@@ -1155,11 +1155,11 @@ void test_inference(test_case_t* this) {
     n = ast_binary_operation(a,
         AST_BIN_OR,
         ast_binary_operation(a, AST_BIN_AND,
-            ast_bool(a, false),
-            ast_bool(a, true)),
+            ast_bool(a, false, src_linsearch(source, "false")),
+            ast_bool(a, true, src_linsearch(source, "true"))),
         ast_binary_operation(a, AST_BIN_EQ,
-            ast_int(a, 0),
-            ast_int(a, 1)));
+            ast_int(a, 0, src_linsearch(source, "0")),
+            ast_int(a, 1, src_linsearch(source, "1"))));
 
     bty_synthesize(ctx, n);
 
@@ -1484,8 +1484,8 @@ void test_ast_to_json(test_case_t* this) {
     arena_t* a = arena_create(512);
     ast_t* e = ast_binary_operation(a,
         AST_BIN_ADD,
-        ast_int(a, 10),
-        ast_int(a, 1111));
+        ast_int(a, 10, (srcref_t){0}),
+        ast_int(a, 1111, (srcref_t){0}));
 
     json_value_t* jval = ast_to_json(a, e);
 
@@ -1561,6 +1561,23 @@ src_t* test_srcmaker(void* user, char* path, size_t plen) {
     (void)(path);
     (void)(plen);
     return (src_t*) user;
+}
+
+void find_difference(char* a, char* b) {
+    size_t alen = strlen(a);
+    size_t blen = strlen(b);
+    size_t len = alen < blen ? alen : blen;
+    for(size_t i = 0 ; i < len; i++) {
+        if(a[i] == b[i])
+            continue;
+        int start = (i < 20) ? 0 : i - 20;
+        int plen = len - start;
+        if(plen > 40)
+            plen = 40;
+        printf("a (%d) > ... %.*s ...\n", start, plen, a + start);
+        printf("b (%d) > ... %.*s ...\n", start, plen, b + start);
+        break;
+    }
 }
 
 void test_ast_json(test_case_t* this) {
@@ -1642,10 +1659,14 @@ void test_ast_json(test_case_t* this) {
         json_value_t* json2 = ast_to_json(arena, ast2);
         char* str2 = json_dumps(json2, 0);
 
+        bool accepted = strcmp(str1, str2) == 0;
+
         TEST_ASSERT_MSG(this,
-            strcmp(str1, str2) == 0,
-            "str1 != str2\n\nstr1 => %s\n\nstr2 => %s",
-             str1, str2);
+            accepted,
+            "str1 != str2");
+
+        if(accepted == false)
+            find_difference(str1, str2);
 
         free(str2);
     }

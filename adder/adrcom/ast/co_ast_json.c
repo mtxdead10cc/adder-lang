@@ -60,42 +60,22 @@ int srcset_add(srcset_t* set, srcpath_t path) {
     return index;
 }
 
-json_value_t* json_value_wrapper(arena_t* ator, const char* tag_name, json_value_t* value) {
+json_value_t* srcref_to_json(arena_t* ator, srcref_t ref, srcset_t* set) {
 
-    if(ator == NULL || value == NULL)
-        return NULL;
-
-    assert(strnlen(tag_name, 5) >= 4); // "AST_", removing the 4 initial chars
-
-    json_value_t* wrapper = json_object(ator, 2);
-    json_value_t* wrptagkey = json_const_string(ator, "tag");
-    json_value_t* wrptagname = json_const_string(ator, tag_name + 4);
-    json_value_t* valuekey = json_const_string(ator,
-        (value->type == JSON_VALUE_ARRAY)
-            ? "items"
-            : "value");
-
-    if( json_object_set(wrapper, wrptagkey, wrptagname) == false ) {
-        sh_log_error("ast_value_wrapper: allocation/insert key failed");
+    if( srcref_is_valid(ref) == false ) {
+        sh_log_error("srcref to json: received invalid srcref");
         return NULL;
     }
 
-    if( json_object_set(wrapper, valuekey, value) == false ) {
-        sh_log_error("ast_value_wrapper: allocation/insert value failed");
-        return NULL;
-    }
-
-    return wrapper;
-}
-
-json_value_t* srcref_to_json(arena_t* ator, ast_t* value, srcset_t* set) {
-
-    srcpath_t path = (srcpath_t) {
-        .path = value->as.srcref.src->path,
-        .length = value->as.srcref.src->path_length
+    srcpath_t srcpath = (srcpath_t) {
+        .path = ref.src->path,
+        .length = ref.src->path_length
     };
 
-    int index = srcset_add(set, path);
+    size_t idx_start = ref.idx_start;
+    size_t idx_end = ref.idx_end;
+ 
+    int index = srcset_add(set, srcpath);
 
     json_value_t* obj = json_object(ator, 4);
 
@@ -103,58 +83,102 @@ json_value_t* srcref_to_json(arena_t* ator, ast_t* value, srcset_t* set) {
 
     eok = eok && json_object_set(obj,
         json_const_string(ator, "idx_start"),
-        json_number(ator, value->as.srcref.idx_start));
+        json_number(ator, idx_start));
 
     eok = eok && json_object_set(obj,
         json_const_string(ator, "idx_end"),
-        json_number(ator, value->as.srcref.idx_end));
+        json_number(ator, idx_end));
 
     eok = eok && json_object_set(obj,
         json_const_string(ator, "source"),
         json_number(ator, index));
 
-    eok = eok && json_object_set(obj,
-        json_const_string(ator, "text"),
-        json_string(ator, 
-            srcref_ptr(value->as.srcref),
-            srcref_len(value->as.srcref)));
-
     return eok ? obj : NULL;
 }
 
-json_value_t* ast_to_json_internal(arena_t* ator, ast_t* value, srcset_t* set) {
+json_value_t* ast_value_to_json(arena_t* ator, ast_tag_t tag, ast_value_t* value) {
+    switch(tag) {
+        case AST_FLAGS:  return json_number(ator, value->as._flags);
+        case AST_INT:    return json_number(ator, value->as._int);
+        case AST_FLOAT:  return json_number(ator, value->as._float);
+        case AST_BOOL:   return json_boolean(ator, value->as._bool);
+        case AST_CHAR:   return json_string(ator, &value->as._char, 1);
+        default:         return NULL;
+    }
+}
 
-    if(ator == NULL || value == NULL)
+json_value_t* ast_to_json_internal(arena_t* ator, ast_t* node, srcset_t* set) {
+
+    if(ator == NULL || node == NULL)
         return NULL;
 
-    const char* tag_name = ast_tag_to_string(value->tag);
+    const char* tag_name = ast_tag_to_string(node->tag);
+    assert(strnlen(tag_name, 5) >= 4); 
+    tag_name = tag_name + 4; // "AST_", removing the 4 initial chars
 
-    switch(value->tag) {
-        case AST_INT:        return json_value_wrapper(ator,tag_name,
-            json_number(ator, value->as.value_int));
-        case AST_BOOL:       return json_value_wrapper(ator, tag_name,
-            json_boolean(ator, value->as.value_bool));
-        case AST_CHAR:       return json_value_wrapper(ator, tag_name,
-            json_string(ator, &value->as.value_char, 1));
-        case AST_FLOAT:      return json_value_wrapper(ator, tag_name,
-            json_number(ator, value->as.value_float));
-        case AST_UNDEFINED:  return json_value_wrapper(ator, tag_name,
-            json_null(ator));
-        case AST_STRING: // Fallthrough
-        case AST_SYMBOL: {
-            return json_value_wrapper(ator, tag_name,
-                srcref_to_json(ator, value, set));
-        } break;
-        default: {
-            json_value_t* items = json_array(ator, value->size > 0 ? value->size : 1);
-            for(int i = 0; i < value->size; i++) {
-                ast_t* ast_expr = value->as.items[i];
-                if(json_array_append(items, ast_to_json_internal(ator, ast_expr, set)) == false)
-                    return NULL;
-            }
-            return json_value_wrapper(ator, tag_name, items);
-        } break;
+    json_value_t* wrapper = json_object(ator, 3);
+
+    bool ok = false;
+
+    ok = json_object_set(wrapper,
+        json_const_string(ator, "tag"),
+        json_const_string(ator, tag_name));
+
+    if( ok == false ) {
+        sh_log_error("ast_to_json_internal: failed to create or insert tag");
+        return NULL;
     }
+
+    if( ast_is_value(node) == false || node->tag == AST_ARRAY ) {
+
+        json_value_t* items = json_array(ator, node->size);
+
+        for(int i = 0; i < node->size; i++) {
+            ast_t* ast_expr = node->as.items[i];
+            ok = json_array_append(items,
+                ast_to_json_internal(ator, ast_expr, set));
+            if(ok == false) {
+                sh_log_error("ast_to_json_internal: failed to create or append item");
+                return NULL;
+            }
+        }
+
+        ok = json_object_set(wrapper,
+            json_const_string(ator, "items"),
+            items);
+
+        if(ok == false) {
+            sh_log_error("ast_to_json_internal: failed to set items");
+            return NULL;
+        }
+
+        return wrapper;
+    }
+
+    if( node->tag != AST_SYMBOL && node->tag != AST_STRING ) {
+
+        ok = json_object_set(wrapper,
+            json_const_string(ator, "value"),
+            ast_value_to_json(ator, node->tag,
+                &node->as.value));
+
+        if(ok == false) {
+            sh_log_error("ast_to_json_internal: failed to create or set json value");
+            return NULL;
+        }
+
+    }
+
+    ok = json_object_set(wrapper,
+        json_const_string(ator, "srcref"),
+        srcref_to_json(ator, node->as.value.srcref, set));
+
+    if(ok == false) {
+        sh_log_error("ast_to_json_internal: failed to create or set source reference");
+        return NULL;
+    }
+
+    return wrapper;
 }
 
 json_value_t* ast_to_json(arena_t* ator, ast_t* value) {
@@ -291,35 +315,48 @@ srcref_t srcref_from_json(ast_json_params_t* params, json_value_t* json) {
     };
 }
 
+ast_t* ast_value_flags(ast_json_params_t* params, json_value_t* json) {
+    json_value_t* value = json_object_get(json, "value");
+    if(json_is_number(value) == false)
+        return NULL;
+    json_value_t* jloc = json_object_get(json, "srcref");
+    srcref_t ref = srcref_from_json(params, jloc);
+    return ast_flags(params->arena, (value->as.number + 0.5), ref);
+}
+
 ast_t* ast_value_int(ast_json_params_t* params, json_value_t* json) {
     json_value_t* value = json_object_get(json, "value");
     if(json_is_number(value) == false)
         return NULL;
-    return ast_int(params->arena, (value->as.number + 0.5));
+    json_value_t* jloc = json_object_get(json, "srcref");
+    srcref_t ref = srcref_from_json(params, jloc);
+    return ast_int(params->arena, (value->as.number + 0.5), ref);
 }
 
 ast_t* ast_value_float(ast_json_params_t* params, json_value_t* json) {
     json_value_t* value = json_object_get(json, "value");
     if(json_is_number(value) == false)
         return NULL;
-    return ast_float(params->arena, value->as.number);
+    json_value_t* jloc = json_object_get(json, "srcref");
+    srcref_t ref = srcref_from_json(params, jloc);
+    return ast_float(params->arena, value->as.number, ref);
 }
 
 ast_t* ast_value_string(ast_json_params_t* params, json_value_t* json) {
-    json_value_t* value = json_object_get(json, "value");
-    if(json_is_object(value) == false)
+    json_value_t* jsrcref = json_object_get(json, "srcref");
+    if(json_is_object(jsrcref) == false)
         return NULL;
-    srcref_t ref = srcref_from_json(params, value);
+    srcref_t ref = srcref_from_json(params, jsrcref);
     if(srcref_is_valid(ref) == false)
         return NULL;
     return ast_string(params->arena, ref);
 }
 
 ast_t* ast_value_symbol(ast_json_params_t* params, json_value_t* json) {
-    json_value_t* value = json_object_get(json, "value");
-    if(json_is_object(value) == false)
+    json_value_t* jsrcref = json_object_get(json, "srcref");
+    if(json_is_object(jsrcref) == false)
         return NULL;
-    srcref_t ref = srcref_from_json(params, value);
+    srcref_t ref = srcref_from_json(params, jsrcref);
     if(srcref_is_valid(ref) == false)
         return NULL;
     return ast_symbol(params->arena, ref);
@@ -329,7 +366,9 @@ ast_t* ast_value_bool(ast_json_params_t* params, json_value_t* json) {
     json_value_t* value = json_object_get(json, "value");
     if(json_is_bool(value) == false)
         return NULL;
-    return ast_bool(params->arena, value->as.boolean);
+    json_value_t* jloc = json_object_get(json, "srcref");
+    srcref_t ref = srcref_from_json(params, jloc);
+    return ast_bool(params->arena, value->as.boolean, ref);
 }
 
 ast_t* ast_value_char(ast_json_params_t* params, json_value_t* json) {
@@ -338,7 +377,9 @@ ast_t* ast_value_char(ast_json_params_t* params, json_value_t* json) {
         return NULL;
     if(value->as.string.length < 1)
         return NULL;
-    return ast_char(params->arena, value->as.string.text[0]);
+    json_value_t* jloc = json_object_get(json, "srcref");
+    srcref_t ref = srcref_from_json(params, jloc);
+    return ast_char(params->arena, value->as.string.text[0], ref);
 }
 
 ast_t* ast_from_json_internal(ast_json_params_t* params, json_value_t* json) {
@@ -350,6 +391,7 @@ ast_t* ast_from_json_internal(ast_json_params_t* params, json_value_t* json) {
 
     switch(tag) {
         case AST_UNDEFINED: return NULL;
+        case AST_FLAGS:     return ast_value_flags(params, json);
         case AST_FLOAT:     return ast_value_float(params, json);
         case AST_INT:       return ast_value_int(params, json);
         case AST_BOOL:      return ast_value_bool(params, json);

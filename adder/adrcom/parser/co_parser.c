@@ -35,9 +35,9 @@ pa_result_t pa_parse_number(parser_t* parser) {
     float value = 0.0f;
     if( srcref_as_float(token.ref, &value) ) {
         if( srcref_contains_char(token.ref, '.') ) {
-            return par_node(ast_float(parser->arena, value));
+            return par_node(ast_float(parser->arena, value, token.ref));
         } else {
-            return par_node(ast_int(parser->arena, value));
+            return par_node(ast_int(parser->arena, value, token.ref));
         }
     }
     return par_error_invalid_token_format(parser, token);
@@ -51,7 +51,7 @@ pa_result_t pa_parse_boolean(parser_t* parser) {
     }
     bool value = false;
     if( srcref_as_bool(token.ref, &value) ) {
-        return par_node(ast_bool(parser->arena, value));
+        return par_node(ast_bool(parser->arena, value, token.ref));
     }
     return par_error_invalid_token_format(parser, token);
 }
@@ -695,7 +695,7 @@ pa_result_t pa_parse_arglist(parser_t* parser, ast_t* arglist) {
     return par_nothing();
 }
 
-pa_result_t pa_parse_funimportdecl(parser_t* parser) {
+pa_result_t pa_parse_funimportdecl(parser_t* parser, ast_t* flags) {
 
     pa_result_t result = parse_type_descriptor(parser);
     if( par_is_error(result) )
@@ -718,7 +718,7 @@ pa_result_t pa_parse_funimportdecl(parser_t* parser) {
         rettypedescr,
         funname.ref,
         arglist,
-        AST_FUNSIGN_FFI_VAL_IMPORT);
+        flags);
 
     return par_node(funsign);
 }
@@ -741,7 +741,7 @@ int seek_end_of_type(parser_t* parser, int offs, int n) {
     return -1;
 }
 
-pa_result_t pa_try_parse_fundef(parser_t* parser) {
+pa_result_t pa_try_parse_fundef(parser_t* parser, ast_t* flags) {
 
     int eot = seek_end_of_type(parser, 0, 0);
     if( eot < 0 )
@@ -773,15 +773,20 @@ pa_result_t pa_try_parse_fundef(parser_t* parser) {
 
     ast_t* body = par_extract_node(result);
 
+    if(flags == NULL) {
+        flags = ast_flags(parser->arena,
+            srcref_equals_string(funname.ref, "main")
+                ? AST_FUNSIGN_FFI_FLAG_EXPORT
+                : 0,
+            funname.ref);
+    }
+
     ast_t* funsign = ast_function_signature(parser->arena,
         rettypedescr,
         funname.ref,
         arglist,
-        0);
+        flags);
 
-    if( srcref_equals_string(funname.ref, "main") )
-        ast_set_exported(funsign);
-    
     ast_t* fundef = ast_function_definition(parser->arena, funsign, body); 
 
     return par_node(fundef);
@@ -799,7 +804,11 @@ pa_result_t pa_try_parse_preproc_directive(parser_t* parser) {
 
     if( token.type == TT_IMPORT ) {
 
-        pa_result_t result = pa_parse_funimportdecl(parser);
+        ast_t* flags = ast_flags(parser->arena,
+            AST_FUNSIGN_FFI_FLAG_IMPORT,
+            token.ref);
+
+        pa_result_t result = pa_parse_funimportdecl(parser, flags);
         if( par_is_error(result) )
             return result;
 
@@ -809,13 +818,15 @@ pa_result_t pa_try_parse_preproc_directive(parser_t* parser) {
 
     } else if ( token.type == TT_EXPORT ) {
 
-        pa_result_t result = pa_try_parse_fundef(parser);
+        ast_t* flags = ast_flags(parser->arena,
+            AST_FUNSIGN_FFI_FLAG_EXPORT,
+            token.ref);
+
+        pa_result_t result = pa_try_parse_fundef(parser, flags);
         if( par_is_error(result) )
             return result;
 
         ast_t* fundef = par_extract_node(result);
-
-        ast_set_exported(fundef);
 
         pa_advance_if(parser, TT_STATEMENT_END);        // optional end of statement
 
@@ -830,7 +841,7 @@ pa_result_t pa_try_parse_preproc_directive(parser_t* parser) {
 }
 
 pa_result_t pa_parse_toplevel_statement(parser_t* parser) {
-    pa_result_t result = pa_try_parse_fundef(parser);
+    pa_result_t result = pa_try_parse_fundef(parser, NULL);
     if( par_is_nothing(result) )
         result = pa_try_parse_preproc_directive(parser);
     if( par_is_error(result) || par_is_node(result) )
