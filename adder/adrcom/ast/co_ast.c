@@ -73,10 +73,7 @@ bool _ast_attach_diag(arena_t* allocator, ast_t* node, diag_kind_t kind, diphras
 
 srcref_t ast_aggregate_srcref(ast_t* node) {
 
-    if(node->tag == AST_SYMBOL)
-        return node->as.value.srcref;
-
-    if(node->tag == AST_STRING)
+    if(ast_tag_is_value(node->tag))
         return node->as.value.srcref;
 
     if(node->size == 0)

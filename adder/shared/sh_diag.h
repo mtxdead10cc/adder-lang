@@ -83,7 +83,6 @@ typedef struct diag_t diag_t;
 typedef struct diag_t {
     diag_kind_t kind;
     diphrase_t  phrase;
-    diag_t*     next;
     size_t      size;
     dimsg_t     message[];
 } diag_t;
@@ -118,7 +117,6 @@ inline static diag_t* mk_diag(arena_t* arena, diag_kind_t kind, diphrase_t phras
         return NULL;
     d->kind = kind;
     d->phrase = phrase;
-    d->next = NULL;
     d->size = size;
     memcpy(d->message, message, sizeof(dimsg_t) * size);
     return d;
