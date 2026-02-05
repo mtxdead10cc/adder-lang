@@ -671,7 +671,7 @@ void codegen_return_stmt(ast_t* stmt, compiler_state_t* state) {
         } break;
         default: {
             assert(inner->tag != AST_SYMBOL && "can a srcref be returned?");
-            if(ast_is_value(inner))
+            if(ast_is_value(inner) || inner->tag == AST_ARRAY)
                 ret_size = 1;
             else if(ast_is_binop(inner))
                 ret_size = 1;

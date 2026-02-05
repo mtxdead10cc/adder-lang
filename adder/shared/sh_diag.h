@@ -74,9 +74,9 @@ typedef struct dimsg_t {
 // REDEFINED    VARIABLE    NAME
 
 typedef enum diag_kind_t {
-    DIAG_ERROR,
+    DIAG_INFO,
     DIAG_WARNING,
-    DIAG_INFO
+    DIAG_ERROR
 } diag_kind_t;
 
 typedef struct diag_t diag_t;

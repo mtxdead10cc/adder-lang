@@ -29,8 +29,7 @@ typedef enum ast_tag_t {
     AST_STRING,
     AST_SYMBOL,
     AST_FLAGS,
-    AST_ARRAY,
-
+    
     AST__END_VALUES,
 
     AST__BEGIN_UNARY_OPERATORS,
@@ -61,6 +60,7 @@ typedef enum ast_tag_t {
 
     AST__BEGIN_HIGH_LEVEL,
 
+    AST_ARRAY,
     AST_TYDESCR,
     AST_VARDECL,
     AST_VARREF,
@@ -83,8 +83,9 @@ typedef enum ast_tag_t {
 typedef struct ast_t ast_t;
 
 typedef struct ast_diags_t {
-    int      size;
-    diag_t** list;
+    diag_kind_t kind;
+    int         size;
+    diag_t**    list;
 } ast_diags_t;
 
 typedef struct ast_value_t {
@@ -155,6 +156,7 @@ bool ast_is_value(ast_t* node);
 bool ast_tag_is_list(ast_tag_t tag);
 bool ast_is_list(ast_t* node);
 bool ast_is_valid_else_block(ast_t* node);
+bool ast_tag_is_highlevel(ast_tag_t tag);
 
 /////////////// BUILDERS /////////////////
 

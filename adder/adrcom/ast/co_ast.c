@@ -29,6 +29,12 @@ bool _ast_attach_diag(arena_t* allocator, ast_t* node, diag_kind_t kind, diphras
         node->diagnostics = (ast_diags_t*) aalloc(allocator, sizeof(ast_diags_t));
         if( node->diagnostics == NULL )
             return false;
+    }
+
+    diag_kind_t previous = node->diagnostics->kind;
+    node->diagnostics->kind = max(kind, previous);
+
+    if(node->diagnostics->list == NULL) {
         int init_size_one = 1;
         node->diagnostics->list = (diag_t**) aalloc(allocator,
             sizeof(diag_t*) * ast_calculate_capacity(init_size_one));
@@ -182,6 +188,11 @@ bool ast_is_unop(ast_t* node) {
 bool ast_tag_is_binop(ast_tag_t tag) {
     return tag > AST__BEGIN_BINARY_OPERATORS
         && tag < AST__END_BINARY_OPERATORS;
+}
+
+bool ast_tag_is_highlevel(ast_tag_t tag) {
+    return tag > AST__BEGIN_HIGH_LEVEL
+        && tag < AST__END_HIGH_LEVEL;
 }
 
 bool ast_is_binop(ast_t* node) {

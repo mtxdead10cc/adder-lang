@@ -35,7 +35,11 @@ pa_result_t pa_parse_number(parser_t* parser) {
     float value = 0.0f;
     if( srcref_as_float(token.ref, &value) ) {
         if( srcref_contains_char(token.ref, '.') ) {
-            return par_node(ast_float(parser->arena, value, token.ref));
+            ast_t* test = ast_float(parser->arena, value, token.ref);
+            ast_attach_error(parser->arena, test,
+                diag_phrase(_UNEXPECTED_, _NUMBER_),
+                diag_str(" THIS\nIS\nA\nTEST"));
+            return par_node(test);
         } else {
             return par_node(ast_int(parser->arena, value, token.ref));
         }

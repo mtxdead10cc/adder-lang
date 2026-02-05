@@ -92,15 +92,41 @@ size_t append_styled_len(cstr_t* str, txt_style_t style, char* text, int len) {
     return res;
 }
 
+txt_style_t _get_style(ast_t* n) {
+
+    if(n->diagnostics != NULL) {
+        if(n->diagnostics->kind == DIAG_ERROR)
+            return (STYLE_ERROR | TXT_UNDERLINED);
+        if(n->diagnostics->kind == DIAG_WARNING)
+            return (STYLE_WARNING | TXT_UNDERLINED);
+    }
+
+    ast_tag_t tag = n->tag;
+    if(tag == AST_SYMBOL)
+        return STYLE_SYMBOL;
+    else if(tag == AST_TYDESCR)
+        return STYLE_TYPE;
+    else if(tag == AST_VARREF)
+        return STYLE_VARIABLE;
+    else if(ast_tag_is_value(tag))
+        return STYLE_VALUE;
+    else if(ast_tag_is_binop(tag) || ast_tag_is_unop(tag))
+        return 0;
+    else if(ast_tag_is_highlevel(tag))
+        return STYLE_KEYWORD;
+    
+    return STYLE_UNKNOWN;
+}
+
 size_t append_code_unaop(cstr_t* s, char* opsym, ast_t* n) {
-    size_t len = append_styled_const(s, STYLE_KEYWORD, opsym);
+    size_t len = append_styled_const(s, _get_style(n), opsym);
     len += _ast_to_code(s, n->as.items[AST_UNAOP_INNER], 0);
     return len;
 }
 
 size_t append_code_binop(cstr_t* s, char* opsym, ast_t* n) {
     size_t len = _ast_to_code(s, n->as.items[AST_BINOP_LEFT], 0);
-    len += append_styled_fmt(s, STYLE_KEYWORD, " %s ", opsym);
+    len += append_styled_fmt(s, _get_style(n), " %s ", opsym);
     return len + _ast_to_code(s, n->as.items[AST_BINOP_RIGHT], 0);
 }
 
@@ -131,22 +157,51 @@ bool is_statement(ast_t* n) {
 }
 
 size_t append_diagnostics(cstr_t* s, ast_diags_t* diags, int l) {
+
     if(diags == NULL)
         return 0;
+
     size_t len = 0;
+
     for (int i = 0; i < diags->size; i++) {
+
+        txt_style_t border = TXT_ENABLED | TXT_GREEN;
+
+        if(diags->list[i]->kind == DIAG_ERROR)
+            border = STYLE_ERROR;
+        else if(diags->list[i]->kind == DIAG_WARNING)
+            border = STYLE_WARNING;
+
         mk_cstr(dimsg, diag_to_string(diags->list[i], NULL));
         diag_to_string(diags->list[i], &dimsg);
+
         len += append_indent(s, l);
-        if(diags->list[i]->kind == DIAG_ERROR) {
-            len += append_styled_const(s, STYLE_ERROR, "\u2620 ");
-            len += append_styled_len(s, 0, dimsg.ptr, dimsg.maxlen);
-        } else {
-            len += append_styled_const(s, STYLE_WARNING, "\u26A0 ");
-            len += append_styled_len(s, 0, dimsg.ptr, dimsg.maxlen);
+
+        int start = 0;
+
+        for(int curr = 1; curr < dimsg.maxlen; curr++) {
+            if(dimsg.ptr[curr] == '\n') {
+                len += append_styled_const(s, border, "| ");
+                len += append_styled_len(s, 0,
+                    dimsg.ptr + start,
+                    curr - start + 1);
+                len += append_indent(s, l);
+                curr += 1;
+                start = curr;
+            }
         }
-        len += append_styled_const(s, 0, "\n");
+    
+        if(start < dimsg.maxlen) {
+            len += append_styled_const(s, border, "| ");
+            len += append_styled_len(s, 0, dimsg.ptr + start, dimsg.maxlen - start);
+            len += append_styled_const(s, 0, "\n");
+        }
+        
+        len += append_indent(s, l);
+        len += append_styled_const(s, border, "'¨¨¨¨¨¨¨¨¨\n");
+
     }
+
     return len;
 }
 
@@ -159,161 +214,272 @@ size_t collect_append_diagnostics(cstr_t* s, ast_t* n, int l) {
 }
 
 size_t _ast_to_code(cstr_t* s, ast_t* n, int l) {
+
+    txt_style_t style = _get_style(n);
+    size_t length = 0;
+
     switch(n->tag) {
-        case AST_UNDEFINED:         return append_styled_const(s, STYLE_UNKNOWN, "!undefined!");
-        case AST__BEGIN_VALUES:     return append_styled_const(s, STYLE_UNKNOWN, "!begin values!");
-        case AST_INT:               return append_styled_fmt(s, STYLE_VALUE, "%d", n->as.value.as._int);
-        case AST_FLOAT:             return append_styled_fmt(s, STYLE_VALUE, "%.8g", n->as.value.as._float);
-        case AST_BOOL:              return append_styled_fmt(s, STYLE_VALUE, "%s", n->as.value.as._bool ? "true" : "false");
-        case AST_CHAR:              return append_styled_fmt(s, STYLE_VALUE, "%.*s", 1, &n->as.value.as._char);
-        case AST_STRING:            return append_styled_fmt(s, STYLE_VALUE, "\"%.*s\"", (int) srcref_len(n->as.value.srcref), srcref_ptr(n->as.value.srcref));
-        case AST_SYMBOL:            return append_styled_fmt(s, STYLE_SYMBOL, "%.*s", (int) srcref_len(n->as.value.srcref), srcref_ptr(n->as.value.srcref));
+        case AST_UNDEFINED:
+            length = append_styled_const(s, style, "!undefined!");
+            break;
+        case AST__BEGIN_VALUES:
+            length = append_styled_const(s, style, "!begin values!");
+            break;
+        case AST_INT:
+            length = append_styled_fmt(s, style, "%d",
+                n->as.value.as._int);
+            break;
+        case AST_FLOAT:
+            length = append_styled_fmt(s, style, "%.8g",
+                n->as.value.as._float);
+            break;
+        case AST_BOOL:
+            length = append_styled_fmt(s, style, "%s",
+                n->as.value.as._bool
+                    ? "true"
+                    : "false");
+            break;
+        case AST_CHAR:
+            length = append_styled_fmt(s, style, "%.*s",
+                1, &n->as.value.as._char);
+            break;
+        case AST_STRING:
+            length = append_styled_fmt(s, style, "\"%.*s\"",
+                (int) srcref_len(n->as.value.srcref),
+                srcref_ptr(n->as.value.srcref));
+            break;
+        case AST_SYMBOL:
+            length = append_styled_fmt(s, style, "%.*s",
+                (int) srcref_len(n->as.value.srcref),
+                srcref_ptr(n->as.value.srcref));
+            break;
         case AST_ARRAY: {
             size_t len = append_styled_const(s, 0, "[");
             len += append_code_items(s, ", ", n);
             len += append_styled_const(s, 0, "]");
-            return len;
-        };
-        case AST__END_VALUES: return append_styled_const(s, STYLE_UNKNOWN, "!end values!");
-        case AST__BEGIN_UNARY_OPERATORS: return append_styled_const(s, STYLE_UNKNOWN, "!begin unary operators!");
-        case AST_UNA_NOT: return append_code_unaop(s, "not ", n);
-        case AST_UNA_NEG: return append_code_unaop(s, "-", n);
-        case AST__END_UNARY_OPERATORS: return append_styled_const(s, STYLE_UNKNOWN, "!end unary operators!");
-        case AST__BEGIN_BINARY_OPERATORS: return append_styled_const(s, STYLE_UNKNOWN, "!begin binary operators!");
-        case AST_BIN_MUL:   return append_code_binop(s, "*", n);
-        case AST_BIN_DIV:   return append_code_binop(s, "/", n);
-        case AST_BIN_MOD:   return append_code_binop(s, "%", n);
-        case AST_BIN_ADD:   return append_code_binop(s, "+", n);
-        case AST_BIN_SUB:   return append_code_binop(s, "-", n);
-        case AST_BIN_XOR:   return append_code_binop(s, "xor", n);
-        case AST_BIN_LT:    return append_code_binop(s, "<", n);
-        case AST_BIN_GT:    return append_code_binop(s, ">", n);
-        case AST_BIN_LT_EQ: return append_code_binop(s, "<=", n);
-        case AST_BIN_GT_EQ: return append_code_binop(s, ">=", n);
-        case AST_BIN_EQ:    return append_code_binop(s, "==", n);
-        case AST_BIN_NEQ:   return append_code_binop(s, "!=", n);
-        case AST_BIN_OR:    return append_code_binop(s, "or", n);
-        case AST_BIN_AND:   return append_code_binop(s, "and", n);
-        case AST__END_BINARY_OPERATORS: return append_styled_const(s, STYLE_UNKNOWN, "!end binary operators!");
-        case AST__BEGIN_HIGH_LEVEL:     return append_styled_const(s, STYLE_UNKNOWN, "!begin highlevel!");
-        case AST_ARGLIST:   return append_code_items(s, ", ", n);
+            length = len;
+        } break;
+        case AST__END_VALUES:
+            length = append_styled_const(s, style, "!end values!");
+            break;
+        case AST__BEGIN_UNARY_OPERATORS:
+            length = append_styled_const(s, style, "!begin unary operators!");
+            break;
+        case AST_UNA_NOT:
+            length = append_code_unaop(s, "not ", n);
+            break;
+        case AST_UNA_NEG:
+            length = append_code_unaop(s, "-", n);
+            break;
+        case AST__END_UNARY_OPERATORS:
+            length = append_styled_const(s, style, "!end unary operators!");
+            break;
+        case AST__BEGIN_BINARY_OPERATORS:
+            length = append_styled_const(s, style, "!begin binary operators!");
+            break;
+        case AST_BIN_MUL:
+            length = append_code_binop(s, "*", n);
+            break;
+        case AST_BIN_DIV:
+            length = append_code_binop(s, "/", n);
+            break;
+        case AST_BIN_MOD:
+            length = append_code_binop(s, "%", n);
+            break;
+        case AST_BIN_ADD:
+            length = append_code_binop(s, "+", n);
+            break;
+        case AST_BIN_SUB:
+            length = append_code_binop(s, "-", n);
+            break;
+        case AST_BIN_XOR:
+            length = append_code_binop(s, "xor", n);
+            break;
+        case AST_BIN_LT:
+            length = append_code_binop(s, "<", n);
+            break;
+        case AST_BIN_GT:
+            length = append_code_binop(s, ">", n);
+            break;
+        case AST_BIN_LT_EQ:
+            length = append_code_binop(s, "<=", n);
+            break;
+        case AST_BIN_GT_EQ:
+            length = append_code_binop(s, ">=", n);
+            break;
+        case AST_BIN_EQ:
+            length = append_code_binop(s, "==", n);
+            break;
+        case AST_BIN_NEQ:
+            length = append_code_binop(s, "!=", n);
+            break;
+        case AST_BIN_OR:
+            length = append_code_binop(s, "or", n);
+            break;
+        case AST_BIN_AND:
+            length = append_code_binop(s, "and", n);
+            break;
+        case AST__END_BINARY_OPERATORS:
+            length = append_styled_const(s, style, "!end binary operators!"); break;
+        case AST__BEGIN_HIGH_LEVEL:
+            length = append_styled_const(s, style, "!begin highlevel!");
+            break;
+        case AST_ARGLIST:
+            length = append_code_items(s, ", ", n);
+            break;
         case AST_VARREF: {
             srcref_t srcref = n->as.items[AST_VARREF_SYMBOL]->as.value.srcref;
-            return append_styled_fmt(s, STYLE_VARIABLE, "%.*s",
+            length = append_styled_fmt(s, style, "%.*s",
                 (int) srcref_len(srcref),
                 srcref_ptr(srcref));
-        };
+        } break;
         case AST_BLOCK: {
             size_t len = 0;
-            len += append_styled_const(s, 0, " {\n");
             for(size_t i = 0; i < (size_t) n->size; i++) {
                 len += append_indent(s, l + 1);
                 len += _ast_to_code(s, n->as.items[i], l + 1);
                 bool stmt = is_statement(n->as.items[i]);
                 len += append_styled_const(s, 0, stmt ? ";\n" : "\n");
-                len += collect_append_diagnostics(s, n->as.items[i], l + 1);
+                if(stmt) {
+                    len += collect_append_diagnostics(s, n->as.items[i], l + 1);
+                }
             }
-            len += append_indent(s, l);
-            len += append_styled_const(s, 0, "}");
-            return len;
-        };
+            length = len;
+        } break;
         case AST_TYDESCR: {
             srcref_t srcref = n->as.items[AST_TYDESCR_SYMBOL]->as.value.srcref;
-            size_t len = append_styled_fmt(s, STYLE_TYPE, "%.*s",
+            size_t len = append_styled_fmt(s, style, "%.*s",
                 (int) srcref_len(srcref),
                 srcref_ptr(srcref));
             if( n->as.items[AST_TYDESCR_ARGLIST] == NULL )
-                return len;
-            if( n->as.items[AST_TYDESCR_ARGLIST]->size == 0 )
-                return len;
-            len += append_styled_const(s, 0, "<");  
-            len += _ast_to_code(s, n->as.items[AST_TYDESCR_ARGLIST], l);
-            len += append_styled_const(s, 0, ">");
-            return len;
-        };
+                length = len;
+            if( n->as.items[AST_TYDESCR_ARGLIST]->size > 0 ) {
+                len += append_styled_const(s, 0, "<");  
+                len += _ast_to_code(s, n->as.items[AST_TYDESCR_ARGLIST], l);
+                len += append_styled_const(s, 0, ">");
+            }
+            length = len;
+        } break;
         case AST_VARDECL: {
             size_t len = _ast_to_code(s, n->as.items[AST_VARDECL_TYDESCR], l);
             len += append_styled_const(s, 0, " ");  
             len += _ast_to_code(s, n->as.items[AST_VARDECL_VARREF], l);
-            return len;
-        };
+            length = len;
+        } break;
         case AST_FUNDEFN: {
+            // statement
             size_t len = _ast_to_code(s, n->as.items[AST_FUNDEFN_FUNSIGN], l);
+            // error printing
+            len += collect_append_diagnostics(s, n->as.items[AST_FUNDEFN_FUNSIGN], l + 1);
+            len += append_diagnostics(s, n->diagnostics, l + 1);
+            // body
+            len += append_styled_const(s, 0, " {\n");
             len += _ast_to_code(s, n->as.items[AST_FUNDEFN_BODY], l);
-            return len;
-        };
+            len += append_indent(s, l);
+            len += append_styled_const(s, 0, "}");
+            length = len;
+        } break;
         case AST_FUNSIGN: {
             size_t len = 0;
             srcref_t ffi = n->as.items[AST_FUNSIGN_FFI]->as.value.srcref;
             if( srcref_equals_string(ffi, "export") )
-                len += append_styled_fmt(s, STYLE_KEYWORD, "%s", "export ");
+                len += append_styled_fmt(s, style, "%s", "export ");
             else if ( srcref_equals_string(ffi, "import") )
-                len += append_styled_fmt(s, STYLE_KEYWORD, "%s", "import ");
+                len += append_styled_fmt(s, style, "%s", "import ");
             len += _ast_to_code(s, n->as.items[AST_FUNSIGN_TYDESCR], l);
             len += append_styled_const(s, 0, " ");  
             len += _ast_to_code(s, n->as.items[AST_FUNSIGN_SYMBOL], l);
-            len += append_styled_const(s, 0, "(");  
+            len += append_styled_const(s, 0, "(");
             len += _ast_to_code(s, n->as.items[AST_FUNSIGN_ARGLIST], l);
-            len += append_styled_const(s, 0, ")");  
-            return len;
-        };
+            len += append_styled_const(s, 0, ")");
+            length = len;
+        } break;
         case AST_FUNCALL: {
             size_t len = _ast_to_code(s, n->as.items[AST_FUNCALL_SYMBOL], l);
             len += append_styled_const(s, 0, "(");  
             len += _ast_to_code(s, n->as.items[AST_FUNCALL_ARGLIST], l);
             len += append_styled_const(s, 0, ")");
-            return len;
-        };
+            length = len;
+        } break;
         case AST_FOREACH: {
-            size_t len = append_styled_const(s, STYLE_KEYWORD, "for");
+            // statement
+            size_t len = append_styled_const(s, style, "for");
             len += append_styled_const(s, 0, " (");
             len += _ast_to_code(s, n->as.items[AST_FOREACH_VAR], l);
-            len += append_styled_const(s, STYLE_KEYWORD, " in ");
+            len += append_styled_const(s, style, " in ");
             len += _ast_to_code(s, n->as.items[AST_FOREACH_COLL], l);
-            len += append_styled_const(s, 0, ")");
+            len += append_styled_const(s, 0, ") {\n");
+            // error printing
+            len += collect_append_diagnostics(s, n->as.items[AST_FOREACH_VAR], l + 1);
+            len += collect_append_diagnostics(s, n->as.items[AST_FOREACH_COLL], l + 1);
+            len += append_diagnostics(s, n->diagnostics, l +1);
+            // body
             len += _ast_to_code(s, n->as.items[AST_FOREACH_BODY], l);
-            return len;
-        };
+            len += append_indent(s, l);
+            len += append_styled_const(s, 0, "}");
+            length = len;
+        } break;
         case AST_IFCHAIN: {
+
             size_t len = 0;
             ast_t* next = n;
 
             do {
-
-                len += append_styled_const(s, STYLE_KEYWORD, (n == next) ? "if" : " else if");
+                // statement
+                len += append_styled_const(s, style, (n == next) ? "if" : " else if");
                 len += append_styled_const(s, 0, " (");
                 len += _ast_to_code(s, next->as.items[AST_IFCHAIN_COND], l);
-                len += append_styled_const(s, 0, ")");
+                len += append_styled_const(s, 0, ") {\n");
+                // error printing
+                len += collect_append_diagnostics(s, next->as.items[AST_IFCHAIN_COND], l + 1);
+                len += append_diagnostics(s, next->diagnostics, l +1);
+                // body
                 len += _ast_to_code(s, next->as.items[AST_IFCHAIN_IFTRUE], l);
                 next = next->as.items[AST_IFCHAIN_IFNEXT];
+                len += append_indent(s, l);
+                len += append_styled_const(s, 0, "}");
 
             } while( next != NULL && next->tag == AST_IFCHAIN );
 
             if( next != NULL && next->size > 0 ) {
-                len += append_styled_const(s, STYLE_KEYWORD, " else ");
+                // statement
+                len += append_styled_const(s, style, " else {\n");
+                // error printing
+                len += append_diagnostics(s, next->diagnostics, l +1);
+                // body
                 len += _ast_to_code(s, next, l);
+                len += append_indent(s, l);
+                len += append_styled_const(s, 0, "}");
             }
-            return len;
-        };
+
+            length = len;
+
+        } break;
         case AST_RETURN: {
             size_t len = 0;
-            len += append_styled_const(s, STYLE_KEYWORD, "return ");
+            len += append_styled_const(s, style, "return ");
             len += _ast_to_code(s, n->as.items[AST_RETURN_EXPR], l);
-            return len;
-        };
+            length = len;
+        } break;
         case AST_ASSIGN: {
             size_t len = 0;
             len += _ast_to_code(s, n->as.items[AST_ASSIGN_LEFT], l);
             len += append_styled_const(s, 0, " = ");
             len += _ast_to_code(s, n->as.items[AST_ASSIGN_RIGHT], l);
-            return len;
-        };
-        case AST__END_HIGH_LEVEL: return append_styled_const(s, STYLE_UNKNOWN, "!end highlevel!");
-        case AST__COUNT: return append_styled_const(s, STYLE_UNKNOWN, "!node type count!");
-        default: {
-            return 0;
-        };
+            length = len;
+        } break;
+        case AST__END_HIGH_LEVEL:
+            length = append_styled_const(s, style, "!end highlevel!");
+            break;
+        case AST__COUNT:
+            length = append_styled_const(s, style, "!node type count!");
+            break;
+        default:
+            length = 0;
+            break;
     }
+
+    return length;
 }
 
 bool is_simple_node(ast_t* n) {

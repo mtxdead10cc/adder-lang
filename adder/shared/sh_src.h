@@ -244,4 +244,6 @@ inline static srcloc_t srcref_get_location(srcref_t a) {
     return loc;
 }
 
+#define srcloc_is_valid(L) ((L).path != NULL)
+
 #endif // SH_SRC_H__
