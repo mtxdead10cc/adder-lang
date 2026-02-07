@@ -96,13 +96,15 @@ json_value_t* srcref_to_json(arena_t* ator, srcref_t ref, srcset_t* set) {
     return eok ? obj : NULL;
 }
 
-json_value_t* ast_value_to_json(arena_t* ator, ast_tag_t tag, ast_value_t* value) {
+json_value_t* ast_value_to_json(arena_t* ator, ast_tag_t tag, ast_t* value, srcset_t* set) {
     switch(tag) {
         case AST_FLAGS:  return json_number(ator, value->as._flags);
         case AST_INT:    return json_number(ator, value->as._int);
         case AST_FLOAT:  return json_number(ator, value->as._float);
         case AST_BOOL:   return json_boolean(ator, value->as._bool);
         case AST_CHAR:   return json_string(ator, &value->as._char, 1);
+        case AST_STRING: 
+        case AST_SYMBOL: return srcref_to_json(ator, value->as._srcref, set);
         default:         return NULL;
     }
 }
@@ -129,7 +131,19 @@ json_value_t* ast_to_json_internal(arena_t* ator, ast_t* node, srcset_t* set) {
         return NULL;
     }
 
-    if( ast_is_value(node) == false || node->tag == AST_ARRAY ) {
+    if( srcref_is_valid(node->srcrange) && node->tag != AST_STRING && node->tag != AST_SYMBOL ) {
+
+        ok = json_object_set(wrapper,
+            json_const_string(ator, "source_range"),
+            srcref_to_json(ator, node->srcrange, set));
+
+        if(ok == false) {
+            sh_log_error("ast_to_json_internal: failed to create or set source reference");
+            return NULL;
+        }
+    }
+
+    if( ast_is_value(node) == false ) {
 
         json_value_t* items = json_array(ator, node->size);
 
@@ -155,26 +169,12 @@ json_value_t* ast_to_json_internal(arena_t* ator, ast_t* node, srcset_t* set) {
         return wrapper;
     }
 
-    if( node->tag != AST_SYMBOL && node->tag != AST_STRING ) {
-
-        ok = json_object_set(wrapper,
-            json_const_string(ator, "value"),
-            ast_value_to_json(ator, node->tag,
-                &node->as.value));
-
-        if(ok == false) {
-            sh_log_error("ast_to_json_internal: failed to create or set json value");
-            return NULL;
-        }
-
-    }
-
     ok = json_object_set(wrapper,
-        json_const_string(ator, "srcref"),
-        srcref_to_json(ator, node->as.value.srcref, set));
+        json_const_string(ator, "value"),
+        ast_value_to_json(ator, node->tag, node, set));
 
     if(ok == false) {
-        sh_log_error("ast_to_json_internal: failed to create or set source reference");
+        sh_log_error("ast_to_json_internal: failed to create or set json value");
         return NULL;
     }
 
@@ -319,31 +319,25 @@ ast_t* ast_value_flags(ast_json_params_t* params, json_value_t* json) {
     json_value_t* value = json_object_get(json, "value");
     if(json_is_number(value) == false)
         return NULL;
-    json_value_t* jloc = json_object_get(json, "srcref");
-    srcref_t ref = srcref_from_json(params, jloc);
-    return ast_flags(params->arena, (value->as.number + 0.5), ref);
+    return ast_flags(params->arena, (value->as.number + 0.5));
 }
 
 ast_t* ast_value_int(ast_json_params_t* params, json_value_t* json) {
     json_value_t* value = json_object_get(json, "value");
     if(json_is_number(value) == false)
         return NULL;
-    json_value_t* jloc = json_object_get(json, "srcref");
-    srcref_t ref = srcref_from_json(params, jloc);
-    return ast_int(params->arena, (value->as.number + 0.5), ref);
+    return ast_int(params->arena, (value->as.number + 0.5));
 }
 
 ast_t* ast_value_float(ast_json_params_t* params, json_value_t* json) {
     json_value_t* value = json_object_get(json, "value");
     if(json_is_number(value) == false)
         return NULL;
-    json_value_t* jloc = json_object_get(json, "srcref");
-    srcref_t ref = srcref_from_json(params, jloc);
-    return ast_float(params->arena, value->as.number, ref);
+    return ast_float(params->arena, value->as.number);
 }
 
 ast_t* ast_value_string(ast_json_params_t* params, json_value_t* json) {
-    json_value_t* jsrcref = json_object_get(json, "srcref");
+    json_value_t* jsrcref = json_object_get(json, "value");
     if(json_is_object(jsrcref) == false)
         return NULL;
     srcref_t ref = srcref_from_json(params, jsrcref);
@@ -353,7 +347,7 @@ ast_t* ast_value_string(ast_json_params_t* params, json_value_t* json) {
 }
 
 ast_t* ast_value_symbol(ast_json_params_t* params, json_value_t* json) {
-    json_value_t* jsrcref = json_object_get(json, "srcref");
+    json_value_t* jsrcref = json_object_get(json, "value");
     if(json_is_object(jsrcref) == false)
         return NULL;
     srcref_t ref = srcref_from_json(params, jsrcref);
@@ -366,9 +360,7 @@ ast_t* ast_value_bool(ast_json_params_t* params, json_value_t* json) {
     json_value_t* value = json_object_get(json, "value");
     if(json_is_bool(value) == false)
         return NULL;
-    json_value_t* jloc = json_object_get(json, "srcref");
-    srcref_t ref = srcref_from_json(params, jloc);
-    return ast_bool(params->arena, value->as.boolean, ref);
+    return ast_bool(params->arena, value->as.boolean);
 }
 
 ast_t* ast_value_char(ast_json_params_t* params, json_value_t* json) {
@@ -377,9 +369,7 @@ ast_t* ast_value_char(ast_json_params_t* params, json_value_t* json) {
         return NULL;
     if(value->as.string.length < 1)
         return NULL;
-    json_value_t* jloc = json_object_get(json, "srcref");
-    srcref_t ref = srcref_from_json(params, jloc);
-    return ast_char(params->arena, value->as.string.text[0], ref);
+    return ast_char(params->arena, value->as.string.text[0]);
 }
 
 ast_t* ast_from_json_internal(ast_json_params_t* params, json_value_t* json) {
@@ -387,47 +377,53 @@ ast_t* ast_from_json_internal(ast_json_params_t* params, json_value_t* json) {
     // todo: proper validation of fields
     // todo: common error structure
 
+    ast_t* res = NULL;
+
     ast_tag_t tag = ast_tag_from_json(params, json);
 
     switch(tag) {
-        case AST_UNDEFINED: return NULL;
-        case AST_FLAGS:     return ast_value_flags(params, json);
-        case AST_FLOAT:     return ast_value_float(params, json);
-        case AST_INT:       return ast_value_int(params, json);
-        case AST_BOOL:      return ast_value_bool(params, json);
-        case AST_CHAR:      return ast_value_char(params, json);
-        case AST_STRING:    return ast_value_string(params, json);
-        case AST_SYMBOL:    return ast_value_symbol(params, json);
+        case AST_UNDEFINED: res = NULL;                             break;
+        case AST_FLAGS:     res = ast_value_flags(params, json);    break;
+        case AST_FLOAT:     res = ast_value_float(params, json);    break;
+        case AST_INT:       res = ast_value_int(params, json);      break;
+        case AST_BOOL:      res = ast_value_bool(params, json);     break;
+        case AST_CHAR:      res = ast_value_char(params, json);     break;
+        case AST_STRING:    res = ast_value_string(params, json);   break;
+        case AST_SYMBOL:    res = ast_value_symbol(params, json);   break;
         case AST_ARRAY: {
             json_value_t* value = json_object_get(json, "items");
-            if(json_is_array(value) == false)
-                return NULL;
-            ast_t* arr = ast_array(params->arena); // error
-            ptrdiff_t size = json_get_size(value);
-            for(ptrdiff_t i = 0; i < size; i++) {
-                json_value_t* arrval = json_array_get(value, i);
-                ast_t* arrastval = ast_from_json_internal(params, arrval);
-                assert(arrastval != NULL); // error
-                ast_array_append(params->arena, arr, arrastval); // error
+            if(json_is_array(value)) {
+                res = ast_array(params->arena); // error
+                ptrdiff_t size = json_get_size(value);
+                for(ptrdiff_t i = 0; i < size; i++) {
+                    json_value_t* arrval = json_array_get(value, i);
+                    ast_t* arrastval = ast_from_json_internal(params, arrval);
+                    assert(arrastval != NULL); // error
+                    ast_array_append(params->arena, res, arrastval); // error
+                }
             }
-            return arr;
-        }
+        } break;
         default: {
             json_value_t* jitems = json_object_get(json, "items");
-            if(jitems == NULL)
-                return NULL;
-            int size = json_get_size(jitems);
-            // TODO: validate json size == expected ast size
-            ast_t* node = ast(params->arena, tag, size);
-            for(int i = 0; i < size; i++) {
-                json_value_t* item = json_array_get(jitems, i);
-                ast_t* astitem = ast_from_json_internal(params, item);
-                assert(astitem != NULL); // error
-                node->as.items[i] = astitem;
+            if(jitems != NULL) {
+                int size = json_get_size(jitems);
+                // TODO: validate json size == expected ast size
+                res = ast(params->arena, tag, size);
+                for(int i = 0; i < size; i++) {
+                    json_value_t* item = json_array_get(jitems, i);
+                    ast_t* astitem = ast_from_json_internal(params, item);
+                    assert(astitem != NULL); // error
+                    res->as.items[i] = astitem;
+                }
             }
-            return node; 
-        }
-    }   
+        } break;
+    }
+
+    json_value_t* range = json_object_get(json, "source_range");
+    if(range != NULL)
+        res->srcrange = srcref_from_json(params, range);
+    
+    return res;
 }
 
 bool srcset_from_json(srcset_t* set, json_value_t* sources) {

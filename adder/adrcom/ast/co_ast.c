@@ -17,74 +17,109 @@ ast_t* ast(arena_t* allocator, ast_tag_t tag, int size) {
         .tag = tag,
         .size = size,
         .diagnostics = NULL,
+        .srcrange = { 0 },
         .as.items = (ast_t**) aalloc(allocator,
             ast_calculate_capacity(size) * sizeof(ast_t*))
     };
     return node;
 }
 
-bool _ast_attach_diag(arena_t* allocator, ast_t* node, diag_kind_t kind, diphrase_t phrase, dimsg_t* msg, size_t msglen) {
+ast_diags_t* ast_diags_add_diag(arena_t* allocator, ast_diags_t* diagnostics, diag_t* diag) {
 
-    if(node->diagnostics == NULL) {
-        node->diagnostics = (ast_diags_t*) aalloc(allocator, sizeof(ast_diags_t));
-        if( node->diagnostics == NULL )
-            return false;
+    if(diag == NULL)
+        return diagnostics;
+
+    if(diagnostics == NULL)
+        diagnostics = (ast_diags_t*) aalloc(allocator, sizeof(ast_diags_t));
+
+    if(diagnostics == NULL) {
+        sh_log_error("ast_append_diag: out of memory");
+        return NULL;
     }
 
-    diag_kind_t previous = node->diagnostics->kind;
-    node->diagnostics->kind = max(kind, previous);
+    diag_kind_t previous = diagnostics->kind;
+    diagnostics->kind = max(diag->kind, previous);
 
-    if(node->diagnostics->list == NULL) {
-        int init_size_one = 1;
-        node->diagnostics->list = (diag_t**) aalloc(allocator,
-            sizeof(diag_t*) * ast_calculate_capacity(init_size_one));
-        if( node->diagnostics->list == NULL ) {
-            node->diagnostics = NULL;
-            return false;
+    if(diagnostics->list == NULL) {
+        diagnostics->size = 0;
+        int init_cap = ast_calculate_capacity(0);
+        diagnostics->list = (diag_t**) aalloc(allocator,
+            sizeof(diag_t*) * init_cap);
+        if( diagnostics->list == NULL ) {
+            sh_log_error("ast_append_diag: out of memory");
+            return diagnostics;
         }
-        node->diagnostics->size = 0;
-        node->diagnostics->list[0] = mk_diag(allocator, kind, phrase, msg, msglen);
-        if(node->diagnostics->list[0] == NULL)
-            return false;
-        node->diagnostics->size = init_size_one;
-        return true;
     }
 
-    int old_cap = ast_calculate_capacity(node->diagnostics->size);
+    int old_cap = ast_calculate_capacity(diagnostics->size);
     
-    if(old_cap < (node->diagnostics->size + 1)) {
-        int new_cap = ast_calculate_capacity(node->diagnostics->size + 1);
+    if(old_cap < (diagnostics->size + 1)) {
+        int new_cap = ast_calculate_capacity(diagnostics->size + 1);
         diag_t** new_lst = (diag_t**) arealloc(allocator,
-            node->diagnostics->list,
+            diagnostics->list,
             sizeof(diag_t*) * new_cap);
-        if( new_lst == NULL )
-            return false;
-        node->diagnostics->list = new_lst;
+        if( new_lst == NULL ) {
+            sh_log_error("ast_append_diag: out of memory");
+            return diagnostics;
+        }
+        diagnostics->list = new_lst;
     }
 
-    int new_index = node->diagnostics->size;
-    node->diagnostics->list[new_index] = mk_diag(allocator, kind, phrase, msg, msglen);
-    if(node->diagnostics->list[new_index] == NULL)
-        return false;
-
-    node->diagnostics->size += 1;
-    return true;
+    int new_index = diagnostics->size;
+    diagnostics->list[new_index] = diag;
+    diagnostics->size += 1;
+    return diagnostics;
 }
 
-srcref_t ast_aggregate_srcref(ast_t* node) {
+bool ast_append_diag(arena_t* allocator, ast_t* node, diag_t* diag) {
 
-    if(ast_tag_is_value(node->tag))
-        return node->as.value.srcref;
+    int len_start = node->diagnostics != NULL ? node->diagnostics->size : 0;
 
-    if(node->size == 0)
-        return (srcref_t) {0};
+    node->diagnostics = ast_diags_add_diag(
+        allocator,
+        node->diagnostics,
+        diag);
+
+    if(node->diagnostics == NULL)
+        return false;
+
+    return node->diagnostics->size == len_start + 1;
+}
+
+bool _ast_attach_diag(arena_t* allocator, ast_t* node, diag_kind_t kind, diphrase_t phrase, dimsg_t* msg, size_t msglen) {
+    return ast_append_diag(allocator, node, mk_diag(allocator, kind, phrase, msg, msglen));
+}
+
+void ast_move_diagnostics(arena_t* allocator, ast_t* to, ast_t* from) {
+
+    if(from->diagnostics == NULL)
+        return;
+
+    for(int i = 0; i < from->diagnostics->size; i++) {
+        diag_t* to_add = from->diagnostics->list[i];
+        if( ast_append_diag(allocator, to, to_add) == false )
+            sh_log_error("ast_move_diagnostics: failed to add diagnostics");
+    }
+
+    from->diagnostics = NULL;
+}
+
+srcref_t ast_aggregate_location(ast_t* node) {
 
     srcref_t agg = { 0 };
+
+    if(node->tag == AST_SYMBOL || node->tag == AST_STRING)
+        agg = srcref_combine(agg, node->as._srcref);
+
+    if(srcref_is_valid(node->srcrange)) {
+        agg = srcref_combine(agg, node->srcrange);
+        return agg;
+    }
 
     for(int i = 0; i < node->size; i++) {
         assert(node->as.items[i] != node);
         agg = srcref_combine(agg,
-            ast_aggregate_srcref(node->as.items[i]));
+            ast_aggregate_location(node->as.items[i]));
     }
 
     return agg;
@@ -93,7 +128,7 @@ srcref_t ast_aggregate_srcref(ast_t* node) {
 
 srcref_t ast_try_get_name(ast_t* n) {
     switch(n->tag) {
-        case AST_SYMBOL:    return n->as.value.srcref;
+        case AST_SYMBOL:    return n->as._srcref;
         case AST_VARDECL:   /* FALLTHROUGH */
         case AST_VARREF:    /* FALLTHROUGH */
         case AST_FUNCALL:   /* FALLTHROUGH */
@@ -124,6 +159,7 @@ ast_t* ast_try_get(ast_t* n, ast_tag_t tag) {
 const char* ast_tag_to_string(ast_tag_t tag) {
     switch(tag) {
         case AST_UNDEFINED:                 return "AST_UNDEFINED";
+        case AST_UNKNOWN:                   return "AST_UNKNOWN";
         case AST__BEGIN_VALUES:             return "AST__BEGIN_VALUES";
         case AST_INT:                       return "AST_INT";
         case AST_FLOAT:                     return "AST_FLOAT";
@@ -222,41 +258,43 @@ bool ast_is_valid_else_block(ast_t* node) {
         && node->size > 0;
 }
 
+bool ast_is_group_expr(ast_t* node) {
+    if(ast_is_binop(node) == false)
+        return false;
+    return node->as.items[AST_BINOP_GREXP]->as._bool;
+}
+
 /////////////// BUILDERS /////////////////
 
-ast_t* ast_int(arena_t* arena, int value, srcref_t ref) {
+ast_t* ast_int(arena_t* arena, int value) {
     ast_t* node = ast_leaf(arena, AST_INT);
     if(node == NULL)
         return NULL;
-    node->as.value.as._int = value;
-    node->as.value.srcref = ref;
+    node->as._int = value;
     return node;
 }
 
-ast_t* ast_float(arena_t* arena, float value, srcref_t ref) {
+ast_t* ast_float(arena_t* arena, float value) {
     ast_t* node = ast_leaf(arena, AST_FLOAT);
     if(node == NULL)
         return NULL;
-    node->as.value.as._float = value;
-    node->as.value.srcref = ref;
+    node->as._float = value;
     return node;
 }
 
-ast_t* ast_bool(arena_t* arena, bool value, srcref_t ref) {
+ast_t* ast_bool(arena_t* arena, bool value) {
     ast_t* node = ast_leaf(arena, AST_BOOL);
     if(node == NULL)
         return NULL;
-    node->as.value.as._bool = value;
-    node->as.value.srcref = ref;
+    node->as._bool = value;
     return node;
 }
 
-ast_t* ast_char(arena_t* arena, char value, srcref_t ref) {
+ast_t* ast_char(arena_t* arena, char value) {
     ast_t* node = ast_leaf(arena, AST_CHAR);
     if(node == NULL)
         return NULL;
-    node->as.value.as._char = value;
-    node->as.value.srcref = ref;
+    node->as._char = value;
     return node;
 }
 
@@ -264,7 +302,8 @@ ast_t* ast_string(arena_t* arena, srcref_t value) {
     ast_t* node = ast_leaf(arena, AST_STRING);
     if(node == NULL)
         return NULL;
-    node->as.value.srcref = value;
+    node->as._srcref = value;
+    node->srcrange = value;
     return node;
 }
 
@@ -273,16 +312,16 @@ ast_t* ast_symbol(arena_t* arena, srcref_t value) {
     ast_t* node = ast_leaf(arena, AST_SYMBOL);
     if(node == NULL)
         return NULL;
-    node->as.value.srcref = value;
+    node->as._srcref = value;
+    node->srcrange = value;
     return node;
 }
 
-ast_t* ast_flags(arena_t* arena, uint32_t flags, srcref_t ref) {
+ast_t* ast_flags(arena_t* arena, uint32_t flags) {
     ast_t* node = ast_leaf(arena, AST_FLAGS);
     if(node == NULL)
         return NULL;
-    node->as.value.as._flags = flags;
-    node->as.value.srcref = ref;
+    node->as._flags = flags;
     return node;
 }
 
@@ -292,7 +331,7 @@ int64_t ast_find_flags(ast_t* node, int depth) {
         return -1;
 
     if(node->tag == AST_FLAGS)
-        return node->as.value.as._flags;
+        return node->as._flags;
 
     if(depth > 1) {
         for(int i = 0; i < node->size; i++) {
@@ -319,6 +358,18 @@ bool ast_is_imported(ast_t* n) {
     if( flags < 0 )
         return false;
     return (flags & AST_FUNSIGN_FFI_FLAG_IMPORT) > 0;
+}
+
+void ast_extend_source_range(ast_t* node, srcref_t incl) {
+    if(node == NULL)
+        return;
+    node->srcrange = srcref_combine(node->srcrange, incl);
+}
+
+void ast_extend_source_range_with_node(ast_t* node, ast_t* incl) {
+    if(node == NULL || incl == NULL)
+        return;
+    node->srcrange = srcref_combine(node->srcrange, incl->srcrange);
 }
 
 ast_t* ast_variable_reference(arena_t* arena, srcref_t ref) {
@@ -410,11 +461,12 @@ ast_t* ast_unary_operation(arena_t* arena, ast_tag_t op, ast_t* inner) {
     return n;
 }
 
-ast_t* ast_binary_operation(arena_t* arena, ast_tag_t op, ast_t* left, ast_t* right) {
+ast_t* ast_binary_operation(arena_t* arena, ast_tag_t op, ast_t* left, ast_t* right, bool group_expr) {
     assert(ast_tag_is_binop(op));
-    ast_t* n = ast(arena, op, 2);
+    ast_t* n = ast(arena, op, 3);
     n->as.items[AST_BINOP_LEFT] = left;
     n->as.items[AST_BINOP_RIGHT] = right;
+    n->as.items[AST_BINOP_GREXP] = ast_bool(arena, group_expr);
     return n;
 }
 
@@ -460,14 +512,14 @@ ast_t* ast_return(arena_t* arena, ast_t* return_expr) {
     return n;
 }
 
-ast_t* ast_function_signature(arena_t* arena, ast_t* type, srcref_t name, ast_t* arglist, ast_t* flags) {
+ast_t* ast_function_signature(arena_t* arena, ast_t* type, srcref_t name, ast_t* arglist, uint32_t flags) {
     assert(srcref_is_valid(name));
     assert(arglist->tag == AST_ARGLIST);
     ast_t* n = ast(arena, AST_FUNSIGN, 4);
     n->as.items[AST_FUNSIGN_TYDESCR] = type;
     n->as.items[AST_FUNSIGN_SYMBOL] = ast_symbol(arena, name);
     n->as.items[AST_FUNSIGN_ARGLIST] = arglist;
-    n->as.items[AST_FUNSIGN_FFI] = flags;
+    n->as.items[AST_FUNSIGN_FFI] = ast_flags(arena, flags);
     return n;
 }
 

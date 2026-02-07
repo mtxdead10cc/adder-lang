@@ -17,39 +17,34 @@
 #include <stdlib.h>
 #include <string.h>
 
-pa_result_t pa_init(parser_t* parser, arena_t* arena, trace_t* trace, src_t* source) {
-
-    parser->trace = trace;
+bool pa_init(parser_t* parser, arena_t* arena, src_t* source) {
     
     if( tokens_init(&parser->collection, 16) == false ) {
-        trace_out_of_memory_error(trace);
-        return par_error();
+        sh_log_error("pa_init: out of memory");
+        return false;
     }
 
     if( source == NULL ) {
-        trace_msg_t* msg = trace_create_message(trace, TM_ERROR, trace_no_ref());
-        trace_msg_append_costr(msg, "the input text buffer pointer was null.");
-        return par_error();
+        sh_log_error("the input text buffer pointer was null.");
+        return false;
     }
 
     tokenizer_args_t args = (tokenizer_args_t) {
         .source = source,
         .include_comments = false,
-        .include_spaces = false,
-        .trace = trace
+        .include_spaces = false
     };
 
     if( tokenizer_analyze(&parser->collection, &args) == false ) {
         tokens_destroy(&parser->collection);
         parser->collection.count = 0;
-        trace_msg_t* msg = trace_create_message(trace, TM_ERROR, trace_no_ref());
-        trace_msg_append_costr(msg, "the input text buffer pointer was null.");
-        return par_error();
+        sh_log_error("the input text buffer pointer was null.");
+        return false;
     }
 
     parser->arena = arena;
     parser->cursor = 0;
-    return par_nothing();
+    return true;
 }
 
 void pa_destroy(parser_t* parser) {
@@ -90,121 +85,110 @@ token_t pa_current_token(parser_t* parser) {
     return parser->collection.tokens[parser->cursor];
 }
 
-token_t pa_peek_token(parser_t* parser, int lookahead) {
-    int diff = parser->collection.count - parser->cursor;
-    if( diff < lookahead  ) {
-        lookahead = diff;
-    }
-    return parser->collection.tokens[parser->cursor + lookahead];
+token_t pa_peek_token(parser_t* parser, int offset) {
+
+    int total = parser->collection.count;
+    int processed = parser->cursor;
+    int remaining = total - processed;
+
+    if( processed + offset < 0 )
+        offset = 0;
+    else if( remaining < offset )
+        offset = remaining;
+
+    return parser->collection.tokens[parser->cursor + offset];
 }
 
-pa_result_t pa_consume(parser_t* parser, token_type_t expected) {
-    if( trace_get_error_count(parser->trace) > 0 ) {
-        return par_error();
-    }
+diag_t* pa_consume(parser_t* parser, token_type_t expected) {
     if( pa_is_at_end(parser) ) {
         return par_error_out_of_tokens(parser);
     }
     token_t actual = pa_current_token(parser);
+    diag_t* error = NULL;
     if( expected != actual.type ) {
-        return par_error_unexpected_token_type(parser, expected, actual);
+        error = par_error_unexpected_token_type(parser, expected, actual);
     }
     pa_advance(parser); // do not check eof here
-    return par_nothing();
+    return error;
 }
 
-pa_result_t par_node(ast_t* node) {
-    return (pa_result_t) {
-        .type = PAR_AST_NODE,
-        .node = node,
-        .group_expression = false
-    };
+bool par_is_nothing(ast_t* res) {
+    return res == NULL;
 }
 
-pa_result_t par_nothing(void) {
-    return (pa_result_t) {
-        .type = PAR_NOTHING,
-        .node = NULL,
-        .group_expression = false
-    };
+bool par_is_error(ast_t* res) {
+    if(res == NULL)
+        return false;
+    if(res->diagnostics == NULL)
+        return false;
+    return res->diagnostics->kind == DIAG_ERROR;
 }
 
-pa_result_t par_error(void) {
-    return (pa_result_t) {
-        .type = PAR_BUILD_ERROR,
-        .node = NULL,
-        .group_expression = false
-    };
+bool par_is_node(ast_t* res) {
+    return res != NULL;
 }
 
-bool par_is_nothing(pa_result_t res) {
-    return res.type == PAR_NOTHING;
+diag_t* par_error_out_of_tokens(parser_t* parser) {
+    diag_t* diag = diag_error(parser->arena,
+        diag_phrase(_UNEXPECTED, _END, _OF, _TOKEN, _STREAM),
+        diag_refloc(pa_peek_token(parser, 0).ref));
+    return diag;
 }
 
-bool par_is_error(pa_result_t res) {
-    return res.type == PAR_BUILD_ERROR;
+diag_t* par_error_unexpected_token_type(parser_t* parser, token_type_t expected, token_t actual) {
+
+    (void)(parser);
+
+    diag_t* diag = diag_error(parser->arena,
+        diag_phrase(_UNEXPECTED, _TOKEN),
+        diag_str(" at "), diag_refloc(actual.ref),
+        diag_str("\n  expected "), diag_str(token_get_type_name(expected) + 3),
+        diag_str("\n  got      "), diag_refstr(actual.ref));
+    return diag;
 }
 
-bool par_is_node(pa_result_t res) {
-    return res.type == PAR_AST_NODE;
+diag_t* par_error_invalid_token_format(parser_t* parser, token_t token) {
+    
+    (void)(parser);
+
+    diag_t* diag = diag_error(parser->arena,
+        diag_phrase(_UNEXPECTED, _TOKEN, _FORMAT),
+        diag_str(" at "), diag_refloc(token.ref),
+        diag_str("\n  "),
+        diag_str(token_get_type_name(token.type) + 3),
+        diag_str(" ("), diag_refstr(token.ref), diag_str(")"));
+    return diag;
 }
 
-ast_t* par_extract_node(pa_result_t res) {
-    assert(res.type == PAR_AST_NODE);
-    return (ast_t*) res.node;
-}
+diag_t* _par_set_error(parser_t* parser, token_t token, char* expected_str) {
 
-pa_result_t par_error_out_of_tokens(parser_t* parser) {
-    trace_msg_t* msg = trace_create_message(parser->trace, TM_ERROR, trace_no_ref());
-    trace_msg_append_costr(msg, "unexpected end of token stream.");
-    return par_error();
-}
+    (void)(parser);
 
-pa_result_t par_error_unexpected_token_type(parser_t* parser, token_type_t expected, token_t actual) {
-    trace_msg_t* msg = trace_create_message(parser->trace, TM_ERROR, actual.ref);
-    trace_msg_append_costr(msg, "unexpected token, expected ");
-    tokenizer_trace_msg_append_token_type_name(msg, expected);
-    trace_msg_append_costr(msg, " but found ");
-    tokenizer_trace_msg_append_token_type_name(msg, actual.type);
-    trace_msg_append_costr(msg, " ('");
-    trace_msg_append(msg,
-        srcref_ptr(actual.ref),
-        srcref_len(actual.ref));
-    trace_msg_append_costr(msg, "')");
-    return par_error();
-}
+    if(expected_str != NULL) {
 
-pa_result_t par_error_invalid_token_format(parser_t* parser, token_t token) {
-    trace_msg_t* msg = trace_create_message(parser->trace, TM_ERROR, token.ref);   
-    trace_msg_append_costr(msg, "unexpected token format: ");
-    tokenizer_trace_msg_append_token_type_name(msg, token.type);
-    trace_msg_append_costr(msg, " ('");
-    trace_msg_append(msg,
-        srcref_ptr(token.ref),
-        srcref_len(token.ref));
-    trace_msg_append_costr(msg, "')");
-    return par_error();
-}
+        diag_t* diag = diag_error(parser->arena,
+            diag_phrase(_UNEXPECTED, _STATEMENT),
+            diag_str("at "), diag_refloc(token.ref),
+            diag_str("\n  "), diag_str(token_get_type_name(token.type) + 3),
+            diag_str(" ("), diag_refstr(token.ref), diag_str(")"),
+            diag_str("\n  expected "), diag_str(expected_str));
 
-pa_result_t _par_set_error(parser_t* parser, token_t token, char* expected_str) {
-    trace_msg_t* msg = trace_create_message(parser->trace, TM_ERROR, token.ref);
-    trace_msg_append_costr(msg, "unexpected statement: ");
-    tokenizer_trace_msg_append_token_type_name(msg, token.type);
-    trace_msg_append_costr(msg, " ('");
-    trace_msg_append(msg,
-        srcref_ptr(token.ref),
-        srcref_len(token.ref));
-    trace_msg_append_costr(msg, "') ");
-    if( expected_str != NULL ) {
-        trace_msg_append(msg, expected_str, strlen(expected_str));
+        return diag;
     }
-    return par_error();
+
+    diag_t* diag = diag_error(parser->arena,
+        diag_phrase(_UNEXPECTED, _STATEMENT),
+        diag_str("at "), diag_refloc(token.ref),
+        diag_str("\n  "), diag_str(token_get_type_name(token.type) + 3),
+        diag_str(" ("), diag_refstr(token.ref), diag_str(")"));
+        
+    return diag;
 }
 
-pa_result_t par_error_invalid_expression(parser_t* parser, token_t token, char* expected_str) {
+diag_t* par_error_invalid_expression(parser_t* parser, token_t token, char* expected_str) {
     return _par_set_error(parser, token, expected_str);
 }
 
-pa_result_t par_error_invalid_statement(parser_t* parser, token_t token, char* expected_str) {
+diag_t* par_error_invalid_statement(parser_t* parser, token_t token, char* expected_str) {
     return _par_set_error(parser, token, expected_str);
 }

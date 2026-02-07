@@ -4,6 +4,6 @@
 #include "adrcom/parser/co_parser_types.h"
 #include "adrcom/parser/co_parser_base.h"
 
-pa_result_t pa_parse_program(parser_t* parser);
+ast_t* pa_parse_program(parser_t* parser);
 
 #endif // GVM_LANGUAGE_PARSER_H_

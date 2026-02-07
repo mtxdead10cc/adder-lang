@@ -19,57 +19,176 @@
 
 #include <shared/sh_diag.h>
 
-pa_result_t pa_parse_expression(parser_t* parser);
-pa_result_t pa_parse_statement(parser_t* parser);
+ast_t* pa_parse_expression(parser_t* parser);
+ast_t* pa_parse_statement(parser_t* parser);
 
 
-pa_result_t pa_parse_number(parser_t* parser) {
+typedef struct pa_diag_list_t {
+    ast_tag_t    error_node_tag;
+    parser_t*    parser;
+    ast_diags_t* diagnostics;
+} pa_diag_list_t;
 
-    token_t token = pa_current_token(parser);
+pa_diag_list_t pa_diag_list(parser_t* parser, ast_tag_t error_node_tag) {
+    return (pa_diag_list_t) {
+        .error_node_tag = error_node_tag,
+        .parser = parser,
+        .diagnostics = NULL
+    };
+}
 
-    pa_result_t result = pa_consume(parser, TT_NUMBER);
-    if( par_is_nothing(result) == false ) {
-        return result;
+ast_t* pa_diag_list_to_node(pa_diag_list_t* list) {
+    if(list->diagnostics == NULL)
+        return NULL;
+    assert(list->parser != NULL);
+    ast_t* n = ast_leaf(list->parser->arena, list->error_node_tag);
+    assert(n!=NULL);
+    n->diagnostics = list->diagnostics;
+    for(int i = 0; i < n->diagnostics->size; i++) {
+        diag_t* diag = list->diagnostics->list[i];
+        srcref_t ref = diag_collect_srcref(diag);
+        ast_extend_source_range(n, ref);
     }
+    return n;
+}
+
+void pa_diag_list_append(pa_diag_list_t* list, diag_t* diag) {
+
+    if(diag == NULL)
+        return;
+
+    int initsize = list->diagnostics != NULL
+        ? list->diagnostics->size : 0;
+
+    list->diagnostics = ast_diags_add_diag(list->parser->arena,
+        list->diagnostics, diag);
+
+    if(list->diagnostics == NULL) {
+        sh_log_error("pa_diag_list_append: out of memory");
+    } else if (list->diagnostics->size != initsize + 1) {
+        sh_log_error("pa_diag_list_append: failed to append to diagnostics");
+    }
+}
+
+void pa_diag_list_unexpected_token_type(pa_diag_list_t* list, token_type_t expected, token_t actual) {
+    pa_diag_list_append(list, par_error_unexpected_token_type(list->parser, expected, actual));
+}
+
+void pa_diag_list_invalid_token_format(pa_diag_list_t* list, token_t token) {
+    pa_diag_list_append(list, par_error_invalid_token_format(list->parser, token));
+}
+
+void pa_diag_list_invalid_expression(pa_diag_list_t* list, token_t token, char* expected_str) {
+    pa_diag_list_append(list, par_error_invalid_expression(list->parser, token, expected_str));
+}
+
+void pa_diag_list_invalid_statement(pa_diag_list_t* list, token_t token, char* expected_str) {
+    pa_diag_list_append(list, par_error_invalid_statement(list->parser, token, expected_str));
+}
+
+void pa_diag_list_out_of_tokens(pa_diag_list_t* list) {
+    pa_diag_list_append(list, par_error_out_of_tokens(list->parser));
+}
+
+/*void pa_diag_list_consume_until(pa_diag_list_t* list, token_type_t stop) {
+
+    token_t actual = pa_current_token(list->parser);
+    srcref_t aggregate = {0};
+    
+    while (pa_advance(list->parser)) {
+        if( stop == actual.type )
+            break;
+        aggregate = srcref_combine(aggregate, actual.ref);
+        actual = pa_current_token(list->parser);
+    }
+
+    if(srcref_is_valid(aggregate)) {
+        diag_t* diag = diag_error(
+            diag_phrase(_UNEXPECTED, _TOKEN, _SEQUENCE),
+            diag_str(" at "), diag_refloc(aggregate),
+            diag_str("\n  expected "), diag_str(token_get_type_name(stop) + 3),
+            diag_str("\n  got ("), diag_refstr(aggregate), diag_str(")"));
+        pa_diag_list_append(list, diag);
+    }
+}*/
+
+void pa_diag_list_consume(pa_diag_list_t* list, token_type_t expected) {
+
+    token_t actual = pa_current_token(list->parser);
+
+    pa_advance(list->parser);
+
+    if(actual.type == expected)
+        return;
+
+    pa_diag_list_append(list,
+        par_error_unexpected_token_type(list->parser,
+            expected, actual));
+}
+
+ast_t* pa_diag_list_transfer(pa_diag_list_t* list, ast_t* node) {
+    if(list->diagnostics == NULL)
+        return node;
+    for(int i = 0; i < list->diagnostics->size; i++) {
+        node->diagnostics = ast_diags_add_diag(list->parser->arena,
+            node->diagnostics,
+            list->diagnostics->list[i]);
+    }
+    return node;
+}
+
+ast_t* pa_parse_number(parser_t* parser) {
+
+    token_t numeric_token = pa_current_token(parser);
+
+    pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+    pa_diag_list_consume(&dial, TT_NUMBER);
 
     float value = 0.0f;
-    if( srcref_as_float(token.ref, &value) ) {
-        if( srcref_contains_char(token.ref, '.') ) {
-            ast_t* test = ast_float(parser->arena, value, token.ref);
-            ast_attach_error(parser->arena, test,
-                diag_phrase(_UNEXPECTED_, _NUMBER_),
-                diag_str(" THIS\nIS\nA\nTEST"));
-            return par_node(test);
+    ast_t* node = NULL;
+
+    if( srcref_as_float(numeric_token.ref, &value) ) {
+        if( srcref_contains_char(numeric_token.ref, '.') ) {
+            node = ast_float(parser->arena, value);
         } else {
-            return par_node(ast_int(parser->arena, value, token.ref));
+            node = ast_int(parser->arena, value);
         }
+        ast_extend_source_range(node, numeric_token.ref);
+        return node;
     }
-    return par_error_invalid_token_format(parser, token);
+
+    pa_diag_list_invalid_token_format(&dial, numeric_token);
+    return pa_diag_list_to_node(&dial);
 }
 
-pa_result_t pa_parse_boolean(parser_t* parser) {
+ast_t* pa_parse_boolean(parser_t* parser) {
     token_t token = pa_current_token(parser);
-    pa_result_t result = pa_consume(parser, TT_BOOLEAN);
-    if( par_is_nothing(result) == false ) {
-        return result;
-    }
+
+    pa_diag_list_t dial = pa_diag_list(parser, AST_BOOL);
+    pa_diag_list_consume(&dial, TT_BOOLEAN);
+
     bool value = false;
     if( srcref_as_bool(token.ref, &value) ) {
-        return par_node(ast_bool(parser->arena, value, token.ref));
+        ast_t* node = ast_bool(parser->arena, value);
+        ast_extend_source_range(node, token.ref);
+        return node;
     }
-    return par_error_invalid_token_format(parser, token);
+
+    pa_diag_list_invalid_token_format(&dial, token);
+    return pa_diag_list_to_node(&dial);
 }
 
-pa_result_t pa_parse_string(parser_t* parser) {
+ast_t* pa_parse_string(parser_t* parser) {
     token_t token = pa_current_token(parser);
-    pa_result_t result = pa_consume(parser, TT_STRING);
-    if( par_is_nothing(result) == false ) {
-        return result;
-    }
-    return par_node(ast_string(parser->arena, token.ref));
+
+    pa_diag_list_t dial = pa_diag_list(parser, AST_STRING);
+    pa_diag_list_consume(&dial, TT_STRING);
+
+    ast_t* node = ast_string(parser->arena, token.ref);
+    return pa_diag_list_transfer(&dial, node);
 }
 
-pa_result_t pa_try_parse_value(parser_t* parser) {
+ast_t* pa_try_parse_value(parser_t* parser) {
     token_t token = pa_current_token(parser);
     if( token.type == TT_BOOLEAN ) {
         return pa_parse_boolean(parser);
@@ -78,43 +197,48 @@ pa_result_t pa_try_parse_value(parser_t* parser) {
     } else if ( token.type == TT_STRING ) {
         return pa_parse_string(parser);
     }
-    return par_nothing();
+    return NULL;
 }
 
-pa_result_t pa_try_parse_var_name(parser_t* parser) {
+ast_t* pa_try_parse_var_name(parser_t* parser) {
+    // SOURCE RANGE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     token_t token = pa_current_token(parser);
     if( pa_advance_if(parser, TT_SYMBOL) ) {
-        return par_node(ast_variable_reference(parser->arena, token.ref));
+        return ast_variable_reference(parser->arena, token.ref);
     }
-    return par_nothing();
+    return NULL;
 }
 
-pa_result_t pa_try_parse_group(parser_t* parser) {
+ast_t* pa_try_parse_group(parser_t* parser) {
+
     token_t token = pa_current_token(parser);
+
     if( token.type != TT_OPEN_PAREN )
-        return par_nothing();
-    if( pa_advance(parser) == false )
-        return par_error_out_of_tokens(parser);
+        return NULL;
+
+    pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+    pa_diag_list_consume(&dial, TT_OPEN_PAREN);
+
     // todo: error message if empty paren
-    pa_result_t result_inner = pa_parse_expression(parser);
-    if( par_is_error(result_inner) ) {
-        return result_inner;
-    }
-    pa_result_t result_consume = pa_consume(parser, TT_CLOSE_PAREN);
-    if( par_is_error(result_consume) ) {
-        return result_consume;
-    }
-    result_inner.group_expression = true; // mark as group expression
-    return result_inner;
+    ast_t* inner = pa_parse_expression(parser);
+
+    pa_diag_list_consume(&dial, TT_CLOSE_PAREN);
+
+    if( ast_is_binop(inner) )
+        inner->as.items[AST_BINOP_GREXP]->as._bool = true;
+
+    // SOURCE RANGE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    return pa_diag_list_transfer(&dial, inner);
 }
 
-pa_result_t pa_try_parse_func_call(parser_t* parser) {
+ast_t* pa_try_parse_func_call(parser_t* parser) {
 
     token_t func_name = pa_current_token(parser);
     token_t open_paren = pa_peek_token(parser, 1);
     
     if( func_name.type != TT_SYMBOL || open_paren.type != TT_OPEN_PAREN ) {
-        return par_nothing();
+        return NULL;
     }
 
     pa_advance(parser);
@@ -124,54 +248,61 @@ pa_result_t pa_try_parse_func_call(parser_t* parser) {
     srcref_t name = func_name.ref;
 
     if( pa_advance_if(parser, TT_CLOSE_PAREN) ) {
-        return par_node(ast_function_call(parser->arena, name, args));
+        ast_t* funcall = ast_function_call(parser->arena, name, args);
+        ast_extend_source_range(funcall, func_name.ref);
+        ast_extend_source_range(funcall, pa_peek_token(parser, -1).ref);
+        return funcall;
     }
     
     do {
-        pa_result_t expr_res = pa_parse_expression(parser);
-        if( par_is_node(expr_res) == false ) {
-            return expr_res;
-        }
-        ast_arglist_append(parser->arena, args, par_extract_node(expr_res));
+        ast_t* expr_res = pa_parse_expression(parser);
+        ast_arglist_append(parser->arena, args, expr_res);
     } while( pa_advance_if(parser, TT_SEPARATOR) );
 
-    pa_result_t result = pa_consume(parser, TT_CLOSE_PAREN);
-    if( par_is_nothing(result) == false ) {
-        return result;
-    } else {
-        return par_node(ast_function_call(parser->arena, name, args));
-    }
+    pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+    pa_diag_list_consume(&dial, TT_CLOSE_PAREN);
+    ast_t* errarg = pa_diag_list_to_node(&dial);
+    if( errarg != NULL )
+        ast_arglist_append(parser->arena, args, errarg);
+
+    ast_t* funcall_w_args = ast_function_call(parser->arena, name, args);
+    ast_extend_source_range(funcall_w_args, func_name.ref);
+    ast_extend_source_range(funcall_w_args, pa_peek_token(parser, -1).ref);
+
+    return funcall_w_args;
 }
 
-pa_result_t pa_try_parse_array_def(parser_t* parser) {
+ast_t* pa_try_parse_array_def(parser_t* parser) {
 
-    if( pa_current_token(parser).type != TT_OPEN_SBRACKET ) {
-        return par_nothing();
-    }
+    token_t initial_token = pa_current_token(parser);
+    if( initial_token.type != TT_OPEN_SBRACKET )
+        return NULL;
 
     pa_advance(parser);
 
     ast_t* array = ast_array(parser->arena);
     
     if( pa_advance_if(parser, TT_CLOSE_SBRACKET) ) {
-        return par_node(array);
+        ast_extend_source_range(array, initial_token.ref);
+        ast_extend_source_range(array, pa_peek_token(parser, -1).ref);
+        return array;
     }
 
     do {
-        pa_result_t expr_res = pa_parse_expression(parser);
-        if( par_is_node(expr_res) == false ) {
-            return expr_res;
-        }
-        ast_array_append(parser->arena, array, par_extract_node(expr_res));
+        ast_t* expr_res = pa_parse_expression(parser);
+        ast_array_append(parser->arena, array, expr_res);
     } while( pa_advance_if(parser, TT_SEPARATOR) );
 
-    pa_result_t result = pa_consume(parser, TT_CLOSE_SBRACKET);
+    pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+    pa_diag_list_consume(&dial, TT_CLOSE_SBRACKET);
+    ast_t* errexpr = pa_diag_list_to_node(&dial);
+    if( errexpr != NULL )
+        ast_array_append(parser->arena, array, errexpr);
 
-    if( par_is_nothing(result) == false ) {
-        return result;
-    } else {
-        return par_node(array);
-    }
+    ast_extend_source_range(array, initial_token.ref);
+    ast_extend_source_range(array, pa_peek_token(parser, -1).ref);
+
+    return array;
 }
 
 bool is_left_binop(ast_t* node) {
@@ -182,11 +313,13 @@ bool is_left_binop(ast_t* node) {
     return ast_tag_is_binop(left->tag);
 }
 
-pa_result_t pa_try_parse_unary_operation(parser_t* parser, token_type_t tt, ast_tag_t unary_tag) {
+ast_t* pa_try_parse_unary_operation(parser_t* parser, token_type_t tt, ast_tag_t unary_tag) {
+
+    // SOURCE RANGE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     if( pa_advance_if(parser, tt) ) {
 
-        pa_result_t inner = pa_parse_expression(parser);
+        ast_t* inner = pa_parse_expression(parser);
         if( par_is_error(inner) )
             return inner;
 
@@ -194,12 +327,12 @@ pa_result_t pa_try_parse_unary_operation(parser_t* parser, token_type_t tt, ast_
 
         // find the innermost left expression
         // and negate that
-        ast_t* inner_exp = par_extract_node(inner);
+        ast_t* inner_exp = inner;
 
         // grouped expressions should be wrapped
         // so this recursion does not trigger 
         // on for example "-(a + b)".
-        if( ast_tag_is_binop(inner_exp->tag) && inner.group_expression == false ) {
+        if( ast_tag_is_binop(inner_exp->tag) && ast_is_group_expr(inner_exp) == false ) {
             
             ast_t* leftbin = inner_exp;
             
@@ -214,17 +347,16 @@ pa_result_t pa_try_parse_unary_operation(parser_t* parser, token_type_t tt, ast_
                 unary_tag,
                 leftbin->as.items[AST_BINOP_LEFT]);
 
-            return par_node(inner_exp);
+            return inner_exp;
         }
 
-        return par_node(
-            ast_unary_operation(
-                parser->arena,
-                unary_tag,
-                inner_exp));
+        return ast_unary_operation(
+            parser->arena,
+            unary_tag,
+            inner_exp);
     }
 
-    return par_nothing();
+    return NULL;
 }
 
 int get_precedence(ast_tag_t bin_op_type) {
@@ -241,24 +373,19 @@ bool should_reorder(ast_tag_t op, ast_t* right) {
     return get_precedence(op) >= get_precedence(right->tag);
 }
 
-pa_result_t pa_try_parse_binary_operation(pa_result_t lhs, parser_t* parser, token_type_t tt, ast_tag_t op) {
+ast_t* pa_try_parse_binary_operation(ast_t* lhs, parser_t* parser, token_type_t tt, ast_tag_t op) {
 
     assert(ast_tag_is_binop(op));
+
+    // SOURCE RANGE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
     if( pa_advance_if(parser, tt) ) {
 
-        pa_result_t rhs = pa_parse_expression(parser);
-
-        if( par_is_error(rhs) )
-            return rhs;
-
-        assert( par_is_nothing(rhs) == false );
-
-        ast_t* left = par_extract_node(lhs);
-        ast_t* right = par_extract_node(rhs);
+        ast_t* right = pa_parse_expression(parser);
+        ast_t* left = lhs;
 
         // handle operator precedence
-        if( should_reorder(op, right) && rhs.group_expression == false ) {
+        if( should_reorder(op, right) && ast_is_group_expr(right) == false ) {
 
             /* (A $ (B # C)) -> ((A $ B) # C)) =
                 ($ 
@@ -276,27 +403,26 @@ pa_result_t pa_try_parse_binary_operation(pa_result_t lhs, parser_t* parser, tok
             ast_tag_t outer_op = right->tag;
             ast_tag_t inner_op = op;
 
-            return par_node(
+            return ast_binary_operation(parser->arena,
+                outer_op,
                 ast_binary_operation(parser->arena,
-                    outer_op,
-                    ast_binary_operation(parser->arena,
-                        inner_op,
-                        left,
-                        right->as.items[AST_BINOP_LEFT]),
-                    right->as.items[AST_BINOP_RIGHT]));
+                    inner_op,
+                    left,
+                    right->as.items[AST_BINOP_LEFT], false),
+                right->as.items[AST_BINOP_RIGHT], false);
         } else {
-            return par_node(ast_binary_operation(parser->arena, op, left, right));
+            return ast_binary_operation(parser->arena, op, left, right, false);
         }
     }
-    return par_nothing();
+    return NULL;
 }
 
 
-pa_result_t pa_parse_expression(parser_t* parser) {
+ast_t* pa_parse_expression(parser_t* parser) {
 
     // parsing standard expressions
 
-    pa_result_t result = pa_try_parse_group(parser);
+    ast_t* result = pa_try_parse_group(parser);
 
     if( par_is_nothing(result) ) 
         result = pa_try_parse_func_call(parser);
@@ -318,17 +444,15 @@ pa_result_t pa_parse_expression(parser_t* parser) {
     if( par_is_nothing(result) ) 
         result = pa_try_parse_unary_operation(parser, TT_UNOP_NOT, AST_UNA_NOT);
 
-    if( par_is_error(result) ) {
-        return result;
-    }
-
-    if( par_is_node(result) == false ) {
-        return par_error_invalid_expression(parser, pa_current_token(parser), NULL);
-    }
+    /*if( par_is_nothing(result) == false ) {
+        pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+        pa_diag_list_invalid_expression(&dial, pa_current_token(parser), NULL);
+        return pa_diag_list_to_node(&dial);
+    }*/
 
     // parsing binary operation expressions
 
-    pa_result_t bin_op_result = pa_try_parse_binary_operation(result, parser, TT_BINOP_AND, AST_BIN_AND);
+    ast_t* bin_op_result = pa_try_parse_binary_operation(result, parser, TT_BINOP_AND, AST_BIN_AND);
 
     if( par_is_nothing(bin_op_result) )
         bin_op_result = pa_try_parse_binary_operation(result, parser, TT_BINOP_OR, AST_BIN_OR);
@@ -400,17 +524,18 @@ bool is_valid_type_name(srcref_t ref) {
     return false;
 }
 
-pa_result_t parse_type_descriptor(parser_t* parser) {
+ast_t* parse_type_descriptor(parser_t* parser) {
 
     token_t name = pa_current_token(parser);
-    
-    pa_result_t result = pa_consume(parser, TT_SYMBOL);
-    if( par_is_error(result) )
-        return result;
+
+    pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+    pa_diag_list_consume(&dial, TT_SYMBOL);
 
     if( is_valid_type_name(name.ref) == false ) {
-        return par_error_invalid_expression(parser, name,
-            "unrecognized type name");
+        pa_diag_list_invalid_expression(&dial,
+            name, "unrecognized type name");
+        if(pa_current_token(parser).type != TT_CMP_LT)
+            return pa_diag_list_to_node(&dial);
     }
 
     ast_t* args = ast_arglist(parser->arena);
@@ -418,231 +543,234 @@ pa_result_t parse_type_descriptor(parser_t* parser) {
     if( pa_advance_if(parser, TT_CMP_LT) ) {
 
         do {
-            result = parse_type_descriptor(parser);
-            if( par_is_error(result) )
-                return result;
-
-            ast_t* child = par_extract_node(result);
+            ast_t* child = parse_type_descriptor(parser);
             ast_arglist_append(parser->arena, args, child);
-
         } while (pa_advance_if(parser, TT_SEPARATOR));
 
-        result = pa_consume(parser, TT_CMP_GT);
-        if( par_is_error(result) )
-            return result;
+        pa_diag_list_consume(&dial, TT_CMP_GT);
+        ast_t* errchild = pa_diag_list_to_node(&dial);
+        if( errchild != NULL )
+            ast_arglist_append(parser->arena, args, errchild);
     }
-    return par_node(ast_type_descriptor(parser->arena, name.ref, args));
+
+    ast_t* descr = ast_type_descriptor(parser->arena, name.ref, args);
+    ast_extend_source_range(descr, name.ref);
+    ast_extend_source_range(descr, pa_peek_token(parser, -1).ref);
+    return descr;
 }
 
-pa_result_t pa_parse_vardecl(parser_t* parser) {
-    pa_result_t result = parse_type_descriptor(parser);
-    if( par_is_error(result) )
-        return result;
+ast_t* pa_parse_vardecl(parser_t* parser) {
 
-    ast_t* typedescr = par_extract_node(result);
+    ast_t* typedescr = parse_type_descriptor(parser);
 
     token_t varname = pa_current_token(parser);
-    result = pa_consume(parser, TT_SYMBOL);
 
-    if( par_is_error(result) )
-        return result;
-
-    assert( par_is_nothing(result) );
+    pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+    pa_diag_list_consume(&dial, TT_SYMBOL);
 
     ast_t* varref = ast_variable_reference(parser->arena, varname.ref);
-    return par_node(ast_variable_declaration(parser->arena, typedescr, varref));
+    varref = pa_diag_list_transfer(&dial, varref);
+
+    ast_t* vardecl = ast_variable_declaration(parser->arena, typedescr, varref);
+    ast_extend_source_range_with_node(vardecl, typedescr);
+    ast_extend_source_range(vardecl, varname.ref);
+    return vardecl;
 }
 
 // TODO: should probably rething how assignment is parsed.
 // type varname | varname should perhaps be valid
 // statements by themselves without assignment?
-pa_result_t pa_try_parse_assignment(parser_t* parser) {
-    if( pa_peek_token(parser, 1).type == TT_ASSIGN ) {              // <- this is a little "iffy"
-        token_t varname = pa_current_token(parser);
-        pa_result_t result = pa_consume(parser, TT_SYMBOL);
-        if( par_is_error(result) )
-            return result;
-        if( pa_advance(parser) == false ) // skip over '='
-            return par_error_out_of_tokens(parser);
-        pa_result_t rhs = pa_parse_expression(parser); // rhs expr
-        if( par_is_error(rhs) )
-            return rhs;
-        assert( par_is_nothing(rhs) == false );
+ast_t* pa_try_parse_assignment(parser_t* parser) {
 
-        return par_node(ast_assignment(parser->arena,
-            ast_variable_reference(parser->arena, varname.ref),
-            par_extract_node(rhs)));
+    if( pa_peek_token(parser, 1).type == TT_ASSIGN ) {              // <- this is a little "iffy"
+
+        token_t varname = pa_current_token(parser);
+
+        pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+        pa_diag_list_consume(&dial, TT_SYMBOL);
+        
+        if( pa_advance(parser) == false ) { // skip over '='
+            pa_diag_list_out_of_tokens(&dial);
+            return pa_diag_list_to_node(&dial);
+        }
+
+        ast_t* rhs = pa_parse_expression(parser); // rhs expr
+        assert( par_is_nothing(rhs) == false );
+        ast_t* varref = ast_variable_reference(parser->arena, varname.ref);
+        ast_t* assign = ast_assignment(parser->arena, varref, rhs);
+
+        ast_extend_source_range_with_node(assign, varref);
+        ast_extend_source_range_with_node(assign, rhs);
+        return pa_diag_list_transfer(&dial, assign);
 
     } else if( is_valid_type_name(pa_current_token(parser).ref) ) { // <- if the first token is a type ... also "iffy"
 
-        pa_result_t decl = pa_parse_vardecl(parser);
-        if( par_is_error(decl) )
-            return decl;
+        ast_t* decl = pa_parse_vardecl(parser);
         assert(par_is_nothing(decl) == false);
-        pa_result_t assignres = pa_consume(parser, TT_ASSIGN); // skip over '='
-        if( par_is_error(assignres) )
-            return assignres;
-        pa_result_t rhs = pa_parse_expression(parser); // rhs expr
-        if( par_is_error(rhs) )
-            return rhs;
+        pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+        pa_diag_list_consume(&dial, TT_ASSIGN); // skip over '='
+
+        ast_t* rhs = pa_parse_expression(parser); // rhs expr
         assert(par_is_nothing(rhs) == false);
 
-        return par_node(ast_assignment(parser->arena,
-            par_extract_node(decl),
-            par_extract_node(rhs)));
+        ast_t* assign = ast_assignment(parser->arena, decl, rhs);
+        ast_extend_source_range_with_node(assign, decl);
+        ast_extend_source_range_with_node(assign, rhs);
+        return pa_diag_list_transfer(&dial, assign);
+
     } else {
-        return par_nothing();
+        return NULL;
     }
 }
 
-pa_result_t pa_parse_body(parser_t* parser) {
+ast_t* pa_parse_body(parser_t* parser) {
 
-    pa_result_t result = pa_consume(parser, TT_OPEN_CURLY);
-    if( par_is_error(result) )
-        return result;
+    token_t initial_token = pa_current_token(parser);
+
+    pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+    pa_diag_list_consume(&dial, TT_OPEN_CURLY);
 
     ast_t* block = ast_block(parser->arena);
 
     do {
+
         if( pa_current_token(parser).type == TT_CLOSE_CURLY )
             break;
 
-        pa_result_t stmt_res = pa_parse_statement(parser);
-        if( par_is_node(stmt_res) == false ) {
-            return stmt_res;
+        ast_t* stmt_res = pa_parse_statement(parser);
+
+        if( par_is_nothing(stmt_res) ) {
+            pa_diag_list_t dl = pa_diag_list(parser, AST_UNKNOWN);
+            pa_diag_list_invalid_statement(&dl, pa_current_token(parser), NULL);
+            stmt_res = pa_diag_list_to_node(&dl);
+            pa_advance(parser);
+            pa_advance_if(parser, TT_STATEMENT_END);
         }
 
         ast_block_append(parser->arena,
-            block, par_extract_node(stmt_res));
+            block,
+            stmt_res);
         
     } while( pa_is_at_end(parser) == false );
 
-    result = pa_consume(parser, TT_CLOSE_CURLY);
+    token_t final_token = pa_current_token(parser);
+    pa_diag_list_consume(&dial, TT_OPEN_CURLY);
 
-    if( par_is_error(result) )
-        return result;
-    
-    return par_node(block);
+    ast_extend_source_range(block, initial_token.ref);
+    ast_extend_source_range(block, final_token.ref);
+
+    return pa_diag_list_transfer(&dial, block);
 }
 
-pa_result_t pa_try_parse_if_chain(parser_t* parser) {
+ast_t* pa_try_parse_if_chain(parser_t* parser) {
+
+    token_t initial_token = pa_current_token(parser);
+
     if( pa_advance_if(parser, TT_KW_IF) == false )
-        return par_nothing();
+        return NULL;
 
-    pa_result_t result = pa_consume(parser, TT_OPEN_PAREN);
-    if( par_is_error(result) )
-        return result;
-    assert( par_is_nothing(result) );
+    pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+    pa_diag_list_consume(&dial, TT_OPEN_PAREN);
 
-    result = pa_parse_expression(parser);
-    if( par_is_error(result) )
-        return result;
-    assert( par_is_nothing(result) == false );
-    ast_t* condition = par_extract_node(result);
+    ast_t* condition = pa_parse_expression(parser);
+    assert( par_is_nothing(condition) == false );
 
-    result = pa_consume(parser, TT_CLOSE_PAREN);
-    if( par_is_error(result) )
-        return result;
-    assert( par_is_nothing(result) );
+    pa_diag_list_consume(&dial, TT_CLOSE_PAREN);
 
-    result = pa_parse_body(parser);
-    if( par_is_error(result) )
-        return result;
-    assert( par_is_node(result) );
-
-    ast_t* if_true = par_extract_node(result);
-
+    ast_t* if_true = pa_parse_body(parser);
     ast_t* next = NULL;
 
+    token_t final_token = pa_current_token(parser);
+
     if( pa_advance_if(parser, TT_KW_ELSE) ) {
-        result = pa_try_parse_if_chain(parser); // else if   
+        ast_t* result = pa_try_parse_if_chain(parser); // else if   
         if( par_is_nothing(result) ) {            
             result = pa_parse_body(parser);     // or last else
         }
-        if( par_is_error(result) )
-            return result;
-        next = par_extract_node(result);
+        next = result;
     } else {
         next = ast_block(parser->arena); // empty / nothing
     }
 
-    return par_node(
-        ast_if_chain(
-            parser->arena,
-            condition,
-            if_true,
-            next));
+    ast_t* if_chain = ast_if_chain(
+        parser->arena,
+        condition,
+        if_true,
+        next);
+
+    ast_extend_source_range(if_chain, initial_token.ref);
+    ast_extend_source_range(if_chain, final_token.ref);
+    return pa_diag_list_transfer(&dial, if_chain);
 }
 
-pa_result_t pa_try_parse_for_stmt(parser_t* parser) {
+ast_t* pa_try_parse_for_stmt(parser_t* parser) {
+    
     if( pa_advance_if(parser, TT_KW_FOR) == false )
-        return par_nothing();
+        return NULL;
 
-    pa_result_t result = pa_consume(parser, TT_OPEN_PAREN);
-    if( par_is_error(result) )
-        return result;
-    assert( par_is_nothing(result) );
+    token_t initial_token = pa_current_token(parser);
 
-    result = pa_parse_vardecl(parser);
-    if( par_is_error(result) )
-        return result;
-    assert( par_is_nothing(result) == false );
+    pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+    pa_diag_list_consume(&dial, TT_OPEN_PAREN);
 
-    ast_t* vardecl = par_extract_node(result);
+    ast_t* vardecl = pa_parse_vardecl(parser);
 
-    result = pa_consume(parser, TT_KW_IN);
-    if( par_is_error(result) )
-        return result;
-    assert( par_is_nothing(result) );
+    assert( par_is_nothing(vardecl) == false );
 
-    result = pa_parse_expression(parser);
-    if( par_is_error(result) )
-        return result;
-    assert( par_is_node(result) );
-    ast_t* collection = par_extract_node(result);
-
-    result = pa_consume(parser, TT_CLOSE_PAREN);
-    if( par_is_error(result) )
-        return result;
-    assert( par_is_nothing(result) );
+    pa_diag_list_consume(&dial, TT_KW_IN);
+ 
+    ast_t* collection = pa_parse_expression(parser);
 
     // todo: verify collection
 
-    result = pa_parse_body(parser);
-    if( par_is_error(result) )
-        return result;
-    assert( par_is_node(result) );
+    pa_diag_list_consume(&dial, TT_CLOSE_PAREN);
 
-    ast_t* body = par_extract_node(result);
+    ast_t* body = pa_parse_body(parser);
 
-    return par_node(
-        ast_foreach(
-            parser->arena,
-            vardecl,
-            collection,
-            body));
+    ast_t* foreach = ast_foreach(
+        parser->arena,
+        vardecl,
+        collection,
+        body);
+
+    ast_extend_source_range(foreach, initial_token.ref);
+    ast_extend_source_range_with_node(foreach, vardecl);
+    ast_extend_source_range_with_node(foreach, collection);
+    ast_extend_source_range_with_node(foreach, body);
+
+    return foreach;
 }
 
-pa_result_t pa_try_parse_body_return(parser_t* parser) {
+ast_t* pa_try_parse_body_return(parser_t* parser) {
+
+    token_t initial_token = pa_current_token(parser);
+
     if( pa_advance_if(parser, TT_KW_RETURN) ) {
-        pa_result_t result = par_nothing();
+
+        ast_t* result = NULL;
+
         if( pa_current_token(parser).type != TT_STATEMENT_END )
             result = pa_parse_expression(parser);
-        if( par_is_error(result) )
-            return result;
-        ast_t* return_wrapper;
+
+        ast_t* return_wrapper = NULL;
+
         if( par_is_nothing(result) )
             return_wrapper = ast_return(parser->arena, ast_block(parser->arena)); // empty block for "nothing"
         else
-            return_wrapper = ast_return(parser->arena, par_extract_node(result));
-        return par_node(return_wrapper);
+            return_wrapper = ast_return(parser->arena, result);
+
+        ast_extend_source_range(return_wrapper, initial_token.ref);
+        ast_extend_source_range(return_wrapper, pa_peek_token(parser, 0).ref);
+
+        return return_wrapper;
     }
-    return par_nothing();
+
+    return NULL;
 }
 
-pa_result_t pa_parse_statement(parser_t* parser) {
+ast_t* pa_parse_statement(parser_t* parser) {
 
-    pa_result_t result = pa_try_parse_assignment(parser);
+    ast_t* result = pa_try_parse_assignment(parser);
 
     // todo: if-else? elifs?
 
@@ -658,64 +786,48 @@ pa_result_t pa_parse_statement(parser_t* parser) {
     if( par_is_nothing(result) )
         result = pa_try_parse_body_return(parser);
 
-    if( par_is_error(result) )
-        return result;
-
-    if( par_is_node(result) == false ) {
-        return par_error_invalid_statement(parser, pa_current_token(parser), NULL);
-    }
-
     // optional end-of-statement (for now)
     pa_advance_if(parser, TT_STATEMENT_END);
 
     return result;
 }
 
-pa_result_t pa_parse_arglist(parser_t* parser, ast_t* arglist) {
+void pa_parse_arglist(parser_t* parser, ast_t* arglist) {
 
-    pa_result_t result = pa_consume(parser, TT_OPEN_PAREN);
-    if( par_is_error(result) )
-        return result;
+    ast_extend_source_range(arglist, pa_current_token(parser).ref);
+
+    pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+    pa_diag_list_consume(&dial, TT_OPEN_PAREN);
 
     do {
+
         if( pa_current_token(parser).type == TT_CLOSE_PAREN )
             break;
 
-        pa_result_t vardecl = pa_parse_vardecl(parser);
-        if( par_is_node(vardecl) == false ) {
-            return vardecl;
-        }
+        ast_t* vardecl = pa_parse_vardecl(parser);
 
         ast_arglist_append(parser->arena,
             arglist,
-            par_extract_node(vardecl));
+            vardecl);
         
     } while( pa_advance_if(parser, TT_SEPARATOR) );
 
-    result = pa_consume(parser, TT_CLOSE_PAREN);
-    if( par_is_error(result) )
-        return result;
-
-    return par_nothing();
+    pa_diag_list_consume(&dial, TT_CLOSE_PAREN);
+    ast_extend_source_range(arglist, pa_peek_token(parser, -1).ref);
+    pa_diag_list_transfer(&dial, arglist);
 }
 
-pa_result_t pa_parse_funimportdecl(parser_t* parser, ast_t* flags) {
+ast_t* pa_parse_funimportdecl(parser_t* parser, uint32_t flags) {
 
-    pa_result_t result = parse_type_descriptor(parser);
-    if( par_is_error(result) )
-        return result;
-
-    ast_t* rettypedescr = par_extract_node(result);
+    ast_t* rettypedescr = parse_type_descriptor(parser);
 
     token_t funname = pa_current_token(parser);
-    result = pa_consume(parser, TT_SYMBOL);
-    if( par_is_error(result) )
-        return result;
+
+    pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+    pa_diag_list_consume(&dial, TT_SYMBOL);
 
     ast_t* arglist = ast_arglist(parser->arena);
-    result = pa_parse_arglist(parser, arglist);
-    if( par_is_error(result) )
-        return result;
+    pa_parse_arglist(parser, arglist);
 
     ast_t* funsign = ast_function_signature(
         parser->arena,
@@ -724,7 +836,11 @@ pa_result_t pa_parse_funimportdecl(parser_t* parser, ast_t* flags) {
         arglist,
         flags);
 
-    return par_node(funsign);
+    ast_extend_source_range_with_node(funsign, rettypedescr);
+    ast_extend_source_range(funsign, funname.ref);
+    ast_extend_source_range_with_node(funsign, arglist);
+
+    return funsign;
 }
 
 int seek_end_of_type(parser_t* parser, int offs, int n) {
@@ -745,62 +861,55 @@ int seek_end_of_type(parser_t* parser, int offs, int n) {
     return -1;
 }
 
-pa_result_t pa_try_parse_fundef(parser_t* parser, ast_t* flags) {
+ast_t* pa_try_parse_fundef(parser_t* parser, uint32_t flags) {
 
     int eot = seek_end_of_type(parser, 0, 0);
     if( eot < 0 )
-        return par_nothing();
+        return NULL;
 
     if( pa_peek_token(parser, eot + 1).type != TT_SYMBOL
      || pa_peek_token(parser, eot + 2).type != TT_OPEN_PAREN )
-     return par_nothing();
+     return NULL;
 
-    pa_result_t result = parse_type_descriptor(parser);
-    if( par_is_error(result) )
-        return result;
-
-    ast_t* rettypedescr = par_extract_node(result);
+    ast_t* rettypedescr = parse_type_descriptor(parser);
 
     token_t funname = pa_current_token(parser);
-    result = pa_consume(parser, TT_SYMBOL);
-    if( par_is_error(result) )
-        return result;
+
+    pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+    pa_diag_list_consume(&dial, TT_SYMBOL);
 
     ast_t* arglist = ast_arglist(parser->arena);
-    result = pa_parse_arglist(parser, arglist);
-    if( par_is_error(result) )
-        return result;
+    pa_parse_arglist(parser, arglist);
     
-    result = pa_parse_body(parser);
-    if( par_is_error(result) )
-        return result;
+    ast_t* body = pa_parse_body(parser);
 
-    ast_t* body = par_extract_node(result);
-
-    if(flags == NULL) {
-        flags = ast_flags(parser->arena,
-            srcref_equals_string(funname.ref, "main")
-                ? AST_FUNSIGN_FFI_FLAG_EXPORT
-                : 0,
-            funname.ref);
-    }
-
+    flags = srcref_equals_string(funname.ref, "main")
+        ? (flags | AST_FUNSIGN_FFI_FLAG_EXPORT)
+        :  flags;
+    
     ast_t* funsign = ast_function_signature(parser->arena,
         rettypedescr,
         funname.ref,
         arglist,
         flags);
 
-    ast_t* fundef = ast_function_definition(parser->arena, funsign, body); 
+    funsign = pa_diag_list_transfer(&dial, funsign);
 
-    return par_node(fundef);
+    ast_t* fundef = ast_function_definition(parser->arena, funsign, body);
+
+    ast_extend_source_range_with_node(fundef, rettypedescr);
+    ast_extend_source_range_with_node(fundef, funsign);
+    ast_extend_source_range_with_node(fundef, body);
+
+    return fundef;
 }
 
-pa_result_t pa_try_parse_preproc_directive(parser_t* parser) {
+ast_t* pa_try_parse_preproc_directive(parser_t* parser) {
 
     token_t token = pa_current_token(parser);
+
     if( token.type != TT_IMPORT && token.type != TT_EXPORT )
-        return par_nothing();
+        return NULL;
 
     token_t directive = pa_current_token(parser);
 
@@ -808,84 +917,85 @@ pa_result_t pa_try_parse_preproc_directive(parser_t* parser) {
 
     if( token.type == TT_IMPORT ) {
 
-        ast_t* flags = ast_flags(parser->arena,
-            AST_FUNSIGN_FFI_FLAG_IMPORT,
-            token.ref);
+        ast_t* fundef = pa_parse_funimportdecl(parser,
+            AST_FUNSIGN_FFI_FLAG_IMPORT);
 
-        pa_result_t result = pa_parse_funimportdecl(parser, flags);
-        if( par_is_error(result) )
-            return result;
+        ast_extend_source_range(fundef, token.ref);
 
         pa_advance_if(parser, TT_STATEMENT_END); // optional end of statement
 
-        return result;
+        return fundef;
 
     } else if ( token.type == TT_EXPORT ) {
 
-        ast_t* flags = ast_flags(parser->arena,
-            AST_FUNSIGN_FFI_FLAG_EXPORT,
-            token.ref);
+        ast_t* fundef = pa_try_parse_fundef(parser,
+            AST_FUNSIGN_FFI_FLAG_EXPORT);
 
-        pa_result_t result = pa_try_parse_fundef(parser, flags);
-        if( par_is_error(result) )
-            return result;
-
-        ast_t* fundef = par_extract_node(result);
+        ast_extend_source_range(fundef, token.ref);
 
         pa_advance_if(parser, TT_STATEMENT_END);        // optional end of statement
 
-        return par_node(fundef);
+        return fundef;
     }
+
+    pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+    pa_diag_list_consume(&dial, TT_SYMBOL);
     
-    return par_error_invalid_statement(parser,
+    pa_diag_list_invalid_statement(&dial,
         directive,
         "\n  Expected"
         "\n  - import (from host) declaration"
         "\n  - export (to host) declaration");
+
+    pa_advance(parser);
+
+    return pa_diag_list_to_node(&dial);
 }
 
-pa_result_t pa_parse_toplevel_statement(parser_t* parser) {
-    pa_result_t result = pa_try_parse_fundef(parser, NULL);
+ast_t* pa_parse_toplevel_statement(parser_t* parser) {
+
+    ast_t* result = pa_try_parse_fundef(parser, 0);
+
     if( par_is_nothing(result) )
         result = pa_try_parse_preproc_directive(parser);
-    if( par_is_error(result) || par_is_node(result) )
-        return result;
-    return par_error_invalid_statement(parser,
-        pa_current_token(parser),
-        "\n  Expected top-level statement such as"
-        "\n  - function declaration"
-        "\n  - import (from host) declaration"
-        "\n  - export (to host) declaration");
+
+    return result;
 }
 
-pa_result_t pa_parse_program(parser_t* parser) {
+ast_t* pa_parse_program(parser_t* parser) {
 
-    pa_result_t consume_result = pa_consume(parser, TT_INITIAL);
-    if( par_is_error(consume_result) )
-        return consume_result;
+    pa_diag_list_t dial = pa_diag_list(parser, AST_UNKNOWN);
+    pa_diag_list_consume(&dial, TT_INITIAL);
 
-    pa_result_t result;
-
+    ast_t* result = NULL;
     ast_t* body = ast_block(parser->arena);
 
+    body = pa_diag_list_transfer(&dial, body);
+
     do {
+
         result = pa_parse_toplevel_statement(parser);
-        if( par_is_node(result) ) {
-            ast_block_append(parser->arena,
-                body, par_extract_node(result));
-        } else {
-            break;
+
+        if( result == NULL ) {
+            
+            dial = pa_diag_list(parser, AST_UNKNOWN);
+
+            pa_diag_list_invalid_statement(&dial,
+                pa_current_token(parser),
+                "\n  Expected top-level statement such as"
+                "\n  - function declaration"
+                "\n  - import (from host) declaration"
+                "\n  - export (to host) declaration");
+
+            result = pa_diag_list_to_node(&dial);
+            pa_advance(parser);
+            pa_advance_if(parser, TT_STATEMENT_END);
         }
+
+        ast_block_append(parser->arena, body, result); 
+
     } while(    !pa_is_at_end(parser)
              && !pa_advance_if(parser, TT_FINAL) );
 
-    if( par_is_error(result) ) {
-        return result;
-    }
-
-    if( par_is_error(consume_result) ) {
-        return result;
-    }
-
-    return par_node(body);
+    return body;
 }

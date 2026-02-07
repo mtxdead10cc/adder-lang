@@ -222,36 +222,41 @@ size_t _ast_to_code(cstr_t* s, ast_t* n, int l) {
         case AST_UNDEFINED:
             length = append_styled_const(s, style, "!undefined!");
             break;
+        case AST_UNKNOWN:
+            length = append_styled_fmt(s, style, "%.*s",
+                srcref_len(n->srcrange),
+                srcref_ptr(n->srcrange));
+            break;
         case AST__BEGIN_VALUES:
             length = append_styled_const(s, style, "!begin values!");
             break;
         case AST_INT:
             length = append_styled_fmt(s, style, "%d",
-                n->as.value.as._int);
+                n->as._int);
             break;
         case AST_FLOAT:
             length = append_styled_fmt(s, style, "%.8g",
-                n->as.value.as._float);
+                n->as._float);
             break;
         case AST_BOOL:
             length = append_styled_fmt(s, style, "%s",
-                n->as.value.as._bool
+                n->as._bool
                     ? "true"
                     : "false");
             break;
         case AST_CHAR:
             length = append_styled_fmt(s, style, "%.*s",
-                1, &n->as.value.as._char);
+                1, &n->as._char);
             break;
         case AST_STRING:
             length = append_styled_fmt(s, style, "\"%.*s\"",
-                (int) srcref_len(n->as.value.srcref),
-                srcref_ptr(n->as.value.srcref));
+                (int) srcref_len(n->as._srcref),
+                srcref_ptr(n->as._srcref));
             break;
         case AST_SYMBOL:
             length = append_styled_fmt(s, style, "%.*s",
-                (int) srcref_len(n->as.value.srcref),
-                srcref_ptr(n->as.value.srcref));
+                (int) srcref_len(n->as._srcref),
+                srcref_ptr(n->as._srcref));
             break;
         case AST_ARRAY: {
             size_t len = append_styled_const(s, 0, "[");
@@ -328,7 +333,7 @@ size_t _ast_to_code(cstr_t* s, ast_t* n, int l) {
             length = append_code_items(s, ", ", n);
             break;
         case AST_VARREF: {
-            srcref_t srcref = n->as.items[AST_VARREF_SYMBOL]->as.value.srcref;
+            srcref_t srcref = n->as.items[AST_VARREF_SYMBOL]->as._srcref;
             length = append_styled_fmt(s, style, "%.*s",
                 (int) srcref_len(srcref),
                 srcref_ptr(srcref));
@@ -347,7 +352,7 @@ size_t _ast_to_code(cstr_t* s, ast_t* n, int l) {
             length = len;
         } break;
         case AST_TYDESCR: {
-            srcref_t srcref = n->as.items[AST_TYDESCR_SYMBOL]->as.value.srcref;
+            srcref_t srcref = n->as.items[AST_TYDESCR_SYMBOL]->as._srcref;
             size_t len = append_styled_fmt(s, style, "%.*s",
                 (int) srcref_len(srcref),
                 srcref_ptr(srcref));
@@ -381,7 +386,7 @@ size_t _ast_to_code(cstr_t* s, ast_t* n, int l) {
         } break;
         case AST_FUNSIGN: {
             size_t len = 0;
-            srcref_t ffi = n->as.items[AST_FUNSIGN_FFI]->as.value.srcref;
+            srcref_t ffi = n->as.items[AST_FUNSIGN_FFI]->as._srcref;
             if( srcref_equals_string(ffi, "export") )
                 len += append_styled_fmt(s, style, "%s", "export ");
             else if ( srcref_equals_string(ffi, "import") )
@@ -514,12 +519,12 @@ size_t _ast_to_sexpr(cstr_t* s, ast_t* n, int l) {
     len += append_styled_fmt(s, style, "(%s", tagstr + 4);
 
     switch(n->tag) {
-        case AST_INT:    return len + append_styled_fmt(s, 0, " %d)", n->as.value.as._int);
-        case AST_FLOAT:  return len + append_styled_fmt(s, 0, " %.8g)", n->as.value.as._float);
-        case AST_BOOL:   return len + append_styled_fmt(s, 0, " %s)", n->as.value.as._bool ? "true" : "false");
-        case AST_CHAR:   return len + append_styled_fmt(s, 0, " '%.*s)", 1, &n->as.value.as._char);
-        case AST_STRING: return len + append_styled_fmt(s, 0, " \"%.*s\")", (int) srcref_len(n->as.value.srcref), srcref_ptr(n->as.value.srcref));
-        case AST_SYMBOL: return len + append_styled_fmt(s, 0, "%.*s)", (int) srcref_len(n->as.value.srcref), srcref_ptr(n->as.value.srcref));
+        case AST_INT:    return len + append_styled_fmt(s, 0, " %d)", n->as._int);
+        case AST_FLOAT:  return len + append_styled_fmt(s, 0, " %.8g)", n->as._float);
+        case AST_BOOL:   return len + append_styled_fmt(s, 0, " %s)", n->as._bool ? "true" : "false");
+        case AST_CHAR:   return len + append_styled_fmt(s, 0, " '%.*s)", 1, &n->as._char);
+        case AST_STRING: return len + append_styled_fmt(s, 0, " \"%.*s\")", (int) srcref_len(n->as._srcref), srcref_ptr(n->as._srcref));
+        case AST_SYMBOL: return len + append_styled_fmt(s, 0, "%.*s)", (int) srcref_len(n->as._srcref), srcref_ptr(n->as._srcref));
         default: {
 
             bool oneline = is_simple_node(n);

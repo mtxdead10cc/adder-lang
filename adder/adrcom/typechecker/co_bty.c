@@ -119,7 +119,7 @@ bty_type_t* bty_from_tydescr(arena_t* a, trace_t* t, ast_t* n) {
 
     } else if(n->tag == AST_TYDESCR) {
 
-        srcref_t name = n->as.items[AST_TYDESCR_SYMBOL]->as.value.srcref;
+        srcref_t name = n->as.items[AST_TYDESCR_SYMBOL]->as._srcref;
 
         if(srcref_equals_string(name, LANG_TYPENAME_ARRAY)) {
             ast_t* arglist = n->as.items[AST_TYDESCR_ARGLIST];
@@ -572,7 +572,7 @@ bty_type_t* bty_synth_var_reference(bty_ctx_t* c, ast_t* v) {
     }
     
     ast_t* s = v->as.items[AST_VARREF_SYMBOL];
-    srcref_t name = s->as.value.srcref;
+    srcref_t name = s->as._srcref;
     bty_type_t* ty = bty_ctx_lookup(c, srcref_as_sstr(name));
     if( ty == NULL ) {
         trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, name);
@@ -602,7 +602,7 @@ bty_type_t* bty_synth_all_same_or_null(bty_ctx_t* c, ast_t** coll, int len) {
 bty_type_t* bty_synth_unop(bty_ctx_t* c, ast_t* n) {
     assert(ast_is_unop(n));
     bty_type_t* ty = bty_synthesize(c, n->as.items[AST_UNAOP_INNER]);
-    srcref_t location = ast_aggregate_srcref(n);
+    srcref_t location = ast_aggregate_location(n);
     switch(n->tag) {
         case AST_UNA_NOT: {
             if( bty_is_subtype(ty, bty_bool()) == false ) {
@@ -664,7 +664,7 @@ bty_type_t* bty_synth_binop(bty_ctx_t* c, ast_t* n) {
     if( bty_is_subtype(rty, lty) )
         ty = lty;
 
-    srcref_t location = ast_aggregate_srcref(n);
+    srcref_t location = ast_aggregate_location(n);
     
     if( ty == NULL ) {
         trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, location);
@@ -713,7 +713,7 @@ bty_type_t* bty_synth_funcall(bty_ctx_t* c, ast_t* fc) {
 
     assert(fc->tag == AST_FUNCALL);
 
-    srcref_t name = fc->as.items[AST_FUNCALL_SYMBOL]->as.value.srcref;
+    srcref_t name = fc->as.items[AST_FUNCALL_SYMBOL]->as._srcref;
     ast_t* args = fc->as.items[AST_FUNCALL_ARGLIST];
 
     if( args->tag != AST_ARGLIST ) {
@@ -791,17 +791,17 @@ bool bty_synth_aggregate(agg_t* agg, bty_ctx_t* c, ast_t* n, bool clone_ctx) {
     switch(t->tag) {
         case BTY_ALWAYS: {
             agg->cnt_always ++;
-            agg->type = agg_select_container_type(agg, t->u.con, ast_aggregate_srcref(n));
+            agg->type = agg_select_container_type(agg, t->u.con, ast_aggregate_location(n));
             return true;
         } break;
         case BTY_SOMETIMES: {
             agg->cnt_sometimes ++;
-            agg->type = agg_select_container_type(agg, t->u.con, ast_aggregate_srcref(n));
+            agg->type = agg_select_container_type(agg, t->u.con, ast_aggregate_location(n));
             return false;
         } break;
         case BTY_RETURN: {
             agg->cnt_always ++;
-            agg->type = agg_select_container_type(agg, t, ast_aggregate_srcref(n));
+            agg->type = agg_select_container_type(agg, t, ast_aggregate_location(n));
             return true;
         } break;
         case BTY_VOID: {
@@ -901,7 +901,7 @@ bty_type_t* bty_synth_array(bty_ctx_t* c, ast_t* n) {
         n->size);
     if( ty != NULL )
         return bty_list(c->arena, ty); 
-    trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_aggregate_srcref(n));
+    trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_aggregate_location(n));
     trace_msg_append_costr(m, "type-error: array contains mixed type elements");
     return bty_error(c->arena, BTY_ERR_TYPECHECK);
 }
@@ -948,13 +948,13 @@ bty_type_t* bty_synthesize(bty_ctx_t* c, ast_t* n) {
     srcref_t name = ast_try_get_name(n);
 
     if( descr == NULL || srcref_is_valid(name) == false ) {
-        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_aggregate_srcref(n));
+        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_aggregate_location(n));
         trace_msg_append_costr(m, "type-error: invalid type annotation(s)");
         return bty_error(c->arena, BTY_ERR_TYPECHECK);
     }
 
     if( bty_ctx_insert(c, srcref_as_sstr(name), descr) == false ) {
-        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_aggregate_srcref(n));
+        trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_aggregate_location(n));
         trace_msg_append_fmt(m, "type-error: the name '%.*s' is already in use in this context",
             srcref_len(name),
             srcref_ptr(name));
@@ -975,7 +975,7 @@ void bty_check_fundef(bty_ctx_t* c, ast_t* n, bty_type_t* et) {
     if ( n->tag != AST_FUNDEFN ) {
         trace_msg_t* m = trace_create_message(c->trace,
             TM_INTERNAL_ERROR, 
-            ast_aggregate_srcref(n));
+            ast_aggregate_location(n));
         trace_msg_append_fmt(m,
             "internal-error: fundecl unexpected node type %s",
             ast_tag_to_string(n->tag));
@@ -989,7 +989,7 @@ void bty_check_fundef(bty_ctx_t* c, ast_t* n, bty_type_t* et) {
         if( ast_is_exported(n) == false ) {
             trace_msg_t* m = trace_create_message(c->trace,
             TM_ERROR, 
-            ast_aggregate_srcref(funsign));
+            ast_aggregate_location(funsign));
             trace_msg_append_costr(m,
                 "type-error: the main function ast"
                 " node should have been marked as"
@@ -1011,7 +1011,7 @@ void bty_check_fundef(bty_ctx_t* c, ast_t* n, bty_type_t* et) {
     if( funargs->size != ft.argc ) {
         trace_msg_t* m = trace_create_message(c->trace,
             TM_ERROR, 
-            ast_aggregate_srcref(n));
+            ast_aggregate_location(n));
         trace_msg_append_fmt(m,
             "type-error: expected %d args, but got %lu",
             ft.argc,
@@ -1045,7 +1045,7 @@ void bty_check(bty_ctx_t* c, ast_t* n, bty_type_t* et) {
     } else {
         bty_type_t* ty = bty_synthesize(c, n);
         if( bty_is_subtype(ty, et) == false ) {
-            trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_aggregate_srcref(n));
+            trace_msg_t* m = trace_create_message(c->trace, TM_ERROR, ast_aggregate_location(n));
             trace_msg_append_fmt(m,
                 "type-error: expected %s but got %s\n",
                 sprint_bty_type(c->arena, et),
@@ -1085,7 +1085,7 @@ bool bty_typecheck(bty_ctx_t* ctx, ast_t* program) {
         
         assert(def != NULL);
 
-        srcref_t ref = ast_aggregate_srcref(def);
+        srcref_t ref = ast_aggregate_location(def);
 
         if( is_toplevel_definition(def) == false ) {
             trace_msg_t* m = trace_create_message(ctx->trace, TM_ERROR, ref);
@@ -1112,7 +1112,7 @@ bool bty_typecheck(bty_ctx_t* ctx, ast_t* program) {
     int num_exported = bty_count_entrypoints(ctx);
 
     if( num_exported == 0 ) {
-        trace_msg_t* m = trace_create_message(ctx->trace, TM_ERROR, ast_aggregate_srcref(program));
+        trace_msg_t* m = trace_create_message(ctx->trace, TM_ERROR, ast_aggregate_location(program));
         trace_msg_append_fmt(m,
             "type-error: the program has no entry points"
             "\n  fix this by"

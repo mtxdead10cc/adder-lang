@@ -139,63 +139,53 @@ void program_source_free(source_code_t* code) {
 program_t program_compile(source_code_t* code, bool print_ast) {
 
     parser_t parser = { 0 };
-    trace_t trace = { 0 };
 
     if( program_source_is_valid(code) == false ) {
         sh_log_error("program_compile: received invalid source data");
         return (program_t) { 0 };
     }
 
-    if( trace_init(&trace, 16) == false ) {
-        sh_log_error("program_compile: failed to initialize trace");
-        return (program_t) { 0 };
-    }
-
-    arena_t* arena = arena_create(1024 * 500);
-    pa_result_t result = pa_init(&parser,
+    arena_t* arena = arena_create(1024 * 1024);
+    bool init_ok = pa_init(&parser,
         arena,
-        &trace,
         code->source);
 
-    if( par_is_error(result) ) {
-        mk_cstr(str, 2048);
-        trace_sprint(str, &trace);
-        sh_log_error("PARSER\n%s", str);
-        trace_destroy(&trace);
+    if( init_ok == false ) {
+        sh_log_error("program_compile: failed to initialize the parser");
         pa_destroy(&parser);
         return (program_t) { 0 };
     }
 
-    result = pa_parse_program(&parser);
+    ast_t* result = pa_parse_program(&parser);
 
     if( par_is_error(result) ) {
-        mk_cstr(str, 2048);
-        trace_sprint(str, &trace);
-        sh_log_error("PARSER\n%s", str);
-        trace_destroy(&trace);
+        size_t loglen = ast_to_string(NULL, result, AST_DBG_CODE);
+        mk_cstr(log, loglen);
+        ast_to_string(&log, result, AST_DBG_CODE);
+        sh_log(log.ptr);
         pa_destroy(&parser);
         return (program_t) { 0 };
     }
 
     if( par_is_nothing(result) ) {
-        mk_cstr(str, 2048);
-        trace_sprint(str, &trace);
-        sh_log_error("PARSER\n%s", str);
         sh_log_error("the parser did not produce anything.");
         pa_destroy(&parser);
-        trace_destroy(&trace);
         return (program_t) { 0 };
     }
-
-    ast_t* program_node = par_extract_node(result);
     
     if( print_ast ) {
-        mk_cstr(dbgstr, ast_to_string(NULL, program_node, AST_DBG_SEXPR));
-        ast_to_string(&dbgstr, program_node, AST_DBG_SEXPR);
+        mk_cstr(dbgstr, ast_to_string(NULL, result, AST_DBG_CODE));
+        ast_to_string(&dbgstr, result, AST_DBG_CODE);
         sh_log_info("DEBUG - AST\n%s\n", dbgstr.ptr);
     }
 
-    program_t program = gvm_compile(arena, program_node, &trace);
+    trace_t trace = { 0 };
+    if( trace_init(&trace, 16) == false ) {
+        sh_log_error("program_compile: failed to initialize trace");
+        return (program_t) { 0 };
+    }
+
+    program_t program = gvm_compile(arena, result, &trace);
     
     if( trace_get_message_count(&trace) > 0 ) {
         mk_cstr(str, 2048);

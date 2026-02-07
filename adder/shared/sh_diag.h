@@ -7,39 +7,43 @@
 
 typedef enum diword_t {
 
-    _NONE_             = 0,
-
-    _UNEXPECTED_       = 1,
-    _UNDEFINED_        = 2,
-    _REDEFINED_        = 3,
-    _INSUFFICIENT_     = 4,
-    _MISSING_          = 5,
-    _MISMATCHING_      = 6,
-
-    _TOKEN_,
-    _KEYWORD_,
-    _BOOLEAN_,
-    _CHARACTER_,
-    _NUMBER_,
-    _STRING_,
-    _ARRAY_,
-    _BINARY_,
-    _UNARY_,
-    _OPERATOR_,
-    _OPERAND_,
-    _ARGUMENT_,
-    _RETURN_,
-    _FUNCTION_,
-    _VARIABLE_,
-    _DEFINITION_,
-    _TYPE_,
-    _COUNT_,
-    _NAME_,
-    _HOST_,
-    _MEMORY_,
-    _PROGRAM_,
-    _ENTRY_,
-    _POINT_,
+    _NONE             = 0,
+    _UNEXPECTED       = 1,
+    _UNDEFINED        = 2,
+    _REDEFINED        = 3,
+    _INSUFFICIENT     = 4,
+    _MISSING          = 5,
+    _MISMATCHING      = 6,
+    _TOKEN,
+    _KEYWORD,
+    _BOOLEAN,
+    _CHARACTER,
+    _NUMBER,
+    _STRING,
+    _ARRAY,
+    _BINARY,
+    _UNARY,
+    _OPERATOR,
+    _OPERAND,
+    _ARGUMENT,
+    _RETURN,
+    _FUNCTION,
+    _VARIABLE,
+    _DEFINITION,
+    _TYPE,
+    _COUNT,
+    _NAME,
+    _HOST,
+    _MEMORY,
+    _PROGRAM,
+    _ENTRY,
+    _POINT,
+    _END,
+    _OF,
+    _STREAM,
+    _FORMAT,
+    _STATEMENT,
+    _SEQUENCE
 
 } diword_t;
 
@@ -47,7 +51,8 @@ typedef uint64_t diphrase_t;
 
 typedef enum dimsg_tag_t {
     DIMSG_SRCREF_TEXT,
-    DIMSG_SRCREF_FULL,
+    DIMSG_SRCREF_LOCATION,
+    DIMSG_SRCREF_SECONDARY_LOCATION,
     DIMSG_STRING,
 } dimsg_tag_t;
 
@@ -59,9 +64,21 @@ typedef struct dimsg_t {
     } as;
 } dimsg_t;
 
-#define diag_str(STR)     (dimsg_t) { .tag = DIMSG_STRING, .as.string = (STR) }
-#define diag_reftext(REF) (dimsg_t) { .tag = DIMSG_SRCREF_TEXT, .as.srcref = (REF) }
-#define diag_reffull(REF) (dimsg_t) { .tag = DIMSG_SRCREF_FULL, .as.srcref = (REF) }
+#define diag_str(STR)               (dimsg_t) { .tag = DIMSG_STRING, .as.string = (STR) }
+#define diag_refstr(REF)            (dimsg_t) { .tag = DIMSG_SRCREF_TEXT, .as.srcref = (REF) }
+#define diag_refloc(REF)            (dimsg_t) { .tag = DIMSG_SRCREF_LOCATION, .as.srcref = (REF) }
+#define diag_refloc_secondary(REF)  (dimsg_t) { .tag = DIMSG_SRCREF_SECONDARY_LOCATION, .as.srcref = (REF) }
+
+inline static bool dimsg_is_primary_srcref(dimsg_t* m) {
+    return m->tag == DIMSG_SRCREF_LOCATION
+        || m->tag == DIMSG_SRCREF_TEXT;
+}
+
+inline static bool dimsg_is_any_srcref(dimsg_t* m) {
+    return m->tag == DIMSG_SRCREF_LOCATION
+        || m->tag == DIMSG_SRCREF_TEXT
+        || m->tag == DIMSG_SRCREF_SECONDARY_LOCATION;
+}
 
 // UNEXPECTED   TOKEN       TYPE
 // UNEXPECTED   OPERAND     TYPE
@@ -134,38 +151,44 @@ inline static diag_t* mk_diag(arena_t* arena, diag_kind_t kind, diphrase_t phras
 
 inline static const char* diag_word_to_string(diword_t w) {
     switch(w) {
-        case _NONE_:           return "";
-        case _UNEXPECTED_:     return "unexpected";
-        case _UNDEFINED_:      return "undefined";
-        case _REDEFINED_:      return "redefined";
-        case _INSUFFICIENT_:   return "insufficient";
-        case _MISSING_:        return "missing";
-        case _MISMATCHING_:    return "mismatching";
-        case _TOKEN_:          return "token";
-        case _KEYWORD_:        return "keyword";
-        case _BOOLEAN_:        return "boolean";
-        case _CHARACTER_:      return "character";
-        case _NUMBER_:         return "number";
-        case _STRING_:         return "string";
-        case _ARRAY_:          return "array";
-        case _BINARY_:         return "binary";
-        case _UNARY_:          return "unary";
-        case _OPERATOR_:       return "operator";
-        case _OPERAND_:        return "operand";
-        case _ARGUMENT_:       return "argument";
-        case _RETURN_:         return "return";
-        case _FUNCTION_:       return "function";
-        case _VARIABLE_:       return "variable";
-        case _DEFINITION_:     return "definition";
-        case _TYPE_:           return "type";
-        case _COUNT_:          return "count";
-        case _NAME_:           return "name";
-        case _HOST_:           return "host";
-        case _MEMORY_:         return "memory";
-        case _PROGRAM_:        return "program";
-        case _ENTRY_:          return "entry";
-        case _POINT_:          return "point";
-        default:               return "<unknown diagnostic id>";
+        case _NONE:           return "NONE";
+        case _UNEXPECTED:     return "UNEXPECTED";
+        case _UNDEFINED:      return "UNDEFINED";
+        case _REDEFINED:      return "REDEFINED";
+        case _INSUFFICIENT:   return "INSUFFICIENT";
+        case _MISSING:        return "MISSING";
+        case _MISMATCHING:    return "MISMATCHING";
+        case _TOKEN:          return "TOKEN";
+        case _KEYWORD:        return "KEYWORD";
+        case _BOOLEAN:        return "BOOLEAN";
+        case _CHARACTER:      return "CHARACTER";
+        case _NUMBER:         return "NUMBER";
+        case _STRING:         return "STRING";
+        case _ARRAY:          return "ARRAY";
+        case _BINARY:         return "BINARY";
+        case _UNARY:          return "UNARY";
+        case _OPERATOR:       return "OPERATOR";
+        case _OPERAND:        return "OPERAND";
+        case _ARGUMENT:       return "ARGUMENT";
+        case _RETURN:         return "RETURN";
+        case _FUNCTION:       return "FUNCTION";
+        case _VARIABLE:       return "VARIABLE";
+        case _DEFINITION:     return "DEFINITION";
+        case _TYPE:           return "TYPE";
+        case _COUNT:          return "COUNT";
+        case _NAME:           return "NAME";
+        case _HOST:           return "HOST";
+        case _MEMORY:         return "MEMORY";
+        case _PROGRAM:        return "PROGRAM";
+        case _ENTRY:          return "ENTRY";
+        case _POINT:          return "POINT";
+        case _END:            return "END";
+        case _OF:             return "OF";
+        case _STREAM:         return "STREAM";
+        case _FORMAT:         return "FORMAT";
+        case _STATEMENT:      return "STATEMENT";
+        case _SEQUENCE:       return "SEQUENCE";
+        default:              return "<unknown diagnostic id>";
     }
 }
 
@@ -185,11 +208,9 @@ inline static size_t diag_message_to_string(dimsg_t* msg, cstr_t* str) {
                 return 0;
             return (size_t) printed;
         };
-        case DIMSG_SRCREF_FULL: {
+        case DIMSG_SRCREF_LOCATION: {
             srcloc_t loc = srcref_get_location(msg->as.srcref);
-            int printed = cstr_append_fmt(str, "%.*s %.*s:%lu:%lu",
-                srcref_len(msg->as.srcref),
-                srcref_ptr(msg->as.srcref),
+            int printed = cstr_append_fmt(str, "%.*s:%lu:%lu",
                 (int) loc.path_length, loc.path,
                 loc.line,
                 loc.column);
@@ -212,6 +233,16 @@ inline static const char* diag_kind_to_string(diag_t* diag) {
     }
 }
 
+inline static srcref_t diag_collect_srcref(diag_t* diag) {
+    srcref_t agg = {0};
+    for(size_t i = 0; i < diag->size; i++) {
+        if(dimsg_is_primary_srcref(&diag->message[i]) == false)
+            continue;
+        agg = srcref_combine(agg, diag->message[i].as.srcref);
+    }
+    return agg;
+}
+
 inline static size_t diag_to_string(diag_t* diag, cstr_t* str) {
 
     size_t len = 0;
@@ -223,7 +254,7 @@ inline static size_t diag_to_string(diag_t* diag, cstr_t* str) {
 
     for(int i = 7; i >= 0; i--) {
         diword_t word_id = (diag->phrase >> (i * 8)) & 0xFF;
-        if( word_id == _NONE_ )
+        if( word_id == _NONE )
             break;
         const char* word_str = diag_word_to_string(word_id);
         wn = cstr_append_fmt(str, "%s ", word_str);

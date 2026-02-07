@@ -231,9 +231,9 @@ class JsonValuePrinter:
 
 def lookup_type(val: Value):
     tstr = str(val.type)
-    if tstr == 'ast_t *':
-        return AstPrinter(val)
-    elif tstr == 'src_t *':
+    #if tstr == 'ast_t *':
+    #    return AstPrinter(val)
+    if tstr == 'src_t *':
         return SrcPrinter(val)
     elif tstr == 'srcref_t *':
         return SrcrefPrinter(val)

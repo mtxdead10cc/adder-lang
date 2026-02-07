@@ -243,11 +243,13 @@ bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
     init_symbolic_token_map(&state.kw_map_symbolic);
 
     if( tokens_append(collection, (token_t){TT_INITIAL, srcref(args->source, 0, 0)}) == false ) {
-        trace_out_of_memory_error(args->trace);
+        sh_log_error("tokenizer_analyze: out of memory");
         return false;
     }
 
-    while ( state.cursor < state.source->buff_length && trace_get_error_count(args->trace) == 0 ) {
+    size_t num_errors = 0;
+
+    while ( state.cursor < state.source->buff_length && num_errors == 0 ) {
         
         size_t last_cursor_pos = state.cursor;
         bool alloc_ok = true;
@@ -279,10 +281,11 @@ bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
         }
 
         if( alloc_ok == false ) {
-            trace_out_of_memory_error(args->trace);
+            sh_log_error("tokenizer_analyze: allocation failed");
+            num_errors ++;
         } else if( last_cursor_pos == state.cursor ) {
-            trace_msg_t* msg = trace_create_message(args->trace, TM_ERROR, get_current_srcref(&state));
-            trace_msg_append_costr(msg, "failed to make sense of input text.");
+            sh_log_error("tokenizer_analyze: failed to make sense of the input text");
+            num_errors ++;
         }
     }
 
@@ -290,10 +293,10 @@ bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args) {
     destroy_token_map(&state.kw_map_symbolic);
 
     if( tokens_append(collection, (token_t) {TT_FINAL, get_current_srcref(&state)}) == false ) {
-        trace_out_of_memory_error(args->trace);
+        sh_log_error("tokenizer_analyze: out of memory");
     }
 
-    return trace_get_error_count(args->trace) == 0;
+    return num_errors == 0;
 }
 
 

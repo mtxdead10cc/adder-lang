@@ -19,6 +19,7 @@
 typedef enum ast_tag_t {
 
     AST_UNDEFINED       = 0x00,
+    AST_UNKNOWN,
 
     AST__BEGIN_VALUES,
 
@@ -81,31 +82,29 @@ typedef enum ast_tag_t {
 } ast_tag_t;
 
 typedef struct ast_t ast_t;
+typedef struct ast_diags_t ast_diags_t;
 
 typedef struct ast_diags_t {
-    diag_kind_t kind;
-    int         size;
-    diag_t**    list;
+    diag_kind_t  kind;
+    ast_diags_t* next;
+    int          size;
+    diag_t**     list;
 } ast_diags_t;
 
-typedef struct ast_value_t {
-    srcref_t    srcref;
-    union {
-        int         _int;
-        bool        _bool;
-        float       _float;
-        char        _char;
-        uint32_t    _flags; 
-    } as;
-} ast_value_t;
 
 typedef struct ast_t {
     ast_tag_t           tag;
     int                 size;
     ast_diags_t*        diagnostics;
+    srcref_t            srcrange;
     union {
         ast_t**         items;
-        ast_value_t     value;
+        int             _int;
+        bool            _bool;
+        float           _float;
+        char            _char;
+        uint32_t        _flags;
+        srcref_t        _srcref;
     } as;
 } ast_t;
 
@@ -122,7 +121,7 @@ inline static int ast_calculate_capacity(int size) {
 ast_t*      ast_leaf(arena_t* allocator, ast_tag_t tag);
 ast_t*      ast(arena_t* allocator, ast_tag_t tag, int size);
 
-srcref_t    ast_aggregate_srcref(ast_t* n);
+srcref_t    ast_aggregate_location(ast_t* n);
 srcref_t    ast_try_get_name(ast_t* n);
 ast_t*      ast_try_get(ast_t* n, ast_tag_t tag);
 
@@ -132,6 +131,10 @@ bool        _ast_attach_diag(arena_t* allocator,
                              diphrase_t phrase,
                              dimsg_t* msg,
                              size_t msglen);
+
+ast_diags_t* ast_diags_add_diag(arena_t* allocator, ast_diags_t* diagnostics, diag_t* diag);
+
+bool ast_append_diag(arena_t* allocator, ast_t* node, diag_t* diag);
 
 #define ast_attach_error(ARENA, NODE, PHRASE, ...)  \
     _ast_attach_diag((ARENA),                       \
@@ -145,6 +148,8 @@ bool        _ast_attach_diag(arena_t* allocator,
         VA_ARRAY(dimsg_t, __VA_ARGS__),             \
         VA_ARRAYLEN(dimsg_t, __VA_ARGS__))
 
+void ast_move_diagnostics(arena_t* allocator, ast_t* to, ast_t* from);
+
 const char* ast_tag_to_string(ast_tag_t tag);
 
 bool ast_tag_is_unop(ast_tag_t tag);
@@ -157,21 +162,25 @@ bool ast_tag_is_list(ast_tag_t tag);
 bool ast_is_list(ast_t* node);
 bool ast_is_valid_else_block(ast_t* node);
 bool ast_tag_is_highlevel(ast_tag_t tag);
+bool ast_is_group_expr(ast_t* node);
 
 /////////////// BUILDERS /////////////////
 
-ast_t* ast_int(arena_t* arena, int value, srcref_t ref);
-ast_t* ast_float(arena_t* arena, float value, srcref_t ref);
-ast_t* ast_bool(arena_t* arena, bool value, srcref_t ref);
-ast_t* ast_char(arena_t* arena, char value, srcref_t ref);
+ast_t* ast_int(arena_t* arena, int value);
+ast_t* ast_float(arena_t* arena, float value);
+ast_t* ast_bool(arena_t* arena, bool value);
+ast_t* ast_char(arena_t* arena, char value);
 ast_t* ast_string(arena_t* arena, srcref_t value);
 ast_t* ast_symbol(arena_t* arena, srcref_t value);
-ast_t* ast_flags(arena_t* arena, uint32_t flags, srcref_t ref);
+ast_t* ast_flags(arena_t* arena, uint32_t flags);
 
 int64_t ast_find_flags(ast_t* node, int depth);
 
 bool ast_is_exported(ast_t* node);
 bool ast_is_imported(ast_t* node);
+
+void ast_extend_source_range(ast_t* node, srcref_t incl);
+void ast_extend_source_range_with_node(ast_t* node, ast_t* incl);
 
 #define AST_VARREF_SYMBOL 0
 
@@ -202,8 +211,9 @@ ast_t* ast_unary_operation(arena_t* arena, ast_tag_t op, ast_t* inner);
 
 #define AST_BINOP_LEFT  0
 #define AST_BINOP_RIGHT 1
+#define AST_BINOP_GREXP 2
 
-ast_t* ast_binary_operation(arena_t* arena, ast_tag_t op, ast_t* left, ast_t* right);
+ast_t* ast_binary_operation(arena_t* arena, ast_tag_t op, ast_t* left, ast_t* right, bool group_expr);
 
 #define AST_TYDESCR_SYMBOL  0
 #define AST_TYDESCR_ARGLIST 1
@@ -239,7 +249,7 @@ ast_t* ast_return(arena_t* arena, ast_t* return_expr);
 #define AST_FUNSIGN_FFI_FLAG_IMPORT 0x01
 #define AST_FUNSIGN_FFI_FLAG_EXPORT 0x02
 
-ast_t* ast_function_signature(arena_t* arena, ast_t* type, srcref_t name, ast_t* arglist, ast_t* flags);
+ast_t* ast_function_signature(arena_t* arena, ast_t* type, srcref_t name, ast_t* arglist, uint32_t flags);
 
 #define AST_FUNDEFN_FUNSIGN 0
 #define AST_FUNDEFN_BODY    1

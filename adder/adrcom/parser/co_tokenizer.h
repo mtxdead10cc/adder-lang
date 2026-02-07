@@ -62,7 +62,7 @@ inline static char* token_get_type_name(token_type_t type) {
         case TT_IMPORT: return "TT_IMPORT";
         case TT_EXPORT: return "TT_EXPORT";
         case TT_FINAL: return "TT_FINAL";
-        default: return "<UNKNOWN-TT>";
+        default: return "TT <UNKNOWN>";
     }
 }
 
@@ -88,8 +88,7 @@ void tokens_destroy(token_collection_t* collection);
 typedef struct tokenizer_args_t {
     bool include_comments;
     bool include_spaces;
-    src_t* source; 
-    trace_t* trace;
+    src_t* source;
 } tokenizer_args_t;
 
 bool tokenizer_analyze(token_collection_t* collection, tokenizer_args_t* args);

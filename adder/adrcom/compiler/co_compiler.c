@@ -286,16 +286,16 @@ void codegen_value(ast_t* node, compiler_state_t* state) {
 
     switch(node->tag) {
         case AST_BOOL: {
-            append_result = valbuffer_insert_bool(&state->consts, node->as.value.as._bool);
+            append_result = valbuffer_insert_bool(&state->consts, node->as._bool);
         } break;
         case AST_FLOAT: {
-            append_result = valbuffer_insert_float(&state->consts, node->as.value.as._float);
+            append_result = valbuffer_insert_float(&state->consts, node->as._float);
         } break;
         case AST_INT: {
-            append_result = valbuffer_insert_int(&state->consts, node->as.value.as._int);
+            append_result = valbuffer_insert_int(&state->consts, node->as._int);
         } break;
         case AST_CHAR: {
-            append_result = valbuffer_insert_char(&state->consts, node->as.value.as._char);
+            append_result = valbuffer_insert_char(&state->consts, node->as._char);
         } break;
         default: {
             trace_msg_t* msg = trace_create_message(state->trace, TM_ERROR, trace_no_ref());
@@ -707,7 +707,7 @@ void codegen(ast_t* node, compiler_state_t* state) {
             codegen_return_stmt(node, state);
         } break;
         case AST_STRING: {
-            srcref_t str = node->as.value.srcref;
+            srcref_t str = node->as._srcref;
             int count = ((int) srcref_len(str)) - 2;
             char* ptr = srcref_ptr(str) + 1;
             for(int i = 0; i < count; i++) {

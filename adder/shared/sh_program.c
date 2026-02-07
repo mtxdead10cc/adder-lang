@@ -207,6 +207,7 @@ int entry_point_find_any(program_t* prog, char* name, ift_t type, entry_point_t*
     }
 
     if( prog->exports.count <= 0 ) {
+        sh_log_error("get_entry_point: the program has no entry points");
         // invalid program, no entry points
         return PEP_INVALID_PROGRAM;
     }

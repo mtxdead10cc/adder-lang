@@ -101,25 +101,12 @@ typedef struct token_collection_t {
     size_t      count;
 } token_collection_t;
 
+typedef struct ast_diags_t ast_diags_t;
+
 typedef struct parser_t {
     token_collection_t  collection;
     size_t              cursor;
-    trace_t*            trace;
     arena_t*            arena;
 } parser_t;
-
-typedef enum pa_result_type_t {
-    PAR_NOTHING,
-    PAR_AST_NODE,
-    PAR_BUILD_ERROR
-} pa_result_type_t;
-
-typedef struct ast_t ast_t;
-
-typedef struct pa_result_t {
-    pa_result_type_t    type; 
-    ast_t*              node;
-    bool                group_expression; // exprs like "-(a + b)"
-} pa_result_t;
 
 #endif // GVM_PARSER_TYPES_H_

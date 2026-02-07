@@ -452,21 +452,21 @@ void test_ast(test_case_t* this) {
                 ast_variable_reference(arena, srcref(src, 6, 3))),
             ast_binary_operation(arena, AST_BIN_ADD,
                 ast_variable_reference(arena, srcref(src, 5, 1)),
-                ast_variable_reference(arena, srcref(src, 4, 1)))));
+                ast_variable_reference(arena, srcref(src, 4, 1)), false)));
 
     ast_block_append(arena, body,
         ast_if_chain(arena, 
             ast_binary_operation(arena, AST_BIN_LT,
                 ast_variable_reference(arena, srcref(src, 6, 3)),
-                ast_float(arena, 0.0f, src_linsearch(src, "1.0"))),
-            ast_return(arena, ast_float(arena, 0.0f, src_linsearch(src, "1.0"))),
+                ast_float(arena, 0.0f), false),
+            ast_return(arena, ast_float(arena, 0.0f)),
             ast_block(arena)));
 
     ast_t* array = ast_array(arena);
-    ast_array_append(arena, array, ast_float(arena, 1, src_linsearch(src, "1")));
-    ast_array_append(arena, array, ast_float(arena, 1, src_linsearch(src, "1")));
-    ast_array_append(arena, array, ast_float(arena, 1, src_linsearch(src, "1")));
-    ast_array_append(arena, array, ast_float(arena, 1, src_linsearch(src, "1")));
+    ast_array_append(arena, array, ast_float(arena, 1));
+    ast_array_append(arena, array, ast_float(arena, 1));
+    ast_array_append(arena, array, ast_float(arena, 1));
+    ast_array_append(arena, array, ast_float(arena, 1));
 
     ast_block_append(arena, body,
         ast_foreach(arena, 
@@ -478,7 +478,7 @@ void test_ast(test_case_t* this) {
                 ast_variable_reference(arena, srcref(src, 6, 3)),
                 ast_binary_operation(arena, AST_BIN_ADD,
                     ast_variable_reference(arena, srcref(src, 6, 3)),
-                    ast_variable_reference(arena, srcref(src, 9, 1))))
+                    ast_variable_reference(arena, srcref(src, 9, 1)), false))
         ));
     
     ast_block_append(arena, body,
@@ -488,7 +488,7 @@ void test_ast(test_case_t* this) {
         ast_type_descriptor(arena, src_linsearch(src, LANG_TYPENAME_FLOAT), NULL),
         srcref(src, 0, 4),
         decl_args,
-        ast_flags(arena, AST_FUNSIGN_FFI_FLAG_EXPORT, src_linsearch(src, "main")));
+        AST_FUNSIGN_FFI_FLAG_EXPORT);
     
     ast_t* fundef = ast_function_definition(arena, funsig, body);
     ast_t* block = ast_block(arena);
@@ -686,7 +686,6 @@ void test_tokenizer(test_case_t* this) {
         tokenizer_args_t args = (tokenizer_args_t) {
             .include_comments = subtests[i].incl_comments,
             .include_spaces = subtests[i].incl_space,
-            .trace = &trace,
             .source = source
         };
 
@@ -694,8 +693,6 @@ void test_tokenizer(test_case_t* this) {
 
         tokens_clear(&coll);
         tokenizer_analyze(&coll, &args);
-
-        //tokens_print(&coll);
         
         size_t token_index = 0;
         while( token_index < coll.count ) {
@@ -772,10 +769,7 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     static char result_as_text[512] = {0};
     arena_t* arena = arena_create(1024);
     parser_t parser;
-    trace_t trace;
     ffi_t ffi = { 0 };
-
-    trace_init(&trace, 16);
 
     TEST_ASSERT_MSG(this,
         test_setup_default_env(&ffi),
@@ -784,49 +778,56 @@ bool test_compile_and_run(test_case_t* this, char* test_category, char* source_c
     bool is_known_todo = strcmp(test_category, "todo") == 0;
     src_t* source = src_create(tc_name, source_code, strlen(source_code));
 
-    pa_result_t result = pa_init(&parser, arena, &trace, source);
+    bool init_ok = pa_init(&parser, arena, source);
 
     if( is_known_todo ) {
-        TEST_MSG(par_is_error(result) == false,
+        TEST_MSG(init_ok,
             "'%s': failed to initialize parser.", tc_name);
     } else {
         TEST_ASSERT_MSG(this,
-            par_is_error(result) == false,
+            init_ok,
             "'%s': failed to initialize parser.", tc_name);
     }
     
-    result = pa_parse_program(&parser);
+    ast_t* result = pa_parse_program(&parser);
 
-    bool parsing_ok = par_is_node(result);
+    bool parsing_failed = result == NULL || par_is_error(result);
 
     if( is_known_todo ) {
-        TEST_MSG(parsing_ok,
+        TEST_MSG(parsing_failed == false,
             "failed to parse test-program '%s:%s'.",
             tc_filepath, tc_name);
     } else {
         TEST_ASSERT_MSG(this,
-            parsing_ok,
+            parsing_failed == false,
             "failed to parse test-program '%s:%s'.",
             tc_filepath, tc_name);
     }
 
-    if( parsing_ok == false ) {
-        if( is_known_todo == false ) {
-            mk_cstr(str, 2048);
-            cstr_append_fmt(&str, "[trace]\n");
-            trace_sprint(str, &trace);
-            cstr_append_fmt(&str, "[tokens]\n");
-            tokens_sprint(str, &parser.collection);
-            sh_log_error("PARSER\n%s", str.ptr);
+    if( parsing_failed ) {
+        if( result == NULL ) {
+            if( is_known_todo == false ) {
+                mk_cstr(str, 2048);
+                tokens_sprint(str, &parser.collection);
+                sh_log_error("PARSING FAILED\n%s", str.ptr);
+            }
+        } else {
+            assert(par_is_error(result));
+            size_t loglen = ast_to_string(NULL, result, AST_DBG_CODE);
+            mk_cstr(log, loglen);
+            ast_to_string(&log, result, AST_DBG_CODE);
+            sh_log(log.ptr);
         }
         arena_destroy(arena);
         pa_destroy(&parser);
-        trace_destroy(&trace);
         src_destroy(source);
         return is_known_todo;
     }
 
-    ast_t* node = par_extract_node(result);
+    trace_t trace = {0};
+    trace_init(&trace, 16);
+
+    ast_t* node = result;
 
     program_t program = gvm_compile(arena, node, &trace);
     if( trace_get_error_count(&trace) > 0 && is_known_todo == false ) {
@@ -1126,11 +1127,11 @@ void test_inference(test_case_t* this) {
     ast_t* type = ast_type_descriptor(a, src_linsearch(source, "array"), tyargs);
     
     ast_t* arr = ast_array(a);
-    ast_array_append(a, arr, ast_int(a, 1, src_linsearch(source, "1")));
-    ast_array_append(a, arr, ast_int(a, 2, src_linsearch(source, "2")));
-    ast_array_append(a, arr, ast_int(a, 3, src_linsearch(source, "3")));
-    ast_array_append(a, arr, ast_int(a, 4, src_linsearch(source, "4")));
-    ast_array_append(a, arr, ast_int(a, 5, src_linsearch(source, "5")));
+    ast_array_append(a, arr, ast_int(a, 1));
+    ast_array_append(a, arr, ast_int(a, 2));
+    ast_array_append(a, arr, ast_int(a, 3));
+    ast_array_append(a, arr, ast_int(a, 4));
+    ast_array_append(a, arr, ast_int(a, 5));
 
     ast_t* n = ast_assignment(a,
         ast_variable_declaration(a,
@@ -1155,11 +1156,11 @@ void test_inference(test_case_t* this) {
     n = ast_binary_operation(a,
         AST_BIN_OR,
         ast_binary_operation(a, AST_BIN_AND,
-            ast_bool(a, false, src_linsearch(source, "false")),
-            ast_bool(a, true, src_linsearch(source, "true"))),
+            ast_bool(a, false),
+            ast_bool(a, true), false),
         ast_binary_operation(a, AST_BIN_EQ,
-            ast_int(a, 0, src_linsearch(source, "0")),
-            ast_int(a, 1, src_linsearch(source, "1"))));
+            ast_int(a, 0),
+            ast_int(a, 1), false), false);
 
     bty_synthesize(ctx, n);
 
@@ -1484,8 +1485,9 @@ void test_ast_to_json(test_case_t* this) {
     arena_t* a = arena_create(512);
     ast_t* e = ast_binary_operation(a,
         AST_BIN_ADD,
-        ast_int(a, 10, (srcref_t){0}),
-        ast_int(a, 1111, (srcref_t){0}));
+        ast_int(a, 10),
+        ast_int(a, 1111),
+        false);
 
     json_value_t* jval = ast_to_json(a, e);
 
@@ -1599,26 +1601,22 @@ void test_ast_json(test_case_t* this) {
     "}";
 
     parser_t parser  = { 0 };
-    trace_t trace  = { 0 };
-
-    trace_init(&trace, 16);
-
 
     src_t* source = src_create("test_ast_json", code, strlen(code));
 
-    pa_result_t result = pa_init(&parser, arena, &trace, source);
+    bool init_ok = pa_init(&parser, arena, source);
 
     TEST_ASSERT_MSG(this,
-        par_is_error(result) == false,
+        init_ok,
         "parser init failed");
 
-    result = pa_parse_program(&parser);
+    ast_t* result = pa_parse_program(&parser);
 
     TEST_ASSERT_MSG(this,
         par_is_node(result),
         "parsing failed");
 
-    ast_t* ast1 = par_extract_node(result);
+    ast_t* ast1 = result;
 
     TEST_ASSERT_MSG(this,
         ast1 != NULL,
@@ -1676,7 +1674,6 @@ void test_ast_json(test_case_t* this) {
     pa_destroy(&parser);
     arena_destroy(arena);
     src_destroy(source);
-    trace_destroy(&trace);
 }
 
 test_results_t run_testcases(void) {
